@@ -103,7 +103,8 @@ function navigateTo(page) {
   sidebar.classList.remove('open');
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, billing: loadBilling, payments: loadPayments,
-    checkins: loadCheckins, messages: loadMessages, waitlist: loadWaitlist };
+    checkins: loadCheckins, messages: loadMessages, waitlist: loadWaitlist,
+    users: loadUsers };
   if (loader[page]) loader[page]();
 }
 
@@ -202,6 +203,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Logout
   document.getElementById('logout-btn').addEventListener('click', () => API.logout());
+
+  // Change my password
+  document.getElementById('change-password-btn').addEventListener('click', () => showChangeMyPassword());
+
+  // Show Users nav entry only for admins
+  function refreshUsersNavVisibility() {
+    const el = document.getElementById('nav-users');
+    if (el) el.style.display = (API.user?.role === 'admin') ? '' : 'none';
+  }
+  refreshUsersNavVisibility();
+  // Re-check after login
+  const origLogin = API.login.bind(API);
+  API.login = async (...args) => {
+    const r = await origLogin(...args);
+    refreshUsersNavVisibility();
+    return r;
+  };
 
   // Close modal on overlay click
   document.getElementById('modal-overlay').addEventListener('click', (e) => {

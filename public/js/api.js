@@ -1,5 +1,6 @@
 const API = {
   token: localStorage.getItem('rv_token'),
+  user: JSON.parse(localStorage.getItem('rv_user') || 'null'),
 
   async request(url, options = {}) {
     const headers = { 'Content-Type': 'application/json' };
@@ -23,13 +24,17 @@ const API = {
     if (!res.ok) throw new Error('Invalid credentials');
     const data = await res.json();
     this.token = data.token;
+    this.user = data.user;
     localStorage.setItem('rv_token', data.token);
+    localStorage.setItem('rv_user', JSON.stringify(data.user));
     return data;
   },
 
   logout() {
     this.token = null;
+    this.user = null;
     localStorage.removeItem('rv_token');
+    localStorage.removeItem('rv_user');
     document.getElementById('login-screen').style.display = '';
     document.getElementById('main-app').style.display = 'none';
   }

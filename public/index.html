@@ -11,6 +11,7 @@
     <!-- Login Screen -->
     <div id="login-screen" class="login-container">
       <div class="login-box">
+        <img src="/park_Logo.png" alt="Anahuac RV Park" class="login-logo">
         <h1>Anahuac RV Park</h1>
         <p class="login-subtitle">Management System</p>
         <form id="login-form">
@@ -74,8 +75,10 @@
           <li><a href="#" data-page="checkins" class="nav-link">&#128203; Check-In/Out</a></li>
           <li><a href="#" data-page="messages" class="nav-link">&#128233; Messaging</a></li>
           <li><a href="#" data-page="waitlist" class="nav-link">&#128221; Waitlist</a></li>
+          <li><a href="#" data-page="users" class="nav-link" id="nav-users" style="display:none">&#128100; Users</a></li>
         </ul>
         <div class="sidebar-footer">
+          <button id="change-password-btn" class="btn btn-outline btn-full" style="margin-bottom:0.5rem">Change Password</button>
           <button id="logout-btn" class="btn btn-outline btn-full">Logout</button>
         </div>
       </nav>
@@ -107,5 +110,6 @@
   <script src="/js/pages/checkins.js"></script>
   <script src="/js/pages/messages.js"></script>
   <script src="/js/pages/waitlist.js"></script>
+  <script src="/js/pages/users.js"></script>
 </body>
 </html>
