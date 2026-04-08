@@ -25,7 +25,10 @@ router.get('/:id', (req, res) => {
 
   const payments = db.prepare('SELECT * FROM payments WHERE invoice_id = ? ORDER BY payment_date DESC').all(req.params.id);
 
-  // Find the meter reading that corresponds to this invoice's billing period
+  // Find the meter reading for this invoice. Try by billing period first, then
+  // fall back to the most recent reading on or before the period end, then to the
+  // latest reading for the lot. This way the line items show up even if a reading
+  // was entered a day outside the period or the period dates are missing.
   let meter = null;
   if (invoice.billing_period_start && invoice.billing_period_end) {
     meter = db.prepare(
@@ -34,6 +37,22 @@ router.get('/:id', (req, res) => {
        WHERE lot_id = ? AND reading_date BETWEEN ? AND ?
        ORDER BY reading_date DESC LIMIT 1`
     ).get(invoice.lot_id, invoice.billing_period_start, invoice.billing_period_end);
+  }
+  if (!meter && invoice.billing_period_end) {
+    meter = db.prepare(
+      `SELECT previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, reading_date
+       FROM meter_readings
+       WHERE lot_id = ? AND reading_date <= ?
+       ORDER BY reading_date DESC LIMIT 1`
+    ).get(invoice.lot_id, invoice.billing_period_end);
+  }
+  if (!meter) {
+    meter = db.prepare(
+      `SELECT previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, reading_date
+       FROM meter_readings
+       WHERE lot_id = ?
+       ORDER BY reading_date DESC LIMIT 1`
+    ).get(invoice.lot_id);
   }
 
   res.json({ ...invoice, payments, meter });

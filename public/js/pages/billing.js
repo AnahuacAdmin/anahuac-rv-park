@@ -191,12 +191,7 @@ async function viewInvoice(id) {
           <thead><tr><th>Description</th><th class="text-right">Amount</th></tr></thead>
           <tbody>
             <tr><td>Monthly Rent</td><td class="text-right">${formatMoney(inv.rent_amount)}</td></tr>
-            ${inv.meter ? `
-              <tr><td>Previous Reading</td><td class="text-right">${inv.meter.previous_reading}</td></tr>
-              <tr><td>Current Reading</td><td class="text-right">${inv.meter.current_reading}</td></tr>
-              <tr><td>kWh Used</td><td class="text-right">${inv.meter.kwh_used}</td></tr>
-              <tr><td>Electric Charge (${inv.meter.kwh_used} kWh @ $${Number(inv.meter.rate_per_kwh).toFixed(2)}/kWh)</td><td class="text-right">${formatMoney(inv.electric_amount)}</td></tr>
-            ` : `<tr><td>Electric Charges</td><td class="text-right">${formatMoney(inv.electric_amount)}</td></tr>`}
+            ${meterRowsHtml(inv)}
             ${inv.other_charges ? `<tr><td>${inv.other_description || 'Other Charges'}</td><td class="text-right">${formatMoney(inv.other_charges)}</td></tr>` : ''}
             ${inv.mailbox_fee ? `<tr><td>Mailbox Fee</td><td class="text-right">${formatMoney(inv.mailbox_fee)}</td></tr>` : ''}
             ${inv.misc_fee ? `<tr><td>${inv.misc_description || 'Misc Fee'}</td><td class="text-right">${formatMoney(inv.misc_fee)}</td></tr>` : ''}
@@ -223,6 +218,27 @@ async function viewInvoice(id) {
       <button class="btn btn-outline" onclick="emailInvoice(${inv.id})">Email Invoice</button>
     </div>
   `);
+}
+
+// Render the meter / electric line items shown on both the view modal and the PDF.
+// Format matches:
+//   Previous Reading: 57336
+//   Current Reading:  57884
+//   kWh Used:         548
+//   Electric Charge (548 kWh x $0.15) = $82.20
+function meterRowsHtml(inv) {
+  if (!inv.meter) {
+    return `<tr><td>Electric Charges</td><td class="text-right">${formatMoney(inv.electric_amount)}</td></tr>`;
+  }
+  const m = inv.meter;
+  const rate = Number(m.rate_per_kwh).toFixed(2);
+  const fmtNum = (v) => Number(v ?? 0).toLocaleString();
+  return `
+    <tr><td>Previous Reading</td><td class="text-right">${fmtNum(m.previous_reading)}</td></tr>
+    <tr><td>Current Reading</td><td class="text-right">${fmtNum(m.current_reading)}</td></tr>
+    <tr><td>kWh Used</td><td class="text-right">${fmtNum(m.kwh_used)}</td></tr>
+    <tr><td>Electric Charge (${fmtNum(m.kwh_used)} kWh &times; $${rate})</td><td class="text-right">${formatMoney(inv.electric_amount)}</td></tr>
+  `;
 }
 
 // --- PDF generation via html2pdf.js (jsPDF + html2canvas) ---
@@ -293,12 +309,7 @@ function renderInvoiceHtml(inv) {
           <thead><tr><th>Description</th><th class="text-right">Amount</th></tr></thead>
           <tbody>
             <tr><td>Monthly Rent</td><td class="text-right">${formatMoney(inv.rent_amount)}</td></tr>
-            ${inv.meter ? `
-              <tr><td>Previous Reading</td><td class="text-right">${inv.meter.previous_reading}</td></tr>
-              <tr><td>Current Reading</td><td class="text-right">${inv.meter.current_reading}</td></tr>
-              <tr><td>kWh Used</td><td class="text-right">${inv.meter.kwh_used}</td></tr>
-              <tr><td>Electric Charge (${inv.meter.kwh_used} kWh @ $${Number(inv.meter.rate_per_kwh).toFixed(2)}/kWh)</td><td class="text-right">${formatMoney(inv.electric_amount)}</td></tr>
-            ` : `<tr><td>Electric Charges</td><td class="text-right">${formatMoney(inv.electric_amount)}</td></tr>`}
+            ${meterRowsHtml(inv)}
             ${inv.other_charges ? `<tr><td>${inv.other_description || 'Other Charges'}</td><td class="text-right">${formatMoney(inv.other_charges)}</td></tr>` : ''}
             ${inv.mailbox_fee ? `<tr><td>Mailbox Fee</td><td class="text-right">${formatMoney(inv.mailbox_fee)}</td></tr>` : ''}
             ${inv.misc_fee ? `<tr><td>${inv.misc_description || 'Misc Fee'}</td><td class="text-right">${formatMoney(inv.misc_fee)}</td></tr>` : ''}
