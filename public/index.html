@@ -20,11 +20,39 @@
           </div>
           <div class="form-group">
             <label for="password">Password</label>
-            <input type="password" id="password" required autocomplete="current-password">
+            <div class="password-wrap">
+              <input type="password" id="password" required autocomplete="current-password">
+              <button type="button" id="toggle-password" class="password-toggle" aria-label="Show password">&#128065;</button>
+            </div>
           </div>
           <button type="submit" class="btn btn-primary btn-full">Sign In</button>
           <p id="login-error" class="error-text" style="display:none"></p>
         </form>
+        <p class="forgot-link"><a href="#" id="forgot-password-link">Forgot Password?</a></p>
+
+        <form id="recover-form" style="display:none">
+          <h3 class="recover-title">Password Recovery</h3>
+          <div class="form-group">
+            <label for="recover-username">Username</label>
+            <input type="text" id="recover-username" required>
+          </div>
+          <div class="form-group">
+            <label for="recover-pin">Recovery PIN</label>
+            <input type="password" id="recover-pin" required>
+          </div>
+          <div class="form-group">
+            <label for="recover-new-password">New Password</label>
+            <div class="password-wrap">
+              <input type="password" id="recover-new-password" required minlength="6">
+              <button type="button" id="toggle-recover-password" class="password-toggle" aria-label="Show password">&#128065;</button>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">Reset Password</button>
+          <p id="recover-error" class="error-text" style="display:none"></p>
+          <p id="recover-success" class="success-text" style="display:none">Password reset. You can now sign in.</p>
+          <p class="forgot-link"><a href="#" id="back-to-login">&larr; Back to Sign In</a></p>
+        </form>
+
         <p class="login-footer">1003 Davis Ave, Anahuac, TX 77514 | 409-267-6603</p>
       </div>
     </div>

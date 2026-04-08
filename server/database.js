@@ -270,6 +270,13 @@ async function initializeDatabase() {
     dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('park_phone', '409-267-6603');
     dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('late_fee_amount', '25');
     dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('late_fee_day', '5');
+    dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('recovery_pin', 'anahuac911');
+  }
+
+  // Ensure recovery_pin exists even on already-seeded databases
+  const pinRow = dbWrapper.prepare('SELECT key FROM settings WHERE key = ?').get('recovery_pin');
+  if (!pinRow) {
+    dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('recovery_pin', 'anahuac911');
   }
 
   // Seed lots

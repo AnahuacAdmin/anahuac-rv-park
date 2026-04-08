@@ -42,6 +42,7 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts. Please try again later.' },
 });
 app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/recover', loginLimiter);
 
 // Initialize database
 initializeDatabase();

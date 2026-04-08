@@ -71,6 +71,20 @@ a { text-decoration: none; color: inherit; }
 .login-subtitle { text-align: center; color: var(--gray-500); margin-bottom: 2rem; }
 .login-footer { text-align: center; color: var(--gray-500); font-size: 0.8rem; margin-top: 1.5rem; }
 .error-text { color: var(--danger); text-align: center; margin-top: 1rem; font-size: 0.9rem; }
+.success-text { color: var(--success); text-align: center; margin-top: 1rem; font-size: 0.9rem; }
+.password-wrap { position: relative; }
+.password-wrap input { padding-right: 2.5rem; }
+.password-toggle {
+  position: absolute; top: 50%; right: 0.5rem; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 1.1rem;
+  color: var(--gray-500); padding: 0.25rem 0.4rem; line-height: 1;
+}
+.password-toggle:hover { color: var(--primary); }
+.password-toggle.active { color: var(--primary); }
+.forgot-link { text-align: center; margin-top: 1rem; font-size: 0.9rem; }
+.forgot-link a { color: var(--primary); cursor: pointer; }
+.forgot-link a:hover { text-decoration: underline; }
+.recover-title { text-align: center; color: var(--primary-dark); font-size: 1.15rem; margin-bottom: 1rem; }
 
 /* Forms */
 .form-group { margin-bottom: 1rem; }

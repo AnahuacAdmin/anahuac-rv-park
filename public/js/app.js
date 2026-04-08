@@ -125,6 +125,68 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Password show/hide toggle (press-and-hold OR click to toggle)
+  function wirePasswordToggle(btnId, inputId) {
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    if (!btn || !input) return;
+    const show = () => { input.type = 'text'; btn.classList.add('active'); };
+    const hide = () => { input.type = 'password'; btn.classList.remove('active'); };
+    // Press-and-hold (mouse + touch)
+    btn.addEventListener('mousedown', show);
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); show(); }, { passive: false });
+    ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(ev => btn.addEventListener(ev, hide));
+    // Click toggles (in case the user just taps)
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (input.type === 'password') show(); else hide();
+    });
+  }
+  wirePasswordToggle('toggle-password', 'password');
+  wirePasswordToggle('toggle-recover-password', 'recover-new-password');
+
+  // Forgot password — show recovery form
+  const loginForm = document.getElementById('login-form');
+  const recoverForm = document.getElementById('recover-form');
+  document.getElementById('forgot-password-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    loginForm.style.display = 'none';
+    document.getElementById('login-error').style.display = 'none';
+    recoverForm.style.display = '';
+  });
+  document.getElementById('back-to-login').addEventListener('click', (e) => {
+    e.preventDefault();
+    recoverForm.style.display = 'none';
+    document.getElementById('recover-error').style.display = 'none';
+    document.getElementById('recover-success').style.display = 'none';
+    loginForm.style.display = '';
+  });
+  recoverForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('recover-error');
+    const okEl = document.getElementById('recover-success');
+    errEl.style.display = 'none';
+    okEl.style.display = 'none';
+    try {
+      const res = await fetch('/api/auth/recover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('recover-username').value,
+          pin: document.getElementById('recover-pin').value,
+          newPassword: document.getElementById('recover-new-password').value,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Recovery failed');
+      okEl.style.display = '';
+      recoverForm.reset();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = '';
+    }
+  });
+
   // Nav links
   document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', (e) => {
