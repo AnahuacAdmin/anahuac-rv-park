@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await API.login(document.getElementById('username').value, document.getElementById('password').value);
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('main-app').style.display = '';
+      document.body.classList.remove('login-page');
       navigateTo('dashboard');
     } catch (err) {
       errEl.textContent = err.message;
@@ -230,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (API.token) {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-app').style.display = '';
+    document.body.classList.remove('login-page');
     navigateTo('dashboard');
   }
 });

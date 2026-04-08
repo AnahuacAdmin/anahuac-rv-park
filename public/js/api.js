@@ -37,5 +37,6 @@ const API = {
     localStorage.removeItem('rv_user');
     document.getElementById('login-screen').style.display = '';
     document.getElementById('main-app').style.display = 'none';
+    document.body.classList.add('login-page');
   }
 };
