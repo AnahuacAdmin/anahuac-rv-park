@@ -99,6 +99,15 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN recurring_credit REAL DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN recurring_credit_description TEXT");
 
+  // One-shot cleanup: remove lot A6 if it still exists from the old seed.
+  try {
+    const a6 = db.exec("SELECT id FROM lots WHERE id = 'A6'");
+    if (a6.length && a6[0].values.length) {
+      db.run("DELETE FROM lots WHERE id = 'A6'");
+      console.log('Migration: deleted lot A6');
+    }
+  } catch (e) { /* table may not exist yet on a brand-new DB */ }
+
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -284,7 +293,7 @@ async function initializeDatabase() {
   if (existingLots.count === 0) {
     const lots = [
       ['A1','A',1,'owner_reserved'], ['A2','A',2,'occupied'], ['A3','A',3,'occupied'],
-      ['A4','A',4,'occupied'], ['A5','A',5,'occupied'], ['A6','A',6,'vacant'],
+      ['A4','A',4,'occupied'], ['A5','A',5,'occupied'],
       ['B1','B',1,'owner_reserved'], ['B2','B',2,'occupied'], ['B3','B',3,'vacant'],
       ['B4','B',4,'occupied'],
       ['C1','C',1,'vacant'], ['C2','C',2,'vacant'], ['C3','C',3,'occupied'],
