@@ -46,6 +46,11 @@ app.use('/api/auth/login', loginLimiter);
 // Initialize database
 initializeDatabase();
 
+// Health check (used by Railway)
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // API routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/lots', require('./routes/lots'));

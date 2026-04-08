@@ -3,8 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 
-const DB_PATH = path.join(__dirname, '..', 'data', 'rvpark.db');
-const dataDir = path.join(__dirname, '..', 'data');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'rvpark.db');
+const dataDir = path.dirname(DB_PATH);
 
 let db = null;
 
@@ -72,7 +72,9 @@ const dbWrapper = new DbWrapper();
 async function initializeDatabase() {
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-  const SQL = await initSqlJs();
+  const SQL = await initSqlJs({
+    locateFile: file => require.resolve(`sql.js/dist/${file}`),
+  });
 
   if (fs.existsSync(DB_PATH)) {
     const fileBuffer = fs.readFileSync(DB_PATH);
