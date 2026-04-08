@@ -53,6 +53,8 @@ function renderInvoiceRows(invoices) {
       <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}">${inv.status}</span></td>
       <td class="btn-group">
         <button class="btn btn-sm btn-outline" onclick="viewInvoice(${inv.id})">View</button>
+        <button class="btn btn-sm btn-outline" onclick="downloadInvoicePdf(${inv.id})">PDF</button>
+        <button class="btn btn-sm btn-outline" onclick="emailInvoice(${inv.id})">Email</button>
         <button class="btn btn-sm btn-primary" onclick="editInvoice(${inv.id})">Edit</button>
         <button class="btn btn-sm btn-danger" onclick="deleteInvoice(${inv.id})">Del</button>
       </td>
@@ -215,10 +217,136 @@ async function viewInvoice(id) {
         </table>
       ` : ''}
     </div>
-    <div class="no-print mt-2">
-      <button class="btn btn-primary btn-full" onclick="window.print()">Print Invoice</button>
+    <div class="no-print mt-2 btn-group">
+      <button class="btn btn-primary" onclick="window.print()">Print Invoice</button>
+      <button class="btn btn-outline" onclick="downloadInvoicePdfFromView('${inv.invoice_number}')">Download PDF</button>
+      <button class="btn btn-outline" onclick="emailInvoice(${inv.id})">Email Invoice</button>
     </div>
   `);
+}
+
+// --- PDF generation via html2pdf.js (jsPDF + html2canvas) ---
+function _pdfOptions(invoiceNumber) {
+  return {
+    margin:       [0.4, 0.4, 0.5, 0.4],
+    filename:     `Invoice-${invoiceNumber}.pdf`,
+    image:        { type: 'jpeg', quality: 0.95 },
+    html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
+    pagebreak:    { mode: ['css', 'legacy'] },
+  };
+}
+
+async function downloadInvoicePdfFromView(invoiceNumber) {
+  const el = document.getElementById('printable-invoice');
+  if (!el) return;
+  await html2pdf().set(_pdfOptions(invoiceNumber)).from(el).save();
+}
+
+// Generate PDF without opening the modal — fetches the invoice and renders off-screen.
+async function downloadInvoicePdf(id) {
+  const inv = await API.get(`/invoices/${id}`);
+  if (!inv) return;
+  const wrap = document.createElement('div');
+  wrap.style.position = 'fixed';
+  wrap.style.left = '-10000px';
+  wrap.style.top = '0';
+  wrap.style.width = '8.5in';
+  wrap.style.background = '#fff';
+  wrap.innerHTML = renderInvoiceHtml(inv);
+  document.body.appendChild(wrap);
+  try {
+    await html2pdf().set(_pdfOptions(inv.invoice_number)).from(wrap.firstElementChild).save();
+  } finally {
+    wrap.remove();
+  }
+}
+
+// Reusable invoice HTML used by both view modal and offscreen PDF render.
+function renderInvoiceHtml(inv) {
+  return `
+    <div class="invoice-print" id="printable-invoice">
+      <div class="invoice-header">
+        <div style="display:flex;align-items:center;gap:1rem">
+          <img src="/park_Logo.png" alt="Anahuac RV Park" style="height:100px;width:auto" crossorigin="anonymous">
+          <div>
+            <h2>Anahuac RV Park, LLC</h2>
+            <p>1003 Davis Ave, Anahuac, TX 77514</p>
+            <p>409-267-6603</p>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <h3>INVOICE</h3>
+          <p><strong>${inv.invoice_number}</strong></p>
+          <p>Date: ${formatDate(inv.invoice_date)}</p>
+          <p>Due: ${formatDate(inv.due_date)}</p>
+        </div>
+      </div>
+      <div style="margin-bottom:1.5rem">
+        <p><strong>Bill To:</strong></p>
+        <p>${inv.first_name} ${inv.last_name}</p>
+        <p>Lot ${inv.lot_id}</p>
+        ${inv.phone ? `<p>${inv.phone}</p>` : ''}
+      </div>
+      <div class="line-items">
+        <table>
+          <thead><tr><th>Description</th><th class="text-right">Amount</th></tr></thead>
+          <tbody>
+            <tr><td>Monthly Rent</td><td class="text-right">${formatMoney(inv.rent_amount)}</td></tr>
+            ${inv.meter ? `
+              <tr><td>Previous Reading</td><td class="text-right">${inv.meter.previous_reading}</td></tr>
+              <tr><td>Current Reading</td><td class="text-right">${inv.meter.current_reading}</td></tr>
+              <tr><td>kWh Used</td><td class="text-right">${inv.meter.kwh_used}</td></tr>
+              <tr><td>Electric Charge (${inv.meter.kwh_used} kWh @ $${Number(inv.meter.rate_per_kwh).toFixed(2)}/kWh)</td><td class="text-right">${formatMoney(inv.electric_amount)}</td></tr>
+            ` : `<tr><td>Electric Charges</td><td class="text-right">${formatMoney(inv.electric_amount)}</td></tr>`}
+            ${inv.other_charges ? `<tr><td>${inv.other_description || 'Other Charges'}</td><td class="text-right">${formatMoney(inv.other_charges)}</td></tr>` : ''}
+            ${inv.mailbox_fee ? `<tr><td>Mailbox Fee</td><td class="text-right">${formatMoney(inv.mailbox_fee)}</td></tr>` : ''}
+            ${inv.misc_fee ? `<tr><td>${inv.misc_description || 'Misc Fee'}</td><td class="text-right">${formatMoney(inv.misc_fee)}</td></tr>` : ''}
+            ${inv.late_fee ? `<tr><td>Late Fee</td><td class="text-right">${formatMoney(inv.late_fee)}</td></tr>` : ''}
+            ${inv.refund_amount ? `<tr><td>${inv.refund_description || 'Refund / Credit'}</td><td class="text-right">-${formatMoney(inv.refund_amount)}</td></tr>` : ''}
+            <tr class="total-row"><td><strong>Total</strong></td><td class="text-right"><strong>${formatMoney(inv.total_amount)}</strong></td></tr>
+            <tr><td>Amount Paid</td><td class="text-right">${formatMoney(inv.amount_paid)}</td></tr>
+            <tr class="total-row"><td><strong>Balance Due</strong></td><td class="text-right"><strong>${formatMoney(inv.balance_due)}</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
+    </div>
+  `;
+}
+
+// Email Invoice — mailto fallback (no SMTP configured).
+// If you want real server-side email with PDF attachment, tell me which provider
+// and I'll wire up nodemailer with env vars.
+async function emailInvoice(id) {
+  const inv = await API.get(`/invoices/${id}`);
+  if (!inv) return;
+  const to = inv.email || '';
+  const subject = encodeURIComponent(`Anahuac RV Park — Invoice ${inv.invoice_number}`);
+  const body = encodeURIComponent(
+`Hello ${inv.first_name},
+
+Please find your invoice details below:
+
+Invoice #:    ${inv.invoice_number}
+Lot:          ${inv.lot_id}
+Date:         ${inv.invoice_date}
+Due:          ${inv.due_date}
+Total:        $${Number(inv.total_amount).toFixed(2)}
+Balance Due:  $${Number(inv.balance_due).toFixed(2)}
+
+A PDF copy is attached separately. Thank you!
+
+Anahuac RV Park, LLC
+1003 Davis Ave, Anahuac, TX 77514
+409-267-6603`
+  );
+  if (!to) {
+    if (!confirm('No email address on file for this tenant. Open mail client anyway?')) return;
+  }
+  // Also auto-download the PDF so the user can attach it.
+  await downloadInvoicePdf(id);
+  window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
 }
 
 async function editInvoice(id) {
