@@ -13,8 +13,11 @@ function getMailer() {
     throw new Error('Gmail credentials are not configured. Set GMAIL_USER and GMAIL_PASS environment variables.');
   }
   _mailer = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
     auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
+    tls: { rejectUnauthorized: false },
   });
   return _mailer;
 }
