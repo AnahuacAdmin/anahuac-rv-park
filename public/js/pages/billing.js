@@ -9,14 +9,23 @@ async function loadBilling() {
       <div class="btn-group">
         <button class="btn btn-success" onclick="showGenerateInvoices()">Generate Monthly Invoices</button>
         <button class="btn btn-primary" onclick="showCreateInvoice()">+ Single Invoice</button>
+        <button class="btn btn-outline" onclick="showTaxReport()">Tax Reports</button>
       </div>
     </div>
     <div class="filter-bar">
-      <select onchange="filterInvoices(this.value)" id="invoice-filter">
-        <option value="all">All Invoices</option>
+      <select id="invoice-status-filter" onchange="applyInvoiceFilters()">
+        <option value="all">All Statuses</option>
         <option value="pending">Pending</option>
         <option value="partial">Partial</option>
         <option value="paid">Paid</option>
+      </select>
+      <select id="invoice-month-filter" onchange="applyInvoiceFilters()">
+        <option value="all">All Months</option>
+        ${[...Array(12)].map((_, i) => `<option value="${i + 1}">${new Date(2000, i).toLocaleString('default', { month: 'long' })}</option>`).join('')}
+      </select>
+      <select id="invoice-year-filter" onchange="applyInvoiceFilters()">
+        <option value="all">All Years</option>
+        ${invoiceYearOptions(invoices)}
       </select>
     </div>
     <div class="card">
@@ -62,10 +71,32 @@ function renderInvoiceRows(invoices) {
   `).join('');
 }
 
-function filterInvoices(status) {
+function invoiceYearOptions(invoices) {
+  const years = [...new Set(invoices.map(i => (i.invoice_date || '').slice(0, 4)).filter(Boolean))].sort().reverse();
+  if (!years.length) years.push(String(new Date().getFullYear()));
+  return years.map(y => `<option value="${y}">${y}</option>`).join('');
+}
+
+function applyInvoiceFilters() {
   if (!window._allInvoices) return;
-  const filtered = status === 'all' ? window._allInvoices : window._allInvoices.filter(i => i.status === status);
+  const status = document.getElementById('invoice-status-filter').value;
+  const month  = document.getElementById('invoice-month-filter').value;
+  const year   = document.getElementById('invoice-year-filter').value;
+  const filtered = window._allInvoices.filter(i => {
+    if (status !== 'all' && i.status !== status) return false;
+    const d = i.invoice_date || '';
+    if (year !== 'all' && d.slice(0, 4) !== year) return false;
+    if (month !== 'all' && parseInt(d.slice(5, 7)) !== parseInt(month)) return false;
+    return true;
+  });
   document.getElementById('invoices-body').innerHTML = renderInvoiceRows(filtered);
+}
+
+// Backwards-compatible alias in case anything else still calls it.
+function filterInvoices(status) {
+  const sel = document.getElementById('invoice-status-filter');
+  if (sel) sel.value = status;
+  applyInvoiceFilters();
 }
 
 function showGenerateInvoices() {
@@ -437,4 +468,138 @@ async function deleteInvoice(id) {
   if (!confirm('Delete this invoice and associated payments?')) return;
   await API.del(`/invoices/${id}`);
   loadBilling();
+}
+
+// --- Year-end tax / financial report ---
+async function showTaxReport() {
+  const years = window._allInvoices
+    ? [...new Set(window._allInvoices.map(i => (i.invoice_date || '').slice(0, 4)).filter(Boolean))].sort().reverse()
+    : [];
+  if (!years.length) years.push(String(new Date().getFullYear()));
+  showModal('Annual Tax Report', `
+    <div class="form-group no-print">
+      <label>Year</label>
+      <select id="tax-report-year" onchange="renderTaxReport(this.value)">
+        ${years.map(y => `<option value="${y}">${y}</option>`).join('')}
+      </select>
+    </div>
+    <div id="tax-report-content"></div>
+    <div class="no-print mt-2 btn-group">
+      <button class="btn btn-primary" onclick="window.print()">Print Report</button>
+      <button class="btn btn-outline" onclick="downloadTaxReportPdf()">Download PDF</button>
+    </div>
+  `);
+  renderTaxReport(years[0]);
+}
+
+async function renderTaxReport(year) {
+  const data = await API.get(`/invoices/tax-report/${year}`);
+  if (!data) return;
+  const m = (n) => formatMoney(n);
+  const t = data.totals;
+  document.getElementById('tax-report-content').innerHTML = `
+    <div id="tax-report-printable" class="invoice-print">
+      <div class="invoice-header">
+        <div style="display:flex;align-items:center;gap:1rem">
+          <img src="/park_Logo.png" alt="Anahuac RV Park" style="height:90px;width:auto">
+          <div>
+            <h2>Anahuac RV Park, LLC</h2>
+            <p>1003 Davis Ave, Anahuac, TX 77514</p>
+            <p>409-267-6603</p>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <h3>ANNUAL TAX REPORT</h3>
+          <p><strong>Year ${data.year}</strong></p>
+          <p>Generated ${new Date().toLocaleDateString()}</p>
+        </div>
+      </div>
+
+      <h4 style="margin-top:1rem">Monthly Breakdown</h4>
+      <div class="line-items">
+        <table>
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th class="text-right">Invoices</th>
+              <th class="text-right">Rent</th>
+              <th class="text-right">Electric</th>
+              <th class="text-right">Mailbox</th>
+              <th class="text-right">Misc</th>
+              <th class="text-right">Late Fees</th>
+              <th class="text-right">Other</th>
+              <th class="text-right">Refunds</th>
+              <th class="text-right">Total Billed</th>
+              <th class="text-right">Collected</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.months.map(r => `
+              <tr>
+                <td>${r.label}</td>
+                <td class="text-right">${r.invoice_count}</td>
+                <td class="text-right">${m(r.rent)}</td>
+                <td class="text-right">${m(r.electric)}</td>
+                <td class="text-right">${m(r.mailbox)}</td>
+                <td class="text-right">${m(r.misc)}</td>
+                <td class="text-right">${m(r.late_fee)}</td>
+                <td class="text-right">${m(r.other)}</td>
+                <td class="text-right">${r.refunds ? '-' + m(r.refunds) : m(0)}</td>
+                <td class="text-right"><strong>${m(r.billed)}</strong></td>
+                <td class="text-right"><strong>${m(r.collected)}</strong></td>
+              </tr>
+            `).join('')}
+            <tr class="total-row">
+              <td><strong>YEAR TOTAL</strong></td>
+              <td class="text-right"><strong>${t.invoice_count}</strong></td>
+              <td class="text-right"><strong>${m(t.rent)}</strong></td>
+              <td class="text-right"><strong>${m(t.electric)}</strong></td>
+              <td class="text-right"><strong>${m(t.mailbox)}</strong></td>
+              <td class="text-right"><strong>${m(t.misc)}</strong></td>
+              <td class="text-right"><strong>${m(t.late_fee)}</strong></td>
+              <td class="text-right"><strong>${m(t.other)}</strong></td>
+              <td class="text-right"><strong>${t.refunds ? '-' + m(t.refunds) : m(0)}</strong></td>
+              <td class="text-right"><strong>${m(t.billed)}</strong></td>
+              <td class="text-right"><strong>${m(t.collected)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4 style="margin-top:1.5rem">Annual Summary</h4>
+      <div class="line-items">
+        <table>
+          <tbody>
+            <tr><td>Total Rent Collected (billed)</td><td class="text-right">${m(t.rent)}</td></tr>
+            <tr><td>Total Electric Revenue</td><td class="text-right">${m(t.electric)}</td></tr>
+            <tr><td>Total Mailbox Fees</td><td class="text-right">${m(t.mailbox)}</td></tr>
+            <tr><td>Total Misc Fees</td><td class="text-right">${m(t.misc)}</td></tr>
+            <tr><td>Total Late Fees</td><td class="text-right">${m(t.late_fee)}</td></tr>
+            <tr><td>Total Other Charges</td><td class="text-right">${m(t.other)}</td></tr>
+            <tr><td>Total Refunds / Credits Given</td><td class="text-right">-${m(t.refunds)}</td></tr>
+            <tr class="total-row"><td><strong>Grand Total Billed</strong></td><td class="text-right"><strong>${m(t.billed)}</strong></td></tr>
+            <tr class="total-row"><td><strong>Grand Total Collected (Payments)</strong></td><td class="text-right"><strong>${m(t.collected)}</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p style="margin-top:1.5rem;font-size:0.85rem;color:#555">
+        Report generated from invoice and payment records on file. "Total Billed" reflects amounts on issued invoices for ${data.year}; "Total Collected" reflects payments received during ${data.year}.
+      </p>
+    </div>
+  `;
+}
+
+async function downloadTaxReportPdf() {
+  const el = document.getElementById('tax-report-printable');
+  if (!el) return;
+  const year = document.getElementById('tax-report-year')?.value || new Date().getFullYear();
+  await html2pdf().set({
+    margin:      [0.4, 0.4, 0.5, 0.4],
+    filename:    `Anahuac-Tax-Report-${year}.pdf`,
+    image:       { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+    jsPDF:       { unit: 'in', format: 'letter', orientation: 'landscape' },
+    pagebreak:   { mode: ['css', 'legacy'] },
+  }).from(el).save();
 }

@@ -4,6 +4,53 @@ const { authenticate } = require('../middleware');
 
 router.use(authenticate);
 
+// Annual tax / financial summary. Aggregates per month for a given year.
+// Rent / electric / fees / refunds come from the invoices table.
+// Payments come from the payments table for "actually collected" totals.
+router.get('/tax-report/:year', (req, res) => {
+  const year = parseInt(req.params.year);
+  if (!year || year < 2000 || year > 3000) return res.status(400).json({ error: 'Invalid year' });
+
+  const months = [];
+  for (let m = 1; m <= 12; m++) {
+    const ym = `${year}-${String(m).padStart(2, '0')}`;
+    const invAgg = db.prepare(`
+      SELECT
+        COUNT(*)                          AS invoice_count,
+        COALESCE(SUM(rent_amount), 0)     AS rent,
+        COALESCE(SUM(electric_amount), 0) AS electric,
+        COALESCE(SUM(mailbox_fee), 0)     AS mailbox,
+        COALESCE(SUM(misc_fee), 0)        AS misc,
+        COALESCE(SUM(late_fee), 0)        AS late_fee,
+        COALESCE(SUM(other_charges), 0)   AS other,
+        COALESCE(SUM(refund_amount), 0)   AS refunds,
+        COALESCE(SUM(total_amount), 0)    AS billed
+      FROM invoices
+      WHERE strftime('%Y-%m', invoice_date) = ?
+    `).get(ym);
+    const payAgg = db.prepare(`
+      SELECT COALESCE(SUM(amount), 0) AS collected
+      FROM payments
+      WHERE strftime('%Y-%m', payment_date) = ?
+    `).get(ym);
+    months.push({
+      month: m,
+      label: new Date(year, m - 1, 1).toLocaleString('default', { month: 'long' }),
+      ...invAgg,
+      collected: payAgg.collected,
+    });
+  }
+
+  const totals = months.reduce((acc, r) => {
+    for (const k of ['invoice_count','rent','electric','mailbox','misc','late_fee','other','refunds','billed','collected']) {
+      acc[k] = (acc[k] || 0) + r[k];
+    }
+    return acc;
+  }, {});
+
+  res.json({ year, months, totals });
+});
+
 router.get('/', (req, res) => {
   const invoices = db.prepare(`
     SELECT i.*, t.first_name, t.last_name, t.lot_id
