@@ -15,7 +15,10 @@ async function loadTenants() {
     ${helpPanel('tenants')}
     <div class="page-header">
       <h2>Tenant Management</h2>
-      <button class="btn btn-primary" onclick="showAddTenant()">+ Add Tenant</button>
+      <div class="btn-group">
+        <button class="btn btn-outline" onclick="showRecurringFeesSummary()">Recurring Fees Summary</button>
+        <button class="btn btn-primary" onclick="showAddTenant()">+ Add Tenant</button>
+      </div>
     </div>
     <div class="card">
       <div class="table-container">
@@ -154,6 +157,59 @@ async function saveTenant(e, id) {
   }
   closeModal();
   loadTenants();
+}
+
+async function showRecurringFeesSummary() {
+  const tenants = await API.get('/tenants');
+  if (!tenants) return;
+  const num = (v) => Number(v) || 0;
+  const withFees = tenants
+    .filter(t => num(t.recurring_late_fee) || num(t.recurring_mailbox_fee) || num(t.recurring_misc_fee) || num(t.recurring_credit))
+    .sort((a, b) => (a.lot_id || '').localeCompare(b.lot_id || ''));
+
+  const totals = withFees.reduce((acc, t) => {
+    acc.late    += num(t.recurring_late_fee);
+    acc.mailbox += num(t.recurring_mailbox_fee);
+    acc.misc    += num(t.recurring_misc_fee);
+    acc.credit  += num(t.recurring_credit);
+    return acc;
+  }, { late: 0, mailbox: 0, misc: 0, credit: 0 });
+  const grand = totals.late + totals.mailbox + totals.misc - totals.credit;
+
+  const body = withFees.length ? `
+    <div class="table-container">
+      <table>
+        <thead><tr><th>Lot</th><th>Tenant</th><th class="text-right">Late</th><th class="text-right">Mailbox</th><th class="text-right">Misc</th><th class="text-right">Credit</th><th class="text-right">Net / month</th></tr></thead>
+        <tbody>
+          ${withFees.map(t => {
+            const net = num(t.recurring_late_fee) + num(t.recurring_mailbox_fee) + num(t.recurring_misc_fee) - num(t.recurring_credit);
+            return `
+              <tr>
+                <td><strong>${t.lot_id}</strong></td>
+                <td>${t.first_name} ${t.last_name}</td>
+                <td class="text-right">${formatMoney(t.recurring_late_fee)}</td>
+                <td class="text-right">${formatMoney(t.recurring_mailbox_fee)}</td>
+                <td class="text-right">${formatMoney(t.recurring_misc_fee)}${t.recurring_misc_description ? ` <small>(${t.recurring_misc_description})</small>` : ''}</td>
+                <td class="text-right">${t.recurring_credit ? '-' + formatMoney(t.recurring_credit) : formatMoney(0)}${t.recurring_credit_description ? ` <small>(${t.recurring_credit_description})</small>` : ''}</td>
+                <td class="text-right"><strong>${formatMoney(net)}</strong></td>
+              </tr>
+            `;
+          }).join('')}
+          <tr class="total-row" style="border-top:2px solid #111">
+            <td colspan="2"><strong>TOTAL (${withFees.length} tenants)</strong></td>
+            <td class="text-right"><strong>${formatMoney(totals.late)}</strong></td>
+            <td class="text-right"><strong>${formatMoney(totals.mailbox)}</strong></td>
+            <td class="text-right"><strong>${formatMoney(totals.misc)}</strong></td>
+            <td class="text-right"><strong>-${formatMoney(totals.credit)}</strong></td>
+            <td class="text-right"><strong>${formatMoney(grand)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-2"><small>These charges auto-apply each time you click <em>Generate Monthly Invoices</em>. Edit any tenant to change their recurring fees.</small></p>
+  ` : `<p>No tenants have recurring fees configured. Open any tenant's <em>Edit</em> form and use the <strong>Recurring Monthly Fees</strong> section to add some.</p>`;
+
+  showModal('Recurring Fees Summary', body);
 }
 
 async function removeTenant(id, name) {
