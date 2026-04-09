@@ -76,6 +76,54 @@ router.put('/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// Move a tenant to a different lot in one atomic step:
+//  - validate the destination is vacant (or the tenant's current lot)
+//  - update tenant.lot_id
+//  - mark the old lot vacant, the new lot occupied
+//  - create a zero-value meter reading on the new lot so it shows up on the meters page
+router.post('/:id/move', (req, res) => {
+  try {
+    const { new_lot_id } = req.body || {};
+    if (!new_lot_id) return res.status(400).json({ error: 'new_lot_id is required' });
+
+    const tenant = db.prepare('SELECT id, lot_id, first_name, last_name FROM tenants WHERE id = ? AND is_active = 1').get(req.params.id);
+    if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+    if (tenant.lot_id === new_lot_id) return res.status(400).json({ error: 'Tenant is already on this lot' });
+
+    const newLot = db.prepare('SELECT id, status FROM lots WHERE id = ?').get(new_lot_id);
+    if (!newLot) return res.status(404).json({ error: 'Destination lot not found' });
+    if (newLot.status !== 'vacant') return res.status(400).json({ error: `Lot ${new_lot_id} is not vacant (status: ${newLot.status})` });
+
+    const oldLotId = tenant.lot_id;
+
+    db.prepare('UPDATE tenants SET lot_id = ? WHERE id = ?').run(new_lot_id, tenant.id);
+    if (oldLotId) {
+      db.prepare("UPDATE lots SET status = 'vacant' WHERE id = ?").run(oldLotId);
+    }
+    db.prepare("UPDATE lots SET status = 'occupied' WHERE id = ?").run(new_lot_id);
+
+    // Seed a placeholder meter reading on the new lot so the meters page shows it.
+    const today = new Date().toISOString().split('T')[0];
+    const existing = db.prepare('SELECT id FROM meter_readings WHERE tenant_id = ? AND lot_id = ?').get(tenant.id, new_lot_id);
+    if (!existing) {
+      db.prepare(`
+        INSERT INTO meter_readings (lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge)
+        VALUES (?, ?, ?, 0, 0, 0, 0.15, 0)
+      `).run(new_lot_id, tenant.id, today);
+    }
+
+    res.json({
+      success: true,
+      tenant: `${tenant.first_name} ${tenant.last_name}`,
+      from: oldLotId,
+      to: new_lot_id,
+    });
+  } catch (err) {
+    console.error('[tenants] move failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/:id', (req, res) => {
   const tenant = db.prepare('SELECT lot_id FROM tenants WHERE id = ?').get(req.params.id);
   db.prepare('UPDATE tenants SET is_active = 0, move_out_date = date(?) WHERE id = ?')

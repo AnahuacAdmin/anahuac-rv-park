@@ -118,6 +118,11 @@ function tenantForm(lots, tenant = {}) {
         <div class="form-group"><label>RV Length</label><input name="rv_length" value="${tenant.rv_length || ''}"></div>
       </div>
       <div class="form-group"><label>License Plate</label><input name="license_plate" value="${tenant.license_plate || ''}"></div>
+      ${tenant.id ? `
+        <div class="form-group">
+          <button type="button" class="btn btn-warning" onclick="showMoveTenant(${tenant.id}, '${tenant.lot_id}', \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Move to Different Lot</button>
+        </div>
+      ` : ''}
 
       <fieldset style="border:1px solid #ddd;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
         <legend><strong>Recurring Monthly Fees</strong></legend>
@@ -157,6 +162,52 @@ async function saveTenant(e, id) {
   }
   closeModal();
   loadTenants();
+}
+
+async function showMoveTenant(tenantId, currentLot, tenantName) {
+  const lots = await API.get('/lots');
+  const vacantLots = (lots || []).filter(l => l.status === 'vacant');
+  if (!vacantLots.length) {
+    alert('There are no vacant lots available to move this tenant to.');
+    return;
+  }
+  showModal(`Move ${tenantName}`, `
+    <p>Currently on lot <strong>${currentLot || '(none)'}</strong>.</p>
+    <form onsubmit="submitMoveTenant(event, ${tenantId})">
+      <div class="form-group">
+        <label>New Lot</label>
+        <select name="new_lot_id" required>
+          <option value="">Select a vacant lot...</option>
+          ${vacantLots.map(l => `<option value="${l.id}">${l.id}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}</option>`).join('')}
+        </select>
+      </div>
+      <p><small>This will move the tenant, mark <strong>${currentLot}</strong> vacant, mark the new lot occupied, and create a meter reading entry on the new lot.</small></p>
+      <button type="submit" class="btn btn-primary btn-full mt-2">Move Tenant</button>
+      <p id="move-tenant-error" class="error-text" style="display:none"></p>
+    </form>
+  `);
+}
+
+async function submitMoveTenant(e, tenantId) {
+  e.preventDefault();
+  const errEl = document.getElementById('move-tenant-error');
+  if (errEl) errEl.style.display = 'none';
+  const form = new FormData(e.target);
+  const new_lot_id = form.get('new_lot_id');
+  if (!new_lot_id) return;
+  try {
+    const result = await API.post(`/tenants/${tenantId}/move`, { new_lot_id });
+    closeModal();
+    alert(`${result.tenant} moved from ${result.from || '(none)'} to ${result.to}.`);
+    loadTenants();
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = err.message || 'Failed to move tenant';
+      errEl.style.display = '';
+    } else {
+      alert('Failed to move tenant: ' + (err.message || 'unknown error'));
+    }
+  }
 }
 
 async function showRecurringFeesSummary() {
