@@ -1,5 +1,6 @@
 async function loadBilling() {
-  const invoices = await API.get('/invoices');
+  const showDeleted = window._showDeletedInvoices === true;
+  const invoices = await API.get('/invoices' + (showDeleted ? '?includeDeleted=1' : ''));
   if (!invoices) return;
 
   document.getElementById('page-content').innerHTML = `
@@ -29,6 +30,10 @@ async function loadBilling() {
         <option value="all">All Years</option>
         ${invoiceYearOptions(invoices)}
       </select>
+      <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.9rem;cursor:pointer">
+        <input type="checkbox" id="invoice-show-deleted" ${showDeleted ? 'checked' : ''} onchange="toggleShowDeleted(this.checked)">
+        Show Deleted
+      </label>
     </div>
     <div class="card">
       <div class="table-container table-scroll billing-scroll">
@@ -49,7 +54,13 @@ function renderInvoiceRows(invoices) {
   return invoices.map(inv => renderInvoiceRow(inv)).join('');
 }
 
+function toggleShowDeleted(checked) {
+  window._showDeletedInvoices = checked;
+  loadBilling();
+}
+
 function renderInvoiceRow(inv) {
+  if (inv.deleted) return renderDeletedInvoiceRow(inv);
   return `
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}">
       <td>${inv.invoice_number}</td>
@@ -76,6 +87,39 @@ function renderInvoiceRow(inv) {
       </td>
     </tr>
   `;
+}
+
+function renderDeletedInvoiceRow(inv) {
+  return `
+    <tr class="invoice-row deleted-row" data-id="${inv.id}" style="color:#9ca3af;background:#f3f4f6;font-style:italic">
+      <td>${inv.invoice_number}</td>
+      <td>${inv.lot_id}</td>
+      <td>${inv.first_name} ${inv.last_name}</td>
+      <td>${formatDate(inv.invoice_date)}</td>
+      <td>${formatMoney(inv.rent_amount)}</td>
+      <td>${formatMoney(inv.electric_amount)}</td>
+      <td>${formatMoney(inv.mailbox_fee)}</td>
+      <td>${formatMoney(inv.misc_fee)}</td>
+      <td>${formatMoney(inv.late_fee)}</td>
+      <td>${inv.refund_amount ? '-' + formatMoney(inv.refund_amount) : formatMoney(0)}</td>
+      <td>${inv.notes || ''}</td>
+      <td>${formatMoney(inv.total_amount)}</td>
+      <td>${formatMoney(inv.amount_paid)}</td>
+      <td>${formatMoney(inv.balance_due)}</td>
+      <td><span class="badge badge-gray">deleted</span></td>
+      <td><button class="btn btn-sm btn-success" onclick="restoreInvoice(${inv.id})">Restore</button></td>
+    </tr>
+  `;
+}
+
+async function restoreInvoice(id) {
+  if (!confirm('Restore this invoice?')) return;
+  try {
+    await API.post(`/invoices/${id}/restore`, {});
+    loadBilling();
+  } catch (err) {
+    alert('Restore failed: ' + (err.message || 'unknown error'));
+  }
 }
 
 function editableMoneyCell(id, field, value, description, negative) {

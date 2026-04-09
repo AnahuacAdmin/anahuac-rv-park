@@ -113,7 +113,7 @@ function runLateFeeCheck() {
            late_fee_auto_applied, status,
            CAST(julianday(?) - julianday(invoice_date) AS INTEGER) AS age_days
     FROM invoices
-    WHERE status IN ('pending', 'partial') AND balance_due > 0.005
+    WHERE status IN ('pending', 'partial') AND balance_due > 0.005 AND COALESCE(deleted, 0) = 0
   `).all(today);
 
   let feesApplied = 0;
@@ -192,7 +192,7 @@ router.get('/tax-report/:year', (req, res) => {
         COALESCE(SUM(refund_amount), 0)   AS refunds,
         COALESCE(SUM(total_amount), 0)    AS billed
       FROM invoices
-      WHERE strftime('%Y-%m', invoice_date) = ?
+      WHERE strftime('%Y-%m', invoice_date) = ? AND COALESCE(deleted, 0) = 0
     `).get(ym);
     const payAgg = db.prepare(`
       SELECT COALESCE(SUM(amount), 0) AS collected
@@ -218,10 +218,12 @@ router.get('/tax-report/:year', (req, res) => {
 });
 
 router.get('/', (req, res) => {
+  const includeDeleted = req.query.includeDeleted === '1' || req.query.includeDeleted === 'true';
   const invoices = db.prepare(`
     SELECT i.*, t.first_name, t.last_name, t.lot_id
     FROM invoices i
     JOIN tenants t ON i.tenant_id = t.id
+    ${includeDeleted ? '' : 'WHERE COALESCE(i.deleted, 0) = 0'}
     ORDER BY i.invoice_date DESC
   `).all();
   res.json(invoices);
@@ -345,7 +347,7 @@ router.post('/generate', (req, res) => {
 
   for (const tenant of tenants) {
     const existing = db.prepare(
-      'SELECT id FROM invoices WHERE tenant_id = ? AND billing_period_start = ?'
+      'SELECT id FROM invoices WHERE tenant_id = ? AND billing_period_start = ? AND COALESCE(deleted, 0) = 0'
     ).get(tenant.id, startDate);
     if (existing) continue;
 
@@ -468,9 +470,19 @@ router.patch('/:id', (req, res) => {
   });
 });
 
+// Soft delete — flag the invoice as deleted instead of removing the row.
+// Payments are NOT touched so the audit trail is preserved.
 router.delete('/:id', (req, res) => {
-  db.prepare('DELETE FROM payments WHERE invoice_id = ?').run(req.params.id);
-  db.prepare('DELETE FROM invoices WHERE id = ?').run(req.params.id);
+  const existing = db.prepare('SELECT id FROM invoices WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+  db.prepare('UPDATE invoices SET deleted = 1 WHERE id = ?').run(req.params.id);
+  res.json({ success: true, soft: true });
+});
+
+router.post('/:id/restore', (req, res) => {
+  const existing = db.prepare('SELECT id FROM invoices WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+  db.prepare('UPDATE invoices SET deleted = 0 WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
 

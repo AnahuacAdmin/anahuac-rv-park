@@ -104,6 +104,7 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN recurring_credit_description TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN eviction_warning INTEGER DEFAULT 0");
   addCol("ALTER TABLE invoices ADD COLUMN late_fee_auto_applied INTEGER DEFAULT 0");
+  addCol("ALTER TABLE invoices ADD COLUMN deleted INTEGER DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN mid_month_move_notes TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN last_move_date DATE");
   addCol("ALTER TABLE tenants ADD COLUMN last_move_old_lot_id TEXT");
