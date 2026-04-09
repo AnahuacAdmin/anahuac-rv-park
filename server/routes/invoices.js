@@ -98,6 +98,78 @@ Anahuac RV Park, LLC
   }
 });
 
+// --- Late fee automation ----------------------------------------------------
+// Rules:
+//  - If invoice is unpaid/partial AND >= 3 days old AND late_fee_auto_applied = 0
+//    → add $25 late fee, mark late_fee_auto_applied = 1, recalc total + balance.
+//  - If invoice is unpaid/partial AND >= 5 days old → set tenant.eviction_warning = 1.
+//  - Never apply the auto fee twice (the late_fee_auto_applied flag enforces this).
+function runLateFeeCheck() {
+  const LATE_FEE = 25;
+  const today = new Date().toISOString().split('T')[0];
+
+  const candidates = db.prepare(`
+    SELECT id, tenant_id, invoice_date, late_fee, total_amount, balance_due, amount_paid,
+           late_fee_auto_applied, status,
+           CAST(julianday(?) - julianday(invoice_date) AS INTEGER) AS age_days
+    FROM invoices
+    WHERE status IN ('pending', 'partial') AND balance_due > 0.005
+  `).all(today);
+
+  let feesApplied = 0;
+  let evictionWarnings = 0;
+  const evictionTenantIds = new Set();
+  const feeInvoiceNumbers = [];
+
+  for (const inv of candidates) {
+    const age = inv.age_days || 0;
+
+    // 3-day rule: apply auto late fee once
+    if (age >= 3 && !inv.late_fee_auto_applied) {
+      const newLateFee  = (Number(inv.late_fee) || 0) + LATE_FEE;
+      const newTotal    = (Number(inv.total_amount) || 0) + LATE_FEE;
+      const newBalance  = (Number(inv.balance_due)  || 0) + LATE_FEE;
+      db.prepare(`
+        UPDATE invoices
+        SET late_fee = ?, total_amount = ?, balance_due = ?, late_fee_auto_applied = 1
+        WHERE id = ?
+      `).run(newLateFee, newTotal, newBalance, inv.id);
+      feesApplied++;
+      const inum = db.prepare('SELECT invoice_number FROM invoices WHERE id = ?').get(inv.id);
+      if (inum) feeInvoiceNumbers.push(inum.invoice_number);
+    }
+
+    // 5-day rule: flag eviction warning on the tenant
+    if (age >= 5) {
+      evictionTenantIds.add(inv.tenant_id);
+    }
+  }
+
+  for (const tid of evictionTenantIds) {
+    const result = db.prepare('UPDATE tenants SET eviction_warning = 1 WHERE id = ? AND eviction_warning = 0').run(tid);
+    if (result.changes) evictionWarnings++;
+  }
+
+  return {
+    checkedAt: new Date().toISOString(),
+    invoicesChecked: candidates.length,
+    feesApplied,
+    feeAmountTotal: feesApplied * LATE_FEE,
+    evictionWarnings,
+    feeInvoiceNumbers,
+  };
+}
+
+router.post('/check-late-fees', (req, res) => {
+  try {
+    const summary = runLateFeeCheck();
+    res.json(summary);
+  } catch (err) {
+    console.error('[invoices] late fee check failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Annual tax / financial summary. Aggregates per month for a given year.
 // Rent / electric / fees / refunds come from the invoices table.
 // Payments come from the payments table for "actually collected" totals.
@@ -362,3 +434,5 @@ router.delete('/:id', (req, res) => {
 });
 
 module.exports = router;
+// Expose the late-fee runner so the daily scheduler in server/index.js can call it directly.
+module.exports.runLateFeeCheck = runLateFeeCheck;

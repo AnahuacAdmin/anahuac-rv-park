@@ -55,10 +55,11 @@ app.get('/api/health', (req, res) => {
 // API routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
+const invoicesRouter = require('./routes/invoices');
 app.use('/api/lots', require('./routes/lots'));
 app.use('/api/tenants', require('./routes/tenants'));
 app.use('/api/meters', require('./routes/meters'));
-app.use('/api/invoices', require('./routes/invoices'));
+app.use('/api/invoices', invoicesRouter);
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/checkins', require('./routes/checkins'));
 app.use('/api/messages', require('./routes/messages'));
@@ -71,6 +72,25 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
+// Daily late fee check at midnight (server local time).
+// Runs once on a setTimeout aligned to the next midnight, then every 24h.
+function scheduleDailyLateFeeCheck() {
+  const now = new Date();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 5, 0); // 00:05 to be safe
+  const msUntil = nextMidnight - now;
+  setTimeout(function tick() {
+    try {
+      const summary = invoicesRouter.runLateFeeCheck();
+      console.log('[late-fees] daily check:', summary);
+    } catch (err) {
+      console.error('[late-fees] daily check failed:', err);
+    }
+    setTimeout(tick, 24 * 60 * 60 * 1000);
+  }, msUntil);
+  console.log(`[late-fees] daily check scheduled in ${Math.round(msUntil / 60000)} minutes`);
+}
+
 app.listen(PORT, () => {
   console.log(`Anahuac RV Park Management running at http://localhost:${PORT}`);
+  scheduleDailyLateFeeCheck();
 });

@@ -102,6 +102,8 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN recurring_misc_description TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN recurring_credit REAL DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN recurring_credit_description TEXT");
+  addCol("ALTER TABLE tenants ADD COLUMN eviction_warning INTEGER DEFAULT 0");
+  addCol("ALTER TABLE invoices ADD COLUMN late_fee_auto_applied INTEGER DEFAULT 0");
 
   // One-shot cleanup: remove lot A6 if it still exists from the old seed.
   try {

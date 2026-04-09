@@ -8,6 +8,7 @@ async function loadBilling() {
       <h2>Billing & Invoices</h2>
       <div class="btn-group">
         <button class="btn btn-success" onclick="showGenerateInvoices()">Generate Monthly Invoices</button>
+        <button class="btn btn-danger" onclick="checkLateFees()">Check Late Fees</button>
         <button class="btn btn-warning" onclick="showTaxReport()">Tax Reports</button>
         <button class="btn btn-outline" onclick="exportInvoicesToExcel()">Export to Excel</button>
         <button class="btn btn-primary" onclick="showCreateInvoice()">+ Single Invoice</button>
@@ -599,6 +600,25 @@ async function deleteInvoice(id) {
   if (!confirm('Delete this invoice and associated payments?')) return;
   await API.del(`/invoices/${id}`);
   loadBilling();
+}
+
+// Run the late-fee check on demand and show a summary alert.
+async function checkLateFees() {
+  if (!confirm('Run late fee check now? Any unpaid invoice 3+ days old will get a $25 late fee (only if not already auto-applied).')) return;
+  try {
+    const r = await API.post('/invoices/check-late-fees', {});
+    let msg = `Late fee check complete.\n\n`;
+    msg += `Invoices checked: ${r.invoicesChecked}\n`;
+    msg += `Late fees applied: ${r.feesApplied} ($${r.feeAmountTotal.toFixed(2)} total)\n`;
+    msg += `New eviction warnings: ${r.evictionWarnings}\n`;
+    if (r.feeInvoiceNumbers?.length) {
+      msg += `\nInvoices charged:\n${r.feeInvoiceNumbers.join('\n')}`;
+    }
+    alert(msg);
+    loadBilling();
+  } catch (err) {
+    alert('Late fee check failed: ' + (err.message || 'unknown error'));
+  }
 }
 
 // --- Excel export of currently filtered invoices ---
