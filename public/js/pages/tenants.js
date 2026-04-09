@@ -35,7 +35,6 @@ async function loadTenants() {
                 <td>${formatDate(t.move_in_date)}</td>
                 <td class="btn-group">
                   <button class="btn btn-sm btn-outline" onclick="showEditTenant(${t.id})">Edit</button>
-                  <button class="btn btn-sm btn-danger" onclick="removeTenant(${t.id}, '${t.first_name} ${t.last_name}')">Remove</button>
                 </td>
               </tr>
             `).join('')}
