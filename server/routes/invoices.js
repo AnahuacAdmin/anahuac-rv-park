@@ -1,25 +1,21 @@
 const router = require('express').Router();
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
 
 router.use(authenticate);
 
-// Lazily create a single transporter so missing env vars don't crash boot.
-let _mailer = null;
-function getMailer() {
-  if (_mailer) return _mailer;
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
-    throw new Error('Gmail credentials are not configured. Set GMAIL_USER and GMAIL_PASS environment variables.');
+const FROM_ADDRESS = 'Anahuac RV Park <onboarding@resend.dev>';
+
+// Lazily create a single Resend client so a missing key doesn't crash boot.
+let _resend = null;
+function getResend() {
+  if (_resend) return _resend;
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('Resend is not configured. Set RESEND_API_KEY environment variable.');
   }
-  _mailer = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
-    tls: { rejectUnauthorized: false },
-  });
-  return _mailer;
+  _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
 }
 
 // Email an invoice as a PDF attachment via Gmail.
@@ -40,7 +36,7 @@ router.post('/:id/email', async (req, res) => {
       return res.status(400).json({ error: 'pdfBase64 attachment is required' });
     }
 
-    const mailer = getMailer();
+    const resend = getResend();
     const balance = Number(invoice.balance_due || 0).toFixed(2);
     const total = Number(invoice.total_amount || 0).toFixed(2);
 
@@ -79,8 +75,8 @@ Anahuac RV Park, LLC
       409-267-6603</p>
     `;
 
-    await mailer.sendMail({
-      from: `"Anahuac RV Park" <${process.env.GMAIL_USER}>`,
+    const { data, error } = await resend.emails.send({
+      from: FROM_ADDRESS,
       to: invoice.email,
       subject: `Anahuac RV Park - Invoice ${invoice.invoice_number}`,
       text: textBody,
@@ -88,11 +84,14 @@ Anahuac RV Park, LLC
       attachments: [{
         filename: `Invoice-${invoice.invoice_number}.pdf`,
         content: Buffer.from(pdfBase64, 'base64'),
-        contentType: 'application/pdf',
       }],
     });
+    if (error) {
+      console.error('[invoices] resend returned error:', error);
+      return res.status(502).json({ error: error.message || 'Resend rejected the email' });
+    }
 
-    res.json({ success: true, sentTo: invoice.email });
+    res.json({ success: true, sentTo: invoice.email, id: data?.id });
   } catch (err) {
     console.error('[invoices] email failed:', err);
     res.status(500).json({ error: err.message || 'Failed to send email' });
