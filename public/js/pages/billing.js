@@ -307,7 +307,6 @@ async function viewInvoice(id) {
           <h3>INVOICE</h3>
           <p><strong>${inv.invoice_number}</strong></p>
           <p>Date: ${formatDate(inv.invoice_date)}</p>
-          <p>Due: ${formatDate(inv.due_date)}</p>
         </div>
       </div>
       <div style="margin-bottom:1.5rem">
@@ -334,6 +333,7 @@ async function viewInvoice(id) {
         </table>
       </div>
       ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
+      ${invoiceStandardNotesHtml()}
       ${inv.payments?.length ? `
         <h4 class="mt-2">Payment History</h4>
         <table>
@@ -425,7 +425,6 @@ function renderInvoiceHtml(inv) {
           <h3>INVOICE</h3>
           <p><strong>${inv.invoice_number}</strong></p>
           <p>Date: ${formatDate(inv.invoice_date)}</p>
-          <p>Due: ${formatDate(inv.due_date)}</p>
         </div>
       </div>
       <div style="margin-bottom:1.5rem">
@@ -452,6 +451,18 @@ function renderInvoiceHtml(inv) {
         </table>
       </div>
       ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
+      ${invoiceStandardNotesHtml()}
+    </div>
+  `;
+}
+
+function invoiceStandardNotesHtml() {
+  return `
+    <div class="invoice-standard-notes" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #ccc;font-size:0.85rem;line-height:1.5;color:#374151">
+      <p>We would appreciate it if you could make arrangements to complete payment as soon as possible.</p>
+      <p>If payment is not received within 3 days from the date of this invoice a $25.00 fee will be applied.</p>
+      <p>If payment is not received within 5 days of this invoice, an eviction notice will be served.</p>
+      <p>Please do not hesitate to call us if you have any questions about the balance due on your account. If you have already sent us your payment, please disregard.</p>
     </div>
   `;
 }
