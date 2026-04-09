@@ -30,7 +30,7 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '5mb' })); // 5mb to allow base64 PDF attachments for emailed invoices
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Rate limit login attempts to prevent brute force

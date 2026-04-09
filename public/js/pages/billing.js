@@ -456,38 +456,59 @@ function renderInvoiceHtml(inv) {
   `;
 }
 
-// Email Invoice — mailto fallback (no SMTP configured).
-// If you want real server-side email with PDF attachment, tell me which provider
-// and I'll wire up nodemailer with env vars.
+// Email Invoice — generates the PDF in the browser (html2pdf), then sends it
+// to the backend as base64 so nodemailer can attach it and send via Gmail.
 async function emailInvoice(id) {
   const inv = await API.get(`/invoices/${id}`);
   if (!inv) return;
-  const to = inv.email || '';
-  const subject = encodeURIComponent(`Anahuac RV Park — Invoice ${inv.invoice_number}`);
-  const body = encodeURIComponent(
-`Hello ${inv.first_name},
-
-Please find your invoice details below:
-
-Invoice #:    ${inv.invoice_number}
-Lot:          ${inv.lot_id}
-Date:         ${inv.invoice_date}
-Due:          ${inv.due_date}
-Total:        $${Number(inv.total_amount).toFixed(2)}
-Balance Due:  $${Number(inv.balance_due).toFixed(2)}
-
-A PDF copy is attached separately. Thank you!
-
-Anahuac RV Park, LLC
-1003 Davis Ave, Anahuac, TX 77514
-409-267-6603`
-  );
-  if (!to) {
-    if (!confirm('No email address on file for this tenant. Open mail client anyway?')) return;
+  if (!inv.email) {
+    alert('No email address on file for this tenant. Add one on the Tenants page first.');
+    return;
   }
-  // Also auto-download the PDF so the user can attach it.
-  await downloadInvoicePdf(id);
-  window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+  if (!confirm(`Send invoice ${inv.invoice_number} to ${inv.email}?`)) return;
+
+  // Render the invoice HTML offscreen and convert to a PDF Blob, then to base64.
+  const wrap = document.createElement('div');
+  wrap.style.position = 'fixed';
+  wrap.style.left = '-10000px';
+  wrap.style.top = '0';
+  wrap.style.width = '8.5in';
+  wrap.style.background = '#fff';
+  wrap.innerHTML = renderInvoiceHtml(inv);
+  document.body.appendChild(wrap);
+
+  try {
+    const pdfBlob = await html2pdf()
+      .set(_pdfOptions(inv.invoice_number))
+      .from(wrap.firstElementChild)
+      .outputPdf('blob');
+    const pdfBase64 = await blobToBase64(pdfBlob);
+
+    const result = await API.post(`/invoices/${id}/email`, { pdfBase64 });
+    if (result?.success) {
+      alert(`Invoice emailed to ${result.sentTo}.`);
+    } else {
+      alert('Email request completed but the server did not confirm success.');
+    }
+  } catch (err) {
+    alert('Failed to send email: ' + (err.message || 'unknown error'));
+  } finally {
+    wrap.remove();
+  }
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // reader.result is "data:application/pdf;base64,XXXX..." — strip the prefix
+      const result = String(reader.result || '');
+      const comma = result.indexOf(',');
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function editInvoice(id) {

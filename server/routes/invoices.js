@@ -1,8 +1,100 @@
 const router = require('express').Router();
+const nodemailer = require('nodemailer');
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
 
 router.use(authenticate);
+
+// Lazily create a single transporter so missing env vars don't crash boot.
+let _mailer = null;
+function getMailer() {
+  if (_mailer) return _mailer;
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
+    throw new Error('Gmail credentials are not configured. Set GMAIL_USER and GMAIL_PASS environment variables.');
+  }
+  _mailer = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
+  });
+  return _mailer;
+}
+
+// Email an invoice as a PDF attachment via Gmail.
+// Body: { pdfBase64: "<base64 string of the PDF generated client-side>" }
+router.post('/:id/email', async (req, res) => {
+  try {
+    const invoice = db.prepare(`
+      SELECT i.*, t.first_name, t.last_name, t.email, t.lot_id
+      FROM invoices i
+      JOIN tenants t ON i.tenant_id = t.id
+      WHERE i.id = ?
+    `).get(req.params.id);
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+    if (!invoice.email) return res.status(400).json({ error: 'No email on file for this tenant' });
+
+    const { pdfBase64 } = req.body || {};
+    if (!pdfBase64 || typeof pdfBase64 !== 'string') {
+      return res.status(400).json({ error: 'pdfBase64 attachment is required' });
+    }
+
+    const mailer = getMailer();
+    const balance = Number(invoice.balance_due || 0).toFixed(2);
+    const total = Number(invoice.total_amount || 0).toFixed(2);
+
+    const textBody =
+`Hello ${invoice.first_name},
+
+Please find attached your invoice from Anahuac RV Park for lot ${invoice.lot_id}.
+
+Invoice #: ${invoice.invoice_number}
+Date:      ${invoice.invoice_date}
+Due:       ${invoice.due_date}
+Total:     $${total}
+Balance:   $${balance}
+
+Thank you for being part of our community. If you have any questions about this invoice, please reply to this email or call us at 409-267-6603.
+
+Warm regards,
+Anahuac RV Park, LLC
+1003 Davis Ave, Anahuac, TX 77514
+409-267-6603`;
+
+    const htmlBody = `
+      <p>Hello ${invoice.first_name},</p>
+      <p>Please find attached your invoice from <strong>Anahuac RV Park</strong> for lot <strong>${invoice.lot_id}</strong>.</p>
+      <table style="border-collapse:collapse">
+        <tr><td><strong>Invoice #:</strong></td><td>${invoice.invoice_number}</td></tr>
+        <tr><td><strong>Date:</strong></td><td>${invoice.invoice_date}</td></tr>
+        <tr><td><strong>Due:</strong></td><td>${invoice.due_date}</td></tr>
+        <tr><td><strong>Total:</strong></td><td>$${total}</td></tr>
+        <tr><td><strong>Balance:</strong></td><td>$${balance}</td></tr>
+      </table>
+      <p>Thank you for being part of our community. If you have any questions about this invoice, please reply to this email or call us at 409-267-6603.</p>
+      <p>Warm regards,<br>
+      Anahuac RV Park, LLC<br>
+      1003 Davis Ave, Anahuac, TX 77514<br>
+      409-267-6603</p>
+    `;
+
+    await mailer.sendMail({
+      from: `"Anahuac RV Park" <${process.env.GMAIL_USER}>`,
+      to: invoice.email,
+      subject: `Anahuac RV Park - Invoice ${invoice.invoice_number}`,
+      text: textBody,
+      html: htmlBody,
+      attachments: [{
+        filename: `Invoice-${invoice.invoice_number}.pdf`,
+        content: Buffer.from(pdfBase64, 'base64'),
+        contentType: 'application/pdf',
+      }],
+    });
+
+    res.json({ success: true, sentTo: invoice.email });
+  } catch (err) {
+    console.error('[invoices] email failed:', err);
+    res.status(500).json({ error: err.message || 'Failed to send email' });
+  }
+});
 
 // Annual tax / financial summary. Aggregates per month for a given year.
 // Rent / electric / fees / refunds come from the invoices table.
