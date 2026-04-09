@@ -660,9 +660,59 @@ async function saveInvoiceEdit(e, id) {
 }
 
 async function deleteInvoice(id) {
-  if (!confirm('Delete this invoice and associated payments?')) return;
-  await API.del(`/invoices/${id}`);
-  loadBilling();
+  if (!confirm('Delete this invoice? It will be moved to deleted (recoverable via Show Deleted).')) return;
+  // Capture identifying info BEFORE the delete so the toast can show context.
+  const inv = window._allInvoices?.find(i => i.id === id);
+  const label = inv ? `${inv.invoice_number} (${inv.lot_id})` : `#${id}`;
+  try {
+    await API.del(`/invoices/${id}`);
+    loadBilling();
+    showUndoToast(`Invoice ${label} deleted`, async () => {
+      try {
+        await API.post(`/invoices/${id}/restore`, {});
+        loadBilling();
+      } catch (err) {
+        alert('Restore failed: ' + (err.message || 'unknown error'));
+      }
+    });
+  } catch (err) {
+    alert('Delete failed: ' + (err.message || 'unknown error'));
+  }
+}
+
+// Bottom-of-screen toast with an Undo action that auto-dismisses after 10s.
+function showUndoToast(message, onUndo) {
+  // Remove any prior toast so successive deletes replace cleanly.
+  document.getElementById('undo-toast')?.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'undo-toast';
+  toast.className = 'undo-toast';
+  toast.innerHTML = `
+    <span class="undo-toast-msg">${message} — Undo?</span>
+    <button type="button" class="undo-toast-btn">Undo</button>
+    <button type="button" class="undo-toast-close" aria-label="Dismiss">&times;</button>
+    <div class="undo-toast-progress"></div>
+  `;
+  document.body.appendChild(toast);
+
+  let dismissed = false;
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    toast.classList.add('hiding');
+    setTimeout(() => toast.remove(), 250);
+  };
+
+  toast.querySelector('.undo-toast-btn').addEventListener('click', async () => {
+    if (dismissed) return;
+    dismissed = true;
+    toast.remove();
+    try { await onUndo(); } catch (e) { alert('Undo failed: ' + (e.message || 'unknown')); }
+  });
+  toast.querySelector('.undo-toast-close').addEventListener('click', dismiss);
+
+  setTimeout(dismiss, 10000);
 }
 
 // Run the late-fee check on demand and show a summary alert.
