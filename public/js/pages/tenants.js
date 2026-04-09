@@ -173,14 +173,34 @@ async function showMoveTenant(tenantId, currentLot, tenantName) {
   showModal(`Move ${tenantName}`, `
     <p>Currently on lot <strong>${currentLot || '(none)'}</strong>.</p>
     <form onsubmit="submitMoveTenant(event, ${tenantId})">
-      <div class="form-group">
-        <label>New Lot</label>
-        <select name="new_lot_id" required>
-          <option value="">Select a vacant lot...</option>
-          ${vacantLots.map(l => `<option value="${l.id}">${l.id}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}</option>`).join('')}
-        </select>
+      <div class="form-row">
+        <div class="form-group">
+          <label>New Lot</label>
+          <select name="new_lot_id" required>
+            <option value="">Select a vacant lot...</option>
+            ${vacantLots.map(l => `<option value="${l.id}">${l.id}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Move Date</label>
+          <input name="move_date" type="date" value="${new Date().toISOString().split('T')[0]}" required>
+        </div>
       </div>
-      <p><small>This will move the tenant, mark <strong>${currentLot}</strong> vacant, mark the new lot occupied, and create a meter reading entry on the new lot.</small></p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Old Lot Final Meter Reading</label>
+          <input name="old_meter_reading" type="number" step="0.01" placeholder="e.g. 57884">
+        </div>
+        <div class="form-group">
+          <label>New Lot Opening Meter Reading</label>
+          <input name="new_meter_reading" type="number" step="0.01" placeholder="e.g. 21000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Mid-Month Move Notes</label>
+        <textarea name="mid_month_move_notes" placeholder="Reason for move, condition of lots, special arrangements..."></textarea>
+      </div>
+      <p><small>This will: move the tenant, mark <strong>${currentLot}</strong> vacant, mark the new lot occupied, record the final electric reading on the old lot and the opening reading on the new lot. Rent for the next monthly invoice will be prorated by days at each lot.</small></p>
       <button type="submit" class="btn btn-primary btn-full mt-2">Move Tenant</button>
       <p id="move-tenant-error" class="error-text" style="display:none"></p>
     </form>
@@ -195,7 +215,13 @@ async function submitMoveTenant(e, tenantId) {
   const new_lot_id = form.get('new_lot_id');
   if (!new_lot_id) return;
   try {
-    const result = await API.post(`/tenants/${tenantId}/move`, { new_lot_id });
+    const result = await API.post(`/tenants/${tenantId}/move`, {
+      new_lot_id,
+      move_date: form.get('move_date') || undefined,
+      old_meter_reading: form.get('old_meter_reading') || undefined,
+      new_meter_reading: form.get('new_meter_reading') || undefined,
+      mid_month_move_notes: form.get('mid_month_move_notes') || undefined,
+    });
     closeModal();
     alert(`${result.tenant} moved from ${result.from || '(none)'} to ${result.to}.`);
     loadTenants();

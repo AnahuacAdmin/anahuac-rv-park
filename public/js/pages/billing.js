@@ -358,12 +358,26 @@ async function viewInvoice(id) {
 //   kWh Used:         548
 //   Electric Charge (548 kWh x $0.15) = $82.20
 function meterRowsHtml(inv) {
+  const fmtNum = (v) => Number(v ?? 0).toLocaleString();
+  // Multi-meter mode (mid-month move): render one block per lot reading.
+  if (Array.isArray(inv.meters) && inv.meters.length > 1) {
+    return inv.meters.map(m => {
+      const rate = Number(m.rate_per_kwh).toFixed(2);
+      return `
+        <tr><td colspan="2"><strong>Electric — Lot ${m.lot_id}</strong>${m.notes ? ` <small>(${m.notes})</small>` : ''}</td></tr>
+        <tr><td>&nbsp;&nbsp;Previous Reading</td><td class="text-right">${fmtNum(m.previous_reading)}</td></tr>
+        <tr><td>&nbsp;&nbsp;Current Reading</td><td class="text-right">${fmtNum(m.current_reading)}</td></tr>
+        <tr><td>&nbsp;&nbsp;kWh Used</td><td class="text-right">${fmtNum(m.kwh_used)}</td></tr>
+        <tr><td>&nbsp;&nbsp;Electric Charge (${fmtNum(m.kwh_used)} kWh &times; $${rate})</td><td class="text-right">${formatMoney(m.electric_charge)}</td></tr>
+      `;
+    }).join('');
+  }
+  // Single-meter mode (existing behavior).
   if (!inv.meter) {
     return `<tr><td>Electric Charges</td><td class="text-right">${formatMoney(inv.electric_amount)}</td></tr>`;
   }
   const m = inv.meter;
   const rate = Number(m.rate_per_kwh).toFixed(2);
-  const fmtNum = (v) => Number(v ?? 0).toLocaleString();
   return `
     <tr><td>Previous Reading</td><td class="text-right">${fmtNum(m.previous_reading)}</td></tr>
     <tr><td>Current Reading</td><td class="text-right">${fmtNum(m.current_reading)}</td></tr>

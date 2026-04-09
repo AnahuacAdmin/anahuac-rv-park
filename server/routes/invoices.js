@@ -268,7 +268,19 @@ router.get('/:id', (req, res) => {
     ).get(invoice.lot_id);
   }
 
-  res.json({ ...invoice, payments, meter });
+  // All meter readings for THIS tenant within the billing period — used to render
+  // multiple electric line items when the tenant moved mid-month.
+  let meters = [];
+  if (invoice.billing_period_start && invoice.billing_period_end) {
+    meters = db.prepare(`
+      SELECT lot_id, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, reading_date, notes
+      FROM meter_readings
+      WHERE tenant_id = ? AND reading_date BETWEEN ? AND ?
+      ORDER BY reading_date ASC, id ASC
+    `).all(invoice.tenant_id, invoice.billing_period_start, invoice.billing_period_end);
+  }
+
+  res.json({ ...invoice, payments, meter, meters });
 });
 
 router.post('/', (req, res) => {
@@ -337,27 +349,56 @@ router.post('/generate', (req, res) => {
     ).get(tenant.id, startDate);
     if (existing) continue;
 
-    const reading = db.prepare(`
-      SELECT * FROM meter_readings WHERE tenant_id = ? ORDER BY reading_date DESC LIMIT 1
-    `).get(tenant.id);
+    // Sum ALL of this tenant's meter readings inside the billing period — when
+    // they moved mid-month there will be one row for the old lot (final) and
+    // one for the new lot (opening, $0).
+    const periodReadings = db.prepare(`
+      SELECT lot_id, kwh_used, electric_charge
+      FROM meter_readings
+      WHERE tenant_id = ? AND reading_date BETWEEN ? AND ?
+    `).all(tenant.id, startDate, endDate);
+    let electricAmount = periodReadings.reduce((s, r) => s + (Number(r.electric_charge) || 0), 0);
+    if (electricAmount === 0) {
+      // No reading in the period yet — fall back to the most recent reading for this tenant.
+      const reading = db.prepare(`
+        SELECT electric_charge FROM meter_readings WHERE tenant_id = ? ORDER BY reading_date DESC LIMIT 1
+      `).get(tenant.id);
+      electricAmount = reading?.electric_charge || 0;
+    }
 
-    const electricAmount = reading ? reading.electric_charge : 0;
+    // Mid-month move proration: if last_move_date falls inside this period,
+    // split the rent between the old and new lot by days.
+    let rentAmount = tenant.monthly_rent;
+    let moveNote = '';
+    if (tenant.last_move_date && tenant.last_move_date >= startDate && tenant.last_move_date <= endDate) {
+      const daysInMonth = new Date(billing_year, billing_month, 0).getDate();
+      const moveDay = parseInt(tenant.last_move_date.slice(8, 10));
+      const daysOld = Math.max(0, moveDay - 1);
+      const daysNew = daysInMonth - daysOld;
+      const oldRent = Number(tenant.last_move_old_rent) || tenant.monthly_rent;
+      rentAmount = +((oldRent * daysOld / daysInMonth) + (tenant.monthly_rent * daysNew / daysInMonth)).toFixed(2);
+      moveNote = `Mid-month move on ${tenant.last_move_date}: ${daysOld} days @ $${oldRent.toFixed(2)} (${tenant.last_move_old_lot_id}) + ${daysNew} days @ $${Number(tenant.monthly_rent).toFixed(2)} (${tenant.lot_id})`;
+      // Clear the move flag so subsequent generations don't double-prorate.
+      db.prepare('UPDATE tenants SET last_move_date = NULL, last_move_old_lot_id = NULL, last_move_old_rent = NULL WHERE id = ?').run(tenant.id);
+    }
+
     const mailbox = tenant.recurring_mailbox_fee || 0;
     const misc = tenant.recurring_misc_fee || 0;
     const lateFee = tenant.recurring_late_fee || 0;
     const credit = tenant.recurring_credit || 0;
-    const subtotal = tenant.monthly_rent + electricAmount + mailbox + misc;
+    const subtotal = rentAmount + electricAmount + mailbox + misc;
     const total = subtotal + lateFee - credit;
     const invoiceNum = `INV-${billing_year}${String(billing_month).padStart(2, '0')}-${tenant.lot_id}`;
+    const combinedNotes = [moveNote, tenant.mid_month_move_notes].filter(Boolean).join(' — ') || null;
 
     db.prepare(`
       INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
         rent_amount, electric_amount, mailbox_fee, misc_fee, misc_description,
-        refund_amount, refund_description, late_fee, subtotal, total_amount, balance_due, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+        refund_amount, refund_description, late_fee, subtotal, total_amount, balance_due, status, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
     `).run(tenant.id, tenant.lot_id, invoiceNum, startDate, dueDate, startDate, endDate,
-      tenant.monthly_rent, electricAmount, mailbox, misc, tenant.recurring_misc_description,
-      credit, tenant.recurring_credit_description, lateFee, subtotal, total, total);
+      rentAmount, electricAmount, mailbox, misc, tenant.recurring_misc_description,
+      credit, tenant.recurring_credit_description, lateFee, subtotal, total, total, combinedNotes);
     generated.push(tenant.lot_id);
   }
 

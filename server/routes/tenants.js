@@ -83,10 +83,18 @@ router.put('/:id', (req, res) => {
 //  - create a zero-value meter reading on the new lot so it shows up on the meters page
 router.post('/:id/move', (req, res) => {
   try {
-    const { new_lot_id } = req.body || {};
+    const {
+      new_lot_id,
+      move_date,                   // optional, defaults to today
+      old_meter_reading,           // optional: face value on old lot at moment of move
+      new_meter_reading,           // optional: face value on new lot when occupied
+      mid_month_move_notes,        // optional free-text
+    } = req.body || {};
     if (!new_lot_id) return res.status(400).json({ error: 'new_lot_id is required' });
 
-    const tenant = db.prepare('SELECT id, lot_id, first_name, last_name FROM tenants WHERE id = ? AND is_active = 1').get(req.params.id);
+    const tenant = db.prepare(
+      'SELECT id, lot_id, first_name, last_name, monthly_rent FROM tenants WHERE id = ? AND is_active = 1'
+    ).get(req.params.id);
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
     if (tenant.lot_id === new_lot_id) return res.status(400).json({ error: 'Tenant is already on this lot' });
 
@@ -95,28 +103,61 @@ router.post('/:id/move', (req, res) => {
     if (newLot.status !== 'vacant') return res.status(400).json({ error: `Lot ${new_lot_id} is not vacant (status: ${newLot.status})` });
 
     const oldLotId = tenant.lot_id;
+    const moveDate = move_date || new Date().toISOString().split('T')[0];
 
-    db.prepare('UPDATE tenants SET lot_id = ? WHERE id = ?').run(new_lot_id, tenant.id);
-    if (oldLotId) {
-      db.prepare("UPDATE lots SET status = 'vacant' WHERE id = ?").run(oldLotId);
+    const rateRow = db.prepare("SELECT value FROM settings WHERE key = 'electric_rate'").get();
+    const rate = parseFloat(rateRow?.value || 0.15);
+
+    // 1. Final meter reading on old lot (if provided + tenant had a lot).
+    if (oldLotId && (old_meter_reading !== undefined && old_meter_reading !== null && old_meter_reading !== '')) {
+      const oldFinal = Number(old_meter_reading) || 0;
+      // previous reading = the most recent prior reading on the old lot for this tenant
+      const prior = db.prepare(`
+        SELECT current_reading FROM meter_readings
+        WHERE tenant_id = ? AND lot_id = ? AND reading_date <= ?
+        ORDER BY reading_date DESC, id DESC LIMIT 1
+      `).get(tenant.id, oldLotId, moveDate);
+      const prev = Number(prior?.current_reading) || 0;
+      const kwh = Math.max(0, oldFinal - prev);
+      const charge = +(kwh * rate).toFixed(2);
+      db.prepare(`
+        INSERT INTO meter_readings
+          (lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(oldLotId, tenant.id, moveDate, prev, oldFinal, kwh, rate, charge, 'Final reading at move-out');
     }
+
+    // 2. Move the tenant + flip the lot statuses.
+    db.prepare('UPDATE tenants SET lot_id = ? WHERE id = ?').run(new_lot_id, tenant.id);
+    if (oldLotId) db.prepare("UPDATE lots SET status = 'vacant' WHERE id = ?").run(oldLotId);
     db.prepare("UPDATE lots SET status = 'occupied' WHERE id = ?").run(new_lot_id);
 
-    // Seed a placeholder meter reading on the new lot so the meters page shows it.
-    const today = new Date().toISOString().split('T')[0];
-    const existing = db.prepare('SELECT id FROM meter_readings WHERE tenant_id = ? AND lot_id = ?').get(tenant.id, new_lot_id);
-    if (!existing) {
-      db.prepare(`
-        INSERT INTO meter_readings (lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge)
-        VALUES (?, ?, ?, 0, 0, 0, 0.15, 0)
-      `).run(new_lot_id, tenant.id, today);
-    }
+    // 3. Opening reading on the new lot.
+    const opening = (new_meter_reading !== undefined && new_meter_reading !== null && new_meter_reading !== '')
+      ? Number(new_meter_reading) || 0
+      : 0;
+    db.prepare(`
+      INSERT INTO meter_readings
+        (lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, notes)
+      VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
+    `).run(new_lot_id, tenant.id, moveDate, opening, opening, rate, 'Opening reading at move-in');
+
+    // 4. Save move metadata on the tenant for proration on next invoice generation.
+    db.prepare(`
+      UPDATE tenants
+      SET mid_month_move_notes = ?,
+          last_move_date = ?,
+          last_move_old_lot_id = ?,
+          last_move_old_rent = ?
+      WHERE id = ?
+    `).run(mid_month_move_notes || null, moveDate, oldLotId, tenant.monthly_rent, tenant.id);
 
     res.json({
       success: true,
       tenant: `${tenant.first_name} ${tenant.last_name}`,
       from: oldLotId,
       to: new_lot_id,
+      move_date: moveDate,
     });
   } catch (err) {
     console.error('[tenants] move failed:', err);
