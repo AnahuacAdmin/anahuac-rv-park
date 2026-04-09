@@ -376,4 +376,25 @@ async function initializeDatabase() {
 process.on('exit', () => { if (db) saveDb(); });
 process.on('SIGINT', () => { if (db) saveDb(); process.exit(); });
 
-module.exports = { db: dbWrapper, initializeDatabase };
+// Replace the in-memory database from a raw .sqlite file buffer (used by the
+// admin restore endpoint). Writes the buffer to DB_PATH and reloads sql.js so
+// the running process picks up the new data without a restart. The DbWrapper
+// methods always read the module-level `db`, so reassigning it here is enough.
+async function reloadDatabase(buffer) {
+  const initSqlJs = require('sql.js');
+  const SQL = await initSqlJs({
+    locateFile: file => require.resolve(`sql.js/dist/${file}`),
+  });
+  // Validate it actually loads as a sqlite database before overwriting anything.
+  const newDb = new SQL.Database(new Uint8Array(buffer));
+  newDb.run("PRAGMA foreign_keys = ON");
+  // Persist the new file to disk, then swap the in-memory handle.
+  fs.writeFileSync(DB_PATH, buffer);
+  if (db) {
+    try { db.close(); } catch {}
+  }
+  db = newDb;
+  console.log('[database] restored from uploaded backup');
+}
+
+module.exports = { db: dbWrapper, initializeDatabase, reloadDatabase, saveDb, DB_PATH };

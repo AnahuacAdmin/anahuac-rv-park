@@ -55,6 +55,7 @@ app.get('/api/health', (req, res) => {
 // API routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/admin', require('./routes/admin'));
 const invoicesRouter = require('./routes/invoices');
 app.use('/api/lots', require('./routes/lots'));
 app.use('/api/tenants', require('./routes/tenants'));

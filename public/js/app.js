@@ -105,7 +105,7 @@ function navigateTo(page) {
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, waitlist: loadWaitlist,
-    users: loadUsers };
+    users: loadUsers, admin: loadAdmin };
   if (loader[page]) loader[page]();
 }
 
@@ -218,8 +218,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Show Users nav entry only for admins
   function refreshUsersNavVisibility() {
-    const el = document.getElementById('nav-users');
-    if (el) el.style.display = (API.user?.role === 'admin') ? '' : 'none';
+    const isAdmin = API.user?.role === 'admin';
+    const u = document.getElementById('nav-users');
+    const a = document.getElementById('nav-admin');
+    if (u) u.style.display = isAdmin ? '' : 'none';
+    if (a) a.style.display = isAdmin ? '' : 'none';
   }
   refreshUsersNavVisibility();
   // Re-check after login
