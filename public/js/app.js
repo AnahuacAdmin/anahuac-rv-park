@@ -101,6 +101,7 @@ function navigateTo(page) {
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
   const sidebar = document.getElementById('sidebar');
   sidebar.classList.remove('open');
+  document.getElementById('sidebar-backdrop')?.classList.remove('open');
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, waitlist: loadWaitlist,
@@ -197,10 +198,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Mobile menu
-  document.getElementById('menu-toggle').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.toggle('open');
-  });
+  // Mobile menu — toggle sidebar via either the in-sidebar button or the top hamburger
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  function openSidebar()  { sidebar.classList.add('open');    backdrop?.classList.add('open'); }
+  function closeSidebar() { sidebar.classList.remove('open'); backdrop?.classList.remove('open'); }
+  function toggleSidebar() {
+    if (sidebar.classList.contains('open')) closeSidebar(); else openSidebar();
+  }
+  document.getElementById('menu-toggle').addEventListener('click', toggleSidebar);
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', toggleSidebar);
+  backdrop?.addEventListener('click', closeSidebar);
 
   // Logout
   document.getElementById('logout-btn').addEventListener('click', () => API.logout());

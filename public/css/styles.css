@@ -387,18 +387,71 @@ tr:hover { background: var(--gray-50); }
   .modal { box-shadow: none; max-width: 100%; max-height: none; }
 }
 
+/* Mobile header (hidden by default; shown on small screens) */
+.mobile-header { display: none; }
+.mobile-menu-btn {
+  background: none; border: none; color: white;
+  font-size: 1.6rem; cursor: pointer; padding: 0.25rem 0.5rem;
+  line-height: 1;
+}
+.sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+}
+.sidebar-backdrop.open { display: block; }
+
 /* Responsive */
 @media (max-width: 768px) {
-  #sidebar { transform: translateX(-100%); }
-  #sidebar.open { transform: translateX(0); }
+  #sidebar { transform: translateX(-100%); width: 80vw; max-width: 280px; }
+  #sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
   .menu-btn { display: block; }
-  #content { margin-left: 0; }
+  #content { margin-left: 0; padding: 1rem 0.75rem; }
   .sidebar-header { position: relative; }
   .form-row { grid-template-columns: 1fr; }
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+  .stat-card { padding: 0.85rem; }
+  .stat-card .stat-value { font-size: 1.4rem; }
   .page-header { flex-direction: column; align-items: flex-start; }
-  .mobile-header { display: flex; align-items: center; padding: 0.75rem 1rem; background: var(--gray-900); color: white; position: sticky; top: 0; z-index: 50; }
-  .mobile-header h2 { font-size: 1rem; margin-left: 0.75rem; }
+  .page-header h2 { font-size: 1.2rem; }
+  .mobile-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.75rem 1rem; background: var(--gray-900); color: white;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .mobile-header h2 { font-size: 1rem; margin: 0; }
+
+  /* Make non-billing tables more compact and force horizontal scroll cleanly */
+  .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
+  table { font-size: 0.78rem; }
+  th, td { padding: 0.5rem 0.5rem; }
+  .billing-table th, .billing-table td { padding: 0.35rem 0.4rem; font-size: 0.72rem; }
+
+  /* Modals fill the screen on phones */
+  .modal { width: 100%; max-width: 100%; max-height: 100vh; border-radius: 0; margin-bottom: 0; }
+  .modal-overlay { padding-top: 0; }
+  #modal-body { padding: 1rem; }
+
+  /* Buttons wrap and don't overflow */
+  .btn-group { gap: 0.4rem; }
+  .btn { padding: 0.5rem 0.85rem; font-size: 0.85rem; }
+  .btn-sm { padding: 0.3rem 0.55rem; font-size: 0.72rem; }
+
+  /* Login card fits phone width */
+  .login-box { padding: 1.75rem 1.25rem; }
+
+  /* Site map: smaller lot tiles so a row fits */
+  .sitemap-grid { grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 0.5rem; }
+  .lot-card { min-height: 70px; padding: 0.5rem; }
+  .lot-card .lot-id { font-size: 0.95rem; }
+
+  /* Filter bar wraps cleanly */
+  .filter-bar select, .filter-bar input { flex: 1 1 130px; min-width: 0; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
 }
 
 /* Utilities */
