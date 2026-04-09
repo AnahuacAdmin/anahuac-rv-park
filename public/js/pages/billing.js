@@ -8,8 +8,9 @@ async function loadBilling() {
       <h2>Billing & Invoices</h2>
       <div class="btn-group">
         <button class="btn btn-success" onclick="showGenerateInvoices()">Generate Monthly Invoices</button>
+        <button class="btn btn-warning" onclick="showTaxReport()">Tax Reports</button>
+        <button class="btn btn-outline" onclick="exportInvoicesToExcel()">Export to Excel</button>
         <button class="btn btn-primary" onclick="showCreateInvoice()">+ Single Invoice</button>
-        <button class="btn btn-outline" onclick="showTaxReport()">Tax Reports</button>
       </div>
     </div>
     <div class="filter-bar">
@@ -551,6 +552,94 @@ async function deleteInvoice(id) {
   if (!confirm('Delete this invoice and associated payments?')) return;
   await API.del(`/invoices/${id}`);
   loadBilling();
+}
+
+// --- Excel export of currently filtered invoices ---
+function exportInvoicesToExcel() {
+  if (typeof XLSX === 'undefined') {
+    alert('Excel library failed to load. Check your internet connection and try again.');
+    return;
+  }
+  if (!window._allInvoices || !window._allInvoices.length) {
+    alert('No invoices to export.');
+    return;
+  }
+  // Use the same filter logic the table uses, so the export matches what's on screen.
+  const status = document.getElementById('invoice-status-filter')?.value || 'all';
+  const month  = document.getElementById('invoice-month-filter')?.value || 'all';
+  const year   = document.getElementById('invoice-year-filter')?.value || 'all';
+  const filtered = window._allInvoices.filter(i => {
+    if (status !== 'all' && i.status !== status) return false;
+    const d = i.invoice_date || '';
+    if (year !== 'all' && d.slice(0, 4) !== year) return false;
+    if (month !== 'all' && parseInt(d.slice(5, 7)) !== parseInt(month)) return false;
+    return true;
+  });
+  if (!filtered.length) {
+    alert('No invoices match the current filters.');
+    return;
+  }
+
+  const num = (v) => Number(v) || 0;
+  const rows = filtered.map(i => ({
+    'Invoice #':    i.invoice_number,
+    'Lot':          i.lot_id,
+    'Tenant':       `${i.first_name || ''} ${i.last_name || ''}`.trim(),
+    'Invoice Date': i.invoice_date,
+    'Due Date':     i.due_date,
+    'Rent':         num(i.rent_amount),
+    'Electric':     num(i.electric_amount),
+    'Mailbox Fee':  num(i.mailbox_fee),
+    'Misc Fee':     num(i.misc_fee),
+    'Misc Description': i.misc_description || '',
+    'Late Fee':     num(i.late_fee),
+    'Other Charges': num(i.other_charges),
+    'Other Description': i.other_description || '',
+    'Refund / Credit': num(i.refund_amount),
+    'Refund Description': i.refund_description || '',
+    'Total':        num(i.total_amount),
+    'Amount Paid':  num(i.amount_paid),
+    'Balance Due':  num(i.balance_due),
+    'Status':       i.status,
+    'Notes':        i.notes || '',
+  }));
+
+  // Totals row
+  const sum = (k) => filtered.reduce((s, i) => s + num(i[k]), 0);
+  rows.push({});
+  rows.push({
+    'Invoice #':    'TOTAL',
+    'Tenant':       `${filtered.length} invoices`,
+    'Rent':         sum('rent_amount'),
+    'Electric':     sum('electric_amount'),
+    'Mailbox Fee':  sum('mailbox_fee'),
+    'Misc Fee':     sum('misc_fee'),
+    'Late Fee':     sum('late_fee'),
+    'Other Charges': sum('other_charges'),
+    'Refund / Credit': sum('refund_amount'),
+    'Total':        sum('total_amount'),
+    'Amount Paid':  sum('amount_paid'),
+    'Balance Due':  sum('balance_due'),
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  // Reasonable column widths
+  ws['!cols'] = [
+    { wch: 18 }, { wch: 6 }, { wch: 22 }, { wch: 12 }, { wch: 12 },
+    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 22 },
+    { wch: 10 }, { wch: 10 }, { wch: 22 }, { wch: 12 }, { wch: 22 },
+    { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 30 },
+  ];
+  const wb = XLSX.utils.book_new();
+  const sheetName = (month !== 'all' && year !== 'all')
+    ? `${new Date(2000, parseInt(month) - 1).toLocaleString('default', { month: 'short' })} ${year}`
+    : year !== 'all' ? `Year ${year}` : 'All Invoices';
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const fileLabel = (month !== 'all' && year !== 'all')
+    ? `${year}-${String(month).padStart(2, '0')}`
+    : year !== 'all' ? year : 'all';
+  XLSX.writeFile(wb, `Anahuac-Invoices-${fileLabel}.xlsx`);
 }
 
 // --- Year-end tax / financial report ---
