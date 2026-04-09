@@ -252,25 +252,40 @@ async function showCreateInvoice() {
       </div>
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
       <button type="submit" class="btn btn-primary btn-full mt-2">Create Invoice</button>
+      <p id="create-invoice-error" class="error-text" style="display:none"></p>
     </form>
   `);
 }
 
 async function createInvoice(e) {
   e.preventDefault();
+  const errEl = document.getElementById('create-invoice-error');
+  if (errEl) errEl.style.display = 'none';
   const form = new FormData(e.target);
   const data = Object.fromEntries(form);
+  if (!data.tenant_id) {
+    if (errEl) { errEl.textContent = 'Please select a tenant.'; errEl.style.display = ''; }
+    return;
+  }
+  if (!data.invoice_date || !data.due_date) {
+    if (errEl) { errEl.textContent = 'Invoice date and due date are required.'; errEl.style.display = ''; }
+    return;
+  }
   data.tenant_id = parseInt(data.tenant_id);
-  data.rent_amount = parseFloat(data.rent_amount) || 0;
-  data.electric_amount = parseFloat(data.electric_amount) || 0;
-  data.other_charges = parseFloat(data.other_charges) || 0;
-  data.late_fee = parseFloat(data.late_fee) || 0;
-  data.mailbox_fee = parseFloat(data.mailbox_fee) || 0;
-  data.misc_fee = parseFloat(data.misc_fee) || 0;
-  data.refund_amount = parseFloat(data.refund_amount) || 0;
-  await API.post('/invoices', data);
-  closeModal();
-  loadBilling();
+  ['rent_amount','electric_amount','other_charges','late_fee','mailbox_fee','misc_fee','refund_amount']
+    .forEach(k => data[k] = parseFloat(data[k]) || 0);
+  try {
+    await API.post('/invoices', data);
+    closeModal();
+    loadBilling();
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = err.message || 'Failed to create invoice.';
+      errEl.style.display = '';
+    } else {
+      alert('Failed to create invoice: ' + (err.message || 'unknown error'));
+    }
+  }
 }
 
 async function viewInvoice(id) {

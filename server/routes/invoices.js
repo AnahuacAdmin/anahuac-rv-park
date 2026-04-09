@@ -106,27 +106,51 @@ router.get('/:id', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { tenant_id, invoice_date, due_date, billing_period_start, billing_period_end,
-    rent_amount, electric_amount, other_charges, other_description, late_fee,
-    mailbox_fee, misc_fee, misc_description, refund_amount, refund_description, notes } = req.body;
+  try {
+    const b = req.body || {};
+    const tenant_id = parseInt(b.tenant_id);
+    if (!tenant_id) return res.status(400).json({ error: 'Tenant is required' });
+    if (!b.invoice_date) return res.status(400).json({ error: 'Invoice date is required' });
+    if (!b.due_date) return res.status(400).json({ error: 'Due date is required' });
 
-  const subtotal = (rent_amount || 0) + (electric_amount || 0) + (other_charges || 0)
-    + (mailbox_fee || 0) + (misc_fee || 0);
-  const total = subtotal + (late_fee || 0) - (refund_amount || 0);
-  const invoiceNum = 'INV-' + Date.now();
+    const tenant = db.prepare('SELECT lot_id FROM tenants WHERE id = ?').get(tenant_id);
+    if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
 
-  const tenant = db.prepare('SELECT lot_id FROM tenants WHERE id = ?').get(tenant_id);
+    // sql.js bindings reject `undefined` — coerce numbers to 0 and strings to null.
+    const num = (v) => Number(v) || 0;
+    const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
 
-  const result = db.prepare(`
-    INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
-      rent_amount, electric_amount, other_charges, other_description, mailbox_fee, misc_fee, misc_description,
-      refund_amount, refund_description, subtotal, late_fee, total_amount, balance_due, status, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
-  `).run(tenant_id, tenant?.lot_id, invoiceNum, invoice_date, due_date, billing_period_start, billing_period_end,
-    rent_amount || 0, electric_amount || 0, other_charges || 0, other_description,
-    mailbox_fee || 0, misc_fee || 0, misc_description, refund_amount || 0, refund_description,
-    subtotal, late_fee || 0, total, total, notes);
-  res.json({ id: result.lastInsertRowid, invoice_number: invoiceNum });
+    const rent_amount     = num(b.rent_amount);
+    const electric_amount = num(b.electric_amount);
+    const other_charges   = num(b.other_charges);
+    const mailbox_fee     = num(b.mailbox_fee);
+    const misc_fee        = num(b.misc_fee);
+    const late_fee        = num(b.late_fee);
+    const refund_amount   = num(b.refund_amount);
+
+    const subtotal = rent_amount + electric_amount + other_charges + mailbox_fee + misc_fee;
+    const total = subtotal + late_fee - refund_amount;
+    const invoiceNum = 'INV-' + Date.now();
+
+    const result = db.prepare(`
+      INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
+        rent_amount, electric_amount, other_charges, other_description, mailbox_fee, misc_fee, misc_description,
+        refund_amount, refund_description, subtotal, late_fee, total_amount, balance_due, status, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+    `).run(
+      tenant_id, tenant.lot_id, invoiceNum,
+      str(b.invoice_date), str(b.due_date),
+      str(b.billing_period_start), str(b.billing_period_end),
+      rent_amount, electric_amount, other_charges, str(b.other_description),
+      mailbox_fee, misc_fee, str(b.misc_description),
+      refund_amount, str(b.refund_description),
+      subtotal, late_fee, total, total, str(b.notes)
+    );
+    res.json({ id: result.lastInsertRowid, invoice_number: invoiceNum });
+  } catch (err) {
+    console.error('[invoices] create failed:', err);
+    res.status(500).json({ error: 'Failed to create invoice: ' + err.message });
+  }
 });
 
 router.post('/generate', (req, res) => {
