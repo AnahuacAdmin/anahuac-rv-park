@@ -171,6 +171,35 @@ a { text-decoration: none; color: inherit; }
 }
 .error-text { color: var(--danger); text-align: center; margin-top: 1rem; font-size: 0.9rem; }
 .success-text { color: var(--success); text-align: center; margin-top: 1rem; font-size: 0.9rem; }
+
+/* Inline-editable table cells */
+.editable-cell { position: relative; cursor: pointer; }
+.editable-cell .edit-pencil {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  color: var(--primary);
+  pointer-events: none;
+}
+.editable-cell:hover { background: #fff7ed; }
+.editable-cell:hover .edit-pencil { display: inline; }
+.editable-cell.editing { background: #fff; padding: 2px 4px; }
+.inline-edit-input {
+  width: 100%;
+  min-width: 70px;
+  padding: 0.25rem 0.4rem;
+  border: 1.5px solid var(--primary);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: #fff;
+  outline: none;
+}
+.editable-text { min-width: 140px; }
+.muted { color: var(--gray-500); }
 .password-wrap { position: relative; }
 .password-wrap input { padding-right: 2.5rem; }
 .password-toggle {

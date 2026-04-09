@@ -31,7 +31,7 @@ async function loadBilling() {
     <div class="card">
       <div class="table-container table-scroll billing-scroll">
         <table class="billing-table">
-          <thead><tr><th>Invoice #</th><th>Lot</th><th>Tenant</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Late Fee</th><th>Refund</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Invoice #</th><th>Lot</th><th>Tenant</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="invoices-body">
             ${renderInvoiceRows(invoices)}
           </tbody>
@@ -43,19 +43,24 @@ async function loadBilling() {
 }
 
 function renderInvoiceRows(invoices) {
-  if (!invoices.length) return '<tr><td colspan="15" class="text-center">No invoices yet. Generate monthly invoices to get started.</td></tr>';
-  return invoices.map(inv => `
-    <tr class="invoice-row" data-status="${inv.status}">
+  if (!invoices.length) return '<tr><td colspan="16" class="text-center">No invoices yet. Generate monthly invoices to get started.</td></tr>';
+  return invoices.map(inv => renderInvoiceRow(inv)).join('');
+}
+
+function renderInvoiceRow(inv) {
+  return `
+    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}">
       <td>${inv.invoice_number}</td>
       <td><strong>${inv.lot_id}</strong></td>
       <td>${inv.first_name} ${inv.last_name}</td>
       <td>${formatDate(inv.invoice_date)}</td>
       <td>${formatMoney(inv.rent_amount)}</td>
       <td>${formatMoney(inv.electric_amount)}</td>
-      <td>${formatMoney(inv.mailbox_fee)}</td>
-      <td>${formatMoney(inv.misc_fee)}${inv.misc_description ? ` <small>(${inv.misc_description})</small>` : ''}</td>
-      <td>${formatMoney(inv.late_fee)}</td>
-      <td>${inv.refund_amount ? '-' + formatMoney(inv.refund_amount) : formatMoney(0)}${inv.refund_description ? ` <small>(${inv.refund_description})</small>` : ''}</td>
+      ${editableMoneyCell(inv.id, 'mailbox_fee', inv.mailbox_fee)}
+      ${editableMoneyCell(inv.id, 'misc_fee', inv.misc_fee, inv.misc_description)}
+      ${editableMoneyCell(inv.id, 'late_fee', inv.late_fee)}
+      ${editableMoneyCell(inv.id, 'refund_amount', inv.refund_amount, inv.refund_description, true)}
+      ${editableTextCell(inv.id, 'notes', inv.notes)}
       <td><strong>${formatMoney(inv.total_amount)}</strong></td>
       <td>${formatMoney(inv.amount_paid)}</td>
       <td><strong>${formatMoney(inv.balance_due)}</strong></td>
@@ -68,7 +73,85 @@ function renderInvoiceRows(invoices) {
         <button class="btn btn-sm btn-danger" onclick="deleteInvoice(${inv.id})">Del</button>
       </td>
     </tr>
-  `).join('');
+  `;
+}
+
+function editableMoneyCell(id, field, value, description, negative) {
+  const display = negative && value
+    ? '-' + formatMoney(value)
+    : formatMoney(value);
+  const desc = description ? ` <small>(${escapeHtmlBilling(description)})</small>` : '';
+  return `<td class="editable-cell" data-id="${id}" data-field="${field}" data-type="money" data-value="${value || 0}">
+    <span class="editable-display">${display}${desc}</span><span class="edit-pencil">&#9998;</span>
+  </td>`;
+}
+
+function editableTextCell(id, field, value) {
+  const display = value ? escapeHtmlBilling(value) : '<span class="muted">—</span>';
+  return `<td class="editable-cell editable-text" data-id="${id}" data-field="${field}" data-type="text" data-value="${escapeAttrBilling(value || '')}">
+    <span class="editable-display">${display}</span><span class="edit-pencil">&#9998;</span>
+  </td>`;
+}
+
+function escapeHtmlBilling(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function escapeAttrBilling(s) { return escapeHtmlBilling(s); }
+
+// Click → swap cell to input. Enter or blur → save via PATCH and update row.
+document.addEventListener('click', async (e) => {
+  const cell = e.target.closest('.editable-cell');
+  if (!cell || cell.classList.contains('editing')) return;
+  // Avoid stealing clicks from buttons inside other cells
+  if (e.target.closest('button')) return;
+  startInlineEdit(cell);
+});
+
+function startInlineEdit(cell) {
+  cell.classList.add('editing');
+  const type = cell.dataset.type;
+  const value = cell.dataset.value;
+  const original = cell.innerHTML;
+  const input = document.createElement('input');
+  input.type = type === 'money' ? 'number' : 'text';
+  if (type === 'money') input.step = '0.01';
+  input.value = value;
+  input.className = 'inline-edit-input';
+  cell.innerHTML = '';
+  cell.appendChild(input);
+  input.focus();
+  input.select();
+
+  let saving = false;
+  const cancel = () => { cell.innerHTML = original; cell.classList.remove('editing'); };
+  const commit = async () => {
+    if (saving) return;
+    saving = true;
+    const newValRaw = input.value;
+    const newVal = type === 'money' ? (parseFloat(newValRaw) || 0) : newValRaw;
+    if (String(newVal) === String(value)) { cancel(); return; }
+    try {
+      const updated = await API.patch(`/invoices/${cell.dataset.id}`, { [cell.dataset.field]: newVal });
+      // Merge into _allInvoices and re-render this row in place
+      const idx = window._allInvoices.findIndex(i => i.id === updated.id);
+      if (idx >= 0) {
+        window._allInvoices[idx] = { ...window._allInvoices[idx], ...updated };
+        const tr = cell.closest('tr');
+        const replacement = document.createElement('tbody');
+        replacement.innerHTML = renderInvoiceRow(window._allInvoices[idx]);
+        tr.replaceWith(replacement.firstElementChild);
+      }
+    } catch (err) {
+      alert('Save failed: ' + err.message);
+      cancel();
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+  input.addEventListener('blur', commit);
 }
 
 function invoiceYearOptions(invoices) {

@@ -195,6 +195,48 @@ router.put('/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// Partial update — accepts any subset of editable fields and recalculates totals.
+// Used by the inline cell editor on the billing page.
+router.patch('/:id', (req, res) => {
+  const allowed = ['rent_amount','electric_amount','other_charges','other_description',
+    'late_fee','mailbox_fee','misc_fee','misc_description','refund_amount','refund_description','notes','status'];
+  const existing = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+
+  const merged = { ...existing };
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) merged[k] = req.body[k];
+  }
+  const num = (v) => Number(v) || 0;
+  const subtotal = num(merged.rent_amount) + num(merged.electric_amount) + num(merged.other_charges)
+    + num(merged.mailbox_fee) + num(merged.misc_fee);
+  const total = subtotal + num(merged.late_fee) - num(merged.refund_amount);
+  const balance = total - num(merged.amount_paid);
+  const status = req.body.status || (balance <= 0 ? 'paid' : (num(merged.amount_paid) > 0 ? 'partial' : 'pending'));
+
+  db.prepare(`
+    UPDATE invoices SET rent_amount=?, electric_amount=?, other_charges=?, other_description=?,
+      mailbox_fee=?, misc_fee=?, misc_description=?, refund_amount=?, refund_description=?,
+      subtotal=?, late_fee=?, total_amount=?, balance_due=?, status=?, notes=?
+    WHERE id = ?
+  `).run(
+    num(merged.rent_amount), num(merged.electric_amount), num(merged.other_charges), merged.other_description,
+    num(merged.mailbox_fee), num(merged.misc_fee), merged.misc_description,
+    num(merged.refund_amount), merged.refund_description,
+    subtotal, num(merged.late_fee), total, balance, status, merged.notes,
+    req.params.id
+  );
+  res.json({
+    id: Number(req.params.id),
+    subtotal, total_amount: total, balance_due: balance, status,
+    rent_amount: num(merged.rent_amount), electric_amount: num(merged.electric_amount),
+    other_charges: num(merged.other_charges), other_description: merged.other_description,
+    mailbox_fee: num(merged.mailbox_fee), misc_fee: num(merged.misc_fee), misc_description: merged.misc_description,
+    refund_amount: num(merged.refund_amount), refund_description: merged.refund_description,
+    late_fee: num(merged.late_fee), notes: merged.notes,
+  });
+});
+
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM payments WHERE invoice_id = ?').run(req.params.id);
   db.prepare('DELETE FROM invoices WHERE id = ?').run(req.params.id);
