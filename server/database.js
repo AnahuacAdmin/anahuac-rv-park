@@ -3,8 +3,12 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'rvpark.db');
+const DB_PATH = process.env.DB_PATH
+  || (process.env.RAILWAY_VOLUME_MOUNT_PATH
+    ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'rvpark.db')
+    : path.join(__dirname, '..', 'data', 'rvpark.db'));
 const dataDir = path.dirname(DB_PATH);
+console.log(`[database] using DB_PATH = ${DB_PATH}`);
 
 let db = null;
 
