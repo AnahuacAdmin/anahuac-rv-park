@@ -478,6 +478,11 @@ function invoiceStandardNotesHtml() {
       <p>If payment is not received within 3 days from the date of this invoice a $25.00 fee will be applied.</p>
       <p>If payment is not received within 5 days of this invoice, an eviction notice will be served.</p>
       <p>Please do not hesitate to call us if you have any questions about the balance due on your account. If you have already sent us your payment, please disregard.</p>
+      <ul style="margin:0.75rem 0 0.75rem 1.25rem;padding:0">
+        <li>Please pay by debit/credit card or deliver payment into night deposit box located at the front of the warehouse, if we are not available to receive payment by phone.</li>
+        <li>If paying with credit card a 3% charge will be applied.</li>
+      </ul>
+      <p>Thank you very much for your attention to this matter and your continued business. We sincerely appreciate your business and hope you have a blessed day!</p>
     </div>
   `;
 }
