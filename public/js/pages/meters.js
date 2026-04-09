@@ -25,7 +25,6 @@ async function loadMeters() {
                 <td><strong>${formatMoney(r.electric_charge)}</strong></td>
                 <td>
                   <button class="btn btn-sm btn-outline" onclick="showEditReading(${r.id}, '${r.lot_id}', ${r.previous_reading}, ${r.current_reading}, '${r.reading_date}')">Edit</button>
-                  <button class="btn btn-sm btn-danger" onclick="deleteReading(${r.id})">Del</button>
                 </td>
               </tr>
             `).join('')}

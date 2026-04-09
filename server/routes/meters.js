@@ -27,12 +27,33 @@ router.get('/lot/:lotId', (req, res) => {
 });
 
 router.get('/latest', (req, res) => {
+  // Ensure every active tenant has at least one meter_readings row for their
+  // current lot. If they don't (newly added tenant, or moved to a new lot),
+  // create a zero-value placeholder dated today so the lot shows up in the
+  // list and the operator can fill in real values.
+  const today = new Date().toISOString().split('T')[0];
+  const activeTenants = db.prepare(
+    `SELECT id, lot_id FROM tenants WHERE is_active = 1 AND lot_id IS NOT NULL AND lot_id != ''`
+  ).all();
+  for (const t of activeTenants) {
+    const existing = db.prepare(
+      `SELECT id FROM meter_readings WHERE tenant_id = ? AND lot_id = ? LIMIT 1`
+    ).get(t.id, t.lot_id);
+    if (!existing) {
+      db.prepare(`
+        INSERT INTO meter_readings
+          (lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge)
+        VALUES (?, ?, ?, 0, 0, 0, 0.15, 0)
+      `).run(t.lot_id, t.id, today);
+    }
+  }
+
   const readings = db.prepare(`
     SELECT mr.*, t.first_name, t.last_name, t.monthly_rent, t.rent_type
     FROM meter_readings mr
     JOIN tenants t ON mr.tenant_id = t.id AND t.is_active = 1
     WHERE mr.id IN (
-      SELECT MAX(id) FROM meter_readings GROUP BY lot_id
+      SELECT MAX(id) FROM meter_readings WHERE tenant_id = mr.tenant_id GROUP BY lot_id
     )
     ORDER BY mr.lot_id
   `).all();
