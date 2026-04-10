@@ -1,6 +1,12 @@
 const router = require('express').Router();
-const { db } = require('../database');
+const path = require('path');
+const fs = require('fs');
+const { db, DB_PATH } = require('../database');
 const { authenticate } = require('../middleware');
+
+// Photos directory: next to the database on the Railway volume.
+const PHOTOS_DIR = path.join(path.dirname(DB_PATH), 'uploads', 'meter-photos');
+if (!fs.existsSync(PHOTOS_DIR)) fs.mkdirSync(PHOTOS_DIR, { recursive: true });
 
 router.use(authenticate);
 
@@ -60,6 +66,15 @@ router.get('/latest', (req, res) => {
   res.json(readings);
 });
 
+// Save a base64 photo to disk, return the filename.
+function savePhoto(readingId, base64Data) {
+  if (!base64Data) return null;
+  const filename = `meter-${readingId}.jpg`;
+  const filepath = path.join(PHOTOS_DIR, filename);
+  fs.writeFileSync(filepath, Buffer.from(base64Data, 'base64'));
+  return filename;
+}
+
 router.post('/', (req, res) => {
   const { lot_id, tenant_id, reading_date, previous_reading, current_reading, photo } = req.body;
   const rate = db.prepare("SELECT value FROM settings WHERE key = 'electric_rate'").get();
@@ -68,10 +83,17 @@ router.post('/', (req, res) => {
   const charge = +(kwh * ratePerKwh).toFixed(2);
 
   const result = db.prepare(`
-    INSERT INTO meter_readings (lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, photo)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh, ratePerKwh, charge, photo || null);
-  res.json({ id: result.lastInsertRowid, kwh_used: kwh, electric_charge: charge });
+    INSERT INTO meter_readings (lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh, ratePerKwh, charge);
+
+  // Save photo to disk (not in DB) to keep the database lean.
+  let photoFile = null;
+  if (photo) {
+    photoFile = savePhoto(result.lastInsertRowid, photo);
+    db.prepare('UPDATE meter_readings SET photo = ? WHERE id = ?').run(photoFile, result.lastInsertRowid);
+  }
+  res.json({ id: result.lastInsertRowid, kwh_used: kwh, electric_charge: charge, photo: photoFile });
 });
 
 router.put('/:id', (req, res) => {
@@ -81,28 +103,42 @@ router.put('/:id', (req, res) => {
   const kwh = current_reading - previous_reading;
   const charge = +(kwh * ratePerKwh).toFixed(2);
 
+  db.prepare(`
+    UPDATE meter_readings SET previous_reading=?, current_reading=?, reading_date=?, kwh_used=?, rate_per_kwh=?, electric_charge=?
+    WHERE id = ?
+  `).run(previous_reading, current_reading, reading_date, kwh, ratePerKwh, charge, req.params.id);
+
   if (photo !== undefined) {
-    db.prepare(`
-      UPDATE meter_readings SET previous_reading=?, current_reading=?, reading_date=?, kwh_used=?, rate_per_kwh=?, electric_charge=?, photo=?
-      WHERE id = ?
-    `).run(previous_reading, current_reading, reading_date, kwh, ratePerKwh, charge, photo || null, req.params.id);
-  } else {
-    db.prepare(`
-      UPDATE meter_readings SET previous_reading=?, current_reading=?, reading_date=?, kwh_used=?, rate_per_kwh=?, electric_charge=?
-      WHERE id = ?
-    `).run(previous_reading, current_reading, reading_date, kwh, ratePerKwh, charge, req.params.id);
+    const photoFile = savePhoto(req.params.id, photo);
+    db.prepare('UPDATE meter_readings SET photo = ? WHERE id = ?').run(photoFile, req.params.id);
   }
   res.json({ success: true });
 });
 
-// Serve a meter reading photo as an image.
+// Serve a meter reading photo from disk (or from DB for legacy base64 data).
 router.get('/:id/photo', (req, res) => {
   const row = db.prepare('SELECT photo FROM meter_readings WHERE id = ?').get(req.params.id);
   if (!row?.photo) return res.status(404).json({ error: 'No photo for this reading' });
-  const buf = Buffer.from(row.photo, 'base64');
-  res.setHeader('Content-Type', 'image/jpeg');
-  res.setHeader('Cache-Control', 'public, max-age=86400');
-  res.send(buf);
+
+  // New style: photo column holds a filename on disk.
+  const filepath = path.join(PHOTOS_DIR, row.photo);
+  if (fs.existsSync(filepath)) {
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return fs.createReadStream(filepath).pipe(res);
+  }
+
+  // Legacy fallback: photo column holds raw base64 data.
+  try {
+    const buf = Buffer.from(row.photo, 'base64');
+    if (buf.length > 100) {
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(buf);
+    }
+  } catch {}
+
+  res.status(404).json({ error: 'Photo file not found' });
 });
 
 router.delete('/:id', (req, res) => {

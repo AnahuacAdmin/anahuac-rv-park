@@ -1,5 +1,11 @@
 node_modules/
 data/
+uploads/
 .env
+.claude/
 *.sqlite
 *.db
+*.log
+*.ps1
+*.bat
+prompt.txt
