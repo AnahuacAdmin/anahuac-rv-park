@@ -6,7 +6,10 @@ async function loadMeters() {
     ${helpPanel('meters')}
     <div class="page-header">
       <h2>Meter Readings</h2>
-      <button class="btn btn-primary" onclick="showAddReading()">+ New Reading</button>
+      <div class="btn-group">
+        <button class="btn btn-success" onclick="startMobileEntry()">Mobile Entry</button>
+        <button class="btn btn-primary" onclick="showAddReading()">+ New Reading</button>
+      </div>
     </div>
     <div class="card">
       <div class="table-container">
@@ -113,4 +116,177 @@ async function deleteReading(id) {
   if (!confirm('Delete this reading?')) return;
   await API.del(`/meters/${id}`);
   loadMeters();
+}
+
+// --- Mobile Meter Entry Mode ---
+// Shows one lot at a time, fullscreen-ish, with camera capture and auto-calc.
+let _mobileReadings = [];
+let _mobileIndex = 0;
+let _mobileCompleted = new Set();
+let _mobilePhoto = null;
+let _mobileRate = 0.15;
+
+async function startMobileEntry() {
+  const readings = await API.get('/meters/latest');
+  if (!readings || !readings.length) { alert('No lots with active tenants found.'); return; }
+  _mobileReadings = readings;
+  _mobileIndex = 0;
+  _mobileCompleted = new Set();
+  _mobilePhoto = null;
+  // Fetch current electric rate
+  try {
+    const settings = await API.get('/settings');
+    _mobileRate = parseFloat(settings?.electric_rate) || 0.15;
+  } catch { _mobileRate = 0.15; }
+  renderMobileEntry();
+}
+
+function renderMobileEntry() {
+  const r = _mobileReadings[_mobileIndex];
+  const total = _mobileReadings.length;
+  const done = _mobileCompleted.size;
+  const pct = Math.round((done / total) * 100);
+  const today = new Date().toISOString().split('T')[0];
+  const isDone = _mobileCompleted.has(r.id);
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="mobile-meter">
+      <div class="mobile-meter-progress">
+        <div class="mobile-meter-progress-bar" style="width:${pct}%"></div>
+      </div>
+      <div class="mobile-meter-progress-text">${done} of ${total} completed</div>
+
+      <div class="mobile-meter-card ${isDone ? 'done' : ''}">
+        <div class="mobile-meter-header">
+          <span class="mobile-meter-lot">${r.lot_id}</span>
+          <span class="mobile-meter-tenant">${r.first_name} ${r.last_name}</span>
+          ${isDone ? '<span class="badge badge-success">Saved</span>' : ''}
+        </div>
+
+        <div class="mobile-meter-photo-area">
+          ${_mobilePhoto ? `<img src="${_mobilePhoto}" class="mobile-meter-preview" alt="Meter photo" onclick="viewMobilePhoto()">` : ''}
+          <label class="btn btn-outline mobile-meter-camera-btn">
+            &#128247; ${_mobilePhoto ? 'Retake' : 'Take Photo'}
+            <input type="file" accept="image/*" capture="environment" style="display:none" onchange="captureMeterPhoto(this)">
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label>Previous Reading</label>
+          <input type="number" step="0.01" id="mobile-prev" value="${r.current_reading}" readonly style="background:#f3f4f6">
+        </div>
+        <div class="form-group">
+          <label>Current Reading</label>
+          <input type="number" step="0.01" id="mobile-curr" placeholder="Enter reading..."
+            oninput="calcMobileKwh()" inputmode="decimal" autofocus>
+        </div>
+        <div class="mobile-meter-calc" id="mobile-calc" style="display:none">
+          <span id="mobile-kwh"></span> kWh &times; $${_mobileRate.toFixed(2)} = <strong id="mobile-charge"></strong>
+        </div>
+
+        <button class="btn btn-primary btn-full mt-2" onclick="saveMobileReading()" id="mobile-save-btn" ${isDone ? 'disabled' : ''}>
+          ${isDone ? 'Saved' : 'Save Reading'}
+        </button>
+
+        <div class="mobile-meter-nav mt-2">
+          <button class="btn btn-outline" onclick="mobilePrev()" ${_mobileIndex === 0 ? 'disabled' : ''}>&larr; Previous</button>
+          <span class="mobile-meter-counter">${_mobileIndex + 1} / ${total}</span>
+          <button class="btn btn-outline" onclick="mobileNext()" ${_mobileIndex === total - 1 ? 'disabled' : ''}>Next &rarr;</button>
+        </div>
+      </div>
+
+      <button class="btn btn-outline btn-full mt-2" onclick="loadMeters()">Exit Mobile Entry</button>
+    </div>
+  `;
+
+  // Auto-focus current reading input after render.
+  setTimeout(() => document.getElementById('mobile-curr')?.focus(), 100);
+}
+
+function calcMobileKwh() {
+  const prev = parseFloat(document.getElementById('mobile-prev').value) || 0;
+  const curr = parseFloat(document.getElementById('mobile-curr').value);
+  const calcDiv = document.getElementById('mobile-calc');
+  if (isNaN(curr) || curr === 0) { calcDiv.style.display = 'none'; return; }
+  const kwh = Math.max(0, curr - prev);
+  const charge = (kwh * _mobileRate).toFixed(2);
+  document.getElementById('mobile-kwh').textContent = kwh.toLocaleString();
+  document.getElementById('mobile-charge').textContent = '$' + charge;
+  calcDiv.style.display = '';
+}
+
+function captureMeterPhoto(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    // Compress by drawing to a canvas at reduced quality.
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxW = 1024;
+      const scale = Math.min(1, maxW / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      _mobilePhoto = canvas.toDataURL('image/jpeg', 0.7);
+      // Re-render to show preview.
+      renderMobileEntry();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function viewMobilePhoto() {
+  if (!_mobilePhoto) return;
+  showModal('Meter Photo', `<img src="${_mobilePhoto}" style="width:100%;border-radius:8px">`);
+}
+
+async function saveMobileReading() {
+  const r = _mobileReadings[_mobileIndex];
+  const prev = parseFloat(document.getElementById('mobile-prev').value) || 0;
+  const curr = parseFloat(document.getElementById('mobile-curr').value);
+  if (isNaN(curr)) { alert('Please enter the current reading.'); return; }
+
+  // Strip the data:image/jpeg;base64, prefix for storage.
+  let photoBase64 = null;
+  if (_mobilePhoto) {
+    const idx = _mobilePhoto.indexOf(',');
+    photoBase64 = idx >= 0 ? _mobilePhoto.slice(idx + 1) : _mobilePhoto;
+  }
+
+  try {
+    const data = {
+      tenant_id: r.tenant_id,
+      lot_id: r.lot_id,
+      reading_date: new Date().toISOString().split('T')[0],
+      previous_reading: prev,
+      current_reading: curr,
+      photo: photoBase64,
+    };
+    await API.post('/meters', data);
+    _mobileCompleted.add(r.id);
+    _mobilePhoto = null;
+    // Update the cached reading so if user navigates back, the new value shows.
+    r.previous_reading = r.current_reading;
+    r.current_reading = curr;
+    r.kwh_used = Math.max(0, curr - prev);
+
+    // Auto-advance to next if available.
+    if (_mobileIndex < _mobileReadings.length - 1) {
+      _mobileIndex++;
+    }
+    renderMobileEntry();
+  } catch (err) {
+    alert('Save failed: ' + (err.message || 'unknown'));
+  }
+}
+
+function mobilePrev() {
+  if (_mobileIndex > 0) { _mobileIndex--; _mobilePhoto = null; renderMobileEntry(); }
+}
+function mobileNext() {
+  if (_mobileIndex < _mobileReadings.length - 1) { _mobileIndex++; _mobilePhoto = null; renderMobileEntry(); }
 }
