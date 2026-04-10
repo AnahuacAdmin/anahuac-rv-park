@@ -4,7 +4,10 @@ async function loadDashboard() {
 
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('dashboard')}
-    <div class="page-header"><h2>Dashboard</h2></div>
+    <div class="page-header">
+      <h2>Dashboard</h2>
+      <button class="btn btn-outline" onclick="showShareApp()">&#128279; Share App</button>
+    </div>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-value">${data.totalLots}</div><div class="stat-label">Total Lots</div></div>
       <div class="stat-card success"><div class="stat-value">${data.occupied}</div><div class="stat-label">Occupied</div></div>

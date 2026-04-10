@@ -201,6 +201,19 @@ a { text-decoration: none; color: inherit; }
 .editable-text { min-width: 140px; }
 .muted { color: var(--gray-500); }
 
+/* Invoice QR Code Section */
+.invoice-qr-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0 0.5rem;
+  padding: 1rem;
+  border: 1px dashed var(--gray-300);
+  border-radius: 8px;
+  background: #fafafa;
+}
+.invoice-qr-section strong { font-size: 1rem; color: var(--gray-900); }
+
 /* PWA Install Button */
 .pwa-install-btn {
   position: fixed;

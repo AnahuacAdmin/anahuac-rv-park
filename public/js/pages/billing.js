@@ -382,6 +382,7 @@ async function viewInvoice(id) {
       </div>
       ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
       ${invoiceStandardNotesHtml()}
+      ${inv.balance_due > 0.005 ? invoicePayQrHtml(inv.id) : ''}
       ${inv.payments?.length ? `
         <h4 class="mt-2">Payment History</h4>
         <table>
@@ -405,6 +406,13 @@ async function viewInvoice(id) {
       <button class="btn btn-outline" onclick="emailInvoice(${inv.id})">Email Invoice</button>
     </div>
   `);
+  // Render QR code in the view modal after DOM mount.
+  setTimeout(() => {
+    const qrEl = document.getElementById('invoice-pay-qr');
+    if (qrEl && typeof QRCode !== 'undefined') {
+      new QRCode(qrEl, { text: qrEl.dataset.url, width: 120, height: 120, colorDark: '#1f2937', colorLight: '#ffffff' });
+    }
+  }, 100);
 }
 
 // Render the meter / electric line items shown on both the view modal and the PDF.
@@ -523,6 +531,35 @@ function renderInvoiceHtml(inv) {
       </div>
       ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
       ${invoiceStandardNotesHtml()}
+      ${inv.balance_due > 0.005 ? invoicePayQrHtml(inv.id, true) : ''}
+    </div>
+  `;
+}
+
+// QR code section for invoices. Links to APP_URL/?pay=<id> which auto-starts Stripe checkout.
+// For the PDF (forPdf=true) we use an <img> from a public QR API so html2canvas can capture it.
+// For the view modal (forPdf=false) we render a <div> and fill it with QRCode.js after mount.
+function invoicePayQrHtml(invoiceId, forPdf) {
+  const payUrl = `${APP_URL}/?pay=${invoiceId}`;
+  if (forPdf) {
+    const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(payUrl)}`;
+    return `
+      <div class="invoice-qr-section">
+        <img src="${qrImgUrl}" alt="Pay QR code" width="120" height="120" crossorigin="anonymous">
+        <div>
+          <strong>Scan to Pay Online</strong>
+          <p style="font-size:0.8rem;color:#555;margin:0.2rem 0 0">A 3% convenience fee applies to card payments.</p>
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div class="invoice-qr-section">
+      <div id="invoice-pay-qr" data-url="${payUrl}"></div>
+      <div>
+        <strong>Scan to Pay Online</strong>
+        <p style="font-size:0.8rem;color:#555;margin:0.2rem 0 0">A 3% convenience fee applies to card payments.</p>
+      </div>
     </div>
   `;
 }

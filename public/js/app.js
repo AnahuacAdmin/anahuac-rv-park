@@ -138,6 +138,48 @@ function toggleHelp(id) {
   else { el.style.display = 'none'; caret.textContent = '▼'; }
 }
 
+const APP_URL = 'https://web-production-89794.up.railway.app';
+
+function showShareApp() {
+  showModal('Share App', `
+    <div style="text-align:center">
+      <p style="margin-bottom:1rem;font-weight:600">Scan this QR code to open the app:</p>
+      <div id="share-qr" style="display:inline-block;margin-bottom:1rem"></div>
+      <p style="margin:1rem 0 0.5rem;font-size:0.9rem;word-break:break-all"><a href="${APP_URL}" target="_blank">${APP_URL}</a></p>
+      <button class="btn btn-outline" onclick="copyAppLink()" id="copy-link-btn">&#128203; Copy Link</button>
+    </div>
+    <hr style="margin:1.5rem 0">
+    <h4 style="margin-bottom:0.5rem">iPhone — Add to Home Screen</h4>
+    <ol style="font-size:0.9rem;line-height:1.6;padding-left:1.25rem;margin-bottom:1rem">
+      <li>Open the link above in <strong>Safari</strong>.</li>
+      <li>Tap the <strong>Share</strong> button (square with arrow).</li>
+      <li>Scroll down and tap <strong>"Add to Home Screen"</strong>.</li>
+      <li>Tap <strong>Add</strong>. The app icon will appear on your home screen.</li>
+    </ol>
+    <h4 style="margin-bottom:0.5rem">Android — Add to Home Screen</h4>
+    <ol style="font-size:0.9rem;line-height:1.6;padding-left:1.25rem">
+      <li>Open the link in <strong>Chrome</strong>.</li>
+      <li>Tap the <strong>Install App</strong> button if it appears, or tap the <strong>3-dot menu &rarr; "Add to Home screen"</strong>.</li>
+      <li>Tap <strong>Add</strong>. The app will work like a native app with no browser bars.</li>
+    </ol>
+  `);
+  setTimeout(() => {
+    const el = document.getElementById('share-qr');
+    if (el && typeof QRCode !== 'undefined') {
+      new QRCode(el, { text: APP_URL, width: 200, height: 200, colorDark: '#1f2937', colorLight: '#ffffff' });
+    }
+  }, 50);
+}
+
+function copyAppLink() {
+  navigator.clipboard?.writeText(APP_URL).then(() => {
+    const btn = document.getElementById('copy-link-btn');
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.innerHTML = '&#128203; Copy Link', 2000); }
+  }).catch(() => {
+    prompt('Copy this link:', APP_URL);
+  });
+}
+
 function showModal(title, bodyHtml) {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHtml;
@@ -288,8 +330,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === e.currentTarget) closeModal();
   });
 
-  // Handle Stripe Checkout redirect.
+  // Handle QR-code-based Stripe pay link: ?pay=<invoiceId>
+  // Auto-starts checkout when scanned (after login).
   const params = new URLSearchParams(location.search);
+  if (params.get('pay') && API.token) {
+    const payId = params.get('pay');
+    history.replaceState({}, '', location.pathname);
+    setTimeout(async () => {
+      try {
+        const r = await API.post('/payments/create-checkout-session', { invoice_id: parseInt(payId) });
+        if (r?.url) window.location.href = r.url;
+        else alert('Could not start checkout for this invoice.');
+      } catch (err) {
+        alert('Payment error: ' + (err.message || 'unknown'));
+      }
+    }, 300);
+  }
+
   if (params.get('paid') === '1') {
     setTimeout(() => alert(`Payment successful for invoice ${params.get('invoice') || ''}. Thank you!`), 200);
     history.replaceState({}, '', location.pathname);
