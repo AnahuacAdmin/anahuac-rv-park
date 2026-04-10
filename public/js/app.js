@@ -104,7 +104,7 @@ function navigateTo(page) {
   document.getElementById('sidebar-backdrop')?.classList.remove('open');
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, billing: loadBilling, payments: loadPayments,
-    checkins: loadCheckins, messages: loadMessages, waitlist: loadWaitlist,
+    checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
     users: loadUsers, admin: loadAdmin };
   if (loader[page]) loader[page]();
 }

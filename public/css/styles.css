@@ -201,6 +201,14 @@ a { text-decoration: none; color: inherit; }
 .editable-text { min-width: 140px; }
 .muted { color: var(--gray-500); }
 
+/* Reservation Calendar */
+.cal-table { border-collapse: collapse; min-width: 900px; }
+.cal-table th, .cal-table td { text-align: center; padding: 0.25rem 0.15rem; font-size: 0.72rem; border: 1px solid var(--gray-200); }
+.cal-lot-col { text-align: left !important; padding: 0.3rem 0.5rem !important; position: sticky; left: 0; background: #fff; z-index: 1; min-width: 50px; }
+.cal-table thead .cal-lot-col { background: var(--gray-50); z-index: 2; }
+.cal-day-col { min-width: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50px; }
+.cal-table td[style*="background"] { color: #fff; font-size: 0.6rem; font-weight: 700; }
+
 /* Mobile Meter Entry */
 .mobile-meter { max-width: 520px; margin: 0 auto; }
 .mobile-meter-progress {

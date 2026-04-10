@@ -112,6 +112,26 @@ async function initializeDatabase() {
   addCol("ALTER TABLE meter_readings ADD COLUMN photo TEXT");
   addCol("ALTER TABLE meter_readings ADD COLUMN notes TEXT");
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS reservations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guest_name TEXT NOT NULL,
+      phone TEXT,
+      email TEXT,
+      lot_id TEXT REFERENCES lots(id),
+      arrival_date DATE NOT NULL,
+      departure_date DATE NOT NULL,
+      nights INTEGER DEFAULT 1,
+      rate_per_night REAL DEFAULT 50,
+      total_amount REAL DEFAULT 0,
+      deposit_paid REAL DEFAULT 0,
+      status TEXT DEFAULT 'pending',
+      notes TEXT,
+      confirmation_number TEXT UNIQUE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // One-shot cleanup: remove lot A6 if it still exists from the old seed.
   try {
     const a6 = db.exec("SELECT id FROM lots WHERE id = 'A6'");
