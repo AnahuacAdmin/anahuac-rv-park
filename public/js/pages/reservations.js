@@ -97,7 +97,7 @@ function resForm(lots, r = {}) {
     <form onsubmit="saveReservation(event, ${r.id || 'null'})">
       <div class="form-group"><label>Guest Name</label><input name="guest_name" value="${r.guest_name || ''}" required></div>
       <div class="form-row">
-        <div class="form-group"><label>Phone</label><input name="phone" value="${r.phone || ''}"></div>
+        <div class="form-group"><label>Phone Number</label><input name="phone" value="${r.phone || ''}"></div>
         <div class="form-group"><label>Email</label><input name="email" type="email" value="${r.email || ''}"></div>
       </div>
       <div class="form-group">
