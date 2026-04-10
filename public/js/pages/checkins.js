@@ -89,7 +89,37 @@ async function processCheckIn(e) {
   });
 
   closeModal();
-  loadCheckins();
+
+  // Show success with option to send welcome text.
+  const tenantName = `${data.first_name} ${data.last_name}`;
+  const phone = data.phone;
+  showModal('Check-In Complete', `
+    <div style="text-align:center;padding:1rem 0">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem">&#9989;</div>
+      <h3>${tenantName} checked in to Lot ${data.lot_id}</h3>
+      <p style="color:var(--gray-500);margin:0.5rem 0 1.5rem">Tenant record created and lot marked occupied.</p>
+      ${phone ? `
+        <button class="btn btn-success btn-full" onclick="sendWelcomeText(${tenant.id}, '${tenantName.replace(/'/g, "\\'")}')">
+          &#128241; Send Welcome Text to ${phone}
+        </button>
+        <p style="font-size:0.8rem;color:var(--gray-500);margin-top:0.5rem">Sends a welcome message + park rules via SMS</p>
+      ` : '<p style="color:var(--warning)">No phone number on file — cannot send welcome text.</p>'}
+      <button class="btn btn-outline btn-full mt-2" onclick="closeModal();loadCheckins()">Done</button>
+    </div>
+  `);
+}
+
+async function sendWelcomeText(tenantId, tenantName) {
+  try {
+    const r = await API.post(`/checkins/welcome-sms/${tenantId}`, {});
+    if (r?.sent) {
+      alert(`Welcome texts sent to ${r.sentTo}!\n\n1) Welcome message with app link\n2) Park rules summary`);
+    } else {
+      alert('SMS not sent: ' + (r?.reason || 'unknown'));
+    }
+  } catch (err) {
+    alert('Failed to send welcome text: ' + (err.message || 'unknown'));
+  }
 }
 
 async function showCheckOut() {

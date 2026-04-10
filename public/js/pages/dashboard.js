@@ -6,7 +6,7 @@ async function loadDashboard() {
     ${helpPanel('dashboard')}
     <div class="page-header">
       <h2>Dashboard</h2>
-      <button class="btn btn-outline" onclick="showShareApp()">&#128279; Share App</button>
+      <button class="btn btn-outline" onclick="copyAppLink()" id="dash-copy-btn">&#128203; Copy App Link</button>
     </div>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-value">${data.totalLots}</div><div class="stat-label">Total Lots</div></div>
