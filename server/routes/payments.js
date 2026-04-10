@@ -4,6 +4,81 @@ const { authenticate } = require('../middleware');
 
 router.use(authenticate);
 
+let _stripe = null;
+function getStripe() {
+  if (_stripe) return _stripe;
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY environment variable.');
+  }
+  _stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  return _stripe;
+}
+
+// Create a Stripe Checkout Session for a specific invoice. Adds a 3% card fee
+// as a separate line item so the customer can see the surcharge.
+router.post('/create-checkout-session', async (req, res) => {
+  try {
+    const invoiceId = parseInt(req.body?.invoice_id);
+    if (!invoiceId) return res.status(400).json({ error: 'invoice_id is required' });
+
+    const invoice = db.prepare(`
+      SELECT i.*, t.first_name, t.last_name, t.email, t.lot_id
+      FROM invoices i
+      JOIN tenants t ON i.tenant_id = t.id
+      WHERE i.id = ? AND COALESCE(i.deleted, 0) = 0
+    `).get(invoiceId);
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    const balance = Number(invoice.balance_due) || 0;
+    if (balance <= 0.005) return res.status(400).json({ error: 'Invoice has no balance due' });
+
+    const balanceCents = Math.round(balance * 100);
+    const feeCents = Math.round(balanceCents * 0.03);
+
+    const stripe = getStripe();
+    const origin = req.headers.origin || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      customer_email: invoice.email || undefined,
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `Anahuac RV Park — Invoice ${invoice.invoice_number}`,
+              description: `Lot ${invoice.lot_id} — ${invoice.first_name} ${invoice.last_name}`,
+            },
+            unit_amount: balanceCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: { name: 'Credit Card Processing Fee (3%)' },
+            unit_amount: feeCents,
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        invoice_id: String(invoice.id),
+        invoice_number: invoice.invoice_number,
+        lot_id: invoice.lot_id,
+      },
+      success_url: `${origin}/?paid=1&invoice=${encodeURIComponent(invoice.invoice_number)}`,
+      cancel_url:  `${origin}/?paid=cancelled&invoice=${encodeURIComponent(invoice.invoice_number)}`,
+    });
+
+    res.json({ id: session.id, url: session.url });
+  } catch (err) {
+    console.error('[payments] create-checkout-session failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/', (req, res) => {
   const payments = db.prepare(`
     SELECT p.*, t.first_name, t.last_name, t.lot_id, i.invoice_number

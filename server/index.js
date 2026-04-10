@@ -30,6 +30,10 @@ app.use(cors({
   credentials: true,
 }));
 
+// Stripe webhook MUST be registered before express.json so it receives the
+// raw request body for signature verification.
+require('./stripe-webhook').registerStripeWebhook(app);
+
 app.use(express.json({ limit: '5mb' })); // 5mb to allow base64 PDF attachments for emailed invoices
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

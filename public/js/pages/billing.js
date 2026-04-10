@@ -82,6 +82,7 @@ function renderInvoiceRow(inv) {
         <button class="btn btn-sm btn-outline" onclick="viewInvoice(${inv.id})">View</button>
         <button class="btn btn-sm btn-outline" onclick="downloadInvoicePdf(${inv.id})">PDF</button>
         <button class="btn btn-sm btn-outline" onclick="emailInvoice(${inv.id})">Email</button>
+        ${inv.balance_due > 0.005 ? `<button class="btn btn-sm btn-success" onclick="payInvoiceWithStripe(${inv.id})">Pay Now</button>` : ''}
         <button class="btn btn-sm btn-primary" onclick="editInvoice(${inv.id})">Edit</button>
         <button class="btn btn-sm btn-danger" onclick="deleteInvoice(${inv.id})">Del</button>
       </td>
@@ -677,6 +678,18 @@ async function deleteInvoice(id) {
     });
   } catch (err) {
     alert('Delete failed: ' + (err.message || 'unknown error'));
+  }
+}
+
+// Open Stripe Checkout for an invoice. The server creates a session with a 3%
+// surcharge line item and returns the hosted URL; we just redirect to it.
+async function payInvoiceWithStripe(id) {
+  try {
+    const r = await API.post('/payments/create-checkout-session', { invoice_id: id });
+    if (!r?.url) throw new Error('No checkout URL returned');
+    window.location.href = r.url;
+  } catch (err) {
+    alert('Could not start checkout: ' + (err.message || 'unknown error'));
   }
 }
 

@@ -238,6 +238,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === e.currentTarget) closeModal();
   });
 
+  // Handle Stripe Checkout redirect.
+  const params = new URLSearchParams(location.search);
+  if (params.get('paid') === '1') {
+    setTimeout(() => alert(`Payment successful for invoice ${params.get('invoice') || ''}. Thank you!`), 200);
+    history.replaceState({}, '', location.pathname);
+  } else if (params.get('paid') === 'cancelled') {
+    setTimeout(() => alert(`Payment cancelled for invoice ${params.get('invoice') || ''}.`), 200);
+    history.replaceState({}, '', location.pathname);
+  }
+
   // Auto-login if token exists
   if (API.token) {
     document.getElementById('login-screen').style.display = 'none';
