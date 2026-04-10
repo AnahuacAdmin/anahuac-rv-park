@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { Resend } = require('resend');
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
+const { sendSms } = require('../twilio');
 
 router.use(authenticate);
 
@@ -472,6 +473,54 @@ router.patch('/:id', (req, res) => {
 
 // Soft delete — flag the invoice as deleted instead of removing the row.
 // Payments are NOT touched so the audit trail is preserved.
+// Send a single invoice summary as an SMS to the tenant.
+router.post('/:id/sms', async (req, res) => {
+  try {
+    const inv = db.prepare(`
+      SELECT i.*, t.first_name, t.phone FROM invoices i
+      JOIN tenants t ON i.tenant_id = t.id
+      WHERE i.id = ? AND COALESCE(i.deleted, 0) = 0
+    `).get(req.params.id);
+    if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+    if (!inv.phone) return res.status(400).json({ error: 'No phone on file for this tenant' });
+    const body = `Anahuac RV Park: Hi ${inv.first_name}, your invoice ${inv.invoice_number} is $${Number(inv.total_amount).toFixed(2)}, balance due $${Number(inv.balance_due).toFixed(2)}, due ${inv.due_date}. Questions? 409-267-6603`;
+    const r = await sendSms(inv.phone, body);
+    res.json({ success: true, sid: r.sid, sentTo: r.to });
+  } catch (err) {
+    console.error('[invoices] sms failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Text every tenant who currently has an unpaid balance.
+router.post('/sms-unpaid', async (req, res) => {
+  try {
+    const tenants = db.prepare(`
+      SELECT t.id, t.first_name, t.phone, COALESCE(SUM(i.balance_due), 0) AS balance
+      FROM tenants t
+      JOIN invoices i ON i.tenant_id = t.id
+      WHERE t.is_active = 1
+        AND COALESCE(i.deleted, 0) = 0
+        AND i.balance_due > 0.005
+        AND i.status IN ('pending','partial')
+      GROUP BY t.id
+      HAVING balance > 0.005
+    `).all();
+    let sent = 0, failed = 0, skipped = 0;
+    const errors = [];
+    for (const t of tenants) {
+      if (!t.phone) { skipped++; continue; }
+      const body = `Anahuac RV Park: Hi ${t.first_name}, friendly reminder — your account has an outstanding balance of $${Number(t.balance).toFixed(2)}. Please contact us at 409-267-6603 to arrange payment. Thank you!`;
+      try { await sendSms(t.phone, body); sent++; }
+      catch (e) { failed++; errors.push(`tenant ${t.id}: ${e.message}`); }
+    }
+    res.json({ totalUnpaid: tenants.length, sent, failed, skipped, errors });
+  } catch (err) {
+    console.error('[invoices] sms-unpaid failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/:id', (req, res) => {
   const existing = db.prepare('SELECT id FROM invoices WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Invoice not found' });

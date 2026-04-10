@@ -10,6 +10,7 @@ async function loadBilling() {
       <div class="btn-group">
         <button class="btn btn-success" onclick="showGenerateInvoices()">Generate Monthly Invoices</button>
         <button class="btn btn-danger" onclick="checkLateFees()">Check Late Fees</button>
+        <button class="btn btn-warning" onclick="sendUnpaidPaymentReminders()">Send Payment Reminder (SMS)</button>
         <button class="btn btn-warning" onclick="showTaxReport()">Tax Reports</button>
         <button class="btn btn-outline" onclick="exportInvoicesToExcel()">Export to Excel</button>
         <button class="btn btn-primary" onclick="showCreateInvoice()">+ Single Invoice</button>
@@ -82,6 +83,7 @@ function renderInvoiceRow(inv) {
         <button class="btn btn-sm btn-outline" onclick="viewInvoice(${inv.id})">View</button>
         <button class="btn btn-sm btn-outline" onclick="downloadInvoicePdf(${inv.id})">PDF</button>
         <button class="btn btn-sm btn-outline" onclick="emailInvoice(${inv.id})">Email</button>
+        <button class="btn btn-sm btn-outline" onclick="smsInvoice(${inv.id})">SMS</button>
         ${inv.balance_due > 0.005 ? `<button class="btn btn-sm btn-success" onclick="payInvoiceWithStripe(${inv.id})">Pay Now</button>` : ''}
         <button class="btn btn-sm btn-primary" onclick="editInvoice(${inv.id})">Edit</button>
         <button class="btn btn-sm btn-danger" onclick="deleteInvoice(${inv.id})">Del</button>
@@ -678,6 +680,34 @@ async function deleteInvoice(id) {
     });
   } catch (err) {
     alert('Delete failed: ' + (err.message || 'unknown error'));
+  }
+}
+
+// Send a single invoice summary as a Twilio SMS.
+async function smsInvoice(id) {
+  if (!confirm('Send this invoice summary by SMS to the tenant?')) return;
+  try {
+    const r = await API.post(`/invoices/${id}/sms`, {});
+    alert(`SMS sent to ${r.sentTo}.`);
+  } catch (err) {
+    alert('SMS failed: ' + (err.message || 'unknown error'));
+  }
+}
+
+// Text every tenant with an outstanding balance.
+async function sendUnpaidPaymentReminders() {
+  if (!confirm('Send a payment reminder SMS to every tenant with an outstanding balance?')) return;
+  try {
+    const r = await API.post('/invoices/sms-unpaid', {});
+    let msg = `Payment reminders complete.\n\n`;
+    msg += `Unpaid tenants: ${r.totalUnpaid}\n`;
+    msg += `Sent: ${r.sent}\n`;
+    msg += `Skipped (no phone): ${r.skipped}\n`;
+    msg += `Failed: ${r.failed}`;
+    if (r.errors?.length) msg += `\n\n` + r.errors.slice(0, 5).join('\n');
+    alert(msg);
+  } catch (err) {
+    alert('Reminder failed: ' + (err.message || 'unknown error'));
   }
 }
 

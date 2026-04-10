@@ -77,6 +77,12 @@ async function showRecordPayment() {
         <div class="form-group"><label>Reference #</label><input name="reference_number"></div>
       </div>
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:0.5rem;font-weight:500">
+          <input type="checkbox" name="send_sms_receipt" value="1">
+          Send SMS receipt to tenant
+        </label>
+      </div>
       <button type="submit" class="btn btn-success btn-full mt-2">Record Payment</button>
     </form>
   `);
@@ -101,11 +107,20 @@ async function savePayment(e) {
     amount: parseFloat(form.get('amount')),
     payment_method: form.get('payment_method'),
     reference_number: form.get('reference_number'),
-    notes: form.get('notes')
+    notes: form.get('notes'),
+    send_sms_receipt: form.get('send_sms_receipt') === '1',
   };
-  await API.post('/payments', data);
-  closeModal();
-  loadPayments();
+  try {
+    const r = await API.post('/payments', data);
+    closeModal();
+    if (r?.smsReceipt) {
+      if (r.smsReceipt.sent) alert('Payment recorded and SMS receipt sent.');
+      else alert('Payment recorded. SMS receipt NOT sent: ' + (r.smsReceipt.reason || 'unknown'));
+    }
+    loadPayments();
+  } catch (err) {
+    alert('Failed to record payment: ' + (err.message || 'unknown'));
+  }
 }
 
 async function deletePayment(id) {

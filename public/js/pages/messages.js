@@ -62,6 +62,13 @@ async function showSendMessage() {
         </div>
       </div>
       <div class="form-group"><label>Message</label><textarea name="body" rows="5" required></textarea></div>
+      <div class="form-group">
+        <label>Delivery Method</label>
+        <select name="delivery_method">
+          <option value="record">Record Only (no send)</option>
+          <option value="sms">Send via SMS (Twilio)</option>
+        </select>
+      </div>
       <button type="submit" class="btn btn-primary btn-full mt-2">Send</button>
     </form>
   `);
@@ -83,6 +90,13 @@ function showBroadcast() {
         </div>
       </div>
       <div class="form-group"><label>Message</label><textarea name="body" rows="5" required></textarea></div>
+      <div class="form-group">
+        <label>Delivery Method</label>
+        <select name="delivery_method">
+          <option value="record">Record Only (no send)</option>
+          <option value="sms">Send via SMS (Twilio) to all tenants with phone</option>
+        </select>
+      </div>
       <p style="color:var(--warning);font-size:0.9rem">This will send to all active tenants.</p>
       <button type="submit" class="btn btn-warning btn-full mt-2">Send to All</button>
     </form>
@@ -92,29 +106,45 @@ function showBroadcast() {
 async function sendMessage(e) {
   e.preventDefault();
   const form = new FormData(e.target);
-  await API.post('/messages', {
-    tenant_id: parseInt(form.get('tenant_id')),
-    subject: form.get('subject'),
-    body: form.get('body'),
-    message_type: form.get('message_type'),
-    is_broadcast: false
-  });
-  closeModal();
-  loadMessages();
+  try {
+    const r = await API.post('/messages', {
+      tenant_id: parseInt(form.get('tenant_id')),
+      subject: form.get('subject'),
+      body: form.get('body'),
+      message_type: form.get('message_type'),
+      delivery_method: form.get('delivery_method'),
+      is_broadcast: false
+    });
+    closeModal();
+    if (r?.smsSent) alert('Message recorded and SMS sent.');
+    else if (r?.smsFailed) alert('Message recorded. SMS failed: ' + (r.errors?.join('; ') || 'unknown'));
+    loadMessages();
+  } catch (err) {
+    alert('Send failed: ' + (err.message || 'unknown'));
+  }
 }
 
 async function sendBroadcast(e) {
   e.preventDefault();
   const form = new FormData(e.target);
-  const result = await API.post('/messages', {
-    subject: form.get('subject'),
-    body: form.get('body'),
-    message_type: form.get('message_type'),
-    is_broadcast: true
-  });
-  closeModal();
-  alert(`Broadcast sent to ${result.sent} tenants`);
-  loadMessages();
+  try {
+    const result = await API.post('/messages', {
+      subject: form.get('subject'),
+      body: form.get('body'),
+      message_type: form.get('message_type'),
+      delivery_method: form.get('delivery_method'),
+      is_broadcast: true
+    });
+    closeModal();
+    let msg = `Broadcast recorded for ${result.sent} tenants.`;
+    if (result.smsSent || result.smsFailed) {
+      msg += `\nSMS sent: ${result.smsSent || 0}, failed: ${result.smsFailed || 0}.`;
+    }
+    alert(msg);
+    loadMessages();
+  } catch (err) {
+    alert('Broadcast failed: ' + (err.message || 'unknown'));
+  }
 }
 
 function viewMessage(id, subject, body, tenant) {

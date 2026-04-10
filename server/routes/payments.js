@@ -3,6 +3,7 @@ const { db } = require('../database');
 const { authenticate } = require('../middleware');
 
 router.use(authenticate);
+const { sendSms } = require('../twilio');
 
 let _stripe = null;
 function getStripe() {
@@ -101,25 +102,50 @@ router.get('/tenant/:tenantId', (req, res) => {
   res.json(payments);
 });
 
-router.post('/', (req, res) => {
-  const { tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes } = req.body;
+router.post('/', async (req, res) => {
+  const { tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes, send_sms_receipt } = req.body;
 
   const result = db.prepare(`
     INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes);
 
+  let newBalance = null;
+  let invoiceNumber = null;
+
   // Update invoice if linked
   if (invoice_id) {
     const totalPaid = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoice_id = ?').get(invoice_id);
-    const invoice = db.prepare('SELECT total_amount FROM invoices WHERE id = ?').get(invoice_id);
+    const invoice = db.prepare('SELECT total_amount, invoice_number FROM invoices WHERE id = ?').get(invoice_id);
     const balance = (invoice?.total_amount || 0) - totalPaid.total;
     const status = balance <= 0 ? 'paid' : 'partial';
     db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
       .run(totalPaid.total, Math.max(0, balance), status, invoice_id);
+    newBalance = Math.max(0, balance);
+    invoiceNumber = invoice?.invoice_number;
   }
 
-  res.json({ id: result.lastInsertRowid });
+  // Optional SMS receipt
+  let smsResult = null;
+  if (send_sms_receipt) {
+    try {
+      const tenant = db.prepare('SELECT first_name, phone FROM tenants WHERE id = ?').get(tenant_id);
+      if (tenant?.phone) {
+        const balanceLine = newBalance !== null ? ` Remaining balance: $${newBalance.toFixed(2)}.` : '';
+        const refLine = invoiceNumber ? ` (Invoice ${invoiceNumber})` : '';
+        const body = `Anahuac RV Park: Hi ${tenant.first_name}, we've received your payment of $${Number(amount).toFixed(2)}${refLine}.${balanceLine} Thank you!`;
+        await sendSms(tenant.phone, body);
+        smsResult = { sent: true };
+      } else {
+        smsResult = { sent: false, reason: 'No phone on file' };
+      }
+    } catch (e) {
+      console.error('[payments] sms receipt failed:', e);
+      smsResult = { sent: false, reason: e.message };
+    }
+  }
+
+  res.json({ id: result.lastInsertRowid, smsReceipt: smsResult });
 });
 
 router.delete('/:id', (req, res) => {
