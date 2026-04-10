@@ -1,5 +1,55 @@
 let currentPage = 'dashboard';
 
+// --- PWA: Service Worker Registration & Install Prompt ---
+let _deferredInstallPrompt = null;
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((reg) => console.log('[pwa] service worker registered, scope:', reg.scope))
+      .catch((err) => console.warn('[pwa] service worker registration failed:', err));
+  });
+}
+
+// Capture the beforeinstallprompt event so we can show our own Install button.
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  showInstallButton();
+});
+
+window.addEventListener('appinstalled', () => {
+  _deferredInstallPrompt = null;
+  hideInstallButton();
+  console.log('[pwa] app installed');
+});
+
+function showInstallButton() {
+  let btn = document.getElementById('pwa-install-btn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'pwa-install-btn';
+    btn.className = 'pwa-install-btn';
+    btn.innerHTML = '&#128242; Install App';
+    btn.addEventListener('click', installPwa);
+    document.body.appendChild(btn);
+  }
+  btn.style.display = '';
+}
+
+function hideInstallButton() {
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'none';
+}
+
+async function installPwa() {
+  if (!_deferredInstallPrompt) return;
+  _deferredInstallPrompt.prompt();
+  const result = await _deferredInstallPrompt.userChoice;
+  if (result.outcome === 'accepted') hideInstallButton();
+  _deferredInstallPrompt = null;
+}
+
 // Format helpers
 function formatMoney(n) { return '$' + (Number(n) || 0).toFixed(2); }
 function formatDate(d) { if (!d) return '—'; return new Date(d + 'T00:00:00').toLocaleDateString(); }

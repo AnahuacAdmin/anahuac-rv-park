@@ -1,0 +1,14 @@
+{
+  "name": "Anahuac RV Park",
+  "short_name": "RV Park",
+  "description": "Anahuac RV Park Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#2c4a1e",
+  "background_color": "#ffffff",
+  "orientation": "any",
+  "icons": [
+    { "src": "/park_Logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/park_Logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
