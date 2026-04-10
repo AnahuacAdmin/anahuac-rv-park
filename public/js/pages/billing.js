@@ -390,6 +390,15 @@ async function viewInvoice(id) {
         </table>
       ` : ''}
     </div>
+    ${inv.balance_due > 0.005 ? `
+    <div class="no-print mt-2" style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:0.75rem 1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <strong style="color:#92400e">Pay Online</strong>
+        <p style="font-size:0.85rem;color:#78350f;margin:0.2rem 0 0">Note: A 3% convenience fee applies to all credit/debit card payments.</p>
+      </div>
+      <button class="btn btn-success" onclick="payInvoiceWithStripe(${inv.id})">Pay Now ($${(Number(inv.balance_due) * 1.03).toFixed(2)} incl. fee)</button>
+    </div>
+    ` : ''}
     <div class="no-print mt-2 btn-group">
       <button class="btn btn-primary" onclick="window.print()">Print Invoice</button>
       <button class="btn btn-outline" onclick="downloadInvoicePdfFromView('${inv.invoice_number}')">Download PDF</button>

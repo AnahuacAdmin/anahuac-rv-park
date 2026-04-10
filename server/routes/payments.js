@@ -58,7 +58,7 @@ router.post('/create-checkout-session', async (req, res) => {
         {
           price_data: {
             currency: 'usd',
-            product_data: { name: 'Credit Card Processing Fee (3%)' },
+            product_data: { name: 'Convenience Fee (3%)' },
             unit_amount: feeCents,
           },
           quantity: 1,

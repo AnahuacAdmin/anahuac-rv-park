@@ -60,11 +60,11 @@ function registerStripeWebhook(app) {
 
           db.prepare(`
             INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes)
-            VALUES (?, ?, ?, ?, 'card', ?, ?)
+            VALUES (?, ?, ?, ?, 'Credit Card', ?, ?)
           `).run(
             inv.tenant_id, inv.id, today, paymentAmount,
             session.id,
-            `Stripe payment, customer charged $${(session.amount_total / 100).toFixed(2)} (incl. 3% card fee)`
+            `Stripe payment, customer charged $${(session.amount_total / 100).toFixed(2)} (incl. 3% convenience fee)`
           );
 
           const newPaid = (Number(inv.amount_paid) || 0) + paymentAmount;
