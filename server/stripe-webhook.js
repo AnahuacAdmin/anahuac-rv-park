@@ -73,6 +73,16 @@ function registerStripeWebhook(app) {
           db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
             .run(newPaid, Math.max(0, newBalance), newStatus, inv.id);
 
+          // Clear eviction warning if tenant has no remaining unpaid invoices.
+          if (newBalance <= 0.005) {
+            const unpaid = db.prepare(
+              "SELECT COUNT(*) as cnt FROM invoices WHERE tenant_id = ? AND balance_due > 0.005 AND status IN ('pending','partial') AND COALESCE(deleted,0) = 0"
+            ).get(inv.tenant_id);
+            if (!unpaid || unpaid.cnt === 0) {
+              db.prepare('UPDATE tenants SET eviction_warning = 0 WHERE id = ?').run(inv.tenant_id);
+            }
+          }
+
           console.log(`[stripe] payment recorded for invoice ${inv.invoice_number}`);
         }
         res.json({ received: true });

@@ -123,6 +123,16 @@ router.post('/', async (req, res) => {
       .run(totalPaid.total, Math.max(0, balance), status, invoice_id);
     newBalance = Math.max(0, balance);
     invoiceNumber = invoice?.invoice_number;
+
+    // Clear eviction warning if tenant has no remaining unpaid invoices.
+    if (balance <= 0) {
+      const unpaid = db.prepare(
+        "SELECT COUNT(*) as cnt FROM invoices WHERE tenant_id = ? AND balance_due > 0.005 AND status IN ('pending','partial') AND COALESCE(deleted,0) = 0"
+      ).get(tenant_id);
+      if (!unpaid || unpaid.cnt === 0) {
+        db.prepare('UPDATE tenants SET eviction_warning = 0 WHERE id = ?').run(tenant_id);
+      }
+    }
   }
 
   // Optional SMS receipt
