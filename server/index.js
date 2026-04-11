@@ -48,11 +48,10 @@ const loginLimiter = rateLimit({
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/recover', loginLimiter);
 
-// Initialize database
-initializeDatabase();
-
-// Health check (used by Railway)
+// Health check (used by Railway) — verifies DB is loaded.
+let dbReady = false;
 app.get('/api/health', (req, res) => {
+  if (!dbReady) return res.status(503).json({ status: 'starting' });
   res.status(200).json({ status: 'ok' });
 });
 
@@ -96,7 +95,16 @@ function scheduleDailyLateFeeCheck() {
   console.log(`[late-fees] daily check scheduled in ${Math.round(msUntil / 60000)} minutes`);
 }
 
-app.listen(PORT, () => {
-  console.log(`Anahuac RV Park Management running at http://localhost:${PORT}`);
-  scheduleDailyLateFeeCheck();
-});
+// Initialize database THEN start listening.
+initializeDatabase()
+  .then(() => {
+    dbReady = true;
+    app.listen(PORT, () => {
+      console.log(`Anahuac RV Park Management running at http://localhost:${PORT}`);
+      scheduleDailyLateFeeCheck();
+    });
+  })
+  .catch((err) => {
+    console.error('FATAL: Database initialization failed:', err);
+    process.exit(1);
+  });

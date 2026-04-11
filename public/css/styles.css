@@ -639,10 +639,46 @@ tr:hover { background: var(--gray-50); }
 
   /* Filter bar wraps cleanly */
   .filter-bar select, .filter-bar input { flex: 1 1 130px; min-width: 0; }
+
+  /* Billing table mobile: hide less important columns, keep Lot/Tenant/Total/Balance/Status/Actions */
+  .billing-table th:nth-child(1),  .billing-table td:nth-child(1),   /* Invoice # */
+  .billing-table th:nth-child(4),  .billing-table td:nth-child(4),   /* Date */
+  .billing-table th:nth-child(5),  .billing-table td:nth-child(5),   /* Rent */
+  .billing-table th:nth-child(6),  .billing-table td:nth-child(6),   /* Electric */
+  .billing-table th:nth-child(7),  .billing-table td:nth-child(7),   /* Mailbox */
+  .billing-table th:nth-child(8),  .billing-table td:nth-child(8),   /* Misc */
+  .billing-table th:nth-child(9),  .billing-table td:nth-child(9),   /* Late Fee */
+  .billing-table th:nth-child(10), .billing-table td:nth-child(10),  /* Refund */
+  .billing-table th:nth-child(11), .billing-table td:nth-child(11),  /* Notes */
+  .billing-table th:nth-child(13), .billing-table td:nth-child(13)   /* Paid */
+  { display: none; }
+
+  /* Billing table: remove min-width so hidden columns actually reduce width */
+  .billing-table { min-width: 0; }
+
+  /* Compact remaining billing cells */
+  .billing-table th, .billing-table td { padding: 0.3rem 0.35rem; font-size: 0.75rem; white-space: nowrap; }
+
+  /* Billing sticky columns: reset since Invoice# is hidden */
+  .billing-table th:nth-child(2), .billing-table td:nth-child(2) { position: static; box-shadow: none; }
+  .billing-table th:nth-child(3), .billing-table td:nth-child(3) { position: static; left: auto; box-shadow: none; }
+  .billing-table thead th:nth-child(2), .billing-table thead th:nth-child(3) { z-index: auto; }
+
+  /* Billing action buttons: stack vertically on mobile */
+  .billing-table .btn-group { flex-direction: column; gap: 0.25rem; }
+  .billing-table .btn-sm { width: 100%; justify-content: center; }
+
+  /* Page-level button groups: full width stacked */
+  .page-header .btn-group { width: 100%; }
+  .page-header .btn-group .btn { flex: 1; justify-content: center; text-align: center; }
 }
 
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
+
+  /* Even more compact on very small screens */
+  .page-header .btn-group { flex-direction: column; }
+  .page-header .btn-group .btn { width: 100%; }
 }
 
 /* Utilities */
