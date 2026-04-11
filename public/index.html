@@ -76,6 +76,10 @@
           <h2>Anahuac RV Park</h2>
           <button id="menu-toggle" class="menu-btn">&#9776;</button>
         </div>
+        <div class="sidebar-search" onclick="event.stopPropagation()">
+          <input type="text" id="global-search" placeholder="Search tenants, lots, invoices..." autocomplete="off" oninput="onSearchInput(this.value)" onkeydown="searchKeydown(event)">
+          <div id="search-results" class="search-results"></div>
+        </div>
         <ul class="nav-menu">
           <li><a href="#" data-page="dashboard" class="nav-link active">&#127968; Dashboard</a></li>
           <li><a href="#" data-page="sitemap" class="nav-link">&#128506; Site Map</a></li>

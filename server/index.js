@@ -71,6 +71,7 @@ app.use('/api/checkins', require('./routes/checkins'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/waitlist', require('./routes/waitlist'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/search', require('./routes/search'));
 app.use('/api/reservations', require('./routes/reservations'));
 app.use('/api/settings', require('./routes/settings'));
 

@@ -50,6 +50,68 @@ function getDailyTip() {
   return DAILY_TIPS[dayOfYear % DAILY_TIPS.length];
 }
 
+// --- Universal Search ---
+let _searchTimer = null;
+let _searchActiveIdx = -1;
+
+function onSearchInput(val) {
+  clearTimeout(_searchTimer);
+  const resultsEl = document.getElementById('search-results');
+  if (val.length < 2) { resultsEl.classList.remove('open'); resultsEl.innerHTML = ''; _searchActiveIdx = -1; return; }
+  _searchTimer = setTimeout(() => doGlobalSearch(val), 300);
+}
+
+async function doGlobalSearch(q) {
+  const resultsEl = document.getElementById('search-results');
+  try {
+    const r = await API.get('/search?q=' + encodeURIComponent(q));
+    let html = '';
+    const groups = [
+      { key: 'tenants', icon: '👤', label: 'Tenants', items: (r.tenants || []).map(t => ({ title: `${t.first_name} ${t.last_name}`, sub: `Lot ${t.lot_id}${t.phone ? ' · ' + t.phone : ''}`, action: `navigateTo('tenants')` })) },
+      { key: 'checkins', icon: '🏕️', label: 'Check-ins', items: (r.checkins || []).map(c => ({ title: `${c.first_name} ${c.last_name}`, sub: `Lot ${c.lot_id} · ${c.status} · ${c.check_in_date || ''}`, action: `navigateTo('checkins')` })) },
+      { key: 'reservations', icon: '📅', label: 'Reservations', items: (r.reservations || []).map(rv => ({ title: rv.guest_name, sub: `${rv.confirmation_number} · Lot ${rv.lot_id || '?'} · ${rv.status}`, action: `navigateTo('reservations')` })) },
+      { key: 'invoices', icon: '🧾', label: 'Invoices', items: (r.invoices || []).map(i => ({ title: `${i.invoice_number} — ${i.first_name} ${i.last_name}`, sub: `Lot ${i.lot_id} · $${Number(i.total_amount).toFixed(2)} · ${i.status}`, action: `navigateTo('billing')` })) },
+    ];
+    for (const g of groups) {
+      if (!g.items.length) continue;
+      html += `<div class="search-group-label">${g.icon} ${g.label}</div>`;
+      html += g.items.map(it => `<div class="search-result" onclick="${it.action}; closeSearch()"><div><div class="sr-title">${it.title}</div><div class="sr-sub">${it.sub}</div></div></div>`).join('');
+    }
+    if (!html) html = '<div class="search-no-results">No results found</div>';
+    resultsEl.innerHTML = html;
+    resultsEl.classList.add('open');
+    _searchActiveIdx = -1;
+  } catch { resultsEl.innerHTML = '<div class="search-no-results">Search failed</div>'; resultsEl.classList.add('open'); }
+}
+
+function searchKeydown(e) {
+  const resultsEl = document.getElementById('search-results');
+  const items = resultsEl.querySelectorAll('.search-result');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); _searchActiveIdx = Math.min(_searchActiveIdx + 1, items.length - 1); updateSearchActive(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _searchActiveIdx = Math.max(_searchActiveIdx - 1, 0); updateSearchActive(items); }
+  else if (e.key === 'Enter' && _searchActiveIdx >= 0) { e.preventDefault(); items[_searchActiveIdx]?.click(); }
+  else if (e.key === 'Escape') { closeSearch(); }
+}
+
+function updateSearchActive(items) {
+  items.forEach((el, i) => el.classList.toggle('active', i === _searchActiveIdx));
+  if (_searchActiveIdx >= 0) items[_searchActiveIdx]?.scrollIntoView({ block: 'nearest' });
+}
+
+function closeSearch() {
+  const resultsEl = document.getElementById('search-results');
+  const input = document.getElementById('global-search');
+  if (resultsEl) { resultsEl.classList.remove('open'); resultsEl.innerHTML = ''; }
+  if (input) input.value = '';
+  _searchActiveIdx = -1;
+}
+
+// Close search when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.sidebar-search')) closeSearch();
+});
+
 // --- PWA: Service Worker Registration & Install Prompt ---
 let _deferredInstallPrompt = null;
 
