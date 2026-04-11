@@ -79,7 +79,7 @@ Anahuac RV Park, LLC
         <tr><td><strong>Balance Due:</strong></td><td><strong>$${balance}</strong></td></tr>
       </table>
       <div style="text-align:center;margin:1.5rem 0">
-        <a href="${APP_URL}/pay.html?pay=${invoice.id}" style="display:inline-block;background:#16a34a;color:#ffffff;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:bold;text-decoration:none;margin:16px 0">CLICK HERE TO PAY BY CREDIT CARD - $${balance}</a>
+        <a href="${APP_URL}/pay.html?pay=${invoice.id}" style="display:inline-block;background:#16a34a;color:#ffffff;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:bold;text-decoration:none;margin:16px 0">CLICK HERE TO PAY BY CREDIT CARD - $${(Number(balance) * 1.03).toFixed(2)} (incl. 3% fee)</a>
         <p style="font-size:12px;color:#666;margin-top:8px">A 3% convenience fee applies to credit/debit card payments.</p>
       </div>
       <p>Thank you for being part of our community. If you have any questions about this invoice, call us at 409-267-6603.</p>
