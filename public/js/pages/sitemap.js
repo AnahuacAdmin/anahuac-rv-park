@@ -28,11 +28,12 @@ async function loadSiteMap() {
             : lot.payment_flag === 'partial'
               ? '<span class="lot-flag-badge yellow" title="Partial payment">!</span>'
               : '';
-          const evictionBadge = lot.eviction_warning
+          const hasEviction = lot.eviction_warning === 1 && lot.balance_due > 0;
+          const evictionBadge = hasEviction
             ? '<div class="eviction-badge" title="Eviction warning">EVICTION</div>'
             : '';
           return `
-          <div class="lot-card ${lot.status} ${flagClass} ${lot.eviction_warning ? 'flag-eviction' : ''}" onclick="showLotDetail('${lot.id}')">
+          <div class="lot-card ${lot.status} ${flagClass} ${hasEviction ? 'flag-eviction' : ''}" onclick="showLotDetail('${lot.id}')">
             ${flagBadge}
             ${evictionBadge}
             <div class="lot-id">${lot.id}</div>

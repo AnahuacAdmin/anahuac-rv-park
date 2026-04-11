@@ -6,7 +6,8 @@ router.use(authenticate);
 
 router.get('/', (req, res) => {
   const tenants = db.prepare(`
-    SELECT t.*, l.row_letter, l.lot_number
+    SELECT t.*, l.row_letter, l.lot_number,
+      COALESCE((SELECT SUM(i.balance_due) FROM invoices i WHERE i.tenant_id = t.id AND i.status IN ('pending','partial') AND COALESCE(i.deleted,0) = 0), 0) AS balance_due
     FROM tenants t
     LEFT JOIN lots l ON t.lot_id = l.id
     WHERE t.is_active = 1
