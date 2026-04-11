@@ -6,7 +6,7 @@ const { sendSms } = require('../twilio');
 
 router.use(authenticate);
 
-const FROM_ADDRESS = 'Anahuac RV Park <anrvpark@gmail.com>';
+const FROM_ADDRESS = 'Anahuac RV Park <invoices@anrvpark.com>';
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
 // Lazily create a single Resend client so a missing key doesn't crash boot.
