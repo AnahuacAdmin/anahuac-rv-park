@@ -130,8 +130,14 @@ function resForm(lots, r = {}) {
   return `
     <form onsubmit="saveReservation(event, ${r.id || 'null'})">
       <div class="form-row">
-        <div class="form-group"><label>First Name</label><input name="first_name" value="${(r.guest_name || '').split(' ').slice(0,-1).join(' ') || (r.guest_name || '')}" required></div>
-        <div class="form-group"><label>Last Name</label><input name="last_name" value="${(r.guest_name || '').split(' ').slice(-1)[0] || ''}" required></div>
+        <div class="form-group">
+          <label>First Name</label>
+          <input name="first_name" placeholder="First name" value="${(r.guest_name || '').split(' ').slice(0,-1).join(' ') || (r.guest_name || '')}" required>
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input name="last_name" placeholder="Last name" value="${(r.guest_name || '').split(' ').slice(-1)[0] || ''}" required>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Phone Number</label><input name="phone" value="${r.phone || ''}"></div>
@@ -378,10 +384,19 @@ async function showGroupReservation() {
   const today = new Date().toISOString().split('T')[0];
   showModal('👨‍👩‍👧‍👦 Group Reservation', `
     <form onsubmit="saveGroupReservation(event)">
-      <div class="form-group"><label>Group Name</label><input name="group_name" required placeholder="e.g. Smith Family Reunion"></div>
+      <div class="form-group">
+        <label>Group Name</label>
+        <input name="group_name" required placeholder="e.g. Smith Family Reunion">
+      </div>
       <div class="form-row">
-        <div class="form-group"><label>Contact First Name</label><input name="contact_first" required></div>
-        <div class="form-group"><label>Contact Last Name</label><input name="contact_last" required></div>
+        <div class="form-group">
+          <label>First Name</label>
+          <input name="contact_first" placeholder="First name" required>
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input name="contact_last" placeholder="Last name" required>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Phone Number</label><input name="primary_contact_phone"></div>
