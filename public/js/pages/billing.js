@@ -80,13 +80,13 @@ function renderInvoiceRow(inv) {
       <td><strong>${formatMoney(inv.balance_due)}</strong></td>
       <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}">${inv.status}</span></td>
       <td class="btn-group">
-        <button class="btn btn-sm btn-outline" onclick="viewInvoice(${inv.id})">View</button>
-        <button class="btn btn-sm btn-outline" onclick="downloadInvoicePdf(${inv.id})">PDF</button>
-        <button class="btn btn-sm btn-outline" onclick="emailInvoice(${inv.id})">Email</button>
-        <button class="btn btn-sm btn-outline" onclick="smsInvoice(${inv.id})">SMS</button>
-        ${inv.balance_due > 0.005 ? `<button class="btn btn-sm btn-success" onclick="payInvoiceWithStripe(${inv.id})">Pay Now</button>` : ''}
-        <button class="btn btn-sm btn-primary" onclick="editInvoice(${inv.id})">Edit</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteInvoice(${inv.id})">Del</button>
+        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); viewInvoice(${inv.id})">View</button>
+        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); downloadInvoicePdf(${inv.id})">PDF</button>
+        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); emailInvoice(${inv.id})">Email</button>
+        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); smsInvoice(${inv.id})">SMS</button>
+        ${inv.balance_due > 0.005 ? `<button class="btn btn-sm btn-success" onclick="event.stopPropagation(); payInvoiceWithStripe(${inv.id})">Pay Now</button>` : ''}
+        <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); editInvoice(${inv.id})">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteInvoice(${inv.id})">Del</button>
       </td>
     </tr>
   `;
@@ -407,13 +407,13 @@ async function viewInvoice(id) {
         <strong style="color:#92400e">Pay Online</strong>
         <p style="font-size:0.85rem;color:#78350f;margin:0.2rem 0 0">Note: A 3% convenience fee applies to all credit/debit card payments.</p>
       </div>
-      <button class="btn btn-success" onclick="payInvoiceWithStripe(${inv.id})">Pay Now ($${(Number(inv.balance_due) * 1.03).toFixed(2)} incl. fee)</button>
+      <button class="btn btn-success" onclick="event.stopPropagation(); payInvoiceWithStripe(${inv.id})">Pay Now ($${(Number(inv.balance_due) * 1.03).toFixed(2)} incl. fee)</button>
     </div>
     ` : ''}
     <div class="no-print mt-2 btn-group">
-      <button class="btn btn-primary" onclick="window.print()">Print Invoice</button>
-      <button class="btn btn-outline" onclick="downloadInvoicePdfFromView('${inv.invoice_number}')">Download PDF</button>
-      <button class="btn btn-outline" onclick="emailInvoice(${inv.id})">Email Invoice</button>
+      <button class="btn btn-primary" onclick="event.stopPropagation(); window.print()">Print Invoice</button>
+      <button class="btn btn-outline" onclick="event.stopPropagation(); downloadInvoicePdfFromView('${inv.invoice_number}')">Download PDF</button>
+      <button class="btn btn-outline" onclick="event.stopPropagation(); emailInvoice(${inv.id})">Email Invoice</button>
     </div>
   `);
   // Render QR code in the view modal after DOM mount.
