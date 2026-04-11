@@ -129,10 +129,13 @@ function resForm(lots, r = {}) {
   const today = new Date().toISOString().split('T')[0];
   return `
     <form onsubmit="saveReservation(event, ${r.id || 'null'})">
-      <div class="form-group"><label>Guest Name</label><input name="guest_name" value="${r.guest_name || ''}" required></div>
+      <div class="form-row">
+        <div class="form-group"><label>First Name</label><input name="first_name" value="${(r.guest_name || '').split(' ').slice(0,-1).join(' ') || (r.guest_name || '')}" required></div>
+        <div class="form-group"><label>Last Name</label><input name="last_name" value="${(r.guest_name || '').split(' ').slice(-1)[0] || ''}" required></div>
+      </div>
       <div class="form-row">
         <div class="form-group"><label>Phone Number</label><input name="phone" value="${r.phone || ''}"></div>
-        <div class="form-group"><label>Email</label><input name="email" type="email" value="${r.email || ''}"></div>
+        <div class="form-group"><label>Email Address</label><input name="email" type="email" value="${r.email || ''}"></div>
       </div>
       <div class="form-group">
         <label>Lot</label>
@@ -186,6 +189,8 @@ async function saveReservation(e, id) {
   if (errEl) errEl.style.display = 'none';
   const form = new FormData(e.target);
   const data = Object.fromEntries(form);
+  data.guest_name = ((data.first_name || '') + ' ' + (data.last_name || '')).trim();
+  delete data.first_name; delete data.last_name;
   data.rate_per_night = parseFloat(data.rate_per_night) || 50;
   data.deposit_paid = parseFloat(data.deposit_paid) || 0;
   try {
@@ -373,12 +378,15 @@ async function showGroupReservation() {
   const today = new Date().toISOString().split('T')[0];
   showModal('👨‍👩‍👧‍👦 Group Reservation', `
     <form onsubmit="saveGroupReservation(event)">
-      <div class="form-group"><label>Group Name</label><input name="group_name" required placeholder="e.g. Smith Family"></div>
+      <div class="form-group"><label>Group Name</label><input name="group_name" required placeholder="e.g. Smith Family Reunion"></div>
       <div class="form-row">
-        <div class="form-group"><label>Primary Contact Name</label><input name="primary_contact_name" required></div>
-        <div class="form-group"><label>Phone</label><input name="primary_contact_phone"></div>
+        <div class="form-group"><label>Contact First Name</label><input name="contact_first" required></div>
+        <div class="form-group"><label>Contact Last Name</label><input name="contact_last" required></div>
       </div>
-      <div class="form-group"><label>Email</label><input name="primary_contact_email" type="email"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Phone Number</label><input name="primary_contact_phone"></div>
+        <div class="form-group"><label>Email Address</label><input name="primary_contact_email" type="email"></div>
+      </div>
       <div class="form-row">
         <div class="form-group"><label>Arrival Date</label><input name="arrival_date" type="date" value="${today}" required></div>
         <div class="form-group"><label>Departure Date</label><input name="departure_date" type="date" required></div>
@@ -436,7 +444,7 @@ async function saveGroupReservation(e) {
   const form = new FormData(e.target);
   const data = {
     group_name: form.get('group_name'),
-    primary_contact_name: form.get('primary_contact_name'),
+    primary_contact_name: ((form.get('contact_first') || '') + ' ' + (form.get('contact_last') || '')).trim(),
     primary_contact_phone: form.get('primary_contact_phone'),
     primary_contact_email: form.get('primary_contact_email'),
     arrival_date: form.get('arrival_date'),
