@@ -383,6 +383,7 @@ async function viewInvoice(id) {
             ${inv.misc_fee ? `<tr><td>${inv.misc_description || 'Misc Fee'}</td><td class="text-right">${formatMoney(inv.misc_fee)}</td></tr>` : ''}
             ${inv.late_fee ? `<tr><td>Late Fee</td><td class="text-right">${formatMoney(inv.late_fee)}</td></tr>` : ''}
             ${inv.refund_amount ? `<tr><td>${inv.refund_description || 'Refund / Credit'}</td><td class="text-right">-${formatMoney(inv.refund_amount)}</td></tr>` : ''}
+            ${inv.credit_applied ? `<tr><td>Account Credit Applied</td><td class="text-right" style="color:#16a34a">-${formatMoney(inv.credit_applied)}</td></tr>` : ''}
             <tr class="total-row"><td><strong>Total</strong></td><td class="text-right"><strong>${formatMoney(inv.total_amount)}</strong></td></tr>
             <tr><td>Amount Paid</td><td class="text-right">${formatMoney(inv.amount_paid)}</td></tr>
             <tr class="total-row"><td><strong>Balance Due</strong></td><td class="text-right"><strong>${formatMoney(inv.balance_due)}</strong></td></tr>
@@ -534,6 +535,7 @@ async function renderInvoiceHtml(inv) {
             ${inv.misc_fee ? `<tr><td>${inv.misc_description || 'Misc Fee'}</td><td class="text-right">${formatMoney(inv.misc_fee)}</td></tr>` : ''}
             ${inv.late_fee ? `<tr><td>Late Fee</td><td class="text-right">${formatMoney(inv.late_fee)}</td></tr>` : ''}
             ${inv.refund_amount ? `<tr><td>${inv.refund_description || 'Refund / Credit'}</td><td class="text-right">-${formatMoney(inv.refund_amount)}</td></tr>` : ''}
+            ${inv.credit_applied ? `<tr><td>Account Credit Applied</td><td class="text-right" style="color:#16a34a">-${formatMoney(inv.credit_applied)}</td></tr>` : ''}
             <tr class="total-row"><td><strong>Total</strong></td><td class="text-right"><strong>${formatMoney(inv.total_amount)}</strong></td></tr>
             <tr><td>Amount Paid</td><td class="text-right">${formatMoney(inv.amount_paid)}</td></tr>
             <tr class="total-row"><td><strong>Balance Due</strong></td><td class="text-right"><strong>${formatMoney(inv.balance_due)}</strong></td></tr>

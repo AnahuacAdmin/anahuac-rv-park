@@ -405,18 +405,27 @@ router.post('/generate', (req, res) => {
     const lateFee = tenant.recurring_late_fee || 0;
     const credit = tenant.recurring_credit || 0;
     const subtotal = rentAmount + electricAmount + mailbox + misc;
-    const total = subtotal + lateFee - credit;
+    const totalBeforeCredit = subtotal + lateFee - credit;
     const invoiceNum = nextInvoiceNumber();
     const combinedNotes = [moveNote, tenant.mid_month_move_notes].filter(Boolean).join(' — ') || null;
+
+    // Apply tenant credit balance to reduce the invoice.
+    const tenantCredit = Number(tenant.credit_balance) || 0;
+    let creditApplied = 0;
+    if (tenantCredit > 0 && totalBeforeCredit > 0) {
+      creditApplied = +Math.min(tenantCredit, totalBeforeCredit).toFixed(2);
+      db.prepare('UPDATE tenants SET credit_balance = credit_balance - ? WHERE id = ?').run(creditApplied, tenant.id);
+    }
+    const total = +(totalBeforeCredit - creditApplied).toFixed(2);
 
     db.prepare(`
       INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
         rent_amount, electric_amount, mailbox_fee, misc_fee, misc_description,
-        refund_amount, refund_description, late_fee, subtotal, total_amount, balance_due, status, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+        refund_amount, refund_description, late_fee, subtotal, total_amount, balance_due, status, notes, credit_applied)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
     `).run(tenant.id, tenant.lot_id, invoiceNum, startDate, dueDate, startDate, endDate,
       rentAmount, electricAmount, mailbox, misc, tenant.recurring_misc_description,
-      credit, tenant.recurring_credit_description, lateFee, subtotal, total, total, combinedNotes);
+      credit, tenant.recurring_credit_description, lateFee, subtotal, total, total, combinedNotes, creditApplied);
     generated.push(tenant.lot_id);
   }
 

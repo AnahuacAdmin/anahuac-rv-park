@@ -27,7 +27,7 @@ async function loadTenants() {
             ${tenants.map(t => `
               <tr>
                 <td><strong>${t.lot_id}</strong></td>
-                <td>${t.first_name} ${t.last_name}${(t.eviction_warning === 1 && t.balance_due > 0) ? ' <span class="badge badge-danger" title="Eviction warning">EVICTION</span>' : ''}</td>
+                <td>${t.first_name} ${t.last_name}${(t.eviction_warning === 1 && t.balance_due > 0) ? ' <span class="badge badge-danger" title="Eviction warning">EVICTION</span>' : ''}${t.credit_balance > 0 ? ` <span class="badge badge-success" title="Account credit">Credit: ${formatMoney(t.credit_balance)}</span>` : ''}</td>
                 <td>${formatMoney(t.monthly_rent)}</td>
                 <td><span class="badge badge-${t.rent_type === 'premium' ? 'warning' : t.rent_type === 'electric_only' ? 'info' : 'gray'}">${t.rent_type}</span></td>
                 <td>${recurringSummary(t)}</td>

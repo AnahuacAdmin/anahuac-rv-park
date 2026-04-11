@@ -111,6 +111,8 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN last_move_old_rent REAL");
   addCol("ALTER TABLE meter_readings ADD COLUMN photo TEXT");
   addCol("ALTER TABLE meter_readings ADD COLUMN notes TEXT");
+  addCol("ALTER TABLE tenants ADD COLUMN credit_balance REAL DEFAULT 0");
+  addCol("ALTER TABLE invoices ADD COLUMN credit_applied REAL DEFAULT 0");
 
   db.run(`
     CREATE TABLE IF NOT EXISTS reservations (

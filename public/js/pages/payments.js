@@ -111,7 +111,11 @@ async function savePayment(e) {
   try {
     const r = await API.post('/payments', data);
     closeModal();
-    showCelebration('💰🎉', 'Payment Recorded!');
+    if (r?.overpayment > 0) {
+      showCelebration('🎉💚', `Overpayment of ${formatMoney(r.overpayment)} added as credit!`);
+    } else {
+      showCelebration('💰🎉', 'Payment Recorded!');
+    }
     if (r?.smsReceipt) {
       if (r.smsReceipt.sent) setTimeout(() => alert('SMS receipt sent.'), 3200);
       else setTimeout(() => alert('SMS receipt NOT sent: ' + (r.smsReceipt.reason || 'unknown')), 3200);

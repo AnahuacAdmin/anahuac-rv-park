@@ -113,6 +113,7 @@ router.post('/', async (req, res) => {
 
   let newBalance = null;
   let invoiceNumber = null;
+  let overpayment = 0;
 
   // Update invoice if linked
   if (invoice_id) {
@@ -124,6 +125,13 @@ router.post('/', async (req, res) => {
       .run(totalPaid.total, Math.max(0, balance), status, invoice_id);
     newBalance = Math.max(0, balance);
     invoiceNumber = invoice?.invoice_number;
+
+    // Overpayment: if balance went negative, add the excess as tenant credit.
+    if (balance < -0.005) {
+      overpayment = +Math.abs(balance).toFixed(2);
+      db.prepare('UPDATE tenants SET credit_balance = credit_balance + ? WHERE id = ?').run(overpayment, tenant_id);
+      console.log(`[payments] overpayment of $${overpayment} added as credit to tenant ${tenant_id}`);
+    }
 
     // Clear eviction warning if tenant has no remaining unpaid invoices.
     if (balance <= 0) {
@@ -156,7 +164,7 @@ router.post('/', async (req, res) => {
     }
   }
 
-  res.json({ id: result.lastInsertRowid, smsReceipt: smsResult });
+  res.json({ id: result.lastInsertRowid, smsReceipt: smsResult, overpayment });
 });
 
 router.delete('/:id', (req, res) => {
