@@ -42,20 +42,6 @@ async function loadDashboard() {
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('dashboard')}
 
-    <!-- Weather -->
-    ${weather ? `
-    <div class="dash-weather dash-fade-in">
-      <span>${weather.emoji} <strong>${weather.temp}°F</strong> ${weather.condition}</span>
-      <span class="dash-weather-sep">|</span>
-      <span class="dash-weather-detail">💨 ${weather.wind}mph</span>
-      <span class="dash-weather-sep">|</span>
-      <span class="dash-weather-detail">💧 ${weather.humidity}%</span>
-      <span class="dash-weather-sep">|</span>
-      <span class="dash-weather-detail">Anahuac, TX</span>
-      <span class="dash-weather-sep">|</span>
-      <span class="dash-weather-detail">${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
-    </div>` : ''}
-
     <div class="page-header dash-fade-in" style="animation-delay:0.05s">
       <h2>${getTimeGreeting()}, ${API.user?.username || 'Admin'}!</h2>
     </div>
@@ -150,6 +136,19 @@ async function loadDashboard() {
     </div>
 
     <div class="daily-tip dash-fade-in" style="animation-delay:0.6s">💡 ${getDailyTip().replace('💡 ', '')}</div>
+
+    ${weather ? `
+    <div class="dash-weather dash-fade-in" style="animation-delay:0.65s">
+      <span>${weather.emoji} <strong>${weather.temp}°F</strong> ${weather.condition}</span>
+      <span class="dash-weather-sep">|</span>
+      <span class="dash-weather-detail">💨 ${weather.wind}mph</span>
+      <span class="dash-weather-sep">|</span>
+      <span class="dash-weather-detail">💧 ${weather.humidity}%</span>
+      <span class="dash-weather-sep">|</span>
+      <span class="dash-weather-detail">Anahuac, TX</span>
+      <span class="dash-weather-sep">|</span>
+      <span class="dash-weather-detail">${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+    </div>` : ''}
   `;
 
   setTimeout(() => renderDashboardCharts(data), 150);
