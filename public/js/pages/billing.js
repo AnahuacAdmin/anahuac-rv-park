@@ -460,7 +460,7 @@ function _pdfOptions(invoiceNumber) {
     image:        { type: 'jpeg', quality: 0.95 },
     html2canvas:  { scale: 1.5, useCORS: true, backgroundColor: '#ffffff' },
     jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
-    pagebreak:    { mode: ['css', 'legacy'], avoid: ['.invoice-standard-notes', '.invoice-qr-section', '.line-items'] },
+    pagebreak:    { mode: ['css', 'legacy'], avoid: ['.invoice-qr-section', '.line-items'] },
   };
 }
 
@@ -497,7 +497,7 @@ async function renderInvoiceHtml(inv) {
     <div class="invoice-print" id="printable-invoice">
       <div class="invoice-header">
         <div style="display:flex;align-items:center;gap:1rem">
-          <img src="/park_Logo.png" alt="Anahuac RV Park" style="height:100px;width:auto" crossorigin="anonymous">
+          <img src="/park_Logo.png" alt="Anahuac RV Park" style="height:70px;width:auto" crossorigin="anonymous">
           <div>
             <h2>Anahuac RV Park, LLC</h2>
             <p>1003 Davis Ave, Anahuac, TX 77514</p>
@@ -592,7 +592,7 @@ async function generateQrDataUrl(text) {
 
 function invoiceStandardNotesHtml() {
   return `
-    <div class="invoice-standard-notes" style="margin-top:0.2rem;padding-top:0.2rem;border-top:1px solid #ccc;font-size:0.7rem;line-height:1.25;color:#374151;page-break-inside:avoid">
+    <div class="invoice-standard-notes" style="margin-top:0.2rem;padding-top:0.2rem;border-top:1px solid #ccc;font-size:0.7rem;line-height:1.25;color:#374151">
       <p style="margin:0.15rem 0">We would appreciate it if you could make arrangements to complete payment as soon as possible.</p>
       <p style="margin:0.15rem 0">If payment is not received within 3 days from the date of this invoice a $25.00 fee will be applied.</p>
       <p style="margin:0.15rem 0">If payment is not received within 5 days of this invoice, an eviction notice will be served.</p>
