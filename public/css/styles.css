@@ -439,18 +439,21 @@ a { text-decoration: none; color: inherit; }
 /* Billing table: horizontal scroll with visible scrollbar */
 .billing-scroll {
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: auto;
+  max-height: 75vh;
   position: relative;
   -webkit-overflow-scrolling: touch;
+  display: block;
+  width: 100%;
+  scrollbar-width: auto;
+  scrollbar-color: #6b7280 var(--gray-200);
 }
- 
+
 /* Thick, visible scrollbars for billing table */
 .billing-scroll::-webkit-scrollbar { height: 16px; }
 .billing-scroll::-webkit-scrollbar-track { background: var(--gray-200); border-radius: 8px; }
 .billing-scroll::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 8px; border: 2px solid var(--gray-200); }
 .billing-scroll::-webkit-scrollbar-thumb:hover { background: #4b5563; }
-.billing-scroll { scrollbar-width: auto; scrollbar-color: #6b7280 var(--gray-200); }
-.billing-scroll { display: block; width: 100%; }
  
 /* Sticky header row */
 .billing-table thead th { position: sticky; top: 0; background: var(--gray-50); z-index: 2; }
