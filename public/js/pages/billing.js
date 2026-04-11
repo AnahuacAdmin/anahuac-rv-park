@@ -609,8 +609,10 @@ function invoiceStandardNotesHtml() {
 // Email Invoice — generates the PDF in the browser (html2pdf), then sends it
 // to the backend as base64 so nodemailer can attach it and send via Gmail.
 async function emailInvoice(id) {
+  if (window._emailSending) { alert('Already sending, please wait...'); return; }
+  window._emailSending = true;
   const inv = await API.get(`/invoices/${id}`);
-  if (!inv) return;
+  if (!inv) { window._emailSending = false; return; }
   if (!inv.email) {
     alert('No email address on file for this tenant. Add one on the Tenants page first.');
     return;
@@ -670,6 +672,7 @@ async function emailInvoice(id) {
     }
   } finally {
     wrap.remove();
+    window._emailSending = false;
   }
 }
 

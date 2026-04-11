@@ -214,6 +214,17 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('main-app').style.display = '';
       document.body.classList.remove('login-page');
       navigateTo('dashboard');
+      // Check if user arrived via a ?pay= link before login.
+      const pendingPay = sessionStorage.getItem('pending_pay');
+      if (pendingPay) {
+        sessionStorage.removeItem('pending_pay');
+        setTimeout(async () => {
+          try {
+            const r = await API.post('/payments/create-checkout-session', { invoice_id: parseInt(pendingPay) });
+            if (r?.url) window.location.href = r.url;
+          } catch (e) { alert('Payment error: ' + (e.message || 'unknown')); }
+        }, 500);
+      }
     } catch (err) {
       errEl.textContent = err.message;
       errEl.style.display = '';
@@ -333,10 +344,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Handle QR-code-based Stripe pay link: ?pay=<invoiceId>
   // Auto-starts checkout when scanned (after login).
   const params = new URLSearchParams(location.search);
-  if (params.get('pay') && API.token) {
+  if (params.get('pay')) {
     const payId = params.get('pay');
+    if (!API.token) {
+      // Save pay ID so we can redirect after login.
+      sessionStorage.setItem('pending_pay', payId);
+    }
     history.replaceState({}, '', location.pathname);
-    setTimeout(async () => {
+    if (API.token) setTimeout(async () => {
       try {
         const r = await API.post('/payments/create-checkout-session', { invoice_id: parseInt(payId) });
         if (r?.url) window.location.href = r.url;
