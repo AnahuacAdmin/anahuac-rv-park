@@ -426,16 +426,43 @@ a { text-decoration: none; color: inherit; }
 .stat-card.danger .stat-value { color: var(--danger); }
 
 /* Tables */
-.table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+.table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; scrollbar-width: auto; scrollbar-color: #9ca3af var(--gray-200); }
+.table-container::-webkit-scrollbar { height: 10px; }
+.table-container::-webkit-scrollbar-track { background: var(--gray-200); border-radius: 5px; }
+.table-container::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 5px; }
+.table-container::-webkit-scrollbar-thumb:hover { background: #6b7280; }
 .billing-table { min-width: 1400px; }
 .billing-table th, .billing-table td { padding: 0.4rem 0.5rem; font-size: 0.78rem; white-space: nowrap; }
 .billing-table th { font-size: 0.7rem; }
 
-/* Billing table: scroll container keeps horizontal scrollbar pinned to viewport bottom */
+/* Billing table: horizontal scroll with visible scrollbar */
 .billing-scroll {
-  max-height: calc(100vh - 220px);
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible;
   position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Thick, visible scrollbars for billing table */
+.billing-scroll::-webkit-scrollbar {
+  height: 12px;
+}
+.billing-scroll::-webkit-scrollbar-track {
+  background: var(--gray-200);
+  border-radius: 6px;
+}
+.billing-scroll::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border-radius: 6px;
+  border: 2px solid var(--gray-200);
+}
+.billing-scroll::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+/* Firefox */
+.billing-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: #6b7280 var(--gray-200);
 }
 /* Sticky header row */
 .billing-table thead th {
