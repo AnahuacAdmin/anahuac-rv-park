@@ -12,7 +12,7 @@ const API = {
   },
 
   get(url) { return this.request(url); },
-  post(url, data) { return this.request(url, { method: 'POST', body: JSON.stringify(data) }); },
+  post(url, data) { console.log('[API.post] called:', url); return this.request(url, { method: 'POST', body: JSON.stringify(data) }); },
   put(url, data) { return this.request(url, { method: 'PUT', body: JSON.stringify(data) }); },
   patch(url, data) { return this.request(url, { method: 'PATCH', body: JSON.stringify(data) }); },
   del(url) { return this.request(url, { method: 'DELETE' }); },

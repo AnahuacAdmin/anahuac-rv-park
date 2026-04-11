@@ -30,6 +30,7 @@ function getResend() {
 // Email an invoice as a PDF attachment via Gmail.
 // Body: { pdfBase64: "<base64 string of the PDF generated client-side>" }
 router.post('/:id/email', async (req, res) => {
+  console.log('[EMAIL ROUTE] called at', new Date().toISOString(), 'for invoice', req.params.id, 'from IP', req.ip);
   try {
     const invoice = db.prepare(`
       SELECT i.*, t.first_name, t.last_name, t.email, t.lot_id
