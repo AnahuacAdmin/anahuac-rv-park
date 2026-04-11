@@ -240,7 +240,13 @@ function closeModal() { document.getElementById('modal-overlay').style.display =
 function navigateTo(page) {
   currentPage = page;
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  const activeLink = document.querySelector(`[data-page="${page}"]`);
+  if (activeLink) {
+    activeLink.classList.add('active');
+    // Auto-expand parent nav-group if this link is inside one.
+    const group = activeLink.closest('.nav-group');
+    if (group) group.classList.add('open');
+  }
   const sidebar = document.getElementById('sidebar');
   sidebar.classList.remove('open');
   document.getElementById('sidebar-backdrop')?.classList.remove('open');

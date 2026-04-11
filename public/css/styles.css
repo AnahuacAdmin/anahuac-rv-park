@@ -445,6 +445,14 @@ a { text-decoration: none; color: inherit; }
   border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.85rem; color: #92400e;
   margin-top: 1rem;
 }
+/* Collapsible nav group */
+.nav-group .nav-sub { list-style: none; padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+.nav-group.open .nav-sub { max-height: 200px; }
+.nav-group .nav-sub .nav-link { padding-left: 2.25rem; font-size: 0.85rem; }
+.nav-caret { float: right; transition: transform 0.2s; font-size: 0.7rem; }
+.nav-group.open .nav-caret { transform: rotate(180deg); }
+.nav-group-toggle { cursor: pointer; }
+
 .sidebar-footer { padding: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
  
 /* Main content */

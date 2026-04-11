@@ -79,13 +79,18 @@
         <ul class="nav-menu">
           <li><a href="#" data-page="dashboard" class="nav-link active">&#127968; Dashboard</a></li>
           <li><a href="#" data-page="sitemap" class="nav-link">&#128506; Site Map</a></li>
-          <li><a href="#" data-page="tenants" class="nav-link">&#128101; Tenants</a></li>
+          <li class="nav-group">
+            <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">&#128101; Guest Management <span class="nav-caret">&#9662;</span></a>
+            <ul class="nav-sub">
+              <li><a href="#" data-page="tenants" class="nav-link">Tenants</a></li>
+              <li><a href="#" data-page="checkins" class="nav-link">Check-In/Out</a></li>
+              <li><a href="#" data-page="reservations" class="nav-link">Reservations</a></li>
+            </ul>
+          </li>
           <li><a href="#" data-page="meters" class="nav-link">&#9889; Meter Readings</a></li>
           <li><a href="#" data-page="billing" class="nav-link">&#128176; Billing & Invoices</a></li>
           <li><a href="#" data-page="payments" class="nav-link">&#128179; Payments</a></li>
-          <li><a href="#" data-page="checkins" class="nav-link">&#128203; Check-In/Out</a></li>
           <li><a href="#" data-page="messages" class="nav-link">&#128233; Messaging</a></li>
-          <li><a href="#" data-page="reservations" class="nav-link">&#128197; Reservations</a></li>
           <li><a href="#" data-page="waitlist" class="nav-link">&#128221; Waitlist</a></li>
           <li><a href="#" data-page="users" class="nav-link" id="nav-users" style="display:none">&#128100; Users</a></li>
           <li><a href="#" data-page="admin" class="nav-link" id="nav-admin" style="display:none">&#128274; Admin</a></li>

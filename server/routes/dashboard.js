@@ -13,6 +13,11 @@ router.get('/', (req, res) => {
   const activeTenants = db.prepare('SELECT COUNT(*) as count FROM tenants WHERE is_active = 1').get().count;
   const waitlistCount = db.prepare("SELECT COUNT(*) as count FROM waitlist WHERE status = 'waiting'").get().count;
 
+  let pendingReservations = 0;
+  try {
+    pendingReservations = db.prepare("SELECT COUNT(*) as count FROM reservations WHERE status IN ('pending','confirmed') AND arrival_date >= date('now')").get().count;
+  } catch {}
+
   const monthlyRevenue = db.prepare(`
     SELECT COALESCE(SUM(amount), 0) as total FROM payments
     WHERE strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')
@@ -33,7 +38,7 @@ router.get('/', (req, res) => {
   `).get().total;
 
   res.json({
-    totalLots, occupied, vacant, reserved, activeTenants, waitlistCount,
+    totalLots, occupied, vacant, reserved, activeTenants, waitlistCount, pendingReservations,
     monthlyRevenue, pendingInvoices, totalOutstanding, recentPayments, totalKwh,
     occupancyRate: Math.round((occupied / (totalLots - reserved)) * 100)
   });

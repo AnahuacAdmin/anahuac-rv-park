@@ -34,6 +34,7 @@ async function loadTenants() {
                 <td>${formatDate(t.move_in_date)}</td>
                 <td class="btn-group">
                   <button class="btn btn-sm btn-outline" onclick="showEditTenant(${t.id})">Edit</button>
+                  <button class="btn btn-sm btn-outline" onclick="showTenantHistory(${t.id}, '${(t.first_name + ' ' + t.last_name).replace(/'/g, "\\'")}')">History</button>
                 </td>
               </tr>
             `).join('')}
@@ -258,6 +259,25 @@ async function submitMoveTenant(e, tenantId) {
       alert('Failed to move tenant: ' + (err.message || 'unknown error'));
     }
   }
+}
+
+async function showTenantHistory(tenantId, name) {
+  const [checkins, payments] = await Promise.all([
+    API.get('/checkins'),
+    API.get(`/payments/tenant/${tenantId}`)
+  ]);
+  const tenantCheckins = (checkins || []).filter(c => c.tenant_id === tenantId);
+  const tenantPayments = payments || [];
+  showModal(`History — ${name}`, `
+    <h4>Check-In/Out History</h4>
+    ${tenantCheckins.length ? `<table><thead><tr><th>Lot</th><th>Check-In</th><th>Check-Out</th><th>Status</th></tr></thead><tbody>
+      ${tenantCheckins.map(c => `<tr><td>${c.lot_name || c.lot_id}</td><td>${formatDate(c.check_in_date)}</td><td>${c.check_out_date ? formatDate(c.check_out_date) : '—'}</td><td><span class="badge badge-${c.status === 'checked_in' ? 'success' : 'gray'}">${c.status}</span></td></tr>`).join('')}
+    </tbody></table>` : '<p>No check-in records.</p>'}
+    <h4 class="mt-2">Payment History</h4>
+    ${tenantPayments.length ? `<table><thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Invoice</th></tr></thead><tbody>
+      ${tenantPayments.map(p => `<tr><td>${formatDate(p.payment_date)}</td><td>${formatMoney(p.amount)}</td><td>${p.payment_method || '—'}</td><td>${p.invoice_number || '—'}</td></tr>`).join('')}
+    </tbody></table>` : '<p>No payments recorded.</p>'}
+  `);
 }
 
 async function showRecurringFeesSummary() {

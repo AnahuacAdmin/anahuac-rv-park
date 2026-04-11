@@ -40,6 +40,19 @@ async function loadDashboard() {
       <div class="stat-card"><div class="stat-value">${Math.round(data.totalKwh).toLocaleString()}</div><div class="stat-label">Total kWh (Latest)</div></div>
       <div class="stat-card"><div class="stat-value">${data.reserved}</div><div class="stat-label">Owner Reserved</div></div>
     </div>
+    <div class="card">
+      <h3 style="margin-bottom:0.75rem">&#128101; Guest Management</h3>
+      <div class="stats-grid">
+        <div class="stat-card success"><div class="stat-value">${data.activeTenants}</div><div class="stat-label">Checked In</div></div>
+        <div class="stat-card warning"><div class="stat-value">${data.pendingReservations || 0}</div><div class="stat-label">Pending Reservations</div></div>
+        <div class="stat-card"><div class="stat-value">${data.waitlistCount}</div><div class="stat-label">On Waitlist</div></div>
+      </div>
+      <div class="btn-group mt-1">
+        <button class="btn btn-sm btn-success" onclick="navigateTo('checkins')">Check-In/Out</button>
+        <button class="btn btn-sm btn-outline" onclick="navigateTo('reservations')">Reservations</button>
+        <button class="btn btn-sm btn-outline" onclick="navigateTo('tenants')">Tenants</button>
+      </div>
+    </div>
     <div class="daily-tip">${getDailyTip()}</div>
   `;
 }
