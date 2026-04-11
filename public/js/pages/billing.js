@@ -615,88 +615,44 @@ function invoiceStandardNotesHtml() {
   `;
 }
 
-// Email Invoice — generates the PDF in the browser (html2pdf), then sends it
-// to the backend as base64 so nodemailer can attach it and send via Gmail.
+// Email Invoice — generates PDF client-side, sends as base64 to server via Resend.
 async function emailInvoice(id) {
-  console.log('[EMAIL] emailInvoice called, id:', id, 'stack:', new Error().stack.split('\n').slice(1,4).join(' | '));
-  if (!window._emailSendingIds) window._emailSendingIds = new Set();
-  if (window._emailSendingIds.has(id)) { console.log('[EMAIL] BLOCKED duplicate for id:', id); alert('Already sending this invoice, please wait...'); return; }
-  window._emailSendingIds.add(id);
-
-  const emailBtn = document.querySelector(`button[onclick*="emailInvoice(${id})"]`);
-  if (emailBtn) { emailBtn.disabled = true; emailBtn.textContent = 'Sending...'; }
-
-  const inv = await API.get(`/invoices/${id}`);
-  if (!inv) { window._emailSendingIds.delete(id); if (emailBtn) { emailBtn.disabled = false; emailBtn.textContent = 'Email'; } return; }
-  if (!inv.email) {
-    alert('No email address on file for this tenant. Add one on the Tenants page first.');
-    window._emailSendingIds.delete(id); if (emailBtn) { emailBtn.disabled = false; emailBtn.textContent = 'Email'; }
+  // Nuclear-level duplicate prevention
+  const key = 'email_' + id;
+  if (sessionStorage.getItem(key)) {
+    alert('Already sending, please wait...');
     return;
   }
-  if (!confirm(`Send invoice ${inv.invoice_number} to ${inv.email}?`)) {
-    window._emailSendingIds.delete(id); if (emailBtn) { emailBtn.disabled = false; emailBtn.textContent = 'Email'; }
-    return;
-  }
-
-  const emailToast = showStatusToast('📧', 'Sending email...');
-
-  // Render the invoice HTML offscreen and convert to a PDF Blob, then to base64.
-  const wrap = document.createElement('div');
-  wrap.style.position = 'absolute';
-  wrap.style.left = '0';
-  wrap.style.top = '0';
-  wrap.style.width = '794px';
-  wrap.style.background = '#fff';
-  wrap.style.zIndex = '-9999';
-  wrap.innerHTML = await renderInvoiceHtml(inv);
-  document.body.appendChild(wrap);
-  await new Promise(r => setTimeout(r, 500));
+  sessionStorage.setItem(key, '1');
 
   try {
+    const inv = await API.get(`/invoices/${id}`);
+    if (!inv) return;
+    if (!inv.email) { alert('No email address on file for this tenant.'); return; }
+    if (!confirm(`Send invoice to ${inv.email}?`)) return;
+
+    showStatusToast('📧', 'Sending email...');
+
     // Generate PDF
-    let pdfBase64;
-    try {
-      const pdfBlob = await html2pdf()
-        .set(_pdfOptions(inv.invoice_number))
-        .from(wrap.firstElementChild)
-        .outputPdf('blob');
-      pdfBase64 = await blobToBase64(pdfBlob);
-    } catch (pdfErr) {
-      alert('Failed to generate PDF for attachment: ' + (pdfErr.message || 'unknown'));
-      return;
-    }
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;top:-99999px;left:0;width:800px;background:#fff;visibility:hidden;';
+    wrap.innerHTML = await renderInvoiceHtml(inv);
+    document.body.appendChild(wrap);
+    await new Promise(r => setTimeout(r, 500));
 
-    if (!pdfBase64 || pdfBase64.length < 100) {
-      alert('PDF generation produced an empty file. Cannot send email.');
-      return;
-    }
-
-    // Send email via server
-    let result;
-    try {
-      result = await API.post(`/invoices/${id}/email`, { pdfBase64 });
-    } catch (apiErr) {
-      // API.request throws with the server's error message
-      const serverMsg = apiErr.message || 'unknown error';
-      if (serverMsg.includes('RESEND_API_KEY') || serverMsg.includes('not configured')) {
-        alert('Email sending is not configured on the server.\n\nAsk the admin to set the RESEND_API_KEY environment variable on Railway.');
-      } else {
-        alert('Email failed: ' + serverMsg);
-      }
-      return;
-    }
-
-    emailToast.hide(0);
-    if (result?.success) {
-      emailToast.update('✅', `Email delivered to ${result.sentTo}!`);
-      emailToast.hide(3000);
-    } else {
-      alert('Email request completed but the server did not confirm success.\n\nCheck Railway logs for details.');
-    }
-  } finally {
+    const pdfBlob = await html2pdf().set(_pdfOptions(inv.invoice_number)).from(wrap.firstElementChild).outputPdf('blob');
     wrap.remove();
-    window._emailSendingIds.delete(id);
-    if (emailBtn) { emailBtn.disabled = false; emailBtn.textContent = 'Email'; }
+
+    const pdfBase64 = await blobToBase64(pdfBlob);
+    const result = await API.post(`/invoices/${id}/email`, { pdfBase64 });
+
+    if (result?.success) {
+      showStatusToast('✅', `Email delivered to ${result.sentTo}`);
+    }
+  } catch (err) {
+    alert('Email failed: ' + (err.message || 'unknown error'));
+  } finally {
+    setTimeout(() => sessionStorage.removeItem(key), 5000);
   }
 }
 
