@@ -17,7 +17,6 @@ async function loadTenants() {
       <h2>Tenant Management</h2>
       <div class="btn-group">
         <button class="btn btn-outline" onclick="showRecurringFeesSummary()">Recurring Fees Summary</button>
-        <button class="btn btn-primary" onclick="showAddTenant()">+ Add Tenant</button>
       </div>
     </div>
     <div class="card">
