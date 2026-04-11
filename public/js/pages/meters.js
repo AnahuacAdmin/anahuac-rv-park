@@ -26,7 +26,8 @@ async function loadMeters() {
                 <td><strong>${r.kwh_used}</strong></td>
                 <td>${formatMoney(r.rate_per_kwh)}</td>
                 <td><strong>${formatMoney(r.electric_charge)}</strong></td>
-                <td>
+                <td class="btn-group">
+                  ${r.photo ? `<button class="btn btn-sm btn-outline" onclick="viewReadingPhoto(${r.id})" title="View photo">&#128247;</button>` : ''}
                   <button class="btn btn-sm btn-outline" onclick="showEditReading(${r.id}, '${r.lot_id}', ${r.previous_reading}, ${r.current_reading}, '${r.reading_date}')">Edit</button>
                 </td>
               </tr>
@@ -110,6 +111,10 @@ async function updateReading(e, id) {
   });
   closeModal();
   loadMeters();
+}
+
+function viewReadingPhoto(id) {
+  showModal('Meter Photo', `<img src="/api/meters/${id}/photo" style="width:100%;border-radius:8px" onerror="this.parentElement.innerHTML='<p>Photo not available.</p>'">`);
 }
 
 async function deleteReading(id) {
