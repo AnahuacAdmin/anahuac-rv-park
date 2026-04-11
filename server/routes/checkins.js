@@ -32,7 +32,9 @@ router.post('/checkin', (req, res) => {
     try {
       const tenant = db.prepare('SELECT first_name, phone FROM tenants WHERE id = ?').get(tenant_id);
       if (tenant?.phone) {
-        const welcomeMsg = `Welcome to Anahuac RV Park! We're glad you're here!\n\nLot: ${lot_id}\nContact: 409-267-6603 | anrvpark.com\n\nPARK RULES SUMMARY:\n- Rent due on time — late fees apply after 3 days\n- Speed limit: 5 MPH — children & ducks in park!\n- Quiet hours: 10pm–7am\n- Pets welcome on leash — clean up after them\n- Max 2 people/cars per space ($25/extra person)\n- No fires except pits/rings. No fireworks. No weapons.\n- Keep your site clean at all times\n- No subleasing. No sharing WiFi password.\n- Guests: max 2 visitors at a time\n\nPay invoices online: ${APP_URL}\n\nWelcome to your new home away from home! 🦆`;
+        const wifiRow = db.prepare("SELECT value FROM settings WHERE key = 'wifi_password'").get();
+        const wifiLine = wifiRow?.value ? `\nWiFi Password: ${wifiRow.value}\n` : '';
+        const welcomeMsg = `Welcome to Anahuac RV Park! We're glad you're here!\n\nLot: ${lot_id}\nContact: 409-267-6603 | anrvpark.com${wifiLine}\n\nPARK RULES SUMMARY:\n- Rent due on time — late fees apply after 3 days\n- Speed limit: 5 MPH — children & ducks in park!\n- Quiet hours: 10pm–7am\n- Pets welcome on leash — clean up after them\n- Max 2 people/cars per space ($25/extra person)\n- No fires except pits/rings. No fireworks. No weapons.\n- Keep your site clean at all times\n- No subleasing. No sharing WiFi password.\n- Guests: max 2 visitors at a time\n\nPay invoices online: ${APP_URL}\n\nWelcome to your new home away from home! 🦆`;
         sendSms(tenant.phone, welcomeMsg).then(r => {
           console.log(`[checkins] welcome SMS sent to ${r.to}, sid=${r.sid}`);
         }).catch(e => {

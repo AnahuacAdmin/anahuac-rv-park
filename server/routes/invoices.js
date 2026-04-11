@@ -68,13 +68,11 @@ Anahuac RV Park, LLC
       <p>Please find attached your invoice from <strong>Anahuac RV Park</strong> for lot <strong>${invoice.lot_id}</strong>.</p>
       <table style="border-collapse:collapse">
         <tr><td><strong>Invoice #:</strong></td><td>${invoice.invoice_number}</td></tr>
-        <tr><td><strong>Date:</strong></td><td>${invoice.invoice_date}</td></tr>
-        <tr><td><strong>Due:</strong></td><td>${invoice.due_date}</td></tr>
-        <tr><td><strong>Total:</strong></td><td>$${total}</td></tr>
-        <tr><td><strong>Balance:</strong></td><td>$${balance}</td></tr>
+        <tr><td><strong>Due Date:</strong></td><td>${invoice.due_date}</td></tr>
+        <tr><td><strong>Balance Due:</strong></td><td><strong>$${balance}</strong></td></tr>
       </table>
       <div style="text-align:center;margin:1.5rem 0">
-        <a href="${APP_URL}/?pay=${invoice.id}" style="display:inline-block;background:#16a34a;color:#ffffff;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:bold;text-decoration:none;margin:16px 0">Pay Invoice Online - $${balance}</a>
+        <a href="${APP_URL}/?pay=${invoice.id}" style="display:inline-block;background:#16a34a;color:#ffffff;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:bold;text-decoration:none;margin:16px 0">CLICK HERE TO PAY BY CREDIT CARD - $${balance}</a>
         <p style="font-size:12px;color:#666;margin-top:8px">A 3% convenience fee applies to credit/debit card payments.</p>
       </div>
       <p>Thank you for being part of our community. If you have any questions about this invoice, call us at 409-267-6603.</p>

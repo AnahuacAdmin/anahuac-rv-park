@@ -6,11 +6,26 @@ async function loadAdmin() {
     return;
   }
 
-  const info = await API.get('/admin/backup-info');
+  const [info, settings] = await Promise.all([API.get('/admin/backup-info'), API.get('/settings')]);
   const lastBackup = info?.lastBackupAt ? new Date(info.lastBackupAt).toLocaleString() : 'Never';
+  const wifiPassword = settings?.wifi_password || '';
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header"><h2>Admin &amp; Backup</h2></div>
+
+    <div class="card">
+      <h3>WiFi Password</h3>
+      <p><small>This password is included in the welcome SMS sent to new tenants on check-in.</small></p>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label>WiFi Password</label>
+          <input type="text" id="wifi-password-input" value="${wifiPassword}">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" onclick="saveWifiPassword()">Save</button>
+        </div>
+      </div>
+    </div>
 
     <div class="card">
       <h3>Database Backup</h3>
@@ -29,6 +44,18 @@ async function loadAdmin() {
       <button class="btn btn-success mt-1" onclick="exportAllDataToExcel()">Export All Data to Excel</button>
     </div>
   `;
+}
+
+async function saveWifiPassword() {
+  const val = document.getElementById('wifi-password-input')?.value || '';
+  try {
+    await API.put('/settings', { wifi_password: val });
+    showStatusToast('✅', 'WiFi password saved!');
+    const t = document.querySelector('.status-toast.visible');
+    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
+  } catch (err) {
+    alert('Failed to save: ' + (err.message || 'unknown'));
+  }
 }
 
 async function downloadDatabaseBackup() {
