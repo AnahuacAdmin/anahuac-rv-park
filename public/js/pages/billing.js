@@ -455,10 +455,10 @@ function meterRowsHtml(inv) {
 // --- PDF generation via html2pdf.js (jsPDF + html2canvas) ---
 function _pdfOptions(invoiceNumber) {
   return {
-    margin:       [0.4, 0.4, 0.5, 0.4],
+    margin:       [0, 0, 0, 0],
     filename:     `Invoice-${invoiceNumber}.pdf`,
     image:        { type: 'jpeg', quality: 0.95 },
-    html2canvas:  { scale: 1.5, useCORS: true, backgroundColor: '#ffffff' },
+    html2canvas:  { scale: 1.5, useCORS: true, backgroundColor: '#ffffff', y: 0, scrollY: 0 },
     jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
     pagebreak:    { mode: ['css', 'legacy'], avoid: ['.invoice-qr-section', '.line-items'] },
   };
@@ -475,12 +475,12 @@ async function downloadInvoicePdf(id) {
   const inv = await API.get(`/invoices/${id}`);
   if (!inv) return;
   const wrap = document.createElement('div');
-  wrap.style.position = 'fixed';
-  wrap.style.top = '-99999px';
+  wrap.style.position = 'absolute';
   wrap.style.left = '0';
-  wrap.style.width = '800px';
+  wrap.style.top = '0';
+  wrap.style.width = '794px';
   wrap.style.background = '#fff';
-  wrap.style.visibility = 'hidden';
+  wrap.style.zIndex = '-9999';
   wrap.innerHTML = await renderInvoiceHtml(inv);
   document.body.appendChild(wrap);
   await new Promise(r => setTimeout(r, 500));
@@ -621,12 +621,12 @@ async function emailInvoice(id) {
 
   // Render the invoice HTML offscreen and convert to a PDF Blob, then to base64.
   const wrap = document.createElement('div');
-  wrap.style.position = 'fixed';
-  wrap.style.top = '-99999px';
+  wrap.style.position = 'absolute';
   wrap.style.left = '0';
-  wrap.style.width = '800px';
+  wrap.style.top = '0';
+  wrap.style.width = '794px';
   wrap.style.background = '#fff';
-  wrap.style.visibility = 'hidden';
+  wrap.style.zIndex = '-9999';
   wrap.innerHTML = await renderInvoiceHtml(inv);
   document.body.appendChild(wrap);
   await new Promise(r => setTimeout(r, 500));
