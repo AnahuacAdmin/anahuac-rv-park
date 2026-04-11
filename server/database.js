@@ -112,6 +112,29 @@ async function initializeDatabase() {
   addCol("ALTER TABLE meter_readings ADD COLUMN photo TEXT");
   addCol("ALTER TABLE meter_readings ADD COLUMN notes TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN credit_balance REAL DEFAULT 0");
+  db.run(`CREATE TABLE IF NOT EXISTS reservation_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_name TEXT NOT NULL,
+    primary_contact_name TEXT,
+    primary_contact_phone TEXT,
+    primary_contact_email TEXT,
+    arrival_date DATE NOT NULL,
+    departure_date DATE NOT NULL,
+    nights INTEGER DEFAULT 1,
+    billing_type TEXT DEFAULT 'separate',
+    notes TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS reservation_group_lots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER REFERENCES reservation_groups(id),
+    lot_id TEXT REFERENCES lots(id),
+    occupant_name TEXT,
+    occupant_notes TEXT,
+    reservation_id INTEGER REFERENCES reservations(id)
+  )`);
+
   addCol("ALTER TABLE tenants ADD COLUMN eviction_paused INTEGER DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN eviction_pause_note TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN eviction_pause_date TEXT");

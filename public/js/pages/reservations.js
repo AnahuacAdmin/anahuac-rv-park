@@ -7,15 +7,21 @@ async function loadReservations() {
   renderReservationList();
 }
 
-function renderReservationList() {
+async function renderReservationList() {
+  // Fetch group reservations too
+  let groups = [];
+  try { groups = await API.get('/reservations/groups') || []; } catch {}
+
   const upcoming = _allReservations.filter(r => r.status !== 'cancelled' && r.status !== 'checked-out' && r.departure_date >= new Date().toISOString().split('T')[0]);
   const past = _allReservations.filter(r => !upcoming.includes(r));
+  const activeGroups = groups.filter(g => g.status !== 'cancelled');
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <h2>Reservations</h2>
       <div class="btn-group">
         <button class="btn btn-primary" onclick="showNewReservation()">+ New Reservation</button>
+        <button class="btn btn-warning" onclick="showGroupReservation()">👨‍👩‍👧‍👦 Group Reservation</button>
         <button class="btn btn-outline" onclick="_resView='calendar';renderCalendar()">Calendar View</button>
       </div>
     </div>
@@ -38,6 +44,34 @@ function renderReservationList() {
         </table>
       </div>
     </div>
+    ${activeGroups.length ? `
+    <div class="card mt-2">
+      <h3 style="margin-bottom:0.75rem">👨‍👩‍👧‍👦 Group Reservations (${activeGroups.length})</h3>
+      <div class="table-container">
+        <table>
+          <thead><tr><th>Group</th><th>Contact</th><th>Lots</th><th>Arrive</th><th>Depart</th><th>Nights</th><th>Billing</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${activeGroups.map(g => `
+              <tr>
+                <td><strong>${g.group_name}</strong></td>
+                <td>${g.primary_contact_name || '—'}<br><small>${g.primary_contact_phone || ''}</small></td>
+                <td>${g.lots.map(l => `<span class="badge badge-info">${l.lot_id}${l.occupant_name ? ': ' + l.occupant_name : ''}</span>`).join(' ')}</td>
+                <td>${formatDate(g.arrival_date)}</td>
+                <td>${formatDate(g.departure_date)}</td>
+                <td>${g.nights}</td>
+                <td><span class="badge badge-${g.billing_type === 'combined' ? 'warning' : 'gray'}">${g.billing_type}</span></td>
+                <td><span class="badge badge-${g.status === 'checked-in' ? 'success' : g.status === 'cancelled' ? 'danger' : 'info'}">${g.status}</span></td>
+                <td class="btn-group">
+                  ${g.status === 'pending' || g.status === 'confirmed' ? `<button class="btn btn-sm btn-success" onclick="checkinGroup(${g.id}, '${g.group_name.replace(/'/g, "\\'")}')">Check In All</button>` : ''}
+                  ${g.status !== 'cancelled' ? `<button class="btn btn-sm btn-danger" onclick="cancelGroup(${g.id})">Cancel</button>` : ''}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` : ''}
+
     ${past.length ? `
     <div class="card mt-2">
       <h3 style="margin-bottom:0.75rem">Past & Cancelled (${past.length})</h3>
@@ -328,6 +362,125 @@ function renderCalendar() {
       </div>
     </div>` : '<div class="card"><p class="empty-state">No reservations this month.</p></div>'}
   `;
+}
+
+// --- Group Reservation ---
+let _groupLotCount = 0;
+
+async function showGroupReservation() {
+  const lots = await API.get('/lots');
+  _groupLotCount = 0;
+  const today = new Date().toISOString().split('T')[0];
+  showModal('👨‍👩‍👧‍👦 Group Reservation', `
+    <form onsubmit="saveGroupReservation(event)">
+      <div class="form-group"><label>Group Name</label><input name="group_name" required placeholder="e.g. Smith Family"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Primary Contact Name</label><input name="primary_contact_name" required></div>
+        <div class="form-group"><label>Phone</label><input name="primary_contact_phone"></div>
+      </div>
+      <div class="form-group"><label>Email</label><input name="primary_contact_email" type="email"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Arrival Date</label><input name="arrival_date" type="date" value="${today}" required></div>
+        <div class="form-group"><label>Departure Date</label><input name="departure_date" type="date" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Rate per Night ($)</label><input name="rate_per_night" type="number" step="0.01" value="50"></div>
+        <div class="form-group">
+          <label>Billing Type</label>
+          <select name="billing_type">
+            <option value="separate">Separate Invoices (per lot)</option>
+            <option value="combined">Combined Invoice (one bill)</option>
+          </select>
+        </div>
+      </div>
+      <fieldset style="border:1px solid #ddd;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
+        <legend><strong>Lots</strong></legend>
+        <div id="group-lots-list"></div>
+        <button type="button" class="btn btn-outline mt-1" onclick="addGroupLotRow()">+ Add Lot</button>
+      </fieldset>
+      <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
+      <button type="submit" class="btn btn-primary btn-full mt-1">Create Group Reservation</button>
+      <p id="group-res-error" class="error-text" style="display:none"></p>
+    </form>
+  `);
+  // Store lots data for the dropdown
+  window._groupAvailLots = lots || [];
+  addGroupLotRow();
+}
+
+function addGroupLotRow() {
+  _groupLotCount++;
+  const lots = window._groupAvailLots || [];
+  const container = document.getElementById('group-lots-list');
+  const row = document.createElement('div');
+  row.className = 'form-row mt-1';
+  row.id = 'group-lot-' + _groupLotCount;
+  row.innerHTML = `
+    <div class="form-group">
+      <label>Lot</label>
+      <select name="lot_${_groupLotCount}" required>
+        <option value="">Select...</option>
+        ${lots.map(l => `<option value="${l.id}">${l.id} — ${l.status}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group"><label>Occupant</label><input name="occ_${_groupLotCount}" placeholder="Optional name"></div>
+    <div class="form-group" style="display:flex;align-items:flex-end"><button type="button" class="btn btn-sm btn-danger" onclick="document.getElementById('group-lot-${_groupLotCount}').remove()">✕</button></div>
+  `;
+  container.appendChild(row);
+}
+
+async function saveGroupReservation(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('group-res-error');
+  if (errEl) errEl.style.display = 'none';
+  const form = new FormData(e.target);
+  const data = {
+    group_name: form.get('group_name'),
+    primary_contact_name: form.get('primary_contact_name'),
+    primary_contact_phone: form.get('primary_contact_phone'),
+    primary_contact_email: form.get('primary_contact_email'),
+    arrival_date: form.get('arrival_date'),
+    departure_date: form.get('departure_date'),
+    rate_per_night: parseFloat(form.get('rate_per_night')) || 50,
+    billing_type: form.get('billing_type'),
+    notes: form.get('notes'),
+    lots: [],
+  };
+  // Collect lots
+  for (let i = 1; i <= _groupLotCount; i++) {
+    const lotId = form.get('lot_' + i);
+    if (lotId) data.lots.push({ lot_id: lotId, occupant_name: form.get('occ_' + i) || '' });
+  }
+  if (!data.lots.length) {
+    if (errEl) { errEl.textContent = 'Add at least one lot.'; errEl.style.display = ''; }
+    return;
+  }
+  try {
+    const r = await API.post('/reservations/group', data);
+    closeModal();
+    showCelebration('👨‍👩‍👧‍👦🎉', `Group "${r.group_name}" — ${r.lots.length} lots reserved!`);
+    loadReservations();
+  } catch (err) {
+    if (errEl) { errEl.textContent = err.message; errEl.style.display = ''; }
+    else alert('Error: ' + err.message);
+  }
+}
+
+async function checkinGroup(groupId, name) {
+  if (!confirm(`Check in ALL lots for group "${name}"? This creates tenant records for each lot.`)) return;
+  try {
+    const r = await API.post(`/reservations/groups/${groupId}/checkin-all`, {});
+    showCelebration('🏕️🎉', `${r.checkedIn} lots checked in!`);
+    loadReservations();
+  } catch (err) { alert('Check-in failed: ' + (err.message || 'unknown')); }
+}
+
+async function cancelGroup(groupId) {
+  if (!confirm('Cancel this entire group reservation?')) return;
+  try {
+    await API.del(`/reservations/groups/${groupId}`);
+    loadReservations();
+  } catch (err) { alert('Cancel failed: ' + (err.message || 'unknown')); }
 }
 
 function calPrev() {

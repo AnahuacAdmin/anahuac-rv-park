@@ -180,4 +180,92 @@ router.delete('/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// --- Group Reservations ---
+router.get('/groups', (req, res) => {
+  const groups = db.prepare('SELECT * FROM reservation_groups ORDER BY arrival_date DESC').all();
+  for (const g of groups) {
+    g.lots = db.prepare('SELECT gl.*, r.status as res_status, r.confirmation_number FROM reservation_group_lots gl LEFT JOIN reservations r ON gl.reservation_id = r.id WHERE gl.group_id = ?').all(g.id);
+  }
+  res.json(groups);
+});
+
+router.get('/groups/:id', (req, res) => {
+  const g = db.prepare('SELECT * FROM reservation_groups WHERE id = ?').get(req.params.id);
+  if (!g) return res.status(404).json({ error: 'Group not found' });
+  g.lots = db.prepare('SELECT gl.*, r.status as res_status, r.confirmation_number FROM reservation_group_lots gl LEFT JOIN reservations r ON gl.reservation_id = r.id WHERE gl.group_id = ?').all(g.id);
+  res.json(g);
+});
+
+router.post('/group', (req, res) => {
+  try {
+    const b = req.body;
+    if (!b.group_name || !b.arrival_date || !b.departure_date || !b.lots?.length) {
+      return res.status(400).json({ error: 'Group name, dates, and at least one lot are required' });
+    }
+    const nights = Math.max(1, Math.round((new Date(b.departure_date) - new Date(b.arrival_date)) / 86400000));
+
+    // Check all lots available
+    for (const lot of b.lots) {
+      if (!isLotAvailable(lot.lot_id, b.arrival_date, b.departure_date)) {
+        return res.status(409).json({ error: `Lot ${lot.lot_id} is not available for those dates` });
+      }
+    }
+
+    const gResult = db.prepare(`INSERT INTO reservation_groups (group_name, primary_contact_name, primary_contact_phone, primary_contact_email, arrival_date, departure_date, nights, billing_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(b.group_name, b.primary_contact_name || null, b.primary_contact_phone || null, b.primary_contact_email || null, b.arrival_date, b.departure_date, nights, b.billing_type || 'separate', b.notes || null);
+    const groupId = gResult.lastInsertRowid;
+
+    const rate = Number(b.rate_per_night) || 50;
+    const lotResults = [];
+    for (const lot of b.lots) {
+      const confNum = 'RES-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 4).toUpperCase();
+      const total = +(nights * rate).toFixed(2);
+      const rResult = db.prepare(`INSERT INTO reservations (guest_name, phone, email, lot_id, arrival_date, departure_date, nights, rate_per_night, total_amount, deposit_paid, status, notes, confirmation_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'pending', ?, ?)`)
+        .run(lot.occupant_name || b.primary_contact_name || b.group_name, b.primary_contact_phone || null, b.primary_contact_email || null, lot.lot_id, b.arrival_date, b.departure_date, nights, rate, total, `Group: ${b.group_name}`, confNum);
+      db.prepare('INSERT INTO reservation_group_lots (group_id, lot_id, occupant_name, occupant_notes, reservation_id) VALUES (?, ?, ?, ?, ?)').run(groupId, lot.lot_id, lot.occupant_name || null, lot.occupant_notes || null, rResult.lastInsertRowid);
+      lotResults.push({ lot_id: lot.lot_id, reservation_id: rResult.lastInsertRowid, confirmation_number: confNum });
+    }
+
+    res.json({ id: groupId, group_name: b.group_name, nights, lots: lotResults });
+  } catch (err) {
+    console.error('[reservations] group create failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/groups/:id', (req, res) => {
+  const lots = db.prepare('SELECT reservation_id FROM reservation_group_lots WHERE group_id = ?').all(req.params.id);
+  for (const l of lots) {
+    if (l.reservation_id) db.prepare("UPDATE reservations SET status = 'cancelled' WHERE id = ?").run(l.reservation_id);
+  }
+  db.prepare("UPDATE reservation_groups SET status = 'cancelled' WHERE id = ?").run(req.params.id);
+  res.json({ success: true });
+});
+
+router.post('/groups/:id/checkin-all', (req, res) => {
+  try {
+    const g = db.prepare('SELECT * FROM reservation_groups WHERE id = ?').get(req.params.id);
+    if (!g) return res.status(404).json({ error: 'Group not found' });
+    const lots = db.prepare('SELECT gl.*, r.id as res_id FROM reservation_group_lots gl LEFT JOIN reservations r ON gl.reservation_id = r.id WHERE gl.group_id = ?').all(g.id);
+    let checkedIn = 0;
+    for (const lot of lots) {
+      const name = lot.occupant_name || g.primary_contact_name || g.group_name;
+      const parts = name.trim().split(/\s+/);
+      const firstName = parts.slice(0, -1).join(' ') || parts[0] || 'Guest';
+      const lastName = parts.length > 1 ? parts[parts.length - 1] : '';
+      const tResult = db.prepare("INSERT INTO tenants (lot_id, first_name, last_name, phone, email, monthly_rent, rent_type, move_in_date, is_active, notes) VALUES (?, ?, ?, ?, ?, ?, 'standard', ?, 1, ?)")
+        .run(lot.lot_id, firstName, lastName, g.primary_contact_phone, g.primary_contact_email, 50 * 30, g.arrival_date, `Group: ${g.group_name}`);
+      db.prepare("UPDATE lots SET status = 'occupied' WHERE id = ?").run(lot.lot_id);
+      db.prepare("INSERT INTO checkins (tenant_id, lot_id, check_in_date, status, notes) VALUES (?, ?, ?, 'checked_in', ?)").run(tResult.lastInsertRowid, lot.lot_id, g.arrival_date, `Group: ${g.group_name}`);
+      if (lot.res_id) db.prepare("UPDATE reservations SET status = 'checked-in' WHERE id = ?").run(lot.res_id);
+      checkedIn++;
+    }
+    db.prepare("UPDATE reservation_groups SET status = 'checked-in' WHERE id = ?").run(g.id);
+    res.json({ success: true, checkedIn });
+  } catch (err) {
+    console.error('[reservations] group checkin failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
