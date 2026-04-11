@@ -135,15 +135,15 @@ router.post('/', async (req, res) => {
     }
   }
 
-  // Optional SMS receipt
+  // Auto-send SMS receipt (non-blocking — failure doesn't break payment).
   let smsResult = null;
-  if (send_sms_receipt) {
+  {
     try {
       const tenant = db.prepare('SELECT first_name, phone FROM tenants WHERE id = ?').get(tenant_id);
       if (tenant?.phone) {
-        const balanceLine = newBalance !== null ? ` Remaining balance: $${newBalance.toFixed(2)}.` : '';
-        const refLine = invoiceNumber ? ` (Invoice ${invoiceNumber})` : '';
-        const body = `Anahuac RV Park: Hi ${tenant.first_name}, we've received your payment of $${Number(amount).toFixed(2)}${refLine}.${balanceLine} Thank you!`;
+        const balStr = newBalance !== null ? `$${newBalance.toFixed(2)}` : 'N/A';
+        const dateStr = payment_date || new Date().toISOString().split('T')[0];
+        const body = `Payment Received - Anahuac RV Park\nAmount: $${Number(amount).toFixed(2)}\nMethod: ${payment_method || 'N/A'}\nDate: ${dateStr}\nRemaining Balance: ${balStr}\nThank you! Questions? Call 409-267-6603`;
         await sendSms(tenant.phone, body);
         smsResult = { sent: true };
       } else {
