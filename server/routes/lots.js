@@ -49,30 +49,37 @@ router.get('/:id', (req, res) => {
 });
 
 router.get('/:id/detail', (req, res) => {
-  const lot = db.prepare(`
-    SELECT l.*, t.*, l.id as lot_id, t.id as tenant_id
+  const row = db.prepare(`
+    SELECT l.*, t.id as tenant_id, t.first_name, t.last_name, t.phone, t.email,
+      t.monthly_rent, t.rent_type, t.move_in_date, t.rv_make, t.rv_model, t.rv_year,
+      t.rv_length, t.license_plate, t.emergency_contact, t.emergency_phone,
+      t.eviction_warning, t.notes as tenant_notes
     FROM lots l
     LEFT JOIN tenants t ON l.id = t.lot_id AND t.is_active = 1
     WHERE l.id = ?
   `).get(req.params.id);
-  if (!lot) return res.status(404).json({ error: 'Lot not found' });
+  if (!row) return res.status(404).json({ error: 'Lot not found' });
+
+  // Separate lot and tenant fields so lot.id stays correct.
+  const lot = { id: row.id, row_letter: row.row_letter, lot_number: row.lot_number, width: row.width, length: row.length, status: row.status, notes: row.notes, size_restriction: row.size_restriction };
+  const tenant = row.tenant_id ? row : null;
 
   const result = { lot, tenant: null, currentInvoice: null, invoices: [], payments: [], meters: [], messages: [] };
-  if (lot.tenant_id) {
-    result.tenant = lot;
+  if (tenant) {
+    result.tenant = tenant;
     result.invoices = db.prepare(
       'SELECT * FROM invoices WHERE tenant_id = ? ORDER BY invoice_date DESC LIMIT 6'
-    ).all(lot.tenant_id);
+    ).all(tenant.tenant_id);
     result.currentInvoice = result.invoices.find(i => i.balance_due > 0.005) || result.invoices[0] || null;
     result.payments = db.prepare(
       'SELECT * FROM payments WHERE tenant_id = ? ORDER BY payment_date DESC LIMIT 12'
-    ).all(lot.tenant_id);
+    ).all(tenant.tenant_id);
     result.meters = db.prepare(
       'SELECT * FROM meter_readings WHERE tenant_id = ? ORDER BY reading_date DESC LIMIT 3'
-    ).all(lot.tenant_id);
+    ).all(tenant.tenant_id);
     result.messages = db.prepare(
       'SELECT * FROM messages WHERE tenant_id = ? ORDER BY sent_date DESC LIMIT 20'
-    ).all(lot.tenant_id);
+    ).all(tenant.tenant_id);
   }
   res.json(result);
 });
