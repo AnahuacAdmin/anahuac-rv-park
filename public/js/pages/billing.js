@@ -618,14 +618,20 @@ function invoiceStandardNotesHtml() {
 async function emailInvoice(id) {
   if (window._emailSending) { alert('Already sending, please wait...'); return; }
   window._emailSending = true;
-  const emailToast = showStatusToast('📧', 'Sending email...');
+
   const inv = await API.get(`/invoices/${id}`);
   if (!inv) { window._emailSending = false; return; }
   if (!inv.email) {
     alert('No email address on file for this tenant. Add one on the Tenants page first.');
+    window._emailSending = false;
     return;
   }
-  if (!confirm(`Send invoice ${inv.invoice_number} to ${inv.email}?`)) return;
+  if (!confirm(`Send invoice ${inv.invoice_number} to ${inv.email}?`)) {
+    window._emailSending = false;
+    return;
+  }
+
+  const emailToast = showStatusToast('📧', 'Sending email...');
 
   // Render the invoice HTML offscreen and convert to a PDF Blob, then to base64.
   const wrap = document.createElement('div');
