@@ -6,7 +6,7 @@ const { sendSms } = require('../twilio');
 
 router.use(authenticate);
 
-const FROM_ADDRESS = 'Anahuac RV Park <onboarding@resend.dev>';
+const FROM_ADDRESS = 'Anahuac RV Park <anrvpark@gmail.com>';
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
 // Lazily create a single Resend client so a missing key doesn't crash boot.
@@ -487,18 +487,21 @@ router.patch('/:id', (req, res) => {
 // Send a single invoice summary as an SMS to the tenant.
 router.post('/:id/sms', async (req, res) => {
   try {
+    console.log(`[sms] invoice SMS requested for id=${req.params.id}`);
     const inv = db.prepare(`
       SELECT i.*, t.first_name, t.phone FROM invoices i
       JOIN tenants t ON i.tenant_id = t.id
       WHERE i.id = ? AND COALESCE(i.deleted, 0) = 0
     `).get(req.params.id);
-    if (!inv) return res.status(404).json({ error: 'Invoice not found' });
-    if (!inv.phone) return res.status(400).json({ error: 'No phone on file for this tenant' });
+    if (!inv) { console.log('[sms] invoice not found'); return res.status(404).json({ error: 'Invoice not found' }); }
+    if (!inv.phone) { console.log('[sms] no phone on file'); return res.status(400).json({ error: 'No phone on file for this tenant' }); }
+    console.log(`[sms] sending to ${inv.phone} for invoice ${inv.invoice_number}`);
     const body = `Anahuac RV Park: Hi ${inv.first_name}, your invoice ${inv.invoice_number} is $${Number(inv.total_amount).toFixed(2)}, balance due $${Number(inv.balance_due).toFixed(2)}, due ${inv.due_date}. Questions? 409-267-6603`;
     const r = await sendSms(inv.phone, body);
+    console.log(`[sms] sent successfully, sid=${r.sid}`);
     res.json({ success: true, sid: r.sid, sentTo: r.to });
   } catch (err) {
-    console.error('[invoices] sms failed:', err);
+    console.error('[sms] invoice SMS failed:', err.message, err.stack);
     res.status(500).json({ error: err.message });
   }
 });

@@ -2,10 +2,14 @@
 let _client = null;
 function getClient() {
   if (_client) return _client;
-  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_PHONE_NUMBER;
+  console.log(`[twilio] config check: SID=${sid ? sid.slice(0,6) + '...' : 'MISSING'}, TOKEN=${token ? '***set***' : 'MISSING'}, FROM=${from || 'MISSING'}`);
+  if (!sid || !token || !from) {
     throw new Error('Twilio is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER.');
   }
-  _client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  _client = require('twilio')(sid, token);
   return _client;
 }
 
@@ -23,12 +27,14 @@ function normalizePhone(raw) {
 async function sendSms(toRaw, body) {
   const to = normalizePhone(toRaw);
   if (!to) throw new Error(`Invalid phone number: ${toRaw}`);
+  console.log(`[twilio] sending SMS to ${to} from ${process.env.TWILIO_PHONE_NUMBER}`);
   const client = getClient();
   const msg = await client.messages.create({
     from: process.env.TWILIO_PHONE_NUMBER,
     to,
     body,
   });
+  console.log(`[twilio] SMS sent, sid=${msg.sid}, status=${msg.status}`);
   return { sid: msg.sid, to };
 }
 
