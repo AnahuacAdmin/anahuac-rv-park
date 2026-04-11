@@ -410,7 +410,7 @@ a { text-decoration: none; color: inherit; }
 .sidebar-footer { padding: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
  
 /* Main content */
-#content { margin-left: var(--sidebar-width); padding: 1.5rem; min-height: 100vh; }
+#content { margin-left: var(--sidebar-width); padding: 1.5rem; min-height: 100vh; overflow-x: auto; }
  
 /* Cards */
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
@@ -427,7 +427,7 @@ a { text-decoration: none; color: inherit; }
 .stat-card.danger .stat-value { color: var(--danger); }
  
 /* Tables */
-.table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; scrollbar-width: auto; scrollbar-color: #9ca3af var(--gray-200); }
+.table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: auto; scrollbar-color: #9ca3af var(--gray-200); }
 .table-container::-webkit-scrollbar { height: 10px; }
 .table-container::-webkit-scrollbar-track { background: var(--gray-200); border-radius: 5px; }
 .table-container::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 5px; }
