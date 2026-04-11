@@ -78,7 +78,11 @@ router.get('/:id/detail', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { status, notes, size_restriction } = req.body;
+  const existing = db.prepare('SELECT * FROM lots WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Lot not found' });
+  const status = req.body.status ?? existing.status;
+  const notes = req.body.notes ?? existing.notes;
+  const size_restriction = req.body.size_restriction ?? existing.size_restriction;
   db.prepare('UPDATE lots SET status = ?, notes = ?, size_restriction = ? WHERE id = ?')
     .run(status, notes, size_restriction, req.params.id);
   res.json({ success: true });

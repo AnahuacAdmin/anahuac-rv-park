@@ -62,6 +62,16 @@ async function showLotDetail(lotId) {
       <p><strong>Status:</strong> <span class="badge badge-${lot.status === 'vacant' ? 'success' : 'gray'}">${lot.status}</span></p>
       ${lot.size_restriction ? `<p><strong>Restriction:</strong> ${lot.size_restriction}</p>` : ''}
       ${lot.notes ? `<p><strong>Notes:</strong> ${lot.notes}</p>` : ''}
+      <hr style="margin:1rem 0">
+      <div class="form-group">
+        <label>Change Status</label>
+        <select id="lot-status-select">
+          <option value="vacant" ${lot.status === 'vacant' ? 'selected' : ''}>Vacant</option>
+          <option value="occupied" ${lot.status === 'occupied' ? 'selected' : ''}>Occupied</option>
+          <option value="owner_reserved" ${lot.status === 'owner_reserved' ? 'selected' : ''}>Owner Reserved</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="saveLotStatus('${lot.id}')">Save Status</button>
     `;
     showModal(`Lot ${lotId}`, content);
     return;
@@ -127,6 +137,18 @@ async function showLotDetail(lotId) {
   `;
 
   showModal(`Lot ${lot.id} — ${tenant.first_name} ${tenant.last_name}`, tabs);
+}
+
+async function saveLotStatus(lotId) {
+  const status = document.getElementById('lot-status-select')?.value;
+  if (!status) return;
+  try {
+    await API.put(`/lots/${lotId}`, { status });
+    closeModal();
+    loadSiteMap();
+  } catch (err) {
+    alert('Failed to update status: ' + (err.message || 'unknown'));
+  }
 }
 
 function switchLotTab(e, paneId) {
