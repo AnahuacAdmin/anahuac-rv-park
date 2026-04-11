@@ -7,12 +7,21 @@ async function loadBilling() {
   if (!invoices) return;
 
   // Build eviction alert banner
-  const evictionTenants = (tenants || []).filter(t => t.eviction_warning === 1 && t.balance_due > 0);
+  // Only show tenants with eviction_warning=1 that actually have overdue invoices (5+ days)
+  const now = Date.now();
+  const evictionTenants = (tenants || []).filter(t => {
+    if (t.eviction_warning !== 1 || !(t.balance_due > 0) || t.eviction_paused) return false;
+    // Check if any of their invoices are 5+ days old
+    const oldInv = (invoices || []).find(i => i.tenant_id === t.id && i.status !== 'paid' && !i.deleted && i.balance_due > 0.005 && (now - new Date(i.invoice_date).getTime()) >= 5 * 86400000);
+    return !!oldInv;
+  });
   const pausedTenants = (tenants || []).filter(t => t.eviction_paused === 1);
+  const showEviction = evictionTenants.slice(0, 5);
+  const moreEviction = evictionTenants.length > 5 ? evictionTenants.length - 5 : 0;
   const evictionBanner = (evictionTenants.length || pausedTenants.length) ? `
     <div class="card" style="border-left:4px solid #dc2626;margin-bottom:1rem;padding:0.75rem 1rem">
-      ${evictionTenants.length ? `<div style="margin-bottom:0.5rem"><strong style="color:#dc2626">⚠️ Active Eviction (${evictionTenants.length})</strong>: ${evictionTenants.map(t => `<span class="badge badge-danger">${t.lot_id} ${t.first_name} ${t.last_name} ($${Number(t.balance_due).toFixed(2)})</span>`).join(' ')}</div>` : ''}
-      ${pausedTenants.length ? `<div><strong style="color:#f59e0b">⏸️ Manager Hold (${pausedTenants.length})</strong>: ${pausedTenants.map(t => `<span class="badge badge-warning" title="${t.eviction_pause_note || ''}">${t.lot_id} ${t.first_name} ${t.last_name}</span>`).join(' ')}</div>` : ''}
+      ${evictionTenants.length ? `<div style="margin-bottom:0.5rem"><strong style="color:#dc2626">⚠️ Active Eviction (${evictionTenants.length})</strong>: ${showEviction.map(t => `<span class="badge badge-danger">${t.lot_id} ${t.first_name} ${t.last_name} ($${Number(t.balance_due).toFixed(2)}) <a href="#" onclick="event.preventDefault();showPauseEviction(${t.id},'${(t.first_name+' '+t.last_name).replace(/'/g,"\\'")}')" style="color:#fff;text-decoration:underline;margin-left:4px">Pause</a></span>`).join(' ')}${moreEviction ? ` <em>and ${moreEviction} more...</em>` : ''}</div>` : ''}
+      ${pausedTenants.length ? `<div><strong style="color:#f59e0b">⏸️ Manager Hold (${pausedTenants.length})</strong>: ${pausedTenants.map(t => `<span class="badge badge-warning" title="${(t.eviction_pause_note || '').replace(/"/g,'&quot;')}">${t.lot_id} ${t.first_name} ${t.last_name}</span>`).join(' ')}</div>` : ''}
     </div>` : '';
 
   document.getElementById('page-content').innerHTML = `
