@@ -340,6 +340,8 @@ async function viewInvoice(id) {
   const inv = await API.get(`/invoices/${id}`);
   if (!inv) return;
 
+  const qrHtml = inv.balance_due > 0.005 ? await invoicePayQrHtml(inv.id) : '';
+
   showModal('Invoice ' + inv.invoice_number, `
     <div class="invoice-print" id="printable-invoice">
       <div class="invoice-header">
@@ -357,7 +359,7 @@ async function viewInvoice(id) {
           <p>Date: ${formatDate(inv.invoice_date)}</p>
         </div>
       </div>
-      <div style="margin-bottom:1.5rem">
+      <div style="margin-bottom:0.5rem">
         <p><strong>Bill To:</strong></p>
         <p>${inv.first_name} ${inv.last_name}</p>
         <p>Lot ${inv.lot_id}</p>
@@ -381,8 +383,8 @@ async function viewInvoice(id) {
         </table>
       </div>
       ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
+      ${qrHtml}
       ${invoiceStandardNotesHtml()}
-      ${inv.balance_due > 0.005 ? invoicePayQrHtml(inv.id) : ''}
       ${inv.payments?.length ? `
         <h4 class="mt-2">Payment History</h4>
         <table>
@@ -478,7 +480,7 @@ async function downloadInvoicePdf(id) {
   wrap.style.top = '0';
   wrap.style.width = '8.5in';
   wrap.style.background = '#fff';
-  wrap.innerHTML = renderInvoiceHtml(inv);
+  wrap.innerHTML = await renderInvoiceHtml(inv);
   document.body.appendChild(wrap);
   try {
     await html2pdf().set(_pdfOptions(inv.invoice_number)).from(wrap.firstElementChild).save();
@@ -488,7 +490,7 @@ async function downloadInvoicePdf(id) {
 }
 
 // Reusable invoice HTML used by both view modal and offscreen PDF render.
-function renderInvoiceHtml(inv) {
+async function renderInvoiceHtml(inv) {
   return `
     <div class="invoice-print" id="printable-invoice">
       <div class="invoice-header">
@@ -506,7 +508,7 @@ function renderInvoiceHtml(inv) {
           <p>Date: ${formatDate(inv.invoice_date)}</p>
         </div>
       </div>
-      <div style="margin-bottom:1.5rem">
+      <div style="margin-bottom:0.5rem">
         <p><strong>Bill To:</strong></p>
         <p>${inv.first_name} ${inv.last_name}</p>
         <p>Lot ${inv.lot_id}</p>
@@ -530,8 +532,8 @@ function renderInvoiceHtml(inv) {
         </table>
       </div>
       ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
+      ${inv.balance_due > 0.005 ? await invoicePayQrHtml(inv.id, true) : ''}
       ${invoiceStandardNotesHtml()}
-      ${inv.balance_due > 0.005 ? invoicePayQrHtml(inv.id, true) : ''}
     </div>
   `;
 }
@@ -540,11 +542,11 @@ function renderInvoiceHtml(inv) {
 // For PDF (forPdf=true): generates QR as a base64 data-URL image inline so html2canvas captures
 // it without any external network call (avoids CORS failures with qrserver.com).
 // For view modal (forPdf=false): renders a <div> and fills it with QRCode.js after mount.
-function invoicePayQrHtml(invoiceId, forPdf) {
+async function invoicePayQrHtml(invoiceId, forPdf) {
   const payUrl = `${APP_URL}/?pay=${invoiceId}`;
   if (forPdf) {
     // Generate QR as inline base64 via QRCode.js → hidden canvas → toDataURL.
-    const qrDataUrl = generateQrDataUrl(payUrl);
+    const qrDataUrl = await generateQrDataUrl(payUrl);
     if (!qrDataUrl) return ''; // QRCode.js not loaded; skip silently
     return `
       <div class="invoice-qr-section" style="page-break-inside:avoid">
@@ -567,9 +569,10 @@ function invoicePayQrHtml(invoiceId, forPdf) {
   `;
 }
 
-// Synchronously generate a QR code as a base64 data URL using QRCode.js.
-// Creates a temporary off-screen element, renders the QR, extracts the canvas, and cleans up.
-function generateQrDataUrl(text) {
+// Asynchronously generate a QR code as a base64 data URL using QRCode.js.
+// Creates a temporary off-screen element, renders the QR, waits 50ms for the
+// canvas to fully paint, extracts the data URL, and cleans up.
+async function generateQrDataUrl(text) {
   if (typeof QRCode === 'undefined') return null;
   const tmp = document.createElement('div');
   tmp.style.position = 'fixed';
@@ -577,6 +580,7 @@ function generateQrDataUrl(text) {
   document.body.appendChild(tmp);
   try {
     new QRCode(tmp, { text, width: 240, height: 240, colorDark: '#1f2937', colorLight: '#ffffff' });
+    await new Promise(resolve => setTimeout(resolve, 50));
     const canvas = tmp.querySelector('canvas');
     return canvas ? canvas.toDataURL('image/png') : null;
   } catch { return null; }
@@ -617,7 +621,7 @@ async function emailInvoice(id) {
   wrap.style.top = '0';
   wrap.style.width = '8.5in';
   wrap.style.background = '#fff';
-  wrap.innerHTML = renderInvoiceHtml(inv);
+  wrap.innerHTML = await renderInvoiceHtml(inv);
   document.body.appendChild(wrap);
 
   try {
