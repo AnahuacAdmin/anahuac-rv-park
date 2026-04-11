@@ -18,15 +18,15 @@ async function loadMeters() {
           <thead><tr><th>Lot</th><th>Tenant</th><th>Date</th><th>Previous</th><th>Current</th><th>kWh Used</th><th>Rate</th><th>Charge</th><th>Actions</th></tr></thead>
           <tbody>
             ${readings.map(r => `
-              <tr>
+              <tr data-meter-id="${r.id}" data-prev="${r.previous_reading}" data-rate="${r.rate_per_kwh}">
                 <td><strong>${r.lot_id}</strong></td>
                 <td>${r.first_name} ${r.last_name}</td>
-                <td>${formatDate(r.reading_date)}</td>
-                <td>${r.previous_reading}</td>
-                <td>${r.current_reading}</td>
-                <td><strong>${r.kwh_used}</strong></td>
+                <td class="editable-cell" data-id="${r.id}" data-field="reading_date" data-type="date" data-value="${r.reading_date || ''}"><span class="editable-display">${formatDate(r.reading_date)}</span><span class="edit-pencil">&#9998;</span></td>
+                <td>${r.previous_reading.toLocaleString()}</td>
+                <td class="editable-cell" data-id="${r.id}" data-field="current_reading" data-type="number" data-value="${r.current_reading}"><span class="editable-display">${r.current_reading.toLocaleString()}</span><span class="edit-pencil">&#9998;</span></td>
+                <td class="meter-kwh"><strong>${r.kwh_used.toLocaleString()}</strong></td>
                 <td>${formatMoney(r.rate_per_kwh)}</td>
-                <td><strong>${formatMoney(r.electric_charge)}</strong></td>
+                <td class="meter-charge"><strong>${formatMoney(r.electric_charge)}</strong></td>
                 <td class="btn-group">
                   ${r.photo ? `<button class="btn btn-sm btn-outline" onclick="viewReadingPhoto(${r.id})" title="View photo">&#128247;</button>` : ''}
                   <button class="btn btn-sm btn-success" onclick="showQuickUpdate(${r.id}, '${r.lot_id}', '${r.first_name} ${r.last_name}', ${r.current_reading}, ${r.tenant_id})">Update</button>
@@ -43,6 +43,85 @@ async function loadMeters() {
       <p>Total kWh: ${readings.reduce((s, r) => s + r.kwh_used, 0).toLocaleString()}</p>
     </div>
   `;
+}
+
+// Inline editing for meter readings table (same pattern as billing)
+document.addEventListener('click', (e) => {
+  // Only handle editable-cell clicks inside the meters table
+  const cell = e.target.closest('.editable-cell');
+  if (!cell || cell.classList.contains('editing')) return;
+  if (e.target.closest('button')) return;
+  // Check we're in the meters page context
+  const row = cell.closest('tr[data-meter-id]');
+  if (!row) return;
+  startMeterInlineEdit(cell, row);
+});
+
+function startMeterInlineEdit(cell, row) {
+  cell.classList.add('editing');
+  const field = cell.dataset.field;
+  const type = cell.dataset.type;
+  const value = cell.dataset.value;
+  const original = cell.innerHTML;
+  const meterId = cell.dataset.id;
+
+  const input = document.createElement('input');
+  input.type = type === 'number' ? 'number' : type === 'date' ? 'date' : 'text';
+  if (type === 'number') input.step = '0.01';
+  input.value = value;
+  input.className = 'inline-edit-input';
+  cell.innerHTML = '';
+  cell.appendChild(input);
+  input.focus();
+  input.select();
+
+  let saving = false;
+  const cancel = () => { cell.innerHTML = original; cell.classList.remove('editing'); };
+  const commit = async () => {
+    if (saving) return;
+    saving = true;
+    const newVal = type === 'number' ? (parseFloat(input.value) || 0) : input.value;
+    if (String(newVal) === String(value)) { cancel(); return; }
+    try {
+      const prev = parseFloat(row.dataset.prev) || 0;
+      const rate = parseFloat(row.dataset.rate) || 0.15;
+      const data = { reading_date: row.querySelector('[data-field="reading_date"]')?.dataset.value };
+
+      if (field === 'current_reading') {
+        data.current_reading = newVal;
+        data.previous_reading = prev;
+      } else if (field === 'reading_date') {
+        data.reading_date = newVal;
+        data.current_reading = parseFloat(row.querySelector('[data-field="current_reading"]')?.dataset.value) || 0;
+        data.previous_reading = prev;
+      }
+
+      await API.put(`/meters/${meterId}`, data);
+
+      // Update the row in-place
+      if (field === 'current_reading') {
+        const kwh = Math.max(0, newVal - prev);
+        const charge = (kwh * rate).toFixed(2);
+        cell.dataset.value = newVal;
+        cell.innerHTML = `<span class="editable-display">${Number(newVal).toLocaleString()}</span><span class="edit-pencil">&#9998;</span>`;
+        row.querySelector('.meter-kwh').innerHTML = `<strong>${kwh.toLocaleString()}</strong>`;
+        row.querySelector('.meter-charge').innerHTML = `<strong>${formatMoney(parseFloat(charge))}</strong>`;
+      } else if (field === 'reading_date') {
+        cell.dataset.value = newVal;
+        cell.innerHTML = `<span class="editable-display">${formatDate(newVal)}</span><span class="edit-pencil">&#9998;</span>`;
+      }
+      cell.classList.remove('editing');
+    } catch (err) {
+      alert('Save failed: ' + (err.message || 'unknown'));
+      cancel();
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+  input.addEventListener('blur', commit);
 }
 
 async function showAddReading() {
