@@ -76,6 +76,7 @@ Anahuac RV Park, LLC
       409-267-6603</p>
     `;
 
+    console.log(`[invoices] emailing invoice ${invoice.invoice_number} to ${invoice.email} (PDF ${Math.round(pdfBase64.length / 1024)}KB base64)`);
     const { data, error } = await resend.emails.send({
       from: FROM_ADDRESS,
       to: invoice.email,

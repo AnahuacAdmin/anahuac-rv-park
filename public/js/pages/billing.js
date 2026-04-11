@@ -458,7 +458,7 @@ function _pdfOptions(invoiceNumber) {
     image:        { type: 'jpeg', quality: 0.95 },
     html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
     jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
-    pagebreak:    { mode: ['css', 'legacy'] },
+    pagebreak:    { mode: ['css', 'legacy'], avoid: ['.invoice-standard-notes', '.invoice-qr-section', '.line-items'] },
   };
 }
 
@@ -537,15 +537,18 @@ function renderInvoiceHtml(inv) {
 }
 
 // QR code section for invoices. Links to APP_URL/?pay=<id> which auto-starts Stripe checkout.
-// For the PDF (forPdf=true) we use an <img> from a public QR API so html2canvas can capture it.
-// For the view modal (forPdf=false) we render a <div> and fill it with QRCode.js after mount.
+// For PDF (forPdf=true): generates QR as a base64 data-URL image inline so html2canvas captures
+// it without any external network call (avoids CORS failures with qrserver.com).
+// For view modal (forPdf=false): renders a <div> and fills it with QRCode.js after mount.
 function invoicePayQrHtml(invoiceId, forPdf) {
   const payUrl = `${APP_URL}/?pay=${invoiceId}`;
   if (forPdf) {
-    const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(payUrl)}`;
+    // Generate QR as inline base64 via QRCode.js → hidden canvas → toDataURL.
+    const qrDataUrl = generateQrDataUrl(payUrl);
+    if (!qrDataUrl) return ''; // QRCode.js not loaded; skip silently
     return `
-      <div class="invoice-qr-section">
-        <img src="${qrImgUrl}" alt="Pay QR code" width="120" height="120" crossorigin="anonymous">
+      <div class="invoice-qr-section" style="page-break-inside:avoid">
+        <img src="${qrDataUrl}" alt="Pay QR code" width="120" height="120">
         <div>
           <strong>Scan to Pay Online</strong>
           <p style="font-size:0.8rem;color:#555;margin:0.2rem 0 0">A 3% convenience fee applies to card payments.</p>
@@ -554,7 +557,7 @@ function invoicePayQrHtml(invoiceId, forPdf) {
     `;
   }
   return `
-    <div class="invoice-qr-section">
+    <div class="invoice-qr-section" style="page-break-inside:avoid">
       <div id="invoice-pay-qr" data-url="${payUrl}"></div>
       <div>
         <strong>Scan to Pay Online</strong>
@@ -564,9 +567,25 @@ function invoicePayQrHtml(invoiceId, forPdf) {
   `;
 }
 
+// Synchronously generate a QR code as a base64 data URL using QRCode.js.
+// Creates a temporary off-screen element, renders the QR, extracts the canvas, and cleans up.
+function generateQrDataUrl(text) {
+  if (typeof QRCode === 'undefined') return null;
+  const tmp = document.createElement('div');
+  tmp.style.position = 'fixed';
+  tmp.style.left = '-10000px';
+  document.body.appendChild(tmp);
+  try {
+    new QRCode(tmp, { text, width: 240, height: 240, colorDark: '#1f2937', colorLight: '#ffffff' });
+    const canvas = tmp.querySelector('canvas');
+    return canvas ? canvas.toDataURL('image/png') : null;
+  } catch { return null; }
+  finally { tmp.remove(); }
+}
+
 function invoiceStandardNotesHtml() {
   return `
-    <div class="invoice-standard-notes" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #ccc;font-size:0.85rem;line-height:1.5;color:#374151">
+    <div class="invoice-standard-notes" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #ccc;font-size:0.85rem;line-height:1.5;color:#374151;page-break-inside:avoid">
       <p>We would appreciate it if you could make arrangements to complete payment as soon as possible.</p>
       <p>If payment is not received within 3 days from the date of this invoice a $25.00 fee will be applied.</p>
       <p>If payment is not received within 5 days of this invoice, an eviction notice will be served.</p>
@@ -602,20 +621,44 @@ async function emailInvoice(id) {
   document.body.appendChild(wrap);
 
   try {
-    const pdfBlob = await html2pdf()
-      .set(_pdfOptions(inv.invoice_number))
-      .from(wrap.firstElementChild)
-      .outputPdf('blob');
-    const pdfBase64 = await blobToBase64(pdfBlob);
+    // Generate PDF
+    let pdfBase64;
+    try {
+      const pdfBlob = await html2pdf()
+        .set(_pdfOptions(inv.invoice_number))
+        .from(wrap.firstElementChild)
+        .outputPdf('blob');
+      pdfBase64 = await blobToBase64(pdfBlob);
+    } catch (pdfErr) {
+      alert('Failed to generate PDF for attachment: ' + (pdfErr.message || 'unknown'));
+      return;
+    }
 
-    const result = await API.post(`/invoices/${id}/email`, { pdfBase64 });
+    if (!pdfBase64 || pdfBase64.length < 100) {
+      alert('PDF generation produced an empty file. Cannot send email.');
+      return;
+    }
+
+    // Send email via server
+    let result;
+    try {
+      result = await API.post(`/invoices/${id}/email`, { pdfBase64 });
+    } catch (apiErr) {
+      // API.request throws with the server's error message
+      const serverMsg = apiErr.message || 'unknown error';
+      if (serverMsg.includes('RESEND_API_KEY') || serverMsg.includes('not configured')) {
+        alert('Email sending is not configured on the server.\n\nAsk the admin to set the RESEND_API_KEY environment variable on Railway.');
+      } else {
+        alert('Email failed: ' + serverMsg);
+      }
+      return;
+    }
+
     if (result?.success) {
       alert(`Invoice emailed to ${result.sentTo}.`);
     } else {
-      alert('Email request completed but the server did not confirm success.');
+      alert('Email request completed but the server did not confirm success.\n\nCheck Railway logs for details.');
     }
-  } catch (err) {
-    alert('Failed to send email: ' + (err.message || 'unknown error'));
   } finally {
     wrap.remove();
   }
