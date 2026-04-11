@@ -68,25 +68,51 @@ async function showCheckIn() {
       </div>
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
       <button type="submit" class="btn btn-success btn-full mt-2">Check In</button>
+      <p id="checkin-error" class="error-text" style="display:none"></p>
     </form>
   `);
 }
 
 async function processCheckIn(e) {
   e.preventDefault();
+  const errEl = document.getElementById('checkin-error');
+  if (errEl) errEl.style.display = 'none';
   const form = new FormData(e.target);
   const data = Object.fromEntries(form);
 
-  // Create tenant
-  const tenant = await API.post('/tenants', {
-    lot_id: data.lot_id, first_name: data.first_name, last_name: data.last_name,
-    phone: data.phone, monthly_rent: parseFloat(data.monthly_rent), move_in_date: data.check_in_date
-  });
+  if (!data.first_name || !data.last_name) {
+    if (errEl) { errEl.textContent = 'First and last name are required.'; errEl.style.display = ''; }
+    return;
+  }
+  if (!data.lot_id) {
+    if (errEl) { errEl.textContent = 'Please select a lot.'; errEl.style.display = ''; }
+    return;
+  }
 
-  // Create check-in record
-  await API.post('/checkins/checkin', {
-    tenant_id: tenant.id, lot_id: data.lot_id, check_in_date: data.check_in_date, notes: data.notes
-  });
+  let tenant;
+  try {
+    // Create tenant
+    tenant = await API.post('/tenants', {
+      lot_id: data.lot_id, first_name: data.first_name, last_name: data.last_name,
+      phone: data.phone, monthly_rent: parseFloat(data.monthly_rent), move_in_date: data.check_in_date
+    });
+    if (!tenant?.id) throw new Error('Tenant was not created — no ID returned');
+  } catch (err) {
+    const msg = err.message || 'Failed to create tenant';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }
+    else alert('Check-in failed: ' + msg);
+    return;
+  }
+
+  try {
+    // Create check-in record
+    await API.post('/checkins/checkin', {
+      tenant_id: tenant.id, lot_id: data.lot_id, check_in_date: data.check_in_date, notes: data.notes
+    });
+  } catch (err) {
+    // Tenant was created but checkin record failed — not fatal, warn and continue.
+    console.error('Checkin record failed:', err);
+  }
 
   closeModal();
 
@@ -138,6 +164,7 @@ async function showCheckOut() {
       <div class="form-group"><label>Check-Out Date</label><input name="check_out_date" type="date" value="${new Date().toISOString().split('T')[0]}" required></div>
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
       <button type="submit" class="btn btn-warning btn-full mt-2">Check Out</button>
+      <p id="checkout-error" class="error-text" style="display:none"></p>
     </form>
   `);
 }
@@ -151,12 +178,20 @@ function checkoutSelected(sel) {
 async function processCheckOut(e) {
   e.preventDefault();
   const form = new FormData(e.target);
-  await API.post('/checkins/checkout', {
-    tenant_id: parseInt(form.get('tenant_id')),
-    lot_id: form.get('lot_id'),
-    check_out_date: form.get('check_out_date'),
-    notes: form.get('notes')
-  });
-  closeModal();
-  loadCheckins();
+  const errEl = document.getElementById('checkout-error');
+  if (errEl) errEl.style.display = 'none';
+  try {
+    await API.post('/checkins/checkout', {
+      tenant_id: parseInt(form.get('tenant_id')),
+      lot_id: form.get('lot_id'),
+      check_out_date: form.get('check_out_date'),
+      notes: form.get('notes')
+    });
+    closeModal();
+    loadCheckins();
+  } catch (err) {
+    const msg = err.message || 'Check-out failed';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }
+    else alert('Check-out failed: ' + msg);
+  }
 }

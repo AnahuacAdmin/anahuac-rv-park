@@ -37,24 +37,36 @@ router.get('/:id', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
-    rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
-    recurring_late_fee, recurring_mailbox_fee, recurring_misc_fee, recurring_misc_description,
-    recurring_credit, recurring_credit_description } = req.body;
-  const result = db.prepare(`
-    INSERT INTO tenants (lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
-      rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
-      recurring_late_fee, recurring_mailbox_fee, recurring_misc_fee, recurring_misc_description,
-      recurring_credit, recurring_credit_description)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
-    rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent || 295, rent_type || 'standard', move_in_date, notes,
-    recurring_late_fee || 0, recurring_mailbox_fee || 0, recurring_misc_fee || 0, recurring_misc_description,
-    recurring_credit || 0, recurring_credit_description);
-  if (lot_id) {
-    db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('occupied', lot_id);
+  try {
+    const b = req.body || {};
+    if (!b.first_name || !b.last_name) return res.status(400).json({ error: 'First and last name are required' });
+
+    // sql.js rejects `undefined` — coerce missing strings to null and numbers to 0.
+    const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
+    const num = (v) => Number(v) || 0;
+
+    const result = db.prepare(`
+      INSERT INTO tenants (lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
+        rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
+        recurring_late_fee, recurring_mailbox_fee, recurring_misc_fee, recurring_misc_description,
+        recurring_credit, recurring_credit_description)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
+      str(b.emergency_contact), str(b.emergency_phone),
+      str(b.rv_make), str(b.rv_model), str(b.rv_year), str(b.rv_length), str(b.license_plate),
+      num(b.monthly_rent) || 295, b.rent_type || 'standard', str(b.move_in_date), str(b.notes),
+      num(b.recurring_late_fee), num(b.recurring_mailbox_fee), num(b.recurring_misc_fee),
+      str(b.recurring_misc_description), num(b.recurring_credit), str(b.recurring_credit_description)
+    );
+    if (b.lot_id) {
+      db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('occupied', b.lot_id);
+    }
+    res.json({ id: result.lastInsertRowid });
+  } catch (err) {
+    console.error('[tenants] create failed:', err);
+    res.status(500).json({ error: 'Failed to create tenant: ' + err.message });
   }
-  res.json({ id: result.lastInsertRowid });
 });
 
 router.put('/:id', (req, res) => {

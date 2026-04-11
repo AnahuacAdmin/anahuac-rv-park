@@ -19,13 +19,19 @@ router.get('/', (req, res) => {
 });
 
 router.post('/checkin', (req, res) => {
-  const { tenant_id, lot_id, check_in_date, notes } = req.body;
-  const result = db.prepare(`
-    INSERT INTO checkins (tenant_id, lot_id, check_in_date, status, notes)
-    VALUES (?, ?, ?, 'checked_in', ?)
-  `).run(tenant_id, lot_id, check_in_date, notes);
-  db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('occupied', lot_id);
-  res.json({ id: result.lastInsertRowid });
+  try {
+    const { tenant_id, lot_id, check_in_date, notes } = req.body;
+    const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
+    const result = db.prepare(`
+      INSERT INTO checkins (tenant_id, lot_id, check_in_date, status, notes)
+      VALUES (?, ?, ?, 'checked_in', ?)
+    `).run(tenant_id, lot_id, str(check_in_date), str(notes));
+    db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('occupied', lot_id);
+    res.json({ id: result.lastInsertRowid });
+  } catch (err) {
+    console.error('[checkins] checkin failed:', err);
+    res.status(500).json({ error: 'Check-in failed: ' + err.message });
+  }
 });
 
 router.post('/checkout', (req, res) => {
