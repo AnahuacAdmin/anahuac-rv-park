@@ -112,6 +112,11 @@ async function initializeDatabase() {
   addCol("ALTER TABLE meter_readings ADD COLUMN photo TEXT");
   addCol("ALTER TABLE meter_readings ADD COLUMN notes TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN credit_balance REAL DEFAULT 0");
+  addCol("ALTER TABLE tenants ADD COLUMN eviction_paused INTEGER DEFAULT 0");
+  addCol("ALTER TABLE tenants ADD COLUMN eviction_pause_note TEXT");
+  addCol("ALTER TABLE tenants ADD COLUMN eviction_pause_date TEXT");
+  addCol("ALTER TABLE tenants ADD COLUMN eviction_pause_by TEXT");
+  addCol("ALTER TABLE tenants ADD COLUMN eviction_notified INTEGER DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN sms_opt_in INTEGER DEFAULT 1");
   addCol("ALTER TABLE tenants ADD COLUMN email_opt_in INTEGER DEFAULT 1");
   addCol("ALTER TABLE tenants ADD COLUMN invoice_delivery TEXT DEFAULT 'both'");

@@ -10,6 +10,10 @@ async function loadAdmin() {
   const lastBackup = info?.lastBackupAt ? new Date(info.lastBackupAt).toLocaleString() : 'Never';
   const wifiPassword = settings?.wifi_password || '';
   const electricRate = settings?.electric_rate || '0.15';
+  const mgrPhone = settings?.manager_phone || '';
+  const mgrEmail = settings?.manager_email || '';
+  const autoEvictSms = settings?.auto_eviction_sms === '1';
+  const autoEvictEmail = settings?.auto_eviction_email === '1';
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header"><h2>Admin &amp; Backup</h2></div>
@@ -42,6 +46,24 @@ async function loadAdmin() {
       </div>
     </div>
 
+    <div class="card" style="border-left:4px solid #dc2626">
+      <h3>🚨 Eviction Notifications</h3>
+      <p><small style="color:#dc2626">When enabled, tenants will automatically receive a formal eviction notice via SMS/email when their invoice becomes 5+ days overdue.</small></p>
+      <div class="form-row mt-1">
+        <div class="form-group"><label>Manager Phone (for alerts)</label><input type="text" id="mgr-phone-input" value="${mgrPhone}" placeholder="+14095551234"></div>
+        <div class="form-group"><label>Manager Email (for alerts)</label><input type="email" id="mgr-email-input" value="${mgrEmail}" placeholder="manager@example.com"></div>
+      </div>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem"><input type="checkbox" id="auto-evict-sms" ${autoEvictSms ? 'checked' : ''}> Auto-send eviction SMS to tenant</label>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem"><input type="checkbox" id="auto-evict-email" ${autoEvictEmail ? 'checked' : ''}> Auto-send eviction email to tenant</label>
+        </div>
+      </div>
+      <button class="btn btn-danger mt-1" onclick="saveEvictionSettings()">Save Eviction Settings</button>
+    </div>
+
     <div class="card">
       <h3>Database Backup</h3>
       <p>Last backup: <strong id="last-backup-display">${lastBackup}</strong></p>
@@ -59,6 +81,20 @@ async function loadAdmin() {
       <button class="btn btn-success mt-1" onclick="exportAllDataToExcel()">Export All Data to Excel</button>
     </div>
   `;
+}
+
+async function saveEvictionSettings() {
+  try {
+    await API.put('/settings', {
+      manager_phone: document.getElementById('mgr-phone-input')?.value || '',
+      manager_email: document.getElementById('mgr-email-input')?.value || '',
+      auto_eviction_sms: document.getElementById('auto-evict-sms')?.checked ? '1' : '0',
+      auto_eviction_email: document.getElementById('auto-evict-email')?.checked ? '1' : '0',
+    });
+    showStatusToast('✅', 'Eviction settings saved!');
+    const t = document.querySelector('.status-toast.visible');
+    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
+  } catch (err) { alert('Failed to save: ' + (err.message || 'unknown')); }
 }
 
 async function saveElectricRate() {

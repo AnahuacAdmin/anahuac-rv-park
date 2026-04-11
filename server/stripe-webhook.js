@@ -79,7 +79,7 @@ function registerStripeWebhook(app) {
               "SELECT COUNT(*) as cnt FROM invoices WHERE tenant_id = ? AND balance_due > 0.005 AND status IN ('pending','partial') AND COALESCE(deleted,0) = 0"
             ).get(inv.tenant_id);
             if (!unpaid || unpaid.cnt === 0) {
-              db.prepare('UPDATE tenants SET eviction_warning = 0 WHERE id = ?').run(inv.tenant_id);
+              db.prepare('UPDATE tenants SET eviction_warning = 0, eviction_notified = 0, eviction_paused = 0, eviction_pause_note = NULL WHERE id = ?').run(inv.tenant_id);
             }
           }
 

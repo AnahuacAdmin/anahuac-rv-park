@@ -172,9 +172,48 @@ function runLateFeeCheck() {
     }
   }
 
+  // Eviction processing with pause support and auto-notifications
+  const mgrPhone = db.prepare("SELECT value FROM settings WHERE key = 'manager_phone'").get()?.value;
+  const mgrEmail = db.prepare("SELECT value FROM settings WHERE key = 'manager_email'").get()?.value;
+  const autoSms = db.prepare("SELECT value FROM settings WHERE key = 'auto_eviction_sms'").get()?.value === '1';
+  const autoEmail = db.prepare("SELECT value FROM settings WHERE key = 'auto_eviction_email'").get()?.value === '1';
+  let resend = null;
+  try { resend = getResend(); } catch {}
+
   for (const tid of evictionTenantIds) {
+    const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tid);
+    if (!tenant) continue;
+    if (tenant.eviction_paused) continue; // Skip paused tenants
+
+    const wasNew = tenant.eviction_warning === 0;
     const result = db.prepare('UPDATE tenants SET eviction_warning = 1 WHERE id = ? AND eviction_warning = 0').run(tid);
     if (result.changes) evictionWarnings++;
+
+    if (wasNew && result.changes) {
+      const balance = db.prepare("SELECT COALESCE(SUM(balance_due),0) as b FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0").get(tid)?.b || 0;
+      const today = new Date().toISOString().split('T')[0];
+      const name = `${tenant.first_name} ${tenant.last_name}`;
+
+      // Alert manager
+      if (mgrPhone) {
+        try { sendSms(mgrPhone, `EVICTION ALERT - Anahuac RV Park: ${name} Lot ${tenant.lot_id} is 5+ days overdue. Balance: $${balance.toFixed(2)}. Login: ${APP_URL}`); } catch (e) { console.error('[eviction] mgr SMS failed:', e.message); }
+      }
+      if (mgrEmail && resend) {
+        try { resend.emails.send({ from: FROM_ADDRESS, to: mgrEmail, subject: `EVICTION ALERT: ${name} Lot ${tenant.lot_id}`, text: `Eviction warning triggered for ${name}, Lot ${tenant.lot_id}. Balance: $${balance.toFixed(2)}. Date: ${today}. Login: ${APP_URL}` }); } catch (e) { console.error('[eviction] mgr email failed:', e.message); }
+      }
+
+      // Auto-notify tenant (only once)
+      if (!tenant.eviction_notified) {
+        const evictionMsg = `IMPORTANT NOTICE - Anahuac RV Park: Dear ${tenant.first_name}, your account for Lot ${tenant.lot_id} is seriously past due with a balance of $${balance.toFixed(2)}. As of ${today}, the eviction process has been initiated per our rental agreement. To avoid further action, payment must be made IMMEDIATELY. Please contact park management at 409-267-6603 or pay online at ${APP_URL}/pay.html?pay=0. We value your tenancy and hope to resolve this quickly. - Anahuac RV Park Management`;
+        if (autoSms && tenant.phone) {
+          try { sendSms(tenant.phone, evictionMsg); } catch (e) { console.error('[eviction] tenant SMS failed:', e.message); }
+        }
+        if (autoEmail && tenant.email && resend) {
+          try { resend.emails.send({ from: FROM_ADDRESS, reply_to: 'anrvpark@gmail.com', to: tenant.email, subject: 'IMPORTANT: Past Due Notice - Anahuac RV Park', text: evictionMsg, html: `<p>${evictionMsg.replace(/\n/g, '<br>')}</p><div style="text-align:center;margin:1rem 0"><a href="${APP_URL}/pay.html?pay=0" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none">PAY NOW</a></div>` }); } catch (e) { console.error('[eviction] tenant email failed:', e.message); }
+        }
+        db.prepare('UPDATE tenants SET eviction_notified = 1 WHERE id = ?').run(tid);
+      }
+    }
   }
 
   return {

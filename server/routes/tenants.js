@@ -186,6 +186,19 @@ router.post('/:id/move', (req, res) => {
   }
 });
 
+router.post('/:id/pause-eviction', (req, res) => {
+  const { note, arrangement_type, paused_by } = req.body || {};
+  const today = new Date().toISOString().split('T')[0];
+  db.prepare(`UPDATE tenants SET eviction_paused = 1, eviction_warning = 0, eviction_pause_note = ?, eviction_pause_date = ?, eviction_pause_by = ? WHERE id = ?`)
+    .run(`[${arrangement_type || 'Other'}] ${note || ''}`.trim(), today, paused_by || req.user?.username || 'admin', req.params.id);
+  res.json({ success: true });
+});
+
+router.post('/:id/resume-eviction', (req, res) => {
+  db.prepare('UPDATE tenants SET eviction_paused = 0, eviction_pause_note = NULL, eviction_pause_date = NULL, eviction_pause_by = NULL WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 router.delete('/:id', (req, res) => {
   const tenant = db.prepare('SELECT lot_id FROM tenants WHERE id = ?').get(req.params.id);
   db.prepare('UPDATE tenants SET is_active = 0, move_out_date = date(?) WHERE id = ?')

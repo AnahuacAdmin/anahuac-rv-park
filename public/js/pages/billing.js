@@ -1,9 +1,22 @@
 async function loadBilling() {
   const showDeleted = window._showDeletedInvoices === true;
-  const invoices = await API.get('/invoices' + (showDeleted ? '?includeDeleted=1' : ''));
+  const [invoices, tenants] = await Promise.all([
+    API.get('/invoices' + (showDeleted ? '?includeDeleted=1' : '')),
+    API.get('/tenants'),
+  ]);
   if (!invoices) return;
 
+  // Build eviction alert banner
+  const evictionTenants = (tenants || []).filter(t => t.eviction_warning === 1 && t.balance_due > 0);
+  const pausedTenants = (tenants || []).filter(t => t.eviction_paused === 1);
+  const evictionBanner = (evictionTenants.length || pausedTenants.length) ? `
+    <div class="card" style="border-left:4px solid #dc2626;margin-bottom:1rem;padding:0.75rem 1rem">
+      ${evictionTenants.length ? `<div style="margin-bottom:0.5rem"><strong style="color:#dc2626">⚠️ Active Eviction (${evictionTenants.length})</strong>: ${evictionTenants.map(t => `<span class="badge badge-danger">${t.lot_id} ${t.first_name} ${t.last_name} ($${Number(t.balance_due).toFixed(2)})</span>`).join(' ')}</div>` : ''}
+      ${pausedTenants.length ? `<div><strong style="color:#f59e0b">⏸️ Manager Hold (${pausedTenants.length})</strong>: ${pausedTenants.map(t => `<span class="badge badge-warning" title="${t.eviction_pause_note || ''}">${t.lot_id} ${t.first_name} ${t.last_name}</span>`).join(' ')}</div>` : ''}
+    </div>` : '';
+
   document.getElementById('page-content').innerHTML = `
+    ${evictionBanner}
     ${helpPanel('billing')}
     <div class="page-header">
       <h2>Billing & Invoices</h2>
@@ -48,6 +61,7 @@ async function loadBilling() {
     </div>
   `;
   window._allInvoices = invoices;
+  window._billingTenants = tenants || [];
 }
 
 function renderInvoiceRows(invoices) {
@@ -78,13 +92,14 @@ function renderInvoiceRow(inv) {
       <td><strong>${formatMoney(inv.total_amount)}</strong></td>
       <td>${formatMoney(inv.amount_paid)}</td>
       <td><strong>${formatMoney(inv.balance_due)}</strong></td>
-      <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}">${inv.status}</span></td>
+      <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}">${inv.status}</span>${invoiceEvictionBadge(inv)}</td>
       <td class="btn-group">
         <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); viewInvoice(${inv.id})">View</button>
         <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); downloadInvoicePdf(${inv.id})">PDF</button>
         <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); emailInvoice(${inv.id})">Email</button>
         <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); smsInvoice(${inv.id})">SMS</button>
         ${inv.balance_due > 0.005 ? `<button class="btn btn-sm btn-success" onclick="event.stopPropagation(); payInvoiceWithStripe(${inv.id})">Pay Now</button>` : ''}
+        ${invoicePauseBtn(inv)}
         <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); editInvoice(${inv.id})">Edit</button>
         <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteInvoice(${inv.id})">Del</button>
       </td>
@@ -123,6 +138,70 @@ async function restoreInvoice(id) {
   } catch (err) {
     alert('Restore failed: ' + (err.message || 'unknown error'));
   }
+}
+
+function invoiceEvictionBadge(inv) {
+  const t = (window._billingTenants || []).find(x => x.id === inv.tenant_id);
+  if (!t) return '';
+  if (t.eviction_paused) return ' <span class="badge badge-warning" title="' + (t.eviction_pause_note || 'Manager hold') + '">⏸️ HOLD</span>';
+  if (t.eviction_warning === 1 && inv.balance_due > 0) return ' <span class="badge badge-danger">⚠️ EVICTION</span>';
+  return '';
+}
+
+function invoicePauseBtn(inv) {
+  const t = (window._billingTenants || []).find(x => x.id === inv.tenant_id);
+  if (!t) return '';
+  if (t.eviction_warning === 1 && !t.eviction_paused && inv.balance_due > 0) {
+    return `<button class="btn btn-sm btn-warning" onclick="event.stopPropagation(); showPauseEviction(${t.id}, '${(t.first_name + ' ' + t.last_name).replace(/'/g, "\\'")}')">Pause</button>`;
+  }
+  if (t.eviction_paused) {
+    return `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); resumeEviction(${t.id})">Resume</button>`;
+  }
+  return '';
+}
+
+function showPauseEviction(tenantId, name) {
+  showModal(`Pause Eviction — ${name}`, `
+    <form onsubmit="submitPauseEviction(event, ${tenantId})">
+      <div class="form-group">
+        <label>Arrangement Type</label>
+        <select name="arrangement_type">
+          <option value="Payment Plan">Payment Plan</option>
+          <option value="Partial Payment">Partial Payment Received</option>
+          <option value="Family Emergency">Family Emergency</option>
+          <option value="Medical">Medical Situation</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Notes</label><textarea name="note" placeholder="Details of the arrangement..."></textarea></div>
+      <button type="submit" class="btn btn-warning btn-full mt-1">Pause Eviction</button>
+    </form>
+  `);
+}
+
+async function submitPauseEviction(e, tenantId) {
+  e.preventDefault();
+  const form = new FormData(e.target);
+  try {
+    await API.post(`/tenants/${tenantId}/pause-eviction`, {
+      arrangement_type: form.get('arrangement_type'),
+      note: form.get('note'),
+      paused_by: API.user?.username || 'admin',
+    });
+    closeModal();
+    showStatusToast('⏸️', 'Eviction paused');
+    const t = document.querySelector('.status-toast.visible');
+    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
+    loadBilling();
+  } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
+}
+
+async function resumeEviction(tenantId) {
+  if (!confirm('Resume eviction process for this tenant?')) return;
+  try {
+    await API.post(`/tenants/${tenantId}/resume-eviction`, {});
+    loadBilling();
+  } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
 }
 
 function editableMoneyCell(id, field, value, description, negative) {
