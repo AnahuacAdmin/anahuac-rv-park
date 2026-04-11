@@ -470,18 +470,20 @@ async function downloadInvoicePdfFromView(invoiceNumber) {
   await html2pdf().set(_pdfOptions(invoiceNumber)).from(el).save();
 }
 
-// Generate PDF without opening the modal — fetches the invoice and renders off-screen.
+// Generate PDF without opening the modal — renders off-screen.
 async function downloadInvoicePdf(id) {
   const inv = await API.get(`/invoices/${id}`);
   if (!inv) return;
   const wrap = document.createElement('div');
-  wrap.style.position = 'absolute';
-  wrap.style.left = '-10000px';
-  wrap.style.top = '0';
-  wrap.style.maxWidth = '750px';
+  wrap.style.position = 'fixed';
+  wrap.style.top = '-99999px';
+  wrap.style.left = '0';
+  wrap.style.width = '800px';
   wrap.style.background = '#fff';
+  wrap.style.visibility = 'hidden';
   wrap.innerHTML = await renderInvoiceHtml(inv);
   document.body.appendChild(wrap);
+  await new Promise(r => setTimeout(r, 500));
   try {
     await html2pdf().set(_pdfOptions(inv.invoice_number)).from(wrap.firstElementChild).save();
   } finally {
@@ -533,6 +535,7 @@ async function renderInvoiceHtml(inv) {
       </div>
       ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
       ${inv.balance_due > 0.005 ? await invoicePayQrHtml(inv.id, true) : ''}
+      ${inv.balance_due > 0.005 ? `<p style="text-align:center;font-size:0.8rem;margin:0.3rem 0"><strong>Pay online at:</strong> <a href="${APP_URL}/?pay=${inv.id}">${APP_URL}/?pay=${inv.id}</a></p>` : ''}
       ${invoiceStandardNotesHtml()}
     </div>
   `;
@@ -589,16 +592,16 @@ async function generateQrDataUrl(text) {
 
 function invoiceStandardNotesHtml() {
   return `
-    <div class="invoice-standard-notes" style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #ccc;font-size:0.78rem;line-height:1.3;color:#374151;page-break-inside:avoid">
-      <p>We would appreciate it if you could make arrangements to complete payment as soon as possible.</p>
-      <p>If payment is not received within 3 days from the date of this invoice a $25.00 fee will be applied.</p>
-      <p>If payment is not received within 5 days of this invoice, an eviction notice will be served.</p>
-      <p>Please do not hesitate to call us if you have any questions about the balance due on your account. If you have already sent us your payment, please disregard.</p>
-      <ul style="margin:0.3rem 0 0.3rem 1.25rem;padding:0">
+    <div class="invoice-standard-notes" style="margin-top:0.2rem;padding-top:0.2rem;border-top:1px solid #ccc;font-size:0.7rem;line-height:1.25;color:#374151;page-break-inside:avoid">
+      <p style="margin:0.15rem 0">We would appreciate it if you could make arrangements to complete payment as soon as possible.</p>
+      <p style="margin:0.15rem 0">If payment is not received within 3 days from the date of this invoice a $25.00 fee will be applied.</p>
+      <p style="margin:0.15rem 0">If payment is not received within 5 days of this invoice, an eviction notice will be served.</p>
+      <p style="margin:0.15rem 0">Please do not hesitate to call us if you have any questions about the balance due on your account. If you have already sent us your payment, please disregard.</p>
+      <ul style="margin:0.1rem 0 0.1rem 1rem;padding:0;font-size:0.68rem">
         <li>Please pay by debit/credit card or deliver payment into night deposit box located at the front of the warehouse, if we are not available to receive payment by phone.</li>
         <li>If paying with credit card a 3% charge will be applied.</li>
       </ul>
-      <p>Thank you very much for your attention to this matter and your continued business. We sincerely appreciate your business and hope you have a blessed day!</p>
+      <p style="margin:0.15rem 0">Thank you very much for your attention to this matter and your continued business. We sincerely appreciate your business and hope you have a blessed day!</p>
     </div>
   `;
 }
@@ -616,13 +619,15 @@ async function emailInvoice(id) {
 
   // Render the invoice HTML offscreen and convert to a PDF Blob, then to base64.
   const wrap = document.createElement('div');
-  wrap.style.position = 'absolute';
-  wrap.style.left = '-10000px';
-  wrap.style.top = '0';
-  wrap.style.maxWidth = '750px';
+  wrap.style.position = 'fixed';
+  wrap.style.top = '-99999px';
+  wrap.style.left = '0';
+  wrap.style.width = '800px';
   wrap.style.background = '#fff';
+  wrap.style.visibility = 'hidden';
   wrap.innerHTML = await renderInvoiceHtml(inv);
   document.body.appendChild(wrap);
+  await new Promise(r => setTimeout(r, 500));
 
   try {
     // Generate PDF

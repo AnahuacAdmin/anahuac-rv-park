@@ -74,7 +74,7 @@ Anahuac RV Park, LLC
         <tr><td><strong>Balance:</strong></td><td>$${balance}</td></tr>
       </table>
       <div style="text-align:center;margin:1.5rem 0">
-        <a href="${APP_URL}/?pay=${invoice.id}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:700;letter-spacing:0.5px">Pay Your Invoice Online</a>
+        <a href="${APP_URL}/?pay=${invoice.id}" style="display:inline-block;background:#16a34a;color:white;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:bold;text-decoration:none;margin:16px 0">&#128179; Pay Invoice Online - $${balance}</a>
         <p style="font-size:12px;color:#666;margin-top:8px">A 3% convenience fee applies to credit/debit card payments.</p>
       </div>
       <p>Thank you for being part of our community. If you have any questions about this invoice, call us at 409-267-6603.</p>
@@ -320,7 +320,7 @@ router.post('/', (req, res) => {
 
     const subtotal = rent_amount + electric_amount + other_charges + mailbox_fee + misc_fee;
     const total = subtotal + late_fee - refund_amount;
-    const invoiceNum = 'INV-' + Date.now();
+    const invoiceNum = 'INV-' + new Date().toISOString().slice(0,7).replace('-','') + '-' + String(Math.floor(Math.random()*9000)+1000);
 
     const result = db.prepare(`
       INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
