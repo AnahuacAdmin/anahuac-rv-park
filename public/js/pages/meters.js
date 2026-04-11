@@ -8,6 +8,7 @@ async function loadMeters() {
       <h2>Meter Readings</h2>
       <div class="btn-group">
         <button class="btn btn-success" onclick="startMobileEntry()">Mobile Entry</button>
+        <button class="btn btn-warning" onclick="showQuickAddReading()">+ Quick Add</button>
         <button class="btn btn-primary" onclick="showAddReading()">+ New Reading</button>
       </div>
     </div>
@@ -28,6 +29,7 @@ async function loadMeters() {
                 <td><strong>${formatMoney(r.electric_charge)}</strong></td>
                 <td class="btn-group">
                   ${r.photo ? `<button class="btn btn-sm btn-outline" onclick="viewReadingPhoto(${r.id})" title="View photo">&#128247;</button>` : ''}
+                  <button class="btn btn-sm btn-success" onclick="showQuickUpdate(${r.id}, '${r.lot_id}', '${r.first_name} ${r.last_name}', ${r.current_reading}, ${r.tenant_id})">Update</button>
                   <button class="btn btn-sm btn-outline" onclick="showEditReading(${r.id}, '${r.lot_id}', ${r.previous_reading}, ${r.current_reading}, '${r.reading_date}')">Edit</button>
                 </td>
               </tr>
@@ -111,6 +113,157 @@ async function updateReading(e, id) {
   });
   closeModal();
   loadMeters();
+}
+
+// Quick Update: opens a fast modal for entering a new reading for an existing lot.
+// Pre-fills previous reading from the current value, auto-calculates kWh/charge.
+function showQuickUpdate(readingId, lotId, tenantName, lastReading, tenantId) {
+  const today = new Date().toISOString().split('T')[0];
+  showModal(`Update ${lotId} — ${tenantName}`, `
+    <form onsubmit="saveQuickUpdate(event, '${lotId}', ${tenantId})">
+      <div class="form-group">
+        <label>Previous Reading</label>
+        <input type="number" step="0.01" value="${lastReading}" readonly style="background:#f3f4f6;font-size:1.3rem;text-align:center;font-weight:700">
+        <input type="hidden" name="previous_reading" value="${lastReading}">
+      </div>
+      <div class="form-group">
+        <label>New Current Reading</label>
+        <input name="current_reading" type="number" step="0.01" required inputmode="decimal" autofocus
+          style="font-size:1.5rem;text-align:center;font-weight:700;padding:0.85rem"
+          oninput="quickCalc(this, ${lastReading})">
+      </div>
+      <div id="quick-calc" style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.5rem 1rem;margin-bottom:1rem;font-size:0.95rem;color:#92400e;display:none">
+        <span id="quick-kwh"></span> kWh = <strong id="quick-charge"></strong>
+      </div>
+      <div class="form-group">
+        <label>Reading Date</label>
+        <input name="reading_date" type="date" value="${today}" required>
+      </div>
+      <div class="form-group">
+        <label class="btn btn-outline" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer">
+          &#128247; Take Photo
+          <input type="file" accept="image/*" capture="environment" style="display:none" name="photo_file" onchange="quickPhotoPreview(this)">
+        </label>
+        <img id="quick-photo-preview" style="display:none;width:80px;height:60px;object-fit:cover;border-radius:6px;margin-left:0.5rem;vertical-align:middle">
+      </div>
+      <input type="hidden" name="photo_base64" id="quick-photo-b64">
+      <button type="submit" class="btn btn-success btn-full mt-1" style="font-size:1.1rem;padding:0.85rem">Save Reading</button>
+    </form>
+  `);
+  setTimeout(() => document.querySelector('#modal-body [name="current_reading"]')?.focus(), 100);
+}
+
+function quickCalc(input, prev) {
+  const curr = parseFloat(input.value);
+  const el = document.getElementById('quick-calc');
+  if (isNaN(curr) || curr <= prev) { el.style.display = 'none'; return; }
+  const kwh = curr - prev;
+  document.getElementById('quick-kwh').textContent = kwh.toLocaleString();
+  document.getElementById('quick-charge').textContent = '$' + (kwh * 0.15).toFixed(2);
+  el.style.display = '';
+}
+
+function quickPhotoPreview(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, 1024 / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      document.getElementById('quick-photo-b64').value = dataUrl.split(',')[1] || '';
+      const preview = document.getElementById('quick-photo-preview');
+      preview.src = dataUrl;
+      preview.style.display = 'inline';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveQuickUpdate(e, lotId, tenantId) {
+  e.preventDefault();
+  const form = new FormData(e.target);
+  const data = {
+    tenant_id: tenantId,
+    lot_id: lotId,
+    reading_date: form.get('reading_date'),
+    previous_reading: parseFloat(form.get('previous_reading')),
+    current_reading: parseFloat(form.get('current_reading')),
+  };
+  const photoB64 = form.get('photo_base64');
+  if (photoB64) data.photo = photoB64;
+  try {
+    await API.post('/meters', data);
+    closeModal();
+    showStatusToast('✅', `${lotId} reading saved!`);
+    const t = document.querySelector('.status-toast.visible');
+    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
+    loadMeters();
+  } catch (err) {
+    alert('Save failed: ' + (err.message || 'unknown'));
+  }
+}
+
+// Quick Add: pick a lot from dropdown, auto-fills previous from last known reading.
+async function showQuickAddReading() {
+  const readings = await API.get('/meters/latest');
+  if (!readings || !readings.length) { alert('No lots with active tenants found.'); return; }
+  const today = new Date().toISOString().split('T')[0];
+  showModal('Quick Add Reading', `
+    <form onsubmit="saveQuickUpdate(event, document.getElementById('qa-lot').value, parseInt(document.getElementById('qa-tenant').value))">
+      <div class="form-group">
+        <label>Lot / Tenant</label>
+        <select id="qa-select" required onchange="qaSelected(this)">
+          <option value="">Select lot...</option>
+          ${readings.map(r => `<option value="${r.lot_id}|${r.tenant_id}|${r.current_reading}">${r.lot_id} — ${r.first_name} ${r.last_name} (last: ${r.current_reading.toLocaleString()})</option>`).join('')}
+        </select>
+        <input type="hidden" id="qa-lot" name="lot_placeholder">
+        <input type="hidden" id="qa-tenant">
+      </div>
+      <div class="form-group">
+        <label>Previous Reading</label>
+        <input type="number" step="0.01" id="qa-prev" readonly style="background:#f3f4f6;font-size:1.3rem;text-align:center;font-weight:700" value="0">
+        <input type="hidden" name="previous_reading" id="qa-prev-hidden" value="0">
+      </div>
+      <div class="form-group">
+        <label>New Current Reading</label>
+        <input name="current_reading" type="number" step="0.01" required inputmode="decimal"
+          style="font-size:1.5rem;text-align:center;font-weight:700;padding:0.85rem"
+          oninput="quickCalc(this, parseFloat(document.getElementById('qa-prev').value) || 0)">
+      </div>
+      <div id="quick-calc" style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.5rem 1rem;margin-bottom:1rem;font-size:0.95rem;color:#92400e;display:none">
+        <span id="quick-kwh"></span> kWh = <strong id="quick-charge"></strong>
+      </div>
+      <div class="form-group">
+        <label>Reading Date</label>
+        <input name="reading_date" type="date" value="${today}" required>
+      </div>
+      <div class="form-group">
+        <label class="btn btn-outline" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer">
+          &#128247; Take Photo
+          <input type="file" accept="image/*" capture="environment" style="display:none" name="photo_file" onchange="quickPhotoPreview(this)">
+        </label>
+        <img id="quick-photo-preview" style="display:none;width:80px;height:60px;object-fit:cover;border-radius:6px;margin-left:0.5rem;vertical-align:middle">
+      </div>
+      <input type="hidden" name="photo_base64" id="quick-photo-b64">
+      <button type="submit" class="btn btn-success btn-full mt-1" style="font-size:1.1rem;padding:0.85rem">Save Reading</button>
+    </form>
+  `);
+}
+
+function qaSelected(sel) {
+  const parts = sel.value.split('|');
+  document.getElementById('qa-lot').value = parts[0] || '';
+  document.getElementById('qa-tenant').value = parts[1] || '';
+  const prev = parseFloat(parts[2]) || 0;
+  document.getElementById('qa-prev').value = prev;
+  document.getElementById('qa-prev-hidden').value = prev;
 }
 
 function viewReadingPhoto(id) {
