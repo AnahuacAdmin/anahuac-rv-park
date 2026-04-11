@@ -41,6 +41,15 @@ router.post('/:id/email', async (req, res) => {
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
     if (!invoice.email) return res.status(400).json({ error: 'No email on file for this tenant' });
 
+    // Database-level rate limit: prevent duplicate sends within 60 seconds.
+    const lastSent = db.prepare("SELECT value FROM settings WHERE key = ?").get('last_email_' + req.params.id);
+    const now = Date.now();
+    if (lastSent && (now - parseInt(lastSent.value)) < 60000) {
+      console.log('[EMAIL ROUTE] BLOCKED duplicate within 60s for invoice', req.params.id);
+      return res.status(429).json({ error: 'Email already sent for this invoice within the last 60 seconds. Please wait.' });
+    }
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('last_email_' + req.params.id, String(now));
+
     const { pdfBase64 } = req.body || {};
     if (!pdfBase64 || typeof pdfBase64 !== 'string') {
       return res.status(400).json({ error: 'pdfBase64 attachment is required' });
