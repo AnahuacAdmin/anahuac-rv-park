@@ -94,7 +94,7 @@ const HELP_CONTENT = {
   </ol>`,
   payments: `<ol>
     <li>When a tenant pays click <em>Log Payment</em> on their row.</li>
-    <li>Enter amount paid, payment method (Cash/Check/Venmo/Zelle) and date.</li>
+    <li>Enter amount paid, payment method (Cash, Check, Money Order, or Credit/Debit Card — 3% convenience fee applies to card) and date.</li>
     <li>System updates balance automatically.</li>
     <li>Filter by <em>Unpaid</em> to see who still owes.</li>
   </ol>`,

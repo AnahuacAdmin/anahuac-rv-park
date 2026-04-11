@@ -69,9 +69,7 @@ async function showRecordPayment() {
             <option value="cash">Cash</option>
             <option value="check">Check</option>
             <option value="money_order">Money Order</option>
-            <option value="card">Card</option>
-            <option value="zelle">Zelle</option>
-            <option value="other">Other</option>
+            <option value="card">Credit/Debit Card</option>
           </select>
         </div>
         <div class="form-group"><label>Reference #</label><input name="reference_number"></div>
