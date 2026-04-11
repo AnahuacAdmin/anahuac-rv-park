@@ -132,6 +132,9 @@ async function processCheckIn(e) {
         </button>
         <p style="font-size:0.8rem;color:var(--gray-500);margin-top:0.5rem">Sends a welcome message + park rules via SMS</p>
       ` : '<p style="color:var(--warning)">No phone number on file — cannot send welcome text.</p>'}
+      <button class="btn btn-primary btn-full mt-2" onclick="printWelcomeCard('${tenantName.replace(/'/g, "\\'")}', '${data.lot_id}', ${tenant.id})">
+        &#128438; Print Welcome Card
+      </button>
       <button class="btn btn-outline btn-full mt-2" onclick="closeModal();loadCheckins()">Done</button>
     </div>
   `), 3200);
@@ -196,6 +199,95 @@ async function processCheckOut(e) {
     if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }
     else alert('Check-out failed: ' + msg);
   }
+}
+
+async function printWelcomeCard(tenantName, lotId, tenantId) {
+  // Fetch WiFi password from settings.
+  let wifiPassword = '';
+  try {
+    const settings = await API.get('/settings');
+    wifiPassword = settings?.wifi_password || '';
+  } catch {}
+
+  const payUrl = `${APP_URL}/?pay=${tenantId}`;
+
+  // Build the welcome card in a new window for clean printing.
+  const w = window.open('', '_blank', 'width=600,height=800');
+  if (!w) { alert('Popup blocked — please allow popups for this site.'); return; }
+
+  w.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Welcome Card - ${tenantName}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: 5.5in 8.5in; margin: 0.3in; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; width: 5.5in; margin: 0 auto; padding: 0.3in; color: #1f2937; }
+  .card-border { border: 3px solid #2c4a1e; border-radius: 12px; padding: 0.4in 0.35in; min-height: 7.5in; display: flex; flex-direction: column; }
+  .header { text-align: center; margin-bottom: 0.25in; }
+  .header img { height: 70px; margin-bottom: 6px; }
+  .header h1 { color: #2c4a1e; font-size: 18pt; margin-bottom: 2px; }
+  .header h2 { color: #4ade80; font-size: 11pt; font-weight: 600; letter-spacing: 1px; }
+  .tenant-info { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; margin-bottom: 0.2in; text-align: center; }
+  .tenant-info .name { font-size: 14pt; font-weight: 700; color: #2c4a1e; }
+  .tenant-info .lot { font-size: 11pt; color: #166534; margin-top: 2px; }
+  .wifi-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 14px; margin-bottom: 0.2in; text-align: center; }
+  .wifi-box .label { font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; color: #92400e; }
+  .wifi-box .password { font-size: 16pt; font-weight: 800; color: #78350f; letter-spacing: 2px; }
+  .contact { text-align: center; font-size: 8.5pt; color: #555; margin-bottom: 0.15in; }
+  .rules { flex: 1; }
+  .rules h3 { font-size: 9pt; color: #2c4a1e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; border-bottom: 1px solid #d1d5db; padding-bottom: 3px; }
+  .rules ul { list-style: none; padding: 0; }
+  .rules li { font-size: 8pt; padding: 2px 0; border-bottom: 1px dotted #e5e7eb; }
+  .rules li:last-child { border-bottom: none; }
+  .rules li::before { content: '•'; color: #2c4a1e; font-weight: 700; margin-right: 5px; }
+  .warning { font-size: 7pt; color: #991b1b; text-align: center; margin-top: 6px; font-style: italic; }
+  .pay-section { text-align: center; margin-top: 0.15in; padding-top: 0.1in; border-top: 1px solid #d1d5db; }
+  .pay-section p { font-size: 8pt; color: #555; margin-bottom: 6px; }
+  .pay-section .url { font-size: 8pt; color: #2c4a1e; font-weight: 600; }
+  #qr-code { display: inline-block; margin-top: 4px; }
+  @media print { body { padding: 0; } }
+</style>
+</head><body>
+<div class="card-border">
+  <div class="header">
+    <img src="/park_Logo.png" alt="Anahuac RV Park">
+    <h1>Welcome to Anahuac RV Park!</h1>
+    <h2>Your Home Away From Home</h2>
+  </div>
+  <div class="tenant-info">
+    <div class="name">${tenantName}</div>
+    <div class="lot">Lot ${lotId}</div>
+  </div>
+  ${wifiPassword ? `<div class="wifi-box"><div class="label">WiFi Password</div><div class="password">${wifiPassword}</div></div>` : ''}
+  <div class="contact">409-267-6603 &nbsp;|&nbsp; anrvpark.com &nbsp;|&nbsp; 1003 Davis Ave, Anahuac TX 77514</div>
+  <div class="rules">
+    <h3>Park Rules</h3>
+    <ul>
+      <li>Speed limit 5 MPH — children &amp; ducks in park!</li>
+      <li>Quiet hours 10pm – 7am</li>
+      <li>Pets welcome on leash — clean up after them</li>
+      <li>Max 2 people per space ($25/extra person)</li>
+      <li>No fires except pits/rings. No fireworks. No weapons.</li>
+      <li>Keep your site clean at all times</li>
+      <li>Rent due on time — late fees apply after 3 days</li>
+      <li>No subleasing. No sharing WiFi password.</li>
+      <li>Guests: max 2 visitors at a time</li>
+    </ul>
+    <p class="warning">Management reserves the right to remove guests who disregard rules.</p>
+  </div>
+  <div class="pay-section">
+    <p>Pay your invoice online at <strong>anrvpark.com</strong> or scan the QR code:</p>
+    <div id="qr-code"></div>
+    <div class="url">${payUrl}</div>
+  </div>
+</div>
+<script>
+  new QRCode(document.getElementById('qr-code'), { text: '${payUrl}', width: 80, height: 80, colorDark: '#2c4a1e', colorLight: '#ffffff' });
+  setTimeout(function() { window.print(); }, 500);
+<\/script>
+</body></html>`);
+  w.document.close();
 }
 
 function shareCheckInLink() {
