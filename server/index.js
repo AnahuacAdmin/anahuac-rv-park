@@ -50,10 +50,12 @@ app.use('/api/auth/recover', loginLimiter);
 
 // Health check (used by Railway) — verifies DB is loaded.
 let dbReady = false;
-app.get('/api/health', (req, res) => {
+function healthHandler(req, res) {
   if (!dbReady) return res.status(503).json({ status: 'starting' });
   res.status(200).json({ status: 'ok' });
-});
+}
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
 
 // API routes
 app.use('/api/auth', require('./routes/auth'));
@@ -99,8 +101,8 @@ function scheduleDailyLateFeeCheck() {
 initializeDatabase()
   .then(() => {
     dbReady = true;
-    app.listen(PORT, () => {
-      console.log(`Anahuac RV Park Management running at http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Anahuac RV Park Management running on 0.0.0.0:${PORT}`);
       scheduleDailyLateFeeCheck();
     });
   })
