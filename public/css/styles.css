@@ -439,6 +439,57 @@ a { text-decoration: none; color: inherit; }
 }
 .status-toast.visible { transform: translateX(-50%) translateY(0); }
 
+/* Dashboard redesign */
+.dash-top-bar {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;
+}
+.dash-top-item {
+  background: white; border-radius: 10px; padding: 1rem; text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.dash-top-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+.dash-top-val { display: block; font-size: 1.5rem; font-weight: 800; color: #2c4a1e; }
+.dash-top-label { display: block; font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.15rem; }
+.dash-charts-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+.dash-chart-card { padding: 1rem; }
+.dash-chart-card h3 { font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--gray-700); }
+.dash-chart-card canvas { max-height: 220px; }
+.dash-actions {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.6rem; margin-bottom: 1.25rem;
+}
+.dash-action-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+  padding: 0.85rem 0.5rem; background: white; border: 1px solid var(--gray-200);
+  border-radius: 10px; cursor: pointer; font-size: 0.78rem; font-weight: 600;
+  color: var(--gray-700); transition: all 0.15s;
+}
+.dash-action-btn:hover { background: #f0fdf4; border-color: #16a34a; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.dash-action-icon { font-size: 1.5rem; }
+.dash-bottom-row { display: flex; gap: 1rem; margin-bottom: 1rem; }
+.dash-bottom-row .card { overflow: hidden; }
+.dash-activity { max-height: 280px; overflow-y: auto; }
+.dash-activity-item {
+  display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6; font-size: 0.85rem;
+}
+.dash-activity-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.1rem; }
+.dash-activity-text { color: var(--gray-700); }
+.dash-activity-date { font-size: 0.72rem; color: var(--gray-500); margin-top: 0.1rem; }
+.dash-reservation-item { padding: 0.5rem 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+.dash-reservation-item:hover { background: #f0fdf4; }
+
+@media (max-width: 768px) {
+  .dash-top-bar { grid-template-columns: repeat(2, 1fr); }
+  .dash-charts-row { grid-template-columns: 1fr; }
+  .dash-actions { grid-template-columns: repeat(3, 1fr); }
+  .dash-bottom-row { flex-direction: column; }
+  .dash-top-val { font-size: 1.2rem; }
+}
+@media (max-width: 480px) {
+  .dash-actions { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* Daily tip */
 .daily-tip {
   background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a;
