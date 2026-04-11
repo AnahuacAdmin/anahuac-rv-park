@@ -320,7 +320,8 @@ router.post('/', (req, res) => {
 
     const subtotal = rent_amount + electric_amount + other_charges + mailbox_fee + misc_fee;
     const total = subtotal + late_fee - refund_amount;
-    const invoiceNum = 'INV-' + new Date().toISOString().slice(0,7).replace('-','') + '-' + String(Math.floor(Math.random()*9000)+1000);
+    const count = db.prepare('SELECT COUNT(*) as c FROM invoices').get().c + 1;
+    const invoiceNum = 'INV-' + String(count).padStart(4, '0');
 
     const result = db.prepare(`
       INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
@@ -400,7 +401,8 @@ router.post('/generate', (req, res) => {
     const credit = tenant.recurring_credit || 0;
     const subtotal = rentAmount + electricAmount + mailbox + misc;
     const total = subtotal + lateFee - credit;
-    const invoiceNum = `INV-${billing_year}${String(billing_month).padStart(2, '0')}-${tenant.lot_id}`;
+    const genCount = db.prepare('SELECT COUNT(*) as c FROM invoices').get().c + 1;
+    const invoiceNum = 'INV-' + String(genCount).padStart(4, '0');
     const combinedNotes = [moveNote, tenant.mid_month_move_notes].filter(Boolean).join(' — ') || null;
 
     db.prepare(`
