@@ -15,6 +15,25 @@ async function fetchWeather() {
   } catch (e) { return null; }
 }
 
+async function fetchBibleVerse() {
+  try {
+    const r = await fetch('https://beta.ourmanna.com/api/v1/get?format=json&order=daily');
+    const d = await r.json();
+    return { verse: d.verse.details.text, reference: d.verse.details.reference };
+  } catch (e) {
+    const verses = [
+      { verse: "I can do all things through Christ who strengthens me.", reference: "Philippians 4:13" },
+      { verse: "The Lord is my shepherd; I shall not want.", reference: "Psalm 23:1" },
+      { verse: "Trust in the Lord with all your heart.", reference: "Proverbs 3:5" },
+      { verse: "For God so loved the world that he gave his one and only Son.", reference: "John 3:16" },
+      { verse: "Be strong and courageous. Do not be afraid.", reference: "Joshua 1:9" },
+      { verse: "The Lord is my light and my salvation; whom shall I fear?", reference: "Psalm 27:1" },
+      { verse: "And we know that in all things God works for the good of those who love him.", reference: "Romans 8:28" },
+    ];
+    return verses[new Date().getDay() % verses.length];
+  }
+}
+
 function arrivalCountdown(dateStr) {
   const now = new Date(); now.setHours(0,0,0,0);
   const arr = new Date(dateStr + 'T00:00:00');
@@ -30,7 +49,7 @@ function initials(name) {
 }
 
 async function loadDashboard() {
-  const [data, weather] = await Promise.all([API.get('/dashboard'), fetchWeather()]);
+  const [data, weather, bibleVerse] = await Promise.all([API.get('/dashboard'), fetchWeather(), fetchBibleVerse()]);
   if (!data) return;
 
   const revTrend = data.lastMonthRevenue > 0
@@ -135,10 +154,17 @@ async function loadDashboard() {
       </div>
     </div>
 
-    <div class="daily-tip dash-fade-in" style="animation-delay:0.6s">💡 ${getDailyTip().replace('💡 ', '')}</div>
+    ${bibleVerse ? `
+    <div class="dash-bible dash-fade-in" style="animation-delay:0.6s">
+      <div class="dash-bible-label">✝️ Verse of the Day</div>
+      <div class="dash-bible-text">"${bibleVerse.verse}"</div>
+      <div class="dash-bible-ref">— ${bibleVerse.reference}</div>
+    </div>` : ''}
+
+    <div class="daily-tip dash-fade-in" style="animation-delay:0.65s">💡 ${getDailyTip().replace('💡 ', '')}</div>
 
     ${weather ? `
-    <div class="dash-weather dash-fade-in" style="animation-delay:0.65s">
+    <div class="dash-weather dash-fade-in" style="animation-delay:0.7s">
       <span>${weather.emoji} <strong>${weather.temp}°F</strong> ${weather.condition}</span>
       <span class="dash-weather-sep">|</span>
       <span class="dash-weather-detail">💨 ${weather.wind}mph</span>

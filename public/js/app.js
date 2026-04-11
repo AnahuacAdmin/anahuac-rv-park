@@ -34,16 +34,23 @@ function getTimeGreeting() {
 }
 
 const DAILY_TIPS = [
-  '💡 Tip: Use Mobile Entry mode on the Meter Readings page to speed up monthly readings.',
-  '💡 Tip: Click any lot on the Site Map to see tenant details and billing history.',
-  '💡 Tip: Set recurring fees on a tenant to auto-apply them on every invoice.',
-  '💡 Tip: Use the Tax Reports button in Billing for a year-end financial summary.',
-  '💡 Tip: Back up your database regularly from the Admin page.',
-  '💡 Tip: The Check Late Fees button auto-applies $25 fees to invoices 3+ days old.',
-  '💡 Tip: Export invoices to Excel for easy spreadsheet analysis.',
-  '💡 Tip: Send payment reminders via SMS to all unpaid tenants with one click.',
-  '💡 Tip: Use the QR code on invoices so tenants can pay online instantly.',
-  '💡 Tip: The Recurring Fees Summary on the Tenants page shows all auto-charges at a glance.',
+  '💡 Use Mobile Entry mode on the Meter Readings page to speed up monthly readings.',
+  '💡 Click any lot on the Site Map to see tenant details and billing history.',
+  '💡 Set recurring fees on a tenant to auto-apply them on every invoice.',
+  '💡 Use the Tax Reports button in Billing for a year-end financial summary.',
+  '💡 Back up your database regularly from the Admin page.',
+  '💡 The Check Late Fees button auto-applies $25 fees to invoices 3+ days old.',
+  '💡 Export invoices to Excel for easy spreadsheet analysis.',
+  '💡 Send payment reminders via SMS to all unpaid tenants with one click.',
+  '💡 Use the QR code on invoices so tenants can pay online instantly.',
+  '💡 The Recurring Fees Summary on the Tenants page shows all auto-charges at a glance.',
+  '🐊 Did you know? Anahuac is the Alligator Capital of Texas!',
+  '🎣 Great fishing at Lake Anahuac — bass, catfish and more!',
+  '🦆 Please remind tenants to be kind to our resident ducks!',
+  '🐊 Keep an eye out for alligators near the water!',
+  '🌊 Trinity Bay is just minutes away from the park!',
+  '🦅 Anahuac National Wildlife Refuge is nearby — great bird watching!',
+  '🎣 Early morning is the best time to fish at the lake!',
 ];
 function getDailyTip() {
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
