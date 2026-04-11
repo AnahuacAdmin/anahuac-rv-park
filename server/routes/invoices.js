@@ -94,7 +94,7 @@ Anahuac RV Park, LLC
       from: FROM_ADDRESS,
       reply_to: 'anrvpark@gmail.com',
       to: invoice.email,
-      subject: `Anahuac RV Park - Invoice ${invoice.invoice_number}`,
+      subject: `Anahuac RV Park - Invoice for Lot ${invoice.lot_id}`,
       text: textBody,
       html: htmlBody,
       attachments: [{
