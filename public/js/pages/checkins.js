@@ -14,7 +14,6 @@ async function loadCheckins() {
       <div class="btn-group">
         <button class="btn btn-success" onclick="showCheckIn()">Check-In</button>
         <button class="btn btn-warning" onclick="showCheckOut()">Check-Out</button>
-        <button class="btn btn-outline" onclick="shareCheckInLink()">&#128279; Share App Link</button>
       </div>
     </div>
     <div class="stats-grid">
@@ -290,12 +289,3 @@ async function printWelcomeCard(tenantName, lotId, tenantId) {
   w.document.close();
 }
 
-function shareCheckInLink() {
-  navigator.clipboard.writeText(APP_URL).then(() => {
-    showStatusToast('✅', 'Link copied to clipboard!');
-    const t = document.querySelector('.status-toast.visible');
-    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
-  }).catch(() => {
-    prompt('Copy this link:', APP_URL);
-  });
-}
