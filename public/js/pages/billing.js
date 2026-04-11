@@ -475,7 +475,13 @@ function _pdfOptions(invoiceNumber) {
 async function downloadInvoicePdfFromView(invoiceNumber) {
   const el = document.getElementById('printable-invoice');
   if (!el) return;
-  await html2pdf().set(_pdfOptions(invoiceNumber)).from(el).save();
+  const origVis = el.style.visibility;
+  el.style.visibility = 'hidden';
+  try {
+    await html2pdf().set(_pdfOptions(invoiceNumber)).from(el).save();
+  } finally {
+    el.style.visibility = origVis;
+  }
 }
 
 // Generate PDF without opening the modal — renders off-screen.
@@ -483,12 +489,14 @@ async function downloadInvoicePdf(id) {
   const inv = await API.get(`/invoices/${id}`);
   if (!inv) return;
   const wrap = document.createElement('div');
-  wrap.style.position = 'absolute';
+  wrap.style.position = 'fixed';
+  wrap.style.top = '-99999px';
   wrap.style.left = '0';
-  wrap.style.top = '0';
-  wrap.style.width = '794px';
+  wrap.style.width = '800px';
   wrap.style.background = '#fff';
+  wrap.style.visibility = 'hidden';
   wrap.style.zIndex = '-9999';
+  wrap.style.pointerEvents = 'none';
   wrap.innerHTML = await renderInvoiceHtml(inv);
   document.body.appendChild(wrap);
   await new Promise(r => setTimeout(r, 500));
