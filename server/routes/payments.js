@@ -1,8 +1,6 @@
 const router = require('express').Router();
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
-
-router.use(authenticate);
 const { sendSms } = require('../twilio');
 
 let _stripe = null;
@@ -15,8 +13,8 @@ function getStripe() {
   return _stripe;
 }
 
-// Create a Stripe Checkout Session for a specific invoice. Adds a 3% card fee
-// as a separate line item so the customer can see the surcharge.
+// Public route — no authentication required so tenants can pay from the
+// standalone pay.html page without logging in.
 router.post('/create-checkout-session', async (req, res) => {
   try {
     const invoiceId = parseInt(req.body?.invoice_id);
@@ -70,7 +68,7 @@ router.post('/create-checkout-session', async (req, res) => {
         lot_id: invoice.lot_id,
       },
       success_url: `${origin}/?paid=1&invoice=${encodeURIComponent(invoice.invoice_number)}`,
-      cancel_url:  `${origin}/?paid=cancelled&invoice=${encodeURIComponent(invoice.invoice_number)}`,
+      cancel_url:  `${origin}/pay.html?cancelled=1`,
     });
 
     res.json({ id: session.id, url: session.url });
@@ -79,6 +77,9 @@ router.post('/create-checkout-session', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// All routes below require authentication.
+router.use(authenticate);
 
 router.get('/', (req, res) => {
   const payments = db.prepare(`

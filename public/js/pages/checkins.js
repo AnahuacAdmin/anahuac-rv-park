@@ -209,7 +209,7 @@ async function printWelcomeCard(tenantName, lotId, tenantId) {
     wifiPassword = settings?.wifi_password || '';
   } catch {}
 
-  const payUrl = `${APP_URL}/?pay=${tenantId}`;
+  const payUrl = `${APP_URL}/pay.html?pay=${tenantId}`;
 
   // Build the welcome card in a new window for clean printing.
   const w = window.open('', '_blank', 'width=600,height=800');

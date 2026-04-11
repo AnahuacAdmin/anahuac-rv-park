@@ -264,17 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('main-app').style.display = '';
       document.body.classList.remove('login-page');
       navigateTo('dashboard');
-      // Check if user arrived via a ?pay= link before login.
-      const pendingPay = sessionStorage.getItem('pending_pay');
-      if (pendingPay) {
-        sessionStorage.removeItem('pending_pay');
-        setTimeout(async () => {
-          try {
-            const r = await API.post('/payments/create-checkout-session', { invoice_id: parseInt(pendingPay) });
-            if (r?.url) window.location.href = r.url;
-          } catch (e) { alert('Payment error: ' + (e.message || 'unknown')); }
-        }, 500);
-      }
     } catch (err) {
       errEl.textContent = err.message;
       errEl.style.display = '';
@@ -391,34 +380,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === e.currentTarget) closeModal();
   });
 
-  // Handle QR-code-based Stripe pay link: ?pay=<invoiceId>
-  // Show a loading screen immediately instead of flashing the dashboard.
+  // Payment links now go to /pay.html — if someone hits /?pay= redirect them.
   const params = new URLSearchParams(location.search);
   if (params.get('pay')) {
-    const payId = params.get('pay');
-    if (!API.token) {
-      sessionStorage.setItem('pending_pay', payId);
-    } else {
-      // Show loading screen immediately — hide main app, show a redirect message.
-      document.getElementById('main-app').style.display = 'none';
-      document.getElementById('login-screen').style.display = 'none';
-      const payScreen = document.createElement('div');
-      payScreen.id = 'pay-redirect-screen';
-      payScreen.style.cssText = 'display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--gray-100);text-align:center';
-      payScreen.innerHTML = '<div><div style="font-size:3rem;margin-bottom:1rem">💳</div><h2>Redirecting to payment...</h2><p style="color:#666;margin-top:0.5rem">Please wait while we connect you to the payment page.</p></div>';
-      document.body.appendChild(payScreen);
-      setTimeout(async () => {
-        try {
-          const r = await API.post('/payments/create-checkout-session', { invoice_id: parseInt(payId) });
-          if (r?.url) window.location.href = r.url;
-          else { payScreen.remove(); document.getElementById('main-app').style.display = ''; alert('Could not start checkout.'); }
-        } catch (err) {
-          payScreen.remove(); document.getElementById('main-app').style.display = '';
-          alert('Payment error: ' + (err.message || 'unknown'));
-        }
-      }, 200);
-    }
-    history.replaceState({}, '', location.pathname);
+    window.location.href = '/pay.html?pay=' + params.get('pay');
+    return;
   }
 
   if (params.get('paid') === '1') {

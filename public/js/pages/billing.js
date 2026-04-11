@@ -542,18 +542,18 @@ async function renderInvoiceHtml(inv) {
       </div>
       ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
       ${inv.balance_due > 0.005 ? await invoicePayQrHtml(inv.id, true) : ''}
-      ${inv.balance_due > 0.005 ? `<p style="text-align:center;font-size:0.8rem;margin:0.3rem 0"><strong>Pay online at:</strong> <a href="${APP_URL}/?pay=${inv.id}">${APP_URL}/?pay=${inv.id}</a></p>` : ''}
+      ${inv.balance_due > 0.005 ? `<p style="text-align:center;font-size:0.8rem;margin:0.3rem 0"><strong>Pay online at:</strong> <a href="${APP_URL}/pay.html?pay=${inv.id}">${APP_URL}/pay.html?pay=${inv.id}</a></p>` : ''}
       ${invoiceStandardNotesHtml()}
     </div>
   `;
 }
 
-// QR code section for invoices. Links to APP_URL/?pay=<id> which auto-starts Stripe checkout.
+// QR code section for invoices. Links to APP_URL/pay.html?pay=<id> for tenant payment.
 // For PDF (forPdf=true): generates QR as a base64 data-URL image inline so html2canvas captures
 // it without any external network call (avoids CORS failures with qrserver.com).
 // For view modal (forPdf=false): renders a <div> and fills it with QRCode.js after mount.
 async function invoicePayQrHtml(invoiceId, forPdf) {
-  const payUrl = `${APP_URL}/?pay=${invoiceId}`;
+  const payUrl = `${APP_URL}/pay.html?pay=${invoiceId}`;
   if (forPdf) {
     // Generate QR as inline base64 via QRCode.js → hidden canvas → toDataURL.
     const qrDataUrl = await generateQrDataUrl(payUrl);

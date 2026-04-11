@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pay Invoice - Anahuac RV Park</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .pay-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+      padding: 2.5rem 2rem;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+    }
+    .logo { height: 80px; margin-bottom: 0.75rem; }
+    h1 { color: #2c4a1e; font-size: 1.4rem; margin-bottom: 0.25rem; }
+    .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+    .spinner {
+      width: 48px; height: 48px; border: 4px solid #e5e7eb;
+      border-top-color: #2c4a1e; border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status { font-size: 1.1rem; color: #374151; font-weight: 600; }
+    .status-sub { font-size: 0.85rem; color: #999; margin-top: 0.5rem; }
+    .error-box {
+      background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
+      padding: 1rem; margin-top: 1.5rem; display: none;
+    }
+    .error-box h3 { color: #991b1b; font-size: 1rem; margin-bottom: 0.5rem; }
+    .error-box p { color: #7f1d1d; font-size: 0.85rem; line-height: 1.5; }
+    .error-box a { color: #2c4a1e; font-weight: 700; }
+    .contact { margin-top: 2rem; font-size: 0.8rem; color: #999; }
+  </style>
+</head>
+<body>
+  <div class="pay-card">
+    <img src="/park_Logo.png" alt="Anahuac RV Park" class="logo">
+    <h1>Anahuac RV Park</h1>
+    <p class="subtitle">1003 Davis Ave, Anahuac, TX 77514</p>
+
+    <div id="loading">
+      <div class="spinner"></div>
+      <p class="status">Processing your payment...</p>
+      <p class="status-sub">You'll be redirected to our secure payment page.</p>
+    </div>
+
+    <div id="error-box" class="error-box">
+      <h3>Unable to process payment</h3>
+      <p id="error-msg"></p>
+      <p style="margin-top:0.75rem">Please call us at <a href="tel:4092676603">409-267-6603</a> for assistance.</p>
+    </div>
+
+    <p class="contact">Questions? Call <a href="tel:4092676603" style="color:#2c4a1e;font-weight:600">409-267-6603</a></p>
+  </div>
+
+  <script>
+    (async function() {
+      const params = new URLSearchParams(location.search);
+      const invoiceId = params.get('pay');
+
+      if (!invoiceId) {
+        showError('No invoice specified. Please use the payment link from your invoice or email.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/payments/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_id: parseInt(invoiceId) }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          showError(data.error || 'Could not create payment session. The invoice may already be paid.');
+          return;
+        }
+
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          showError('Payment system returned an unexpected response. Please try again or call us.');
+        }
+      } catch (err) {
+        showError('Could not connect to the payment system. Please check your internet connection and try again.');
+      }
+
+      function showError(msg) {
+        document.getElementById('loading').style.display = 'none';
+        const errBox = document.getElementById('error-box');
+        document.getElementById('error-msg').textContent = msg;
+        errBox.style.display = '';
+      }
+    })();
+  </script>
+</body>
+</html>
