@@ -111,7 +111,8 @@ Anahuac RV Park, LLC
         filename: `Invoice-${invoice.invoice_number}.pdf`,
         content: Buffer.from(pdfBase64, 'base64'),
       }],
-    });
+      headers: { 'X-Entity-Ref-ID': `invoice-${invoice.id}-${Date.now()}` },
+    }, { idempotencyKey: `invoice-email-${invoice.id}-${Math.floor(Date.now() / 60000)}` });
     if (error) {
       console.error('[invoices] resend returned error:', error);
       return res.status(502).json({ error: error.message || 'Resend rejected the email' });
