@@ -9,6 +9,13 @@ router.use(authenticate);
 const FROM_ADDRESS = 'Anahuac RV Park <invoices@anrvpark.com>';
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
+// Sequential invoice number: finds the last INV-NNNN and increments.
+function nextInvoiceNumber() {
+  const lastInv = db.prepare("SELECT invoice_number FROM invoices WHERE invoice_number LIKE 'INV-%' AND invoice_number NOT LIKE 'INV-202%' ORDER BY id DESC LIMIT 1").get();
+  const lastNum = lastInv ? parseInt(lastInv.invoice_number.replace('INV-', '')) || 0 : 0;
+  return 'INV-' + String(lastNum + 1).padStart(4, '0');
+}
+
 // Lazily create a single Resend client so a missing key doesn't crash boot.
 let _resend = null;
 function getResend() {
@@ -319,8 +326,7 @@ router.post('/', (req, res) => {
 
     const subtotal = rent_amount + electric_amount + other_charges + mailbox_fee + misc_fee;
     const total = subtotal + late_fee - refund_amount;
-    const count = db.prepare('SELECT COUNT(*) as c FROM invoices').get().c + 1;
-    const invoiceNum = 'INV-' + String(count).padStart(4, '0');
+    const invoiceNum = nextInvoiceNumber();
 
     const result = db.prepare(`
       INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
@@ -400,8 +406,7 @@ router.post('/generate', (req, res) => {
     const credit = tenant.recurring_credit || 0;
     const subtotal = rentAmount + electricAmount + mailbox + misc;
     const total = subtotal + lateFee - credit;
-    const genCount = db.prepare('SELECT COUNT(*) as c FROM invoices').get().c + 1;
-    const invoiceNum = 'INV-' + String(genCount).padStart(4, '0');
+    const invoiceNum = nextInvoiceNumber();
     const combinedNotes = [moveNote, tenant.mid_month_move_notes].filter(Boolean).join(' — ') || null;
 
     db.prepare(`
