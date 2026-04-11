@@ -5,7 +5,7 @@ async function loadDashboard() {
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('dashboard')}
     <div class="page-header">
-      <h2>Dashboard</h2>
+      <h2>${getTimeGreeting()}, ${API.user?.username || 'Admin'}!</h2>
       <button class="btn btn-outline" onclick="copyAppLink()" id="dash-copy-btn">&#128203; Copy App Link</button>
     </div>
     <div class="stats-grid">
@@ -41,5 +41,6 @@ async function loadDashboard() {
       <div class="stat-card"><div class="stat-value">${Math.round(data.totalKwh).toLocaleString()}</div><div class="stat-label">Total kWh (Latest)</div></div>
       <div class="stat-card"><div class="stat-value">${data.reserved}</div><div class="stat-label">Owner Reserved</div></div>
     </div>
+    <div class="daily-tip">${getDailyTip()}</div>
   `;
 }

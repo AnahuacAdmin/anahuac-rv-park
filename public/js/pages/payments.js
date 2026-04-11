@@ -111,9 +111,10 @@ async function savePayment(e) {
   try {
     const r = await API.post('/payments', data);
     closeModal();
+    showCelebration('💰🎉', 'Payment Recorded!');
     if (r?.smsReceipt) {
-      if (r.smsReceipt.sent) alert('Payment recorded and SMS receipt sent.');
-      else alert('Payment recorded. SMS receipt NOT sent: ' + (r.smsReceipt.reason || 'unknown'));
+      if (r.smsReceipt.sent) setTimeout(() => alert('SMS receipt sent.'), 3200);
+      else setTimeout(() => alert('SMS receipt NOT sent: ' + (r.smsReceipt.reason || 'unknown')), 3200);
     }
     loadPayments();
   } catch (err) {

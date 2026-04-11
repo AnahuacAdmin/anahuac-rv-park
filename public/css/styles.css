@@ -405,8 +405,46 @@ a { text-decoration: none; color: inherit; }
 .sidebar-header h2 { font-size: 1.1rem; }
 .menu-btn { display: none; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
 .nav-menu { list-style: none; flex: 1; overflow-y: auto; padding: 0.5rem 0; }
-.nav-link { display: block; padding: 0.75rem 1.25rem; color: rgba(255,255,255,0.7); transition: all 0.2s; font-size: 0.9rem; }
+.nav-link { display: block; padding: 0.75rem 1.25rem; color: rgba(255,255,255,0.7); transition: all 0.2s; font-size: 0.9rem; position: relative; }
 .nav-link:hover, .nav-link.active { background: rgba(255,255,255,0.1); color: white; }
+.nav-link:hover { transform: translateX(4px); }
+.nav-link::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%) scaleY(0); width: 3px; height: 60%; background: #f59e0b; border-radius: 0 3px 3px 0; transition: transform 0.2s; }
+.nav-link:hover::before, .nav-link.active::before { transform: translateY(-50%) scaleY(1); }
+
+/* Celebration overlay */
+.celebration-overlay {
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.3); backdrop-filter: blur(2px);
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.celebration-overlay.visible { opacity: 1; }
+.celebration-content { text-align: center; animation: celebrationPop 0.5s ease-out; }
+.celebration-emoji { font-size: 4rem; margin-bottom: 0.5rem; }
+.celebration-text { font-size: 1.5rem; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+@keyframes celebrationPop {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Status toast (top center) */
+.status-toast {
+  position: fixed; top: 1rem; left: 50%; transform: translateX(-50%) translateY(-100%);
+  background: #1f2937; color: #fff; padding: 0.7rem 1.5rem; border-radius: 8px;
+  font-size: 0.95rem; font-weight: 600; z-index: 2500;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3); transition: transform 0.3s ease;
+  pointer-events: none;
+}
+.status-toast.visible { transform: translateX(-50%) translateY(0); }
+
+/* Daily tip */
+.daily-tip {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a;
+  border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.85rem; color: #92400e;
+  margin-top: 1rem;
+}
 .sidebar-footer { padding: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
  
 /* Main content */

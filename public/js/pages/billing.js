@@ -256,12 +256,19 @@ function showGenerateInvoices() {
 async function generateInvoices(e) {
   e.preventDefault();
   const form = new FormData(e.target);
+  closeModal();
+  const toast = showStatusToast('🧾', 'Cooking up invoices...');
   const result = await API.post('/invoices/generate', {
     billing_month: parseInt(form.get('billing_month')),
     billing_year: parseInt(form.get('billing_year'))
   });
-  closeModal();
-  alert(`Generated ${result.generated} invoices for lots: ${result.lots.join(', ') || 'none (already generated)'}`);
+  toast.hide(0);
+  if (result.generated > 0) {
+    showCelebration('🧾🎉', `${result.generated} Invoices Generated!`);
+    setTimeout(() => alert(`Lots: ${result.lots.join(', ')}`), 3200);
+  } else {
+    alert('No new invoices generated (already exist for this period).');
+  }
   loadBilling();
 }
 
@@ -611,6 +618,7 @@ function invoiceStandardNotesHtml() {
 async function emailInvoice(id) {
   if (window._emailSending) { alert('Already sending, please wait...'); return; }
   window._emailSending = true;
+  const emailToast = showStatusToast('📧', 'Sending email...');
   const inv = await API.get(`/invoices/${id}`);
   if (!inv) { window._emailSending = false; return; }
   if (!inv.email) {
@@ -665,8 +673,10 @@ async function emailInvoice(id) {
       return;
     }
 
+    emailToast.hide(0);
     if (result?.success) {
-      alert(`Invoice emailed to ${result.sentTo}.`);
+      emailToast.update('✅', `Email delivered to ${result.sentTo}!`);
+      emailToast.hide(3000);
     } else {
       alert('Email request completed but the server did not confirm success.\n\nCheck Railway logs for details.');
     }
@@ -771,7 +781,7 @@ async function deleteInvoice(id) {
   try {
     await API.del(`/invoices/${id}`);
     loadBilling();
-    showUndoToast(`Invoice ${label} deleted`, async () => {
+    showUndoToast(`🗑️ Poof! Invoice ${label} deleted`, async () => {
       try {
         await API.post(`/invoices/${id}/restore`, {});
         loadBilling();
@@ -787,10 +797,13 @@ async function deleteInvoice(id) {
 // Send a single invoice summary as a Twilio SMS.
 async function smsInvoice(id) {
   if (!confirm('Send this invoice summary by SMS to the tenant?')) return;
+  const smsToast = showStatusToast('📱', 'Sending message...');
   try {
     const r = await API.post(`/invoices/${id}/sms`, {});
-    alert(`SMS sent to ${r.sentTo}.`);
+    smsToast.update('✅', `Message sent to ${r.sentTo}!`);
+    smsToast.hide(3000);
   } catch (err) {
+    smsToast.hide(0);
     alert('SMS failed: ' + (err.message || 'unknown error'));
   }
 }
@@ -798,8 +811,11 @@ async function smsInvoice(id) {
 // Text every tenant with an outstanding balance.
 async function sendUnpaidPaymentReminders() {
   if (!confirm('Send a payment reminder SMS to every tenant with an outstanding balance?')) return;
+  const remToast = showStatusToast('📱', 'Sending reminders...');
   try {
     const r = await API.post('/invoices/sms-unpaid', {});
+    remToast.update('✅', 'Reminders sent!');
+    remToast.hide(3000);
     let msg = `Payment reminders complete.\n\n`;
     msg += `Unpaid tenants: ${r.totalUnpaid}\n`;
     msg += `Sent: ${r.sent}\n`;

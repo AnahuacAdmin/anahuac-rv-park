@@ -1,5 +1,55 @@
 let currentPage = 'dashboard';
 
+// --- Fun UI Celebrations & Status Toasts ---
+function showCelebration(emoji, text, duration = 3000) {
+  const el = document.createElement('div');
+  el.className = 'celebration-overlay';
+  el.innerHTML = `<div class="celebration-content"><div class="celebration-emoji">${emoji}</div><div class="celebration-text">${text}</div></div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('visible'));
+  setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 400); }, duration);
+}
+
+function showStatusToast(emoji, text) {
+  let el = document.getElementById('status-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'status-toast';
+    el.className = 'status-toast';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `${emoji} ${text}`;
+  el.classList.add('visible');
+  return {
+    update: (newEmoji, newText) => { el.innerHTML = `${newEmoji} ${newText}`; },
+    hide: (delay = 2000) => { setTimeout(() => { el.classList.remove('visible'); }, delay); },
+  };
+}
+
+function getTimeGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning ☀️';
+  if (h < 17) return 'Good afternoon 🌤️';
+  return 'Good evening 🌙';
+}
+
+const DAILY_TIPS = [
+  '💡 Tip: Use Mobile Entry mode on the Meter Readings page to speed up monthly readings.',
+  '💡 Tip: Click any lot on the Site Map to see tenant details and billing history.',
+  '💡 Tip: Set recurring fees on a tenant to auto-apply them on every invoice.',
+  '💡 Tip: Use the Tax Reports button in Billing for a year-end financial summary.',
+  '💡 Tip: Back up your database regularly from the Admin page.',
+  '💡 Tip: The Check Late Fees button auto-applies $25 fees to invoices 3+ days old.',
+  '💡 Tip: Export invoices to Excel for easy spreadsheet analysis.',
+  '💡 Tip: Send payment reminders via SMS to all unpaid tenants with one click.',
+  '💡 Tip: Use the QR code on invoices so tenants can pay online instantly.',
+  '💡 Tip: The Recurring Fees Summary on the Tenants page shows all auto-charges at a glance.',
+];
+function getDailyTip() {
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  return DAILY_TIPS[dayOfYear % DAILY_TIPS.length];
+}
+
 // --- PWA: Service Worker Registration & Install Prompt ---
 let _deferredInstallPrompt = null;
 
@@ -363,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (params.get('paid') === '1') {
-    setTimeout(() => alert(`Payment successful for invoice ${params.get('invoice') || ''}. Thank you!`), 200);
+    setTimeout(() => showCelebration('🎉💰', `Paid in Full! Invoice ${params.get('invoice') || ''}`), 200);
     history.replaceState({}, '', location.pathname);
   } else if (params.get('paid') === 'cancelled') {
     setTimeout(() => alert(`Payment cancelled for invoice ${params.get('invoice') || ''}.`), 200);
