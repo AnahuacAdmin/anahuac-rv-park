@@ -1,5 +1,22 @@
+async function fetchWeather() {
+  try {
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.7724&longitude=-94.6799&current=temperature_2m,weathercode,windspeed_10m,relative_humidity_2m&temperature_unit=fahrenheit&windspeed_unit=mph');
+    const d = await r.json();
+    const c = d.current;
+    const code = c.weathercode;
+    let emoji = '☀️', condition = 'Clear';
+    if (code >= 1 && code <= 3) { emoji = '🌤️'; condition = 'Partly Cloudy'; }
+    else if (code >= 45 && code <= 48) { emoji = '🌫️'; condition = 'Foggy'; }
+    else if (code >= 51 && code <= 67) { emoji = '🌧️'; condition = 'Rainy'; }
+    else if (code >= 71 && code <= 77) { emoji = '❄️'; condition = 'Snow'; }
+    else if (code >= 80 && code <= 82) { emoji = '🌦️'; condition = 'Showers'; }
+    else if (code >= 95) { emoji = '⛈️'; condition = 'Thunderstorm'; }
+    return { temp: Math.round(c.temperature_2m), wind: Math.round(c.windspeed_10m), humidity: c.relative_humidity_2m, emoji, condition };
+  } catch (e) { return null; }
+}
+
 async function loadDashboard() {
-  const data = await API.get('/dashboard');
+  const [data, weather] = await Promise.all([API.get('/dashboard'), fetchWeather()]);
   if (!data) return;
 
   const revTrend = data.lastMonthRevenue > 0
@@ -10,11 +27,24 @@ async function loadDashboard() {
 
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('dashboard')}
+    ${weather ? `
+    <div class="dash-weather">
+      <div class="dash-weather-main">
+        <span class="dash-weather-emoji">${weather.emoji}</span>
+        <span class="dash-weather-temp">${weather.temp}°F</span>
+        <span class="dash-weather-cond">${weather.condition}</span>
+      </div>
+      <div class="dash-weather-details">
+        <span>💨 Wind: ${weather.wind} mph</span>
+        <span>💧 Humidity: ${weather.humidity}%</span>
+      </div>
+      <div class="dash-weather-loc">
+        <strong>Anahuac, TX</strong>
+        <div>${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+      </div>
+    </div>` : ''}
     <div class="page-header">
       <h2>${getTimeGreeting()}, ${API.user?.username || 'Admin'}!</h2>
-      <div style="text-align:right;font-size:0.85rem;color:var(--gray-500)">
-        ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-      </div>
     </div>
 
     <!-- Top Stats Bar -->
