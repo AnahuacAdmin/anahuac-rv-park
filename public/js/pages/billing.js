@@ -618,20 +618,23 @@ function invoiceStandardNotesHtml() {
 // Email Invoice — generates the PDF in the browser (html2pdf), then sends it
 // to the backend as base64 so nodemailer can attach it and send via Gmail.
 async function emailInvoice(id) {
-  console.log('emailInvoice called for id:', id, 'timestamp:', Date.now());
+  console.log('[EMAIL] emailInvoice called, id:', id, 'stack:', new Error().stack.split('\n').slice(1,4).join(' | '));
   if (!window._emailSendingIds) window._emailSendingIds = new Set();
-  if (window._emailSendingIds.has(id)) { console.log('BLOCKED duplicate for id:', id); alert('Already sending this invoice, please wait...'); return; }
+  if (window._emailSendingIds.has(id)) { console.log('[EMAIL] BLOCKED duplicate for id:', id); alert('Already sending this invoice, please wait...'); return; }
   window._emailSendingIds.add(id);
 
+  const emailBtn = document.querySelector(`button[onclick*="emailInvoice(${id})"]`);
+  if (emailBtn) { emailBtn.disabled = true; emailBtn.textContent = 'Sending...'; }
+
   const inv = await API.get(`/invoices/${id}`);
-  if (!inv) { window._emailSendingIds.delete(id); return; }
+  if (!inv) { window._emailSendingIds.delete(id); if (emailBtn) { emailBtn.disabled = false; emailBtn.textContent = 'Email'; } return; }
   if (!inv.email) {
     alert('No email address on file for this tenant. Add one on the Tenants page first.');
-    window._emailSendingIds.delete(id);
+    window._emailSendingIds.delete(id); if (emailBtn) { emailBtn.disabled = false; emailBtn.textContent = 'Email'; }
     return;
   }
   if (!confirm(`Send invoice ${inv.invoice_number} to ${inv.email}?`)) {
-    window._emailSendingIds.delete(id);
+    window._emailSendingIds.delete(id); if (emailBtn) { emailBtn.disabled = false; emailBtn.textContent = 'Email'; }
     return;
   }
 
@@ -693,6 +696,7 @@ async function emailInvoice(id) {
   } finally {
     wrap.remove();
     window._emailSendingIds.delete(id);
+    if (emailBtn) { emailBtn.disabled = false; emailBtn.textContent = 'Email'; }
   }
 }
 
