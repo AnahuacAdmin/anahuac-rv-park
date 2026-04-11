@@ -416,7 +416,7 @@ a { text-decoration: none; color: inherit; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
 .page-header h2 { font-size: 1.5rem; color: var(--gray-900); }
 .card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 1.25rem; margin-bottom: 1rem; }
-.billing-page-card { overflow-x: auto; overflow-y: visible; }
+.billing-page-card { display: flex; flex-direction: column; max-height: calc(100vh - 280px); }
 .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .stat-card { background: white; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -438,12 +438,12 @@ a { text-decoration: none; color: inherit; }
  
 /* Billing table: horizontal scroll with visible scrollbar */
 .billing-scroll {
+  flex: 1;
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 75vh;
+  max-height: none;
   position: relative;
   -webkit-overflow-scrolling: touch;
-  display: block;
   width: 100%;
   scrollbar-width: auto;
   scrollbar-color: #6b7280 var(--gray-200);
