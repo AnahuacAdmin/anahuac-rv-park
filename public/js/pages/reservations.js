@@ -131,14 +131,8 @@ function resForm(lots, r = {}) {
   return `
     <form onsubmit="saveReservation(event, ${r.id || 'null'})">
       <div class="form-row">
-        <div class="form-group">
-          <label>First Name</label>
-          <input name="first_name" placeholder="First name" value="${(r.guest_name || '').split(' ').slice(0,-1).join(' ') || (r.guest_name || '')}" required>
-        </div>
-        <div class="form-group">
-          <label>Last Name</label>
-          <input name="last_name" placeholder="Last name" value="${(r.guest_name || '').split(' ').slice(-1)[0] || ''}" required>
-        </div>
+        <div class="form-group"><label for="res-fname">First Name</label><input id="res-fname" name="first_name" placeholder="Enter first name" value="${r.guest_name ? r.guest_name.split(' ').slice(0,-1).join(' ') : ''}" required></div>
+        <div class="form-group"><label for="res-lname">Last Name</label><input id="res-lname" name="last_name" placeholder="Enter last name" value="${r.guest_name ? r.guest_name.split(' ').pop() : ''}" required></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Phone Number</label><input name="phone" value="${r.phone || ''}"></div>
