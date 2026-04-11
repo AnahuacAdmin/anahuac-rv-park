@@ -71,21 +71,29 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
-    rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
-    recurring_late_fee, recurring_mailbox_fee, recurring_misc_fee, recurring_misc_description,
-    recurring_credit, recurring_credit_description } = req.body;
+  const b = req.body;
+  const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
   db.prepare(`
     UPDATE tenants SET lot_id=?, first_name=?, last_name=?, phone=?, email=?, emergency_contact=?,
       emergency_phone=?, rv_make=?, rv_model=?, rv_year=?, rv_length=?, license_plate=?,
       monthly_rent=?, rent_type=?, move_in_date=?, notes=?,
       recurring_late_fee=?, recurring_mailbox_fee=?, recurring_misc_fee=?, recurring_misc_description=?,
-      recurring_credit=?, recurring_credit_description=?
+      recurring_credit=?, recurring_credit_description=?,
+      sms_opt_in=?, email_opt_in=?, invoice_delivery=?
     WHERE id = ?
-  `).run(lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
-    rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
-    recurring_late_fee || 0, recurring_mailbox_fee || 0, recurring_misc_fee || 0, recurring_misc_description,
-    recurring_credit || 0, recurring_credit_description, req.params.id);
+  `).run(
+    str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
+    str(b.emergency_contact), str(b.emergency_phone),
+    str(b.rv_make), str(b.rv_model), str(b.rv_year), str(b.rv_length), str(b.license_plate),
+    b.monthly_rent, b.rent_type, str(b.move_in_date), str(b.notes),
+    Number(b.recurring_late_fee) || 0, Number(b.recurring_mailbox_fee) || 0,
+    Number(b.recurring_misc_fee) || 0, str(b.recurring_misc_description),
+    Number(b.recurring_credit) || 0, str(b.recurring_credit_description),
+    b.sms_opt_in !== undefined ? (Number(b.sms_opt_in) || 0) : 1,
+    b.email_opt_in !== undefined ? (Number(b.email_opt_in) || 0) : 1,
+    b.invoice_delivery || 'both',
+    req.params.id
+  );
   res.json({ success: true });
 });
 

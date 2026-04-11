@@ -139,6 +139,29 @@ function tenantForm(lots, tenant = {}) {
         </div>
       </fieldset>
 
+      <fieldset style="border:1px solid #ddd;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
+        <legend><strong>Communication Preferences</strong></legend>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Invoice Delivery</label>
+            <select name="invoice_delivery">
+              <option value="both" ${(tenant.invoice_delivery || 'both') === 'both' ? 'selected' : ''}>Email + SMS</option>
+              <option value="email" ${tenant.invoice_delivery === 'email' ? 'selected' : ''}>Email Only</option>
+              <option value="sms" ${tenant.invoice_delivery === 'sms' ? 'selected' : ''}>SMS Only</option>
+              <option value="print" ${tenant.invoice_delivery === 'print' ? 'selected' : ''}>Print / Manual</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:0.5rem;margin-top:1.5rem">
+              <input type="checkbox" name="sms_opt_in" value="1" ${tenant.sms_opt_in !== 0 ? 'checked' : ''}> SMS Notifications
+            </label>
+            <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem">
+              <input type="checkbox" name="email_opt_in" value="1" ${tenant.email_opt_in !== 0 ? 'checked' : ''}> Email Notifications
+            </label>
+          </div>
+        </div>
+      </fieldset>
+
       <div class="form-group"><label>Notes</label><textarea name="notes">${tenant.notes || ''}</textarea></div>
       <button type="submit" class="btn btn-primary btn-full mt-2">${tenant.id ? 'Update' : 'Add'} Tenant</button>
     </form>
@@ -152,6 +175,9 @@ async function saveTenant(e, id) {
   data.monthly_rent = parseFloat(data.monthly_rent) || 0;
   ['recurring_late_fee','recurring_mailbox_fee','recurring_misc_fee','recurring_credit']
     .forEach(k => data[k] = parseFloat(data[k]) || 0);
+  data.sms_opt_in = data.sms_opt_in === '1' ? 1 : 0;
+  data.email_opt_in = data.email_opt_in === '1' ? 1 : 0;
+  data.invoice_delivery = data.invoice_delivery || 'both';
 
   if (id) {
     await API.put(`/tenants/${id}`, data);
