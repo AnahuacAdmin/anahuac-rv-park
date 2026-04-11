@@ -164,7 +164,10 @@ function renderMobileEntry() {
         </div>
 
         <div class="mobile-meter-photo-area">
-          ${_mobilePhoto ? `<img src="${_mobilePhoto}" class="mobile-meter-preview" alt="Meter photo" onclick="viewMobilePhoto()">` : ''}
+          ${_mobilePhoto ? `
+            <img src="${_mobilePhoto}" class="mobile-meter-preview" alt="Meter photo" onclick="viewMobilePhoto()">
+            <button type="button" class="btn btn-sm btn-danger" onclick="clearMobilePhoto()">&#10005; Delete</button>
+          ` : ''}
           <label class="btn btn-outline mobile-meter-camera-btn">
             &#128247; ${_mobilePhoto ? 'Retake' : 'Take Photo'}
             <input type="file" accept="image/*" capture="environment" style="display:none" onchange="captureMeterPhoto(this)">
@@ -237,6 +240,11 @@ function captureMeterPhoto(input) {
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+function clearMobilePhoto() {
+  _mobilePhoto = null;
+  renderMobileEntry();
 }
 
 function viewMobilePhoto() {
