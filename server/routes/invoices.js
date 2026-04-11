@@ -7,6 +7,7 @@ const { sendSms } = require('../twilio');
 router.use(authenticate);
 
 const FROM_ADDRESS = 'Anahuac RV Park <onboarding@resend.dev>';
+const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
 // Lazily create a single Resend client so a missing key doesn't crash boot.
 let _resend = null;
@@ -52,7 +53,10 @@ Due:       ${invoice.due_date}
 Total:     $${total}
 Balance:   $${balance}
 
-Thank you for being part of our community. If you have any questions about this invoice, please reply to this email or call us at 409-267-6603.
+You can pay your invoice online at: ${APP_URL}/?pay=${invoice.id}
+Note: A 3% convenience fee applies to card payments.
+
+Thank you for being part of our community. If you have any questions about this invoice, call us at 409-267-6603.
 
 Warm regards,
 Anahuac RV Park, LLC
@@ -69,7 +73,11 @@ Anahuac RV Park, LLC
         <tr><td><strong>Total:</strong></td><td>$${total}</td></tr>
         <tr><td><strong>Balance:</strong></td><td>$${balance}</td></tr>
       </table>
-      <p>Thank you for being part of our community. If you have any questions about this invoice, please reply to this email or call us at 409-267-6603.</p>
+      <div style="text-align:center;margin:1.5rem 0">
+        <a href="${APP_URL}/?pay=${invoice.id}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:700;letter-spacing:0.5px">Pay Your Invoice Online</a>
+        <p style="font-size:12px;color:#666;margin-top:8px">A 3% convenience fee applies to credit/debit card payments.</p>
+      </div>
+      <p>Thank you for being part of our community. If you have any questions about this invoice, call us at 409-267-6603.</p>
       <p>Warm regards,<br>
       Anahuac RV Park, LLC<br>
       1003 Davis Ave, Anahuac, TX 77514<br>

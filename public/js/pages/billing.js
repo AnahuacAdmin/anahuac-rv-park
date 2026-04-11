@@ -458,7 +458,7 @@ function _pdfOptions(invoiceNumber) {
     margin:       [0.4, 0.4, 0.5, 0.4],
     filename:     `Invoice-${invoiceNumber}.pdf`,
     image:        { type: 'jpeg', quality: 0.95 },
-    html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+    html2canvas:  { scale: 1.5, useCORS: true, backgroundColor: '#ffffff' },
     jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
     pagebreak:    { mode: ['css', 'legacy'], avoid: ['.invoice-standard-notes', '.invoice-qr-section', '.line-items'] },
   };
@@ -475,10 +475,10 @@ async function downloadInvoicePdf(id) {
   const inv = await API.get(`/invoices/${id}`);
   if (!inv) return;
   const wrap = document.createElement('div');
-  wrap.style.position = 'fixed';
+  wrap.style.position = 'absolute';
   wrap.style.left = '-10000px';
   wrap.style.top = '0';
-  wrap.style.width = '8.5in';
+  wrap.style.maxWidth = '750px';
   wrap.style.background = '#fff';
   wrap.innerHTML = await renderInvoiceHtml(inv);
   document.body.appendChild(wrap);
@@ -589,12 +589,12 @@ async function generateQrDataUrl(text) {
 
 function invoiceStandardNotesHtml() {
   return `
-    <div class="invoice-standard-notes" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #ccc;font-size:0.85rem;line-height:1.5;color:#374151;page-break-inside:avoid">
+    <div class="invoice-standard-notes" style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #ccc;font-size:0.78rem;line-height:1.3;color:#374151;page-break-inside:avoid">
       <p>We would appreciate it if you could make arrangements to complete payment as soon as possible.</p>
       <p>If payment is not received within 3 days from the date of this invoice a $25.00 fee will be applied.</p>
       <p>If payment is not received within 5 days of this invoice, an eviction notice will be served.</p>
       <p>Please do not hesitate to call us if you have any questions about the balance due on your account. If you have already sent us your payment, please disregard.</p>
-      <ul style="margin:0.75rem 0 0.75rem 1.25rem;padding:0">
+      <ul style="margin:0.3rem 0 0.3rem 1.25rem;padding:0">
         <li>Please pay by debit/credit card or deliver payment into night deposit box located at the front of the warehouse, if we are not available to receive payment by phone.</li>
         <li>If paying with credit card a 3% charge will be applied.</li>
       </ul>
@@ -616,10 +616,10 @@ async function emailInvoice(id) {
 
   // Render the invoice HTML offscreen and convert to a PDF Blob, then to base64.
   const wrap = document.createElement('div');
-  wrap.style.position = 'fixed';
+  wrap.style.position = 'absolute';
   wrap.style.left = '-10000px';
   wrap.style.top = '0';
-  wrap.style.width = '8.5in';
+  wrap.style.maxWidth = '750px';
   wrap.style.background = '#fff';
   wrap.innerHTML = await renderInvoiceHtml(inv);
   document.body.appendChild(wrap);
