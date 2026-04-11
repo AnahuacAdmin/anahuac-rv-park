@@ -443,39 +443,22 @@ a { text-decoration: none; color: inherit; }
 .dash-fade-in { animation: dashFadeIn 0.5s ease-out both; }
 @keyframes dashFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* Dashboard weather widget */
+/* Dashboard weather banner (compact) */
 .dash-weather {
   background: linear-gradient(135deg, #1a3a12, #2c6e1f);
-  color: #fff; border-radius: 14px; padding: 1.5rem 2rem;
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;
-  box-shadow: 0 6px 24px rgba(26, 58, 18, 0.4);
-  position: relative; overflow: hidden;
+  color: #fff; border-radius: 8px; padding: 0.5rem 1rem;
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.5rem; flex-wrap: wrap;
+  margin-bottom: 0.75rem; font-size: 0.85rem;
+  box-shadow: 0 2px 8px rgba(26, 58, 18, 0.3);
 }
-.dash-weather-shimmer {
-  position: absolute; top: 0; left: -100%; width: 200%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
-  animation: weatherShimmer 3s ease-in-out 0.5s 1;
-}
-@keyframes weatherShimmer { to { left: 100%; } }
-.dash-weather-main { display: flex; align-items: center; gap: 0.75rem; }
-.dash-weather-emoji { font-size: 4rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
-.dash-weather-temp { font-size: 3rem; font-weight: 800; line-height: 1; }
-.dash-weather-cond { font-size: 1.1rem; opacity: 0.85; }
-.dash-weather-details { display: flex; flex-direction: column; gap: 0.4rem; }
-.dash-weather-pill {
-  background: rgba(255,255,255,0.15); border-radius: 20px; padding: 0.35rem 0.85rem;
-  font-size: 0.9rem; backdrop-filter: blur(4px);
-}
-.dash-weather-loc { text-align: right; font-size: 0.9rem; opacity: 0.85; }
-.dash-weather-loc strong { font-size: 1rem; display: block; }
+.dash-weather strong { font-size: 0.95rem; }
+.dash-weather-sep { opacity: 0.4; }
+.dash-weather-detail { opacity: 0.9; }
 @media (max-width: 768px) {
-  .dash-weather { flex-direction: column; text-align: center; padding: 1.25rem; }
-  .dash-weather-main { justify-content: center; }
-  .dash-weather-emoji { font-size: 3rem; }
-  .dash-weather-temp { font-size: 2.2rem; }
-  .dash-weather-details { flex-direction: row; gap: 0.5rem; }
-  .dash-weather-loc { text-align: center; }
+  .dash-weather { font-size: 0.78rem; padding: 0.4rem 0.75rem; }
+  .dash-weather-detail { display: none; }
+  .dash-weather-sep { display: none; }
 }
 
 /* Dashboard redesign */

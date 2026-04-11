@@ -9,9 +9,24 @@ async function loadAdmin() {
   const [info, settings] = await Promise.all([API.get('/admin/backup-info'), API.get('/settings')]);
   const lastBackup = info?.lastBackupAt ? new Date(info.lastBackupAt).toLocaleString() : 'Never';
   const wifiPassword = settings?.wifi_password || '';
+  const electricRate = settings?.electric_rate || '0.15';
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header"><h2>Admin &amp; Backup</h2></div>
+
+    <div class="card" style="border-left:4px solid #f59e0b">
+      <h3>⚡ Electric Rate</h3>
+      <p><small>Rate per kWh used for all meter reading calculations and invoices.</small></p>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label>Rate per kWh ($)</label>
+          <input type="number" step="0.01" id="electric-rate-input" value="${electricRate}" style="font-size:1.2rem;font-weight:700;max-width:150px">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" onclick="saveElectricRate()">Save Rate</button>
+        </div>
+      </div>
+    </div>
 
     <div class="card">
       <h3>WiFi Password</h3>
@@ -44,6 +59,18 @@ async function loadAdmin() {
       <button class="btn btn-success mt-1" onclick="exportAllDataToExcel()">Export All Data to Excel</button>
     </div>
   `;
+}
+
+async function saveElectricRate() {
+  const val = document.getElementById('electric-rate-input')?.value || '0.15';
+  try {
+    await API.put('/settings', { electric_rate: val });
+    showStatusToast('✅', `Electric rate saved: $${val}/kWh`);
+    const t = document.querySelector('.status-toast.visible');
+    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
+  } catch (err) {
+    alert('Failed to save: ' + (err.message || 'unknown'));
+  }
 }
 
 async function saveWifiPassword() {

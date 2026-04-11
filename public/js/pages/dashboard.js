@@ -38,7 +38,6 @@ async function loadDashboard() {
     : 0;
   const trendIcon = revTrend >= 0 ? '↑' : '↓';
   const trendColor = revTrend >= 0 ? '#16a34a' : '#dc2626';
-  const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('dashboard')}
@@ -46,23 +45,15 @@ async function loadDashboard() {
     <!-- Weather -->
     ${weather ? `
     <div class="dash-weather dash-fade-in">
-      <div class="dash-weather-shimmer"></div>
-      <div class="dash-weather-main">
-        <span class="dash-weather-emoji">${weather.emoji}</span>
-        <div>
-          <div class="dash-weather-temp">${weather.temp}°F</div>
-          <div class="dash-weather-cond">${weather.condition}</div>
-        </div>
-      </div>
-      <div class="dash-weather-details">
-        <span class="dash-weather-pill">💨 ${weather.wind} mph</span>
-        <span class="dash-weather-pill">💧 ${weather.humidity}%</span>
-      </div>
-      <div class="dash-weather-loc">
-        <strong>Anahuac, TX</strong>
-        <div>${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
-        <div id="dash-clock">${timeStr}</div>
-      </div>
+      <span>${weather.emoji} <strong>${weather.temp}°F</strong> ${weather.condition}</span>
+      <span class="dash-weather-sep">|</span>
+      <span class="dash-weather-detail">💨 ${weather.wind}mph</span>
+      <span class="dash-weather-sep">|</span>
+      <span class="dash-weather-detail">💧 ${weather.humidity}%</span>
+      <span class="dash-weather-sep">|</span>
+      <span class="dash-weather-detail">Anahuac, TX</span>
+      <span class="dash-weather-sep">|</span>
+      <span class="dash-weather-detail">${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
     </div>` : ''}
 
     <div class="page-header dash-fade-in" style="animation-delay:0.05s">
@@ -160,12 +151,6 @@ async function loadDashboard() {
 
     <div class="daily-tip dash-fade-in" style="animation-delay:0.6s">💡 ${getDailyTip().replace('💡 ', '')}</div>
   `;
-
-  // Live clock update
-  setInterval(() => {
-    const el = document.getElementById('dash-clock');
-    if (el) el.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  }, 60000);
 
   setTimeout(() => renderDashboardCharts(data), 150);
 }
