@@ -121,8 +121,9 @@ function filterReservations(status) {
 }
 
 async function showNewReservation() {
-  const lots = await API.get('/lots');
-  showModal('New Reservation', resForm(lots));
+  const [lots, settings] = await Promise.all([API.get('/lots'), API.get('/settings')]);
+  const nightly_rate = settings?.reservation_nightly_rate || settings?.reservation_rate || 50;
+  showModal('New Reservation', resForm(lots, { rate_per_night: nightly_rate }));
 }
 
 function resForm(lots, r = {}) {
@@ -379,7 +380,8 @@ function renderCalendar() {
 let _groupLotCount = 0;
 
 async function showGroupReservation() {
-  const lots = await API.get('/lots');
+  const [lots, settings] = await Promise.all([API.get('/lots'), API.get('/settings')]);
+  const nightly_rate = settings?.reservation_nightly_rate || settings?.reservation_rate || 50;
   _groupLotCount = 0;
   const today = new Date().toISOString().split('T')[0];
   showModal('👨‍👩‍👧‍👦 Group Reservation', `
@@ -407,7 +409,7 @@ async function showGroupReservation() {
         <div class="form-group"><label>Departure Date</label><input name="departure_date" type="date" required></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Rate per Night ($)</label><input name="rate_per_night" type="number" step="0.01" value="50"></div>
+        <div class="form-group"><label>Rate per Night ($)</label><input name="rate_per_night" type="number" step="0.01" value="${nightly_rate}"></div>
         <div class="form-group">
           <label>Billing Type</label>
           <select name="billing_type">
