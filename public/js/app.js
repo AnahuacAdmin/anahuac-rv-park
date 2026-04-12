@@ -597,26 +597,9 @@ function toggleHelp(id) {
 
 const APP_URL = window.location.origin;
 
-async function openPortalPreview() {
-  // Open window FIRST (synchronous, preserves user gesture for popup blocker)
-  var win = window.open('about:blank', '_blank');
-  try {
-    var token = API.token || localStorage.getItem('rv_token') || '';
-    var res = await fetch('/api/portal/admin-preview', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    var data = await res.json();
-    if (data.token && win) {
-      win.location.href = '/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant));
-    } else if (win) {
-      win.location.href = '/portal.html';
-    }
-  } catch (err) {
-    console.error('Portal preview error:', err);
-    if (win) win.location.href = '/portal.html';
-  }
+function openPortalPreview() {
+  var win = window.open('/portal.html', '_blank');
+  if (!win) window.location.href = '/portal.html';
 }
 
 function spinAndReload(btn) {

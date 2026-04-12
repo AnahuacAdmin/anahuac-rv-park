@@ -93,13 +93,15 @@ async function getCache(key) {
 let _isOnline = navigator.onLine;
 let _syncInterval = null;
 let _lastSyncTime = null;
+let _wasEverOffline = false; // Only show "back online" if we were actually offline
 
 function isOffline() { return !_isOnline; }
 
 function showOfflineBanner() {
-  // Double-check: don't show if actually online
-  if (navigator.onLine) { hideOfflineBanner(); return; }
-  let banner = document.getElementById('offline-banner');
+  // Never show if actually online
+  if (navigator.onLine) return;
+  _wasEverOffline = true;
+  var banner = document.getElementById('offline-banner');
   if (!banner) {
     banner = document.createElement('div');
     banner.id = 'offline-banner';
@@ -111,27 +113,31 @@ function showOfflineBanner() {
 }
 
 function showOnlineBanner() {
-  const banner = document.getElementById('offline-banner');
+  // Only show "back online" if we were actually offline before
+  if (!_wasEverOffline) return;
+  var banner = document.getElementById('offline-banner');
   if (banner) {
     banner.style.background = 'linear-gradient(135deg,#16a34a,#22c55e)';
     banner.style.color = '#fff';
     banner.innerHTML = '✅ Back online! Syncing data...';
-    setTimeout(() => { banner.style.display = 'none'; }, 3000);
+    banner.style.display = '';
+    setTimeout(function() { banner.style.display = 'none'; }, 3000);
   }
+  _wasEverOffline = false;
 }
 
 function hideOfflineBanner() {
-  const banner = document.getElementById('offline-banner');
+  var banner = document.getElementById('offline-banner');
   if (banner) banner.style.display = 'none';
 }
 
-window.addEventListener('online', () => {
+window.addEventListener('online', function() {
   _isOnline = true;
   showOnlineBanner();
   syncPendingRecords();
 });
 
-window.addEventListener('offline', () => {
+window.addEventListener('offline', function() {
   _isOnline = false;
   showOfflineBanner();
 });
@@ -273,20 +279,22 @@ function patchApiForOffline() {
 
 // --- Initialize ---
 function initOfflineMode() {
-  // Re-check online status at init time (may have changed since script load)
   _isOnline = navigator.onLine;
-  openOfflineDb().then(() => {
+  openOfflineDb().then(function() {
     updateSyncBadge();
     startSyncEngine();
     patchApiForOffline();
-    if (!_isOnline) {
+    // Only show offline banner if genuinely offline — never on normal page load
+    if (!navigator.onLine) {
       showOfflineBanner();
-    } else {
+    }
+    // Always hide any stale banner when online
+    if (navigator.onLine) {
       hideOfflineBanner();
     }
-    console.log('[offline] engine initialized, online=' + _isOnline);
-  }).catch(err => {
-    console.error('[offline] failed to initialize:', err);
+    console.log('[offline] initialized, online=' + navigator.onLine);
+  }).catch(function(err) {
+    console.error('[offline] init failed:', err);
   });
 }
 
