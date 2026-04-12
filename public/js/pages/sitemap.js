@@ -21,11 +21,11 @@ async function loadSiteMap() {
     ${helpPanel('sitemap')}
     <div class="page-header"><h2>Site Map</h2></div>
     <div class="sitemap-legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#eff6ff;border:2px solid var(--primary)"></div> Occupied</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#f0fdf4;border:2px solid var(--success)"></div> Vacant</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f0fdf4;border:2px solid var(--brand-primary, #1a5c32)"></div> Occupied</div>
+      <div class="legend-item"><div class="legend-dot" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid var(--success)"></div> Vacant</div>
       <div class="legend-item"><div class="legend-dot" style="background:var(--gray-100);border:2px solid var(--gray-500)"></div> Owner Reserved</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#fff;border:3px solid #dc2626"></div> Unpaid / Overdue</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#fff;border:3px solid #eab308"></div> Partial Payment</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fee2e2;border:3px solid #dc2626"></div> Unpaid / Overdue</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fef3c7;border:3px solid #eab308"></div> Partial Payment</div>
     </div>
     ${Object.entries(rows).map(([letter, rowLots]) => `
       <div class="sitemap-row-label">Row ${letter}</div>

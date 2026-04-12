@@ -82,7 +82,7 @@ async function loadDashboard() {
         <div class="dash-top-icon">🏠</div>
         <span class="dash-top-val">${data.occupancyRate}%</span>
         <span class="dash-top-label">Occupancy</span>
-        <span class="dash-trend" style="color:#2563eb">${data.occupied}/${data.totalLots - data.reserved} lots</span>
+        <span class="dash-trend" style="color:#0284c7">${data.occupied}/${data.totalLots - data.reserved} lots</span>
       </div>
       ${isAdmin() ? `
       <div class="dash-top-item dash-fade-in dash-border-red" onclick="navigateTo('billing')" style="animation-delay:0.2s">
@@ -203,6 +203,33 @@ async function loadDashboard() {
 
   setTimeout(() => renderDashboardCharts(data), 150);
 
+  // Count-up animation for stat values
+  setTimeout(() => {
+    document.querySelectorAll('.dash-top-val').forEach(el => {
+      const text = el.textContent.trim();
+      const isPercent = text.endsWith('%');
+      const isMoney = text.startsWith('$');
+      let target = parseFloat(text.replace(/[$,%]/g, ''));
+      if (isNaN(target) || target === 0) return;
+      const duration = 800;
+      const start = performance.now();
+      const fmt = (v) => {
+        if (isMoney) return '$' + v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        if (isPercent) return Math.round(v) + '%';
+        return Math.round(v).toString();
+      };
+      el.textContent = fmt(0);
+      const animate = (now) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = fmt(target * eased);
+        if (progress < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    });
+  }, 200);
+
   // Health monitor (admin only)
   if (isAdmin()) {
     refreshHealth();
@@ -262,7 +289,7 @@ function renderDashboardCharts(data) {
   const revCtx = document.getElementById('revenueChart')?.getContext('2d');
   if (revCtx) {
     const greenGrad = revCtx.createLinearGradient(0, 0, 0, 220);
-    greenGrad.addColorStop(0, '#16a34a'); greenGrad.addColorStop(1, '#86efac');
+    greenGrad.addColorStop(0, '#1a5c32'); greenGrad.addColorStop(1, '#86efac');
     const redGrad = revCtx.createLinearGradient(0, 0, 0, 220);
     redGrad.addColorStop(0, '#dc2626'); redGrad.addColorStop(1, '#fca5a5');
     new Chart(revCtx, {
@@ -291,7 +318,7 @@ function renderDashboardCharts(data) {
       type: 'doughnut',
       data: {
         labels: ['Occupied', 'Vacant', 'Reserved'],
-        datasets: [{ data: [data.occupied, data.vacant, data.reserved], backgroundColor: ['#2563eb', '#16a34a', '#9ca3af'], borderWidth: 2, borderColor: '#fff' }],
+        datasets: [{ data: [data.occupied, data.vacant, data.reserved], backgroundColor: ['#1a5c32', '#f59e0b', '#a8a29e'], borderWidth: 2, borderColor: '#fff' }],
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: '70%',

@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#2c4a1e">
+  <meta name="theme-color" content="#1a5c32">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="RV Park">
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/park_Logo.png">
   <title>Anahuac RV Park Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body class="login-page">
@@ -70,7 +73,7 @@
     <div id="main-app" style="display:none">
       <header class="mobile-header">
         <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Open menu">&#9776;</button>
-        <h2>Anahuac RV Park</h2>
+        <h2>🐊 Anahuac RV Park</h2>
       </header>
       <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
       <nav id="sidebar">
@@ -79,33 +82,45 @@
           <button id="menu-toggle" class="menu-btn">&#9776;</button>
         </div>
         <div class="sidebar-search" onclick="event.stopPropagation()">
-          <input type="text" id="global-search" placeholder="Search tenants, lots, invoices..." autocomplete="off" oninput="onSearchInput(this.value)" onkeydown="searchKeydown(event)">
+          <input type="text" id="global-search" placeholder="🔍 Search tenants, lots, invoices..." autocomplete="off" oninput="onSearchInput(this.value)" onkeydown="searchKeydown(event)">
           <div id="search-results" class="search-results"></div>
         </div>
         <ul class="nav-menu">
           <li><a href="#" data-page="dashboard" class="nav-link active">🐊 Dashboard</a></li>
           <li><a href="#" data-page="sitemap" class="nav-link">🗺️ Site Map</a></li>
-          <li class="nav-group">
-            <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">👥 Guest Management <span class="nav-caret">&#9662;</span></a>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Guest Management</li>
+          <li class="nav-group open">
+            <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">👥 Guests <span class="nav-caret">&#9662;</span></a>
             <ul class="nav-sub">
               <li><a href="#" data-page="tenants" class="nav-link">👤 Tenants</a></li>
               <li><a href="#" data-page="checkins" class="nav-link">✅ Check-In/Out</a></li>
               <li><a href="#" data-page="reservations" class="nav-link">📅 Reservations</a></li>
             </ul>
           </li>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Operations</li>
           <li><a href="#" data-page="meters" class="nav-link">⚡ Meter Readings</a></li>
           <li><a href="#" data-page="electric" class="nav-link">📊 Electric Analytics</a></li>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Financial</li>
           <li><a href="#" data-page="billing" class="nav-link">💰 Billing & Invoices</a></li>
           <li><a href="#" data-page="payments" class="nav-link">💳 Payments</a></li>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Communication</li>
           <li><a href="#" data-page="messages" class="nav-link">📨 Messaging</a></li>
           <li><a href="#" data-page="waitlist" class="nav-link">📋 Waitlist</a></li>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600;display:none" id="nav-admin-divider">Administration</li>
           <li><a href="#" data-page="reports" class="nav-link" id="nav-reports" style="display:none">📊 Reports</a></li>
           <li><a href="#" data-page="users" class="nav-link" id="nav-users" style="display:none">👥 Users</a></li>
           <li><a href="#" data-page="admin" class="nav-link" id="nav-admin" style="display:none">🔧 Admin</a></li>
         </ul>
         <div class="sidebar-footer">
-          <button id="change-password-btn" class="btn btn-outline btn-full" style="margin-bottom:0.5rem">Change Password</button>
-          <button id="logout-btn" class="btn btn-outline btn-full">Logout</button>
+          <div id="sidebar-user-info" style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem;padding:0.5rem;background:rgba(255,255,255,0.05);border-radius:10px">
+            <div id="sidebar-avatar" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:800;color:#1c1917;flex-shrink:0">AD</div>
+            <div style="flex:1;min-width:0">
+              <div id="sidebar-username" style="font-size:0.82rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Admin</div>
+              <div id="sidebar-role" style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.05em">Administrator</div>
+            </div>
+          </div>
+          <button id="change-password-btn" class="btn btn-outline btn-full" style="margin-bottom:0.5rem">🔒 Change Password</button>
+          <button id="logout-btn" class="btn btn-outline btn-full">🚪 Logout</button>
         </div>
       </nav>
       <main id="content">

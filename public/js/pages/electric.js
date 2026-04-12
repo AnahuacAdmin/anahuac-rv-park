@@ -71,7 +71,7 @@ function renderElectricChart(data) {
   const ctx = document.getElementById('electricChart')?.getContext('2d');
   if (!ctx || typeof Chart === 'undefined') return;
 
-  const colors = ['#2563eb','#dc2626','#16a34a','#f59e0b','#7c3aed','#06b6d4','#f97316','#ec4899','#84cc16','#6366f1',
+  const colors = ['#1a5c32','#dc2626','#f59e0b','#0284c7','#7c3aed','#06b6d4','#f97316','#ec4899','#84cc16','#6366f1',
     '#14b8a6','#e11d48','#a855f7','#0ea5e9','#facc15','#fb923c','#4ade80','#c084fc','#38bdf8','#fbbf24'];
   const labels = data.history.map(h => h.label);
   const datasets = data.allLots.slice(0, 20).map((lot, i) => ({
@@ -137,7 +137,7 @@ async function loadLotDetail(lotId) {
       type: 'bar',
       data: {
         labels: data.monthly.map(m => { const d = new Date(m.ym + '-15'); return d.toLocaleString('default', { month: 'short', year: '2-digit' }); }),
-        datasets: [{ label: 'KWH Used', data: data.monthly.map(m => m.kwh), backgroundColor: '#2563eb80', borderColor: '#2563eb', borderWidth: 1, borderRadius: 4 }],
+        datasets: [{ label: 'KWH Used', data: data.monthly.map(m => m.kwh), backgroundColor: '#1a5c3280', borderColor: '#1a5c32', borderWidth: 1, borderRadius: 4 }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,

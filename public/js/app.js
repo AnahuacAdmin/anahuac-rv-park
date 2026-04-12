@@ -265,7 +265,17 @@ function escapeHtml(s) {
 
 function showPageLoading() {
   const el = document.getElementById('page-content');
-  if (el) el.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;padding:3rem"><div class="loading-spinner"></div></div>';
+  if (el) el.innerHTML = `
+    <div style="padding:0.5rem 0">
+      <div class="skeleton-pulse" style="height:28px;width:200px;margin-bottom:1.5rem"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem">
+        <div class="skeleton-pulse" style="height:110px"></div>
+        <div class="skeleton-pulse" style="height:110px"></div>
+        <div class="skeleton-pulse" style="height:110px"></div>
+        <div class="skeleton-pulse" style="height:110px"></div>
+      </div>
+      <div class="skeleton-pulse" style="height:300px"></div>
+    </div>`;
 }
 
 function showShareApp() {
@@ -333,6 +343,10 @@ function navigateTo(page) {
   const sidebar = document.getElementById('sidebar');
   sidebar.classList.remove('open');
   document.getElementById('sidebar-backdrop')?.classList.remove('open');
+  // Scroll to top on page change
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Show skeleton loading
+  showPageLoading();
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, electric: loadElectric, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
@@ -453,6 +467,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const isStaff = API.user?.role === 'staff';
     // Admin-only nav items
     document.querySelectorAll('#nav-users, #nav-admin, #nav-reports').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
+    const adminDiv = document.getElementById('nav-admin-divider');
+    if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
     // Financial nav items — hidden for staff
     document.querySelectorAll('[data-page="billing"], [data-page="payments"]').forEach(el => {
       const li = el.closest('li');
@@ -463,6 +479,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const li = el.closest('li');
       if (li) li.style.display = isStaff ? 'none' : '';
     });
+    // Update sidebar user info
+    updateSidebarUser();
+  }
+  function updateSidebarUser() {
+    const u = API.user;
+    if (!u) return;
+    const name = u.username || 'User';
+    const role = u.role || 'user';
+    const initials = name.slice(0, 2).toUpperCase();
+    const avatarEl = document.getElementById('sidebar-avatar');
+    const nameEl = document.getElementById('sidebar-username');
+    const roleEl = document.getElementById('sidebar-role');
+    if (avatarEl) avatarEl.textContent = initials;
+    if (nameEl) nameEl.textContent = name;
+    if (roleEl) roleEl.textContent = role === 'admin' ? 'Administrator' : role === 'staff' ? 'Staff' : 'Manager';
   }
   refreshUsersNavVisibility();
   // Re-check after login

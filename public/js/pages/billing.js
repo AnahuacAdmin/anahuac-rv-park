@@ -25,7 +25,7 @@ async function loadBilling() {
     </div>` : '';
 
   const rateLegend = `<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.75rem">
-    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#2563eb;margin-right:3px"></span>Monthly</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#1a5c32;margin-right:3px"></span>Monthly</span>
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#7c3aed;margin-right:3px"></span>Weekly</span>
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f59e0b;margin-right:3px"></span>Daily</span>
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#eab308;margin-right:3px"></span>Prorated</span>
@@ -94,7 +94,7 @@ function renderInvoiceRow(inv) {
   if (inv.deleted) return renderDeletedInvoiceRow(inv);
   const _t = (window._billingTenants || []).find(x => x.id === inv.tenant_id);
   const _rt = _t?.rent_type || 'monthly';
-  const _rtColor = { monthly:'#2563eb', weekly:'#7c3aed', daily:'#f59e0b', prorated:'#eab308', electric_only:'#9ca3af', premium:'#2563eb', standard:'#2563eb' }[_rt] || '#2563eb';
+  const _rtColor = { monthly:'#1a5c32', weekly:'#7c3aed', daily:'#f59e0b', prorated:'#eab308', electric_only:'#9ca3af', premium:'#1a5c32', standard:'#1a5c32' }[_rt] || '#1a5c32';
   return `
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_rtColor}">
       <td>${inv.invoice_number}${inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.6rem">PRORATED</span>' : ''}</td>
