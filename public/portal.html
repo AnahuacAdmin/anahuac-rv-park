@@ -17,61 +17,112 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-image: url('https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=1920&q=80');
-      background-size: cover; background-position: center; background-attachment: fixed;
-      min-height: 100vh; color: #1f2937;
+      background: linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 100%);
+      min-height: 100vh; color: #1c1917;
     }
-    /* Splash screen */
-    .splash {
-      position: fixed; inset: 0; z-index: 9999;
-      background: linear-gradient(160deg, #0f3d22 0%, #1a5c32 40%, #0f3d22 100%);
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      transition: opacity 0.6s ease, visibility 0.6s ease;
-    }
-    .splash.fade-out { opacity: 0; visibility: hidden; }
-    .splash-logo { height: 100px; width: auto; margin-bottom: 1.25rem; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.3)); animation: splashLogoIn 0.8s ease-out; }
-    @keyframes splashLogoIn { from { opacity: 0; transform: scale(0.8) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-    .splash-title { color: #f59e0b; font-size: 1.5rem; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 0.25rem; text-shadow: 0 2px 10px rgba(0,0,0,0.3); animation: splashTextIn 0.8s ease-out 0.15s both; }
-    .splash-subtitle { color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 500; margin-bottom: 2rem; animation: splashTextIn 0.8s ease-out 0.3s both; }
-    @keyframes splashTextIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .splash-spinner { width: 36px; height: 36px; border: 3px solid rgba(245,158,11,0.25); border-top-color: #f59e0b; border-radius: 50%; animation: splashSpin 0.8s linear infinite, splashTextIn 0.6s ease-out 0.5s both; }
-    @keyframes splashSpin { to { transform: rotate(360deg); } }
-    .overlay { min-height: 100vh; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; align-items: center; padding: 1.5rem; }
+    /* Splash */
+    .splash { position:fixed;inset:0;z-index:9999;background:linear-gradient(160deg,#0f3d22 0%,#1a5c32 40%,#0f3d22 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.6s ease,visibility 0.6s ease }
+    .splash.fade-out { opacity:0;visibility:hidden }
+    .splash-logo { height:100px;width:auto;margin-bottom:1.25rem;filter:drop-shadow(0 4px 20px rgba(0,0,0,0.3));animation:splashLogoIn 0.8s ease-out }
+    @keyframes splashLogoIn { from{opacity:0;transform:scale(0.8) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
+    .splash-title { color:#f59e0b;font-size:1.5rem;font-weight:800;margin-bottom:0.25rem;text-shadow:0 2px 10px rgba(0,0,0,0.3);animation:splashTextIn 0.8s ease-out 0.15s both }
+    .splash-subtitle { color:rgba(255,255,255,0.7);font-size:0.9rem;font-weight:500;margin-bottom:2rem;animation:splashTextIn 0.8s ease-out 0.3s both }
+    @keyframes splashTextIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .splash-spinner { width:36px;height:36px;border:3px solid rgba(245,158,11,0.25);border-top-color:#f59e0b;border-radius:50%;animation:splashSpin 0.8s linear infinite,splashTextIn 0.6s ease-out 0.5s both }
+    @keyframes splashSpin { to{transform:rotate(360deg)} }
+
+    /* Login overlay */
+    .login-overlay { min-height:100vh;background-image:url('https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=1920&q=80');background-size:cover;background-position:center;display:flex;flex-direction:column;align-items:center;padding:1.5rem }
+    .login-overlay::before { content:'';position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:0 }
+    .login-overlay > * { position:relative;z-index:1 }
+
+    /* Cards */
     .card {
-      background: rgba(255, 253, 240, 0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-      border-radius: 16px; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-      width: 100%; max-width: 440px; padding: 2rem 1.75rem; margin-bottom: 1rem;
-      animation: fadeIn 0.5s ease-out;
+      background: rgba(255,253,240,0.95); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+      border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.08);
+      width:100%; max-width:480px; padding:1.5rem; margin-bottom:0.75rem;
+      animation: fadeIn 0.4s ease-out;
     }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-    .logo { display: block; margin: 0 auto 0.5rem; height: 70px; }
-    h1 { text-align: center; color: #2c4a1e; font-size: 1.4rem; margin-bottom: 0.25rem; }
-    .subtitle { text-align: center; color: #92400e; font-size: 0.9rem; margin-bottom: 1.5rem; }
-    .form-group { margin-bottom: 1rem; }
-    .form-group label { display: block; font-weight: 600; font-size: 0.85rem; color: #374151; margin-bottom: 0.3rem; }
-    .form-group input, .form-group textarea { width: 100%; padding: 0.7rem; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; }
-    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #2c4a1e; box-shadow: 0 0 0 3px rgba(44,74,30,0.15); }
-    .form-group textarea { resize: vertical; min-height: 80px; }
-    .btn { display: block; width: 100%; padding: 0.85rem; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; }
-    .btn-green { background: linear-gradient(135deg, #16a34a, #2c4a1e); color: #fff; }
-    .btn-green:hover { filter: brightness(1.1); }
-    .btn-outline { background: #fff; border: 1.5px solid #d1d5db; color: #374151; }
-    .balance-box { text-align: center; padding: 1.25rem; background: #f0fdf4; border-radius: 12px; margin-bottom: 1rem; }
-    .balance-amount { font-size: 2.5rem; font-weight: 800; color: #2c4a1e; }
-    .balance-label { font-size: 0.85rem; color: #6b7280; margin-top: 0.25rem; }
-    .balance-paid { color: #16a34a; }
-    .balance-owed { color: #dc2626; }
-    .tenant-header { text-align: center; margin-bottom: 1rem; }
-    .tenant-name { font-size: 1.2rem; font-weight: 700; color: #2c4a1e; }
-    .tenant-lot { font-size: 0.9rem; color: #6b7280; }
-    .invoice-row { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; }
-    .msg-success { background: #dcfce7; color: #166534; padding: 0.75rem; border-radius: 8px; text-align: center; margin-bottom: 1rem; }
-    .msg-error { background: #fee2e2; color: #991b1b; padding: 0.75rem; border-radius: 8px; text-align: center; margin-bottom: 1rem; }
-    .link { text-align: center; margin-top: 0.75rem; font-size: 0.85rem; }
-    .link a { color: #fff; text-decoration: underline; }
-    .footer { text-align: center; color: rgba(255,255,255,0.7); font-size: 0.8rem; margin-top: 1rem; }
-    .hidden { display: none !important; }
-    @media (max-width: 480px) { .card { padding: 1.5rem 1.25rem; } .balance-amount { font-size: 2rem; } }
+    .login-overlay .card { box-shadow:0 25px 50px rgba(0,0,0,0.5);padding:2rem 1.75rem }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .card-title { font-size:0.85rem;font-weight:700;color:#1a5c32;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.6rem;display:flex;align-items:center;gap:0.4rem }
+
+    /* Forms */
+    .logo { display:block;margin:0 auto 0.5rem;height:70px }
+    h1 { text-align:center;color:#1a5c32;font-size:1.4rem;margin-bottom:0.25rem }
+    .subtitle { text-align:center;color:#92400e;font-size:0.9rem;margin-bottom:1.5rem }
+    .form-group { margin-bottom:1rem }
+    .form-group label { display:block;font-weight:600;font-size:0.8rem;color:#44403c;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.03em }
+    .form-group input,.form-group textarea { width:100%;padding:0.7rem;border:1.5px solid #d6d3d1;border-radius:10px;font-size:1rem;background:#fff }
+    .form-group input:focus,.form-group textarea:focus { outline:none;border-color:#1a5c32;box-shadow:0 0 0 3px rgba(26,92,50,0.15) }
+    .form-group textarea { resize:vertical;min-height:80px }
+    .btn { display:block;width:100%;padding:0.85rem;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;transition:all 0.2s }
+    .btn-green { background:linear-gradient(135deg,#1a5c32,#2d8a52);color:#fff;box-shadow:0 2px 8px rgba(26,92,50,0.3) }
+    .btn-green:hover { filter:brightness(1.08);transform:translateY(-1px) }
+    .btn-green:active { transform:translateY(0) }
+    .btn-outline { background:#fff;border:1.5px solid #d6d3d1;color:#44403c;border-radius:12px }
+    .btn-outline:hover { border-color:#1a5c32;color:#1a5c32 }
+
+    /* Balance */
+    .balance-box { text-align:center;padding:1.25rem;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:14px;margin-bottom:1rem }
+    .balance-amount { font-size:2.5rem;font-weight:800;color:#1a5c32 }
+    .balance-label { font-size:0.8rem;color:#78716c;margin-top:0.25rem;text-transform:uppercase;letter-spacing:0.05em }
+    .balance-paid { color:#16a34a }
+    .balance-owed { color:#dc2626 }
+    .tenant-header { text-align:center;margin-bottom:1rem }
+    .tenant-name { font-size:1.2rem;font-weight:700;color:#1a5c32 }
+    .tenant-lot { font-size:0.9rem;color:#78716c }
+    .invoice-row { display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #e7e5e4;font-size:0.85rem }
+    .msg-success { background:#dcfce7;color:#166534;padding:0.75rem;border-radius:10px;text-align:center;margin-bottom:1rem }
+    .msg-error { background:#fee2e2;color:#991b1b;padding:0.75rem;border-radius:10px;text-align:center;margin-bottom:1rem }
+    .link { text-align:center;margin-top:0.75rem;font-size:0.85rem }
+    .link a { color:#fff;text-decoration:underline }
+
+    /* Portal header */
+    .portal-hero { background:linear-gradient(135deg,#0f3d22,#1a5c32,#2d8a52);color:#fff;border-radius:16px;padding:1.25rem 1.5rem;margin-bottom:0.75rem;width:100%;max-width:480px;text-align:center;position:relative;overflow:hidden }
+    .portal-hero::after { content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M20 20c0-11.046-8.954-20-20-20v20h20z'/%3E%3C/g%3E%3C/svg%3E");pointer-events:none }
+    .portal-hero > * { position:relative;z-index:1 }
+    .hero-gator { font-size:2.5rem;display:inline-block;animation:gatorWave 2s ease-in-out infinite }
+    @keyframes gatorWave { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(15deg)} 50%{transform:rotate(-10deg)} 75%{transform:rotate(12deg)} }
+    .hero-welcome { font-size:1.15rem;font-weight:700;color:#f59e0b;margin:0.25rem 0 }
+    .hero-date { font-size:0.78rem;color:rgba(255,255,255,0.7) }
+
+    /* Weather */
+    .weather-bar { display:flex;align-items:center;justify-content:center;gap:0.6rem;font-size:0.85rem;padding:0.5rem 0;flex-wrap:wrap }
+    .weather-bar .wx-icon { font-size:1.5rem }
+    .weather-bar .wx-temp { font-size:1.1rem;font-weight:800;color:#1a5c32 }
+    .weather-bar .wx-detail { color:#78716c;font-size:0.78rem }
+
+    /* Bible verse */
+    .verse-card { background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;border-radius:14px;padding:1rem 1.25rem }
+    .verse-text { font-style:italic;font-size:0.88rem;color:#78350f;line-height:1.5;margin-bottom:0.3rem }
+    .verse-ref { font-weight:700;font-size:0.8rem;color:#92400e }
+
+    /* Link grid */
+    .link-grid { display:grid;grid-template-columns:1fr 1fr;gap:0.5rem }
+    .link-btn { display:flex;align-items:center;gap:0.5rem;padding:0.65rem 0.75rem;background:#fff;border:1.5px solid #e7e5e4;border-radius:12px;text-decoration:none;color:#1c1917;font-size:0.82rem;font-weight:600;transition:all 0.15s }
+    .link-btn:hover { border-color:#1a5c32;background:#f0fdf4;transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,0.06) }
+    .link-btn:active { transform:translateY(0) }
+    .link-btn .lb-icon { font-size:1.3rem;flex-shrink:0 }
+    .link-grid-full { grid-template-columns:1fr }
+
+    /* Emergency */
+    .emergency-btn { display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.75rem;background:#fee2e2;border:1.5px solid #fecaca;border-radius:12px;text-decoration:none;color:#991b1b;font-size:0.82rem;font-weight:600;transition:all 0.15s }
+    .emergency-btn:hover { background:#dc2626;color:#fff;border-color:#dc2626 }
+
+    /* Announcements */
+    .announcement { padding:0.5rem 0;border-bottom:1px solid #e7e5e4;font-size:0.85rem }
+    .announcement:last-child { border-bottom:none }
+    .announcement-date { font-size:0.7rem;color:#a8a29e }
+
+    /* Collapsible */
+    .collapse-toggle { width:100%;background:none;border:none;padding:0;font:inherit;cursor:pointer;display:flex;align-items:center;justify-content:space-between }
+    .collapse-body { max-height:0;overflow:hidden;transition:max-height 0.3s ease }
+    .collapse-body.open { max-height:1000px }
+
+    .portal-footer { text-align:center;color:#a8a29e;font-size:0.75rem;margin:1rem 0 0.5rem;max-width:480px;line-height:1.5 }
+    .hidden { display:none !important }
+    @media (max-width:480px) { .card{padding:1.25rem 1rem} .balance-amount{font-size:2rem} .link-grid{gap:0.4rem} .link-btn{padding:0.55rem 0.6rem;font-size:0.78rem} }
   </style>
 </head>
 <body>
@@ -81,13 +132,13 @@
   <div class="splash-subtitle">Welcome to the Gator Country! 🐊</div>
   <div class="splash-spinner"></div>
 </div>
-<div class="overlay" style="opacity:0;transition:opacity 0.4s ease 0.1s" id="portal-content">
 
-  <!-- Login Screen -->
+<!-- LOGIN (background image overlay) -->
+<div id="login-wrapper" class="login-overlay" style="opacity:0;transition:opacity 0.4s ease 0.1s">
   <div id="login-screen" class="card">
     <img src="/park_Logo.png" alt="Anahuac RV Park" class="logo">
     <h1>Tenant Portal</h1>
-    <p class="subtitle">Anahuac RV Park</p>
+    <p class="subtitle">Anahuac RV Park 🐊</p>
     <div id="login-error" class="msg-error hidden"></div>
     <form id="login-form">
       <div class="form-group">
@@ -107,7 +158,7 @@
     <p class="link"><a href="/">Admin Login</a></p>
   </div>
 
-  <!-- PIN Setup Screen -->
+  <!-- PIN Setup -->
   <div id="pin-setup-screen" class="card hidden">
     <img src="/park_Logo.png" alt="Anahuac RV Park" class="logo">
     <h1>Set Up Your PIN</h1>
@@ -125,70 +176,169 @@
       <button type="submit" class="btn btn-green">Save PIN & Sign In</button>
     </form>
   </div>
+  <p style="text-align:center;color:rgba(255,255,255,0.6);font-size:0.8rem;margin-top:1rem">Anahuac RV Park · 409-267-6603</p>
+</div>
 
-  <!-- Portal Dashboard -->
-  <div id="portal-screen" class="hidden">
-    <div class="card">
-      <img src="/park_Logo.png" alt="Anahuac RV Park" class="logo">
-      <div class="tenant-header">
-        <div class="tenant-name" id="p-name"></div>
-        <div class="tenant-lot" id="p-lot"></div>
-      </div>
-      <div class="balance-box">
-        <div class="balance-label">Current Balance</div>
-        <div class="balance-amount" id="p-balance"></div>
-      </div>
-      <div id="pay-section"></div>
-      <h3 style="font-size:0.9rem;color:#374151;margin:1rem 0 0.5rem">Recent Invoices</h3>
-      <div id="p-invoices"></div>
-    </div>
+<!-- PORTAL DASHBOARD (clean background, no photo) -->
+<div id="portal-wrapper" class="hidden" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0.75rem 1rem 2rem">
 
-    <div class="card">
-      <h3 style="font-size:1rem;color:#2c4a1e;margin-bottom:0.75rem">Contact Management</h3>
-      <div id="msg-status"></div>
-      <form id="msg-form">
-        <div class="form-group">
-          <label>Your Message</label>
-          <textarea id="msg-text" placeholder="Type your message to park management..." required></textarea>
-        </div>
-        <button type="submit" class="btn btn-green">Send Message</button>
-      </form>
-    </div>
-
-    <div class="card" style="text-align:center;padding:1rem">
-      <p style="font-size:0.85rem;color:#6b7280">Need help? Call <a href="tel:4092676603" style="color:#2c4a1e;font-weight:700">409-267-6603</a></p>
-    </div>
-
-    <button onclick="portalLogout()" class="btn btn-outline" style="max-width:440px;margin-top:0.5rem">Log Out</button>
+  <!-- Hero header -->
+  <div class="portal-hero">
+    <div class="hero-gator">🐊</div>
+    <div class="hero-welcome" id="p-welcome">Welcome home!</div>
+    <div id="p-name-hero" style="font-size:0.9rem;font-weight:600;opacity:0.9"></div>
+    <div class="hero-date" id="p-date"></div>
   </div>
 
-  <p class="footer">Anahuac RV Park · 1003 Davis Ave, Anahuac, TX 77514 · 409-267-6603</p>
+  <!-- Balance & Pay -->
+  <div class="card">
+    <div class="tenant-header">
+      <div class="tenant-name" id="p-name"></div>
+      <div class="tenant-lot" id="p-lot"></div>
+    </div>
+    <div class="balance-box">
+      <div class="balance-label">Current Balance</div>
+      <div class="balance-amount" id="p-balance">...</div>
+    </div>
+    <div id="pay-section"></div>
+    <div style="margin-top:0.75rem">
+      <div class="card-title">Recent Invoices</div>
+      <div id="p-invoices"></div>
+    </div>
+  </div>
+
+  <!-- Weather -->
+  <div class="card" id="weather-card">
+    <div class="card-title">🌤️ Weather in Anahuac</div>
+    <div class="weather-bar" id="weather-content">
+      <span class="wx-detail">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Bible Verse -->
+  <div class="card verse-card" id="verse-card" style="display:none">
+    <div class="card-title" style="color:#92400e">✝️ Verse of the Day</div>
+    <div class="verse-text" id="verse-text"></div>
+    <div class="verse-ref" id="verse-ref"></div>
+  </div>
+
+  <!-- Announcements -->
+  <div class="card" id="announcements-card" style="display:none">
+    <div class="card-title">📢 Park Announcements</div>
+    <div id="announcements-list"></div>
+  </div>
+
+  <!-- Contact Management -->
+  <div class="card">
+    <div class="card-title">💬 Message Management</div>
+    <div id="msg-status"></div>
+    <form id="msg-form">
+      <div class="form-group">
+        <label>Your Message</label>
+        <textarea id="msg-text" placeholder="Type your message to park management..." required></textarea>
+      </div>
+      <button type="submit" class="btn btn-green">Send Message</button>
+    </form>
+  </div>
+
+  <!-- Around Anahuac: Food -->
+  <div class="card">
+    <div class="card-title">🍽️ Nearby Restaurants</div>
+    <div class="link-grid">
+      <a class="link-btn" href="https://www.google.com/maps/search/Nautilus+Grill+Anahuac+TX" target="_blank"><span class="lb-icon">🦐</span> Nautilus Grill</a>
+      <a class="link-btn" href="https://www.google.com/maps/search/The+Roost+Anahuac+TX" target="_blank"><span class="lb-icon">🍗</span> The Roost</a>
+      <a class="link-btn" href="https://www.google.com/maps/search/Stingaree+Restaurant+Crystal+Beach+TX" target="_blank"><span class="lb-icon">🐟</span> Stingaree</a>
+      <a class="link-btn" href="https://www.google.com/maps/search/restaurants+near+Anahuac+TX+77514" target="_blank"><span class="lb-icon">🔍</span> Find More Food</a>
+    </div>
+  </div>
+
+  <!-- Local Attractions -->
+  <div class="card">
+    <div class="card-title">🗺️ Local Attractions</div>
+    <div class="link-grid">
+      <a class="link-btn" href="https://www.fws.gov/refuge/anahuac" target="_blank"><span class="lb-icon">🐊</span> Wildlife Refuge</a>
+      <a class="link-btn" href="https://www.google.com/maps/place/Fort+Anahuac+Park" target="_blank"><span class="lb-icon">🎣</span> Fort Anahuac Park</a>
+      <a class="link-btn" href="https://www.gatorfest.com" target="_blank"><span class="lb-icon">🎪</span> Gatorfest Info</a>
+      <a class="link-btn" href="https://www.google.com/maps/dir/Anahuac+TX/Walmart+Baytown+TX" target="_blank"><span class="lb-icon">🛒</span> Walmart Baytown</a>
+    </div>
+  </div>
+
+  <!-- Emergency -->
+  <div class="card">
+    <div class="card-title">🚨 Emergency & Important</div>
+    <div style="display:grid;gap:0.4rem">
+      <a class="emergency-btn" href="tel:911"><span>🚑</span> 911 Emergency</a>
+      <a class="emergency-btn" href="tel:4092672444"><span>🏥</span> Chambers County EMS — 409-267-2444</a>
+      <a class="emergency-btn" href="tel:4092673534"><span>👮</span> Anahuac Police — 409-267-3534</a>
+      <a class="link-btn" href="https://www.google.com/maps/dir/Anahuac+TX/Houston+Methodist+Baytown+Hospital" target="_blank" style="width:100%"><span class="lb-icon">🏥</span> Baytown Medical — Directions</a>
+    </div>
+  </div>
+
+  <!-- Games -->
+  <div class="card">
+    <div class="card-title">🎮 Take a Break!</div>
+    <div class="link-grid">
+      <a class="link-btn" href="https://www.nytimes.com/games/wordle" target="_blank"><span class="lb-icon">📝</span> Wordle</a>
+      <a class="link-btn" href="https://www.solitaire.org" target="_blank"><span class="lb-icon">🃏</span> Solitaire</a>
+      <a class="link-btn" href="https://www.sudoku.com" target="_blank"><span class="lb-icon">🔢</span> Sudoku</a>
+      <a class="link-btn" href="https://www.chess.com/play/computer" target="_blank"><span class="lb-icon">♟️</span> Chess</a>
+      <a class="link-btn" href="https://www.nytimes.com/crosswords" target="_blank"><span class="lb-icon">✏️</span> Crossword</a>
+      <a class="link-btn" href="https://www.mahjongg.com" target="_blank"><span class="lb-icon">🀄</span> Mahjongg</a>
+    </div>
+  </div>
+
+  <!-- Social / Entertainment -->
+  <div class="card">
+    <div class="card-title">📱 Entertainment & Social</div>
+    <div class="link-grid">
+      <a class="link-btn" href="https://www.youtube.com" target="_blank"><span class="lb-icon">📺</span> YouTube</a>
+      <a class="link-btn" href="https://open.spotify.com" target="_blank"><span class="lb-icon">🎵</span> Spotify</a>
+      <a class="link-btn" href="https://www.facebook.com" target="_blank"><span class="lb-icon">📘</span> Facebook</a>
+      <a class="link-btn" href="https://www.baytownsun.com" target="_blank"><span class="lb-icon">📰</span> Local News</a>
+      <a class="link-btn" href="https://weather.com/weather/radar/interactive/l/29.77,-94.68" target="_blank"><span class="lb-icon">🌊</span> Weather Radar</a>
+      <a class="link-btn" href="tel:4092676603"><span class="lb-icon">📞</span> Call the Park</a>
+    </div>
+  </div>
+
+  <!-- Park Rules -->
+  <div class="card">
+    <button class="collapse-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.caret').textContent=this.nextElementSibling.classList.contains('open')?'▲':'▼'">
+      <span class="card-title" style="margin:0">📋 Park Rules & Info</span>
+      <span class="caret" style="color:#a8a29e">▼</span>
+    </button>
+    <div class="collapse-body">
+      <ul style="padding:0.75rem 0 0 1.25rem;font-size:0.85rem;line-height:1.7;color:#44403c">
+        <li>Speed limit <strong>5 MPH</strong> — children & ducks in park!</li>
+        <li>Quiet hours <strong>10pm – 7am</strong></li>
+        <li>Pets welcome on leash — clean up after them</li>
+        <li>Max 2 people per space ($25/extra person)</li>
+        <li>No open fires except fire pits/rings. No fireworks.</li>
+        <li>Keep your site clean at all times</li>
+        <li>Rent due the <strong>1st</strong> — late fees after 3 days</li>
+        <li>No subleasing. No sharing WiFi password.</li>
+        <li>Max 2 visitors at a time</li>
+        <li>Management reserves the right to remove guests who violate rules</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Logout -->
+  <button onclick="portalLogout()" class="btn btn-outline" style="max-width:480px;margin-top:0.25rem">🚪 Log Out</button>
+
+  <div class="portal-footer">
+    <p style="font-style:italic;margin-bottom:0.4rem">"The earth is the Lord's, and everything in it." — Psalm 24:1</p>
+    <p>Anahuac RV Park, LLC · 1003 Davis Ave, Anahuac TX 77514 · 409-267-6603</p>
+    <p>&copy; 2026 Anahuac RV Park LLC</p>
+  </div>
 </div>
 
 <script>
-// Splash screen: show for at least 1.5s, then fade out
-(function() {
-  var splashEl = document.getElementById('splash');
-  var contentEl = document.getElementById('portal-content');
-  var minTime = 1500;
-  var start = Date.now();
-  function dismissSplash() {
-    var elapsed = Date.now() - start;
-    var remaining = Math.max(0, minTime - elapsed);
-    setTimeout(function() {
-      splashEl.classList.add('fade-out');
-      contentEl.style.opacity = '1';
-      setTimeout(function() { splashEl.style.display = 'none'; }, 700);
-    }, remaining);
-  }
-  if (document.readyState === 'complete') dismissSplash();
-  else window.addEventListener('load', dismissSplash);
-})();
+// --- Splash ---
+(function(){var s=document.getElementById('splash'),c=document.getElementById('login-wrapper'),t=Date.now();function d(){var r=Math.max(0,1500-(Date.now()-t));setTimeout(function(){s.classList.add('fade-out');c.style.opacity='1';setTimeout(function(){s.style.display='none'},700)},r)}if(document.readyState==='complete')d();else window.addEventListener('load',d)})();
 
 let _portalToken = sessionStorage.getItem('portal_token');
 let _portalTenant = JSON.parse(sessionStorage.getItem('portal_tenant') || 'null');
 
-// Check for payment return
 const params = new URLSearchParams(location.search);
 if (params.get('paid') === '1') { sessionStorage.setItem('portal_paid', '1'); history.replaceState({}, '', '/portal.html'); }
 if (params.get('cancelled') === '1') { history.replaceState({}, '', '/portal.html'); }
@@ -214,20 +364,13 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const pin = document.getElementById('pin-input').value;
   try {
     const r = await portalFetch('/login', { method: 'POST', body: JSON.stringify({ lot_id: lot, last_name: name, pin: pin || undefined }) });
-
-    // Needs PIN setup
     if (r.needs_pin_setup) {
       _setupTenant = { lot_id: r.lot_id, last_name: r.last_name };
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('pin-setup-screen').classList.remove('hidden');
       return;
     }
-
-    // Needs PIN entry (has pin but wasn't provided)
-    if (!r.token && r.needs_pin) {
-      throw new Error(r.error || 'PIN required');
-    }
-
+    if (!r.token && r.needs_pin) throw new Error(r.error || 'PIN required');
     _portalToken = r.token;
     _portalTenant = r.tenant;
     sessionStorage.setItem('portal_token', r.token);
@@ -236,7 +379,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('hidden');
-    // Show PIN field if needed
     if (err.message && (err.message.includes('PIN') || err.message.includes('pin'))) {
       document.getElementById('pin-field').classList.remove('hidden');
       document.getElementById('pin-input').focus();
@@ -260,10 +402,7 @@ document.getElementById('pin-setup-form').addEventListener('submit', async (e) =
     sessionStorage.setItem('portal_token', r.token);
     sessionStorage.setItem('portal_tenant', JSON.stringify(r.tenant));
     showPortal();
-  } catch (err) {
-    errEl.textContent = err.message;
-    errEl.classList.remove('hidden');
-  }
+  } catch (err) { errEl.textContent = err.message; errEl.classList.remove('hidden'); }
 });
 
 document.getElementById('msg-form').addEventListener('submit', async (e) => {
@@ -272,22 +411,41 @@ document.getElementById('msg-form').addEventListener('submit', async (e) => {
   const text = document.getElementById('msg-text').value;
   try {
     await portalFetch('/message', { method: 'POST', body: JSON.stringify({ message: text }) });
-    statusEl.innerHTML = '<div class="msg-success">Message sent! We\'ll get back to you soon.</div>';
+    statusEl.innerHTML = '<div class="msg-success">Message sent! We\'ll get back to you soon. 🐊</div>';
     document.getElementById('msg-text').value = '';
     setTimeout(() => statusEl.innerHTML = '', 5000);
-  } catch (err) {
-    statusEl.innerHTML = '<div class="msg-error">' + (err.message || 'Failed to send') + '</div>';
-  }
+  } catch (err) { statusEl.innerHTML = '<div class="msg-error">' + (err.message || 'Failed to send') + '</div>'; }
 });
 
 async function showPortal() {
-  document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('portal-screen').classList.remove('hidden');
-  document.getElementById('p-name').textContent = _portalTenant.first_name + ' ' + _portalTenant.last_name;
-  document.getElementById('p-lot').textContent = 'Lot ' + _portalTenant.lot_id;
+  // Switch from login to portal view
+  document.getElementById('login-wrapper').classList.add('hidden');
+  document.getElementById('portal-wrapper').classList.remove('hidden');
 
-  try {
-    const data = await portalFetch('/me');
+  const firstName = _portalTenant.first_name || 'Friend';
+  const fullName = firstName + ' ' + (_portalTenant.last_name || '');
+  const lotId = _portalTenant.lot_id || '?';
+
+  // Hero
+  const h = new Date().getHours();
+  const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('p-welcome').textContent = `${greeting}, ${firstName}! 🐊`;
+  document.getElementById('p-name-hero').textContent = `Lot ${lotId}`;
+  document.getElementById('p-date').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  // Tenant info
+  document.getElementById('p-name').textContent = fullName;
+  document.getElementById('p-lot').textContent = 'Lot ' + lotId;
+
+  // Load data in parallel
+  const [data] = await Promise.all([
+    portalFetch('/me').catch(() => null),
+    loadWeather(),
+    loadBibleVerse(),
+    loadAnnouncements(),
+  ]);
+
+  if (data) {
     const bal = data.balance || 0;
     const balEl = document.getElementById('p-balance');
     balEl.textContent = '$' + bal.toFixed(2);
@@ -296,24 +454,74 @@ async function showPortal() {
     const payEl = document.getElementById('pay-section');
     if (bal > 0) {
       const withFee = (bal * 1.03).toFixed(2);
-      payEl.innerHTML = `<button class="btn btn-green" onclick="portalPay()" style="margin-bottom:0.5rem;font-size:1.1rem">Pay Now — $${withFee}</button><p style="text-align:center;font-size:0.75rem;color:#6b7280">Includes 3% card processing fee</p>`;
+      payEl.innerHTML = `<button class="btn btn-green" onclick="portalPay()" style="margin-bottom:0.5rem;font-size:1.1rem">💳 Pay Now — $${withFee}</button><p style="text-align:center;font-size:0.72rem;color:#78716c">Includes 3% card processing fee</p>`;
     } else {
-      payEl.innerHTML = '<p style="text-align:center;color:#16a34a;font-weight:700;margin-bottom:0.5rem">All paid up!</p>';
+      payEl.innerHTML = '<p style="text-align:center;color:#16a34a;font-weight:700;margin-bottom:0.5rem">✅ All paid up!</p>';
     }
-
-    // Show paid confirmation
     if (sessionStorage.getItem('portal_paid')) {
       sessionStorage.removeItem('portal_paid');
-      payEl.innerHTML = '<div class="msg-success">Payment received! Thank you!</div>' + payEl.innerHTML;
+      payEl.innerHTML = '<div class="msg-success">🎉 Payment received! Thank you!</div>' + payEl.innerHTML;
     }
 
     const invEl = document.getElementById('p-invoices');
     invEl.innerHTML = (data.invoices || []).map(i =>
       `<div class="invoice-row"><span>${i.invoice_number} — ${i.invoice_date}</span><span style="font-weight:700;color:${i.status === 'paid' ? '#16a34a' : '#dc2626'}">$${Number(i.balance_due).toFixed(2)}</span></div>`
-    ).join('') || '<p style="color:#9ca3af;font-size:0.85rem">No invoices</p>';
-  } catch (err) {
-    console.error('Portal load failed:', err);
+    ).join('') || '<p style="color:#a8a29e;font-size:0.85rem">No invoices yet</p>';
   }
+}
+
+async function loadWeather() {
+  try {
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.7574&longitude=-94.6750&current=temperature_2m,weathercode,windspeed_10m,relative_humidity_2m&temperature_unit=fahrenheit&windspeed_unit=mph');
+    const d = await r.json();
+    const c = d.current;
+    const code = c.weathercode;
+    let emoji = '☀️', cond = 'Clear';
+    if (code >= 1 && code <= 3) { emoji = '🌤️'; cond = 'Partly Cloudy'; }
+    else if (code >= 45 && code <= 48) { emoji = '🌫️'; cond = 'Foggy'; }
+    else if (code >= 51 && code <= 67) { emoji = '🌧️'; cond = 'Rainy'; }
+    else if (code >= 71 && code <= 77) { emoji = '❄️'; cond = 'Snow'; }
+    else if (code >= 80 && code <= 82) { emoji = '🌦️'; cond = 'Showers'; }
+    else if (code >= 95) { emoji = '⛈️'; cond = 'Thunderstorm'; }
+    document.getElementById('weather-content').innerHTML =
+      `<span class="wx-icon">${emoji}</span><span class="wx-temp">${Math.round(c.temperature_2m)}°F</span><span class="wx-detail">${cond}</span><span class="wx-detail">💨 ${Math.round(c.windspeed_10m)}mph</span><span class="wx-detail">💧 ${c.relative_humidity_2m}%</span><span class="wx-detail">📍 Anahuac, TX</span>`;
+  } catch { document.getElementById('weather-content').innerHTML = '<span class="wx-detail">Weather unavailable</span>'; }
+}
+
+async function loadBibleVerse() {
+  const card = document.getElementById('verse-card');
+  try {
+    const r = await fetch('https://beta.ourmanna.com/api/v1/get?format=json&order=daily');
+    const d = await r.json();
+    document.getElementById('verse-text').textContent = '"' + d.verse.details.text + '"';
+    document.getElementById('verse-ref').textContent = '— ' + d.verse.details.reference;
+    card.style.display = '';
+  } catch {
+    const fallback = [
+      { t: 'I can do all things through Christ who strengthens me.', r: 'Philippians 4:13' },
+      { t: 'The Lord is my shepherd; I shall not want.', r: 'Psalm 23:1' },
+      { t: 'Trust in the Lord with all your heart.', r: 'Proverbs 3:5' },
+      { t: 'For God so loved the world that he gave his one and only Son.', r: 'John 3:16' },
+      { t: 'Be strong and courageous. Do not be afraid.', r: 'Joshua 1:9' },
+    ];
+    const v = fallback[new Date().getDay() % fallback.length];
+    document.getElementById('verse-text').textContent = '"' + v.t + '"';
+    document.getElementById('verse-ref').textContent = '— ' + v.r;
+    card.style.display = '';
+  }
+}
+
+async function loadAnnouncements() {
+  try {
+    const data = await portalFetch('/me');
+    const msgs = (data?.announcements || []).slice(0, 5);
+    if (!msgs.length) return;
+    const card = document.getElementById('announcements-card');
+    card.style.display = '';
+    document.getElementById('announcements-list').innerHTML = msgs.map(m =>
+      `<div class="announcement"><div>${m.body || m.subject || '(no content)'}</div><div class="announcement-date">${m.sent_date || ''}</div></div>`
+    ).join('');
+  } catch {}
 }
 
 async function portalPay() {
@@ -328,8 +536,10 @@ function portalLogout() {
   _portalToken = null; _portalTenant = null; _setupTenant = null;
   sessionStorage.removeItem('portal_token');
   sessionStorage.removeItem('portal_tenant');
+  document.getElementById('login-wrapper').classList.remove('hidden');
+  document.getElementById('login-wrapper').style.opacity = '1';
+  document.getElementById('portal-wrapper').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
-  document.getElementById('portal-screen').classList.add('hidden');
   document.getElementById('pin-setup-screen').classList.add('hidden');
   document.getElementById('pin-field').classList.add('hidden');
   document.getElementById('pin-input').value = '';
