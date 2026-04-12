@@ -134,6 +134,7 @@ async function loadDashboard() {
       <button class="dash-action-btn" onclick="navigateTo('checkins')"><span class="dash-action-icon">🏕️</span>Check In</button>
       <button class="dash-action-btn" onclick="navigateTo('reservations')"><span class="dash-action-icon">📅</span>Reservations${data.pendingReservations ? `<span class="dash-action-badge">${data.pendingReservations}</span>` : ''}</button>
       <button class="dash-action-btn" onclick="navigateTo('messages')"><span class="dash-action-icon">📱</span>Messaging</button>
+      <a class="dash-action-btn dash-portal-btn" href="/portal.html" target="_blank"><span class="dash-action-icon">🐊</span>Tenant Portal<span style="font-size:0.65rem;font-weight:400;opacity:0.8;display:block;margin-top:1px">View &amp; Pay Bills ↗</span></a>
     </div>
 
     <!-- Bottom Row -->

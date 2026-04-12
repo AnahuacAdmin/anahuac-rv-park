@@ -854,6 +854,24 @@ a { text-decoration: none; color: inherit; }
   box-shadow: var(--shadow-lg);
 }
 .dash-action-btn:active { transform: translateY(0); }
+.dash-portal-btn {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  color: #0d1a50 !important;
+  border: 2px solid #d97706 !important;
+  font-weight: 700;
+  grid-column: span 1;
+  animation: portalPulse 2.5s ease-in-out infinite;
+}
+.dash-portal-btn:hover {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  border-color: #f59e0b !important;
+  transform: translateY(-5px) !important;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4) !important;
+}
+@keyframes portalPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+}
 .dash-action-icon { font-size: 2rem; }
 .dash-action-badge {
   position: absolute; top: -5px; right: -5px;
