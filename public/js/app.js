@@ -337,7 +337,7 @@ const HELP_CONTENT = {
     <li>Click <em>Check-In</em>.</li>
     <li>Enter tenant's full name, phone, and email.</li>
     <li>Select their lot number from the dropdown.</li>
-    <li>Choose rate type: <strong>Daily</strong> ($50), <strong>Weekly</strong> ($200), or <strong>Monthly</strong> ($295).</li>
+    <li>Choose rate type: <strong>Daily</strong> ($30), <strong>Weekly</strong> ($150), or <strong>Monthly</strong> ($295).</li>
     <li>If moving in mid-month, the prorated amount calculates automatically.</li>
     <li>Enter deposit amount collected.</li>
     <li>Toggle <strong>Flat Rate</strong> if this tenant pays one fixed amount for everything.</li>

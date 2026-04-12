@@ -152,8 +152,8 @@ function updateRateLabel(sel) {
   const label = document.getElementById('rate-label');
   const input = sel.form.monthly_rent;
   const type = sel.value;
-  if (type === 'daily') { if (label) label.textContent = 'Daily Rate ($)'; if (input && input.value === '295') input.value = '50'; }
-  else if (type === 'weekly') { if (label) label.textContent = 'Weekly Rate ($)'; if (input && input.value === '295') input.value = '200'; }
+  if (type === 'daily') { if (label) label.textContent = 'Daily Rate ($)'; if (input && input.value === '295') input.value = '30'; }
+  else if (type === 'weekly') { if (label) label.textContent = 'Weekly Rate ($)'; if (input && input.value === '295') input.value = '150'; }
   else { if (label) label.textContent = 'Monthly Rate ($)'; }
   calcProration(sel.form);
 }
