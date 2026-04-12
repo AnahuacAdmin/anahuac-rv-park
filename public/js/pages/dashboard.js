@@ -170,6 +170,21 @@ async function loadDashboard() {
 
     <div class="daily-tip dash-fade-in" style="animation-delay:0.65s">💡 ${getDailyTip().replace('💡 ', '')}</div>
 
+    ${isAdmin() ? `
+    <div class="card dash-fade-in" style="animation-delay:0.7s">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+        <h3>🖥️ System Health</h3>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <span id="health-time" style="font-size:0.75rem;color:var(--gray-500)"></span>
+          <button class="btn btn-sm btn-outline" onclick="refreshHealth()">🔄</button>
+        </div>
+      </div>
+      <div id="health-alert" style="display:none"></div>
+      <div id="health-cards" style="display:flex;gap:0.6rem;flex-wrap:wrap">
+        <div style="color:var(--gray-500);font-size:0.85rem">Loading...</div>
+      </div>
+    </div>` : ''}
+
     ${weather ? `
     <div class="dash-weather dash-fade-in" style="animation-delay:0.7s">
       <span>${weather.emoji} <strong>${weather.temp}°F</strong> ${weather.condition}</span>
@@ -185,6 +200,55 @@ async function loadDashboard() {
   `;
 
   setTimeout(() => renderDashboardCharts(data), 150);
+
+  // Health monitor (admin only)
+  if (isAdmin()) {
+    refreshHealth();
+    // Auto-refresh every 5 minutes
+    clearInterval(window._healthInterval);
+    window._healthInterval = setInterval(refreshHealth, 5 * 60 * 1000);
+  }
+}
+
+const _healthIcons = { 'Database': '🗄️', 'Stripe': '💳', 'Twilio': '📱', 'Internet': '🌐', 'Railway App': '🚂' };
+const _healthDots = { ok: '🟢', warning: '🟡', error: '🔴' };
+
+async function refreshHealth() {
+  const cardsEl = document.getElementById('health-cards');
+  const alertEl = document.getElementById('health-alert');
+  const timeEl = document.getElementById('health-time');
+  if (!cardsEl) return;
+
+  try {
+    const r = await API.get('/health/status');
+    if (!r?.services) return;
+
+    // Render cards
+    cardsEl.innerHTML = r.services.map(s => `
+      <div class="health-card health-${s.status}">
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.25rem">
+          <span>${_healthIcons[s.name] || '⚙️'}</span>
+          <span>${_healthDots[s.status] || '⚪'}</span>
+          <strong style="font-size:0.8rem">${s.name}</strong>
+        </div>
+        <div style="font-size:0.75rem;color:var(--gray-500)">${s.message}</div>
+        <div style="font-size:0.65rem;color:var(--gray-500);margin-top:0.15rem">${s.responseTime}ms</div>
+      </div>
+    `).join('');
+
+    // Alerts
+    const errors = r.services.filter(s => s.status === 'error');
+    const warnings = r.services.filter(s => s.status === 'warning');
+    let alertHtml = '';
+    if (errors.length) alertHtml += errors.map(s => `<div style="background:#fee2e2;color:#991b1b;padding:0.5rem 0.75rem;border-radius:6px;margin-bottom:0.4rem;font-size:0.85rem">🔴 <strong>${s.name}</strong> is unavailable — ${s.message}</div>`).join('');
+    if (warnings.length) alertHtml += warnings.map(s => `<div style="background:#fef3c7;color:#92400e;padding:0.5rem 0.75rem;border-radius:6px;margin-bottom:0.4rem;font-size:0.85rem">⚠️ <strong>${s.name}</strong>: ${s.message}</div>`).join('');
+    alertEl.style.display = alertHtml ? '' : 'none';
+    alertEl.innerHTML = alertHtml;
+
+    if (timeEl) timeEl.textContent = 'Checked ' + new Date().toLocaleTimeString();
+  } catch {
+    cardsEl.innerHTML = '<div style="color:var(--gray-500);font-size:0.85rem">Health check failed</div>';
+  }
 }
 
 function renderDashboardCharts(data) {

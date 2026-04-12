@@ -556,6 +556,14 @@ a { text-decoration: none; color: inherit; }
 .dash-bible-text { font-style: italic; font-size: 0.95rem; line-height: 1.5; margin-bottom: 0.4rem; }
 .dash-bible-ref { font-weight: 700; font-size: 0.85rem; color: #fbbf24; }
 
+/* Health monitor cards */
+.health-card {
+  flex: 1; min-width: 130px; background: #f9fafb; border-radius: 8px;
+  padding: 0.6rem 0.75rem; border-left: 3px solid #16a34a;
+}
+.health-card.health-warning { border-left-color: #f59e0b; background: #fffbeb; }
+.health-card.health-error { border-left-color: #dc2626; background: #fef2f2; }
+
 /* Daily tip */
 .daily-tip {
   background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a;
