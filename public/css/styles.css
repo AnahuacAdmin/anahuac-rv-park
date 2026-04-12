@@ -1364,6 +1364,9 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
   .status-toast { bottom: 70px; }
 }
 
+@media (max-width: 768px) {
+  #charts-grid { grid-template-columns: 1fr !important; }
+}
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
   .page-header .btn-group { flex-direction: column; }
