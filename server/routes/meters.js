@@ -33,10 +33,7 @@ router.get('/lot/:lotId', (req, res) => {
 });
 
 router.get('/latest', (req, res) => {
-  // Ensure every active tenant has at least one meter_readings row for their
-  // current lot. If they don't (newly added tenant, or moved to a new lot),
-  // create a zero-value placeholder dated today so the lot shows up in the
-  // list and the operator can fill in real values.
+  // Ensure every active tenant on an occupied lot has at least one meter reading.
   const today = new Date().toISOString().split('T')[0];
   const activeTenants = db.prepare(
     `SELECT id, lot_id FROM tenants WHERE is_active = 1 AND lot_id IS NOT NULL AND lot_id != ''`
@@ -54,16 +51,44 @@ router.get('/latest', (req, res) => {
     }
   }
 
-  const readings = db.prepare(`
-    SELECT mr.*, t.first_name, t.last_name, t.monthly_rent, t.rent_type
-    FROM meter_readings mr
-    JOIN tenants t ON mr.tenant_id = t.id AND t.is_active = 1
-    WHERE mr.id IN (
-      SELECT MAX(id) FROM meter_readings WHERE tenant_id = mr.tenant_id GROUP BY lot_id
-    )
-    ORDER BY mr.lot_id
-  `).all();
-  res.json(readings);
+  // Build the readings list from ALL lots, showing the latest reading per lot.
+  // For occupied lots with active tenants: show tenant name + latest reading.
+  // For vacant/reserved lots: show lot with "(Vacant)" or "(Reserved)".
+  const allLots = db.prepare('SELECT id, status FROM lots ORDER BY row_letter, lot_number').all();
+  const results = [];
+
+  for (const lot of allLots) {
+    // Find the active tenant on this lot (if any)
+    const tenant = db.prepare('SELECT id, first_name, last_name, monthly_rent, rent_type FROM tenants WHERE lot_id = ? AND is_active = 1 LIMIT 1').get(lot.id);
+
+    // Find the latest meter reading for this lot from an active tenant (or any reading if no active tenant)
+    let reading = null;
+    if (tenant) {
+      reading = db.prepare('SELECT * FROM meter_readings WHERE lot_id = ? AND tenant_id = ? ORDER BY id DESC LIMIT 1').get(lot.id, tenant.id);
+    }
+    if (!reading) {
+      reading = db.prepare('SELECT * FROM meter_readings WHERE lot_id = ? ORDER BY id DESC LIMIT 1').get(lot.id);
+    }
+
+    results.push({
+      id: reading?.id || 0,
+      lot_id: lot.id,
+      tenant_id: tenant?.id || reading?.tenant_id || null,
+      first_name: tenant?.first_name || (lot.status === 'owner_reserved' ? '(Reserved)' : '(Vacant)'),
+      last_name: tenant?.last_name || '',
+      monthly_rent: tenant?.monthly_rent || 0,
+      rent_type: tenant?.rent_type || '',
+      reading_date: reading?.reading_date || null,
+      previous_reading: reading?.previous_reading || 0,
+      current_reading: reading?.current_reading || 0,
+      kwh_used: reading?.kwh_used || 0,
+      rate_per_kwh: reading?.rate_per_kwh || 0.15,
+      electric_charge: reading?.electric_charge || 0,
+      photo: reading?.photo || null,
+    });
+  }
+
+  res.json(results);
 });
 
 // Save a base64 photo to disk, return the filename.
