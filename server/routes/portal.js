@@ -137,6 +137,10 @@ router.post('/pay', tenantAuth, (req, res) => {
     stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
+      payment_method_options: {
+        card: { request_three_d_secure: 'automatic' },
+      },
+      phone_number_collection: { enabled: false },
       customer_email: undefined,
       line_items: [
         { price_data: { currency: 'usd', product_data: { name: `Anahuac RV Park — Balance Due`, description: `Lot ${req.tenant.lot_id}` }, unit_amount: balanceCents }, quantity: 1 },

@@ -332,6 +332,7 @@ function showModal(title, bodyHtml) {
 function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
 
 function navigateTo(page) {
+  if (!page) return; // guard against group-toggle clicks with no data-page
   // Block staff from financial pages
   if (API.user?.role === 'staff' && ['billing', 'payments', 'users', 'admin', 'waitlist', 'reports'].includes(page)) {
     alert('Access restricted. Contact your administrator.');
@@ -357,7 +358,39 @@ function navigateTo(page) {
     meters: loadMeters, electric: loadElectric, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
     users: loadUsers, reports: loadReports, admin: loadAdmin };
-  if (loader[page]) loader[page]();
+  if (loader[page]) {
+    // Timeout fallback: if skeleton is still showing after 8s, show error
+    const _skeletonTimeout = setTimeout(() => {
+      const el = document.getElementById('page-content');
+      if (el && currentPage === page && el.querySelector('.skeleton-pulse')) {
+        el.innerHTML = `<div style="text-align:center;padding:3rem 1rem">
+          <div style="font-size:2rem;margin-bottom:0.5rem">&#9888;&#65039;</div>
+          <h3 style="margin-bottom:0.5rem">Page failed to load</h3>
+          <p style="color:#6b7280;margin-bottom:1rem">Could not load ${escapeHtml(page)}. Check your connection and try again.</p>
+          <button class="btn btn-primary" onclick="navigateTo('${page}')">Retry</button>
+        </div>`;
+      }
+    }, 8000);
+    // Clear timeout when page loads successfully (content replaces skeleton)
+    const _observer = new MutationObserver(() => {
+      const el = document.getElementById('page-content');
+      if (el && !el.querySelector('.skeleton-pulse')) {
+        clearTimeout(_skeletonTimeout);
+        _observer.disconnect();
+      }
+    });
+    _observer.observe(document.getElementById('page-content'), { childList: true, subtree: true });
+    loader[page]();
+  } else {
+    // No handler for this page — show error immediately
+    const el = document.getElementById('page-content');
+    if (el) el.innerHTML = `<div style="text-align:center;padding:3rem 1rem">
+      <div style="font-size:2rem;margin-bottom:0.5rem">&#9888;&#65039;</div>
+      <h3>Page not found</h3>
+      <p style="color:#6b7280;margin-bottom:1rem">"${escapeHtml(page)}" is not a valid page.</p>
+      <button class="btn btn-primary" onclick="navigateTo('dashboard')">Go to Dashboard</button>
+    </div>`;
+  }
 }
 
 // Init
@@ -441,8 +474,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Nav links
-  document.querySelectorAll('.nav-link').forEach(link => {
+  // Nav links — skip group toggles (no data-page)
+  document.querySelectorAll('.nav-link[data-page]').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       navigateTo(link.dataset.page);

@@ -49,6 +49,9 @@ router.post('/create-checkout-session', async (req, res) => {
       payment_method_options: {
         card: { request_three_d_secure: 'automatic' },
       },
+      // Disable Stripe Link / saved payment methods — card only
+      phone_number_collection: { enabled: false },
+      custom_fields: [],
       customer_email: invoice.email || undefined,
       line_items: [
         {

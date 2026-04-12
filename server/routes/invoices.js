@@ -66,6 +66,12 @@ router.post('/:id/email', async (req, res) => {
     const balance = Number(invoice.balance_due || 0).toFixed(2);
     const total = Number(invoice.total_amount || 0).toFixed(2);
 
+    const hasBalance = Number(balance) > 0.005;
+
+    const payLine = hasBalance
+      ? `\nTo pay online: ${APP_URL}/pay.html?pay=${invoice.id}\nNote: A 3% convenience fee applies to card payments. This link expires once payment is received.\n`
+      : '';
+
     const textBody =
 `Hello ${invoice.first_name},
 
@@ -76,10 +82,7 @@ Date:      ${invoice.invoice_date}
 Due:       ${invoice.due_date}
 Total:     $${total}
 Balance:   $${balance}
-
-You can pay your invoice online at: ${APP_URL}/pay.html?pay=${invoice.id}
-Note: A 3% convenience fee applies to card payments.
-
+${payLine}
 Thank you for being part of our community. If you have any questions about this invoice, call us at 409-267-6603.
 
 Warm regards,
@@ -87,18 +90,24 @@ Anahuac RV Park, LLC
 1003 Davis Ave, Anahuac, TX 77514
 409-267-6603`;
 
+    const payButtonHtml = hasBalance ? `
+      <div style="text-align:center;margin:1.5rem 0">
+        <a href="${APP_URL}/pay.html?pay=${invoice.id}" style="display:inline-block;background:#1a5c32;color:#ffffff;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:bold;text-decoration:none;margin:16px 0">PAY ONLINE — $${(Number(balance) * 1.03).toFixed(2)} (incl. 3% fee)</a>
+        <p style="font-size:12px;color:#666;margin-top:8px">A 3% convenience fee applies to card payments. This link will stop working once your payment is received.</p>
+      </div>` : `
+      <div style="text-align:center;margin:1rem 0;padding:12px 20px;background:#dcfce7;border-radius:8px">
+        <p style="color:#166534;font-weight:bold;margin:0">&#10003; This invoice is paid in full. No action needed.</p>
+      </div>`;
+
     const htmlBody = `
       <p>Hello ${invoice.first_name},</p>
       <p>Please find attached your invoice from <strong>Anahuac RV Park</strong> for lot <strong>${invoice.lot_id}</strong>.</p>
       <table style="border-collapse:collapse">
-        <tr><td><strong>Invoice #:</strong></td><td>${invoice.invoice_number}</td></tr>
-        <tr><td><strong>Due Date:</strong></td><td>${invoice.due_date}</td></tr>
-        <tr><td><strong>Balance Due:</strong></td><td><strong>$${balance}</strong></td></tr>
+        <tr><td style="padding:4px 12px 4px 0"><strong>Invoice #:</strong></td><td>${invoice.invoice_number}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0"><strong>Due Date:</strong></td><td>${invoice.due_date}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0"><strong>Balance Due:</strong></td><td><strong style="color:${hasBalance ? '#dc2626' : '#16a34a'}">$${balance}</strong></td></tr>
       </table>
-      <div style="text-align:center;margin:1.5rem 0">
-        <a href="${APP_URL}/pay.html?pay=${invoice.id}" style="display:inline-block;background:#16a34a;color:#ffffff;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:bold;text-decoration:none;margin:16px 0">CLICK HERE TO PAY BY CREDIT CARD - $${(Number(balance) * 1.03).toFixed(2)} (incl. 3% fee)</a>
-        <p style="font-size:12px;color:#666;margin-top:8px">A 3% convenience fee applies to credit/debit card payments.</p>
-      </div>
+      ${payButtonHtml}
       <p>Thank you for being part of our community. If you have any questions about this invoice, call us at 409-267-6603.</p>
       <p>Warm regards,<br>
       Anahuac RV Park, LLC<br>
@@ -211,12 +220,12 @@ function runLateFeeCheck() {
 
       // Auto-notify tenant (only once)
       if (!tenant.eviction_notified) {
-        const evictionMsg = `IMPORTANT NOTICE - Anahuac RV Park: Dear ${tenant.first_name}, your account for Lot ${tenant.lot_id} is seriously past due with a balance of $${balance.toFixed(2)}. As of ${today}, the eviction process has been initiated per our rental agreement. To avoid further action, payment must be made IMMEDIATELY. Please contact park management at 409-267-6603 or pay online at ${APP_URL}/pay.html?pay=0. We value your tenancy and hope to resolve this quickly. - Anahuac RV Park Management`;
+        const evictionMsg = `IMPORTANT NOTICE - Anahuac RV Park: Dear ${tenant.first_name}, your account for Lot ${tenant.lot_id} is seriously past due with a balance of $${balance.toFixed(2)}. As of ${today}, the eviction process has been initiated per our rental agreement. To avoid further action, payment must be made IMMEDIATELY. Please contact park management at 409-267-6603 or log in to the tenant portal at ${APP_URL}/portal.html to pay online. We value your tenancy and hope to resolve this quickly. - Anahuac RV Park Management`;
         if (autoSms && tenant.phone) {
           try { sendSms(tenant.phone, evictionMsg); } catch (e) { console.error('[eviction] tenant SMS failed:', e.message); }
         }
         if (autoEmail && tenant.email && resend) {
-          try { resend.emails.send({ from: FROM_ADDRESS, reply_to: 'anrvpark@gmail.com', to: tenant.email, subject: 'IMPORTANT: Past Due Notice - Anahuac RV Park', text: evictionMsg, html: `<p>${evictionMsg.replace(/\n/g, '<br>')}</p><div style="text-align:center;margin:1rem 0"><a href="${APP_URL}/pay.html?pay=0" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none">PAY NOW</a></div>` }); } catch (e) { console.error('[eviction] tenant email failed:', e.message); }
+          try { resend.emails.send({ from: FROM_ADDRESS, reply_to: 'anrvpark@gmail.com', to: tenant.email, subject: 'IMPORTANT: Past Due Notice - Anahuac RV Park', text: evictionMsg, html: `<p>${evictionMsg.replace(/\n/g, '<br>')}</p><div style="text-align:center;margin:1rem 0"><a href="${APP_URL}/portal.html" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none">LOG IN TO PAY NOW</a></div>` }); } catch (e) { console.error('[eviction] tenant email failed:', e.message); }
         }
         db.prepare('UPDATE tenants SET eviction_notified = 1 WHERE id = ?').run(tid);
       }
