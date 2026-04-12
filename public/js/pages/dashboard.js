@@ -216,6 +216,18 @@ async function loadDashboard() {
       <div id="dash-vendors" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
     </div>` : ''}
 
+    <div class="card dash-fade-in" style="animation-delay:0.8s">
+      <button onclick="var b=document.getElementById('calc-body');b.style.display=b.style.display==='none'?'':'none'" style="width:100%;background:none;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:0">
+        <h3 style="margin:0">🧮 Quick Calculator</h3>
+        <span style="color:var(--gray-400);font-size:0.8rem">tap to expand ▼</span>
+      </button>
+      <div id="calc-body" style="display:none;margin-top:0.75rem">
+        <div id="calc-expr" style="text-align:right;font-size:0.78rem;color:var(--gray-400);min-height:1rem;overflow:hidden"></div>
+        <div id="calc-display" style="text-align:right;font-size:2.5rem;font-weight:800;color:var(--gray-900);padding:0.25rem 0;min-height:3rem;overflow:hidden;font-variant-numeric:tabular-nums">0</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:0.5rem" id="calc-keys"></div>
+      </div>
+    </div>
+
     ${weather ? `
     <div class="dash-weather dash-fade-in" style="animation-delay:0.7s">
       <span>${weather.emoji} <strong>${weather.temp}°F</strong> ${weather.condition}</span>
@@ -277,6 +289,8 @@ async function loadDashboard() {
     loadDashVendors();
   }
 
+  // Init calculator
+  initCalc();
 }
 
 async function loadDashVendors() {
@@ -415,4 +429,100 @@ function doRenderCharts(data) {
   } catch(e) {
     console.error('[charts] render error:', e);
   }
+}
+
+// --- Dashboard Calculator ---
+var _calcCurrent = '0', _calcPrev = '', _calcOp = '', _calcReset = false;
+
+function initCalc() {
+  var container = document.getElementById('calc-keys');
+  if (!container) return;
+  var keys = [
+    { label: 'C', cls: 'calc-red', action: 'clear' },
+    { label: '⌫', cls: 'calc-gray', action: 'back' },
+    { label: '%', cls: 'calc-gray', action: 'pct' },
+    { label: '÷', cls: 'calc-gold', action: 'op', op: '/' },
+    { label: '7', cls: '', action: 'num' },
+    { label: '8', cls: '', action: 'num' },
+    { label: '9', cls: '', action: 'num' },
+    { label: '×', cls: 'calc-gold', action: 'op', op: '*' },
+    { label: '4', cls: '', action: 'num' },
+    { label: '5', cls: '', action: 'num' },
+    { label: '6', cls: '', action: 'num' },
+    { label: '−', cls: 'calc-gold', action: 'op', op: '-' },
+    { label: '1', cls: '', action: 'num' },
+    { label: '2', cls: '', action: 'num' },
+    { label: '3', cls: '', action: 'num' },
+    { label: '+', cls: 'calc-gold', action: 'op', op: '+' },
+    { label: '0', cls: 'calc-wide', action: 'num' },
+    { label: '.', cls: '', action: 'dot' },
+    { label: '=', cls: 'calc-green', action: 'eq' },
+  ];
+  container.innerHTML = keys.map(function(k) {
+    return '<button class="calc-btn ' + (k.cls || '') + '" data-action="' + k.action + '"' +
+      (k.op ? ' data-op="' + k.op + '"' : '') +
+      ' data-label="' + k.label + '">' + k.label + '</button>';
+  }).join('');
+  container.addEventListener('click', function(e) {
+    var btn = e.target.closest('.calc-btn');
+    if (!btn) return;
+    calcPress(btn.dataset.action, btn.dataset.label, btn.dataset.op);
+  });
+}
+
+function calcPress(action, label, op) {
+  var display = document.getElementById('calc-display');
+  var expr = document.getElementById('calc-expr');
+  if (!display) return;
+
+  if (action === 'clear') {
+    _calcCurrent = '0'; _calcPrev = ''; _calcOp = ''; _calcReset = false;
+    if (expr) expr.textContent = '';
+  } else if (action === 'back') {
+    if (_calcCurrent.length > 1) _calcCurrent = _calcCurrent.slice(0, -1);
+    else _calcCurrent = '0';
+  } else if (action === 'num') {
+    if (_calcReset) { _calcCurrent = ''; _calcReset = false; }
+    if (_calcCurrent === '0' && label !== '0') _calcCurrent = label;
+    else if (_calcCurrent === '0' && label === '0') {}
+    else _calcCurrent += label;
+  } else if (action === 'dot') {
+    if (_calcReset) { _calcCurrent = '0'; _calcReset = false; }
+    if (_calcCurrent.indexOf('.') === -1) _calcCurrent += '.';
+  } else if (action === 'pct') {
+    _calcCurrent = String(parseFloat(_calcCurrent) / 100);
+  } else if (action === 'op') {
+    if (_calcPrev && _calcOp && !_calcReset) {
+      _calcCurrent = String(calcEval(parseFloat(_calcPrev), parseFloat(_calcCurrent), _calcOp));
+    }
+    _calcPrev = _calcCurrent;
+    _calcOp = op;
+    _calcReset = true;
+    var opSymbol = { '/': '÷', '*': '×', '-': '−', '+': '+' }[op] || op;
+    if (expr) expr.textContent = _calcPrev + ' ' + opSymbol;
+  } else if (action === 'eq') {
+    if (_calcPrev && _calcOp) {
+      var result = calcEval(parseFloat(_calcPrev), parseFloat(_calcCurrent), _calcOp);
+      var opSymbol = { '/': '÷', '*': '×', '-': '−', '+': '+' }[_calcOp] || _calcOp;
+      if (expr) expr.textContent = _calcPrev + ' ' + opSymbol + ' ' + _calcCurrent + ' =';
+      _calcCurrent = String(result);
+      _calcPrev = ''; _calcOp = ''; _calcReset = true;
+    }
+  }
+
+  // Format display
+  var num = parseFloat(_calcCurrent);
+  if (!isNaN(num) && _calcCurrent.indexOf('.') === -1 && _calcCurrent.length < 16) {
+    display.textContent = num.toLocaleString();
+  } else {
+    display.textContent = _calcCurrent;
+  }
+}
+
+function calcEval(a, b, op) {
+  if (op === '+') return +(a + b).toFixed(10);
+  if (op === '-') return +(a - b).toFixed(10);
+  if (op === '*') return +(a * b).toFixed(10);
+  if (op === '/') return b !== 0 ? +(a / b).toFixed(10) : 0;
+  return b;
 }
