@@ -80,7 +80,7 @@ router.post('/:id/email', async (req, res) => {
     const hasBalance = Number(balance) > 0.005;
 
     const payLine = hasBalance
-      ? `\nTo pay online: ${APP_URL}/pay.html?pay=${invoice.id}\nNote: A 3% convenience fee applies to card payments. This link expires once payment is received.\n`
+      ? `\nClick here to pay your balance online with a credit card (a 3% convenience fee will be added at checkout):\n${APP_URL}/pay.html?pay=${invoice.id}\n`
       : '';
 
     const textBody =
@@ -98,8 +98,8 @@ Thank you for being part of our community. If you have any questions about this 
 
     const payButtonHtml = hasBalance ? `
       <div style="text-align:center;margin:1.5rem 0">
-        <a href="${APP_URL}/pay.html?pay=${invoice.id}" style="display:inline-block;background:#1a5c32;color:#ffffff;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:bold;text-decoration:none;margin:16px 0">PAY ONLINE — $${(Number(balance) * 1.03).toFixed(2)} (incl. 3% fee)</a>
-        <p style="font-size:12px;color:#666;margin-top:8px">A 3% convenience fee applies to card payments. This link will stop working once your payment is received.</p>
+        <a href="${APP_URL}/pay.html?pay=${invoice.id}" style="display:inline-block;background:#1a5c32;color:#ffffff;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:bold;text-decoration:none;margin:16px 0">CLICK HERE TO PAY YOUR BALANCE ONLINE WITH A CREDIT CARD</a>
+        <p style="font-size:13px;color:#555;margin-top:10px">A 3% convenience fee will be added at checkout. Total with fee: <strong>$${(Number(balance) * 1.03).toFixed(2)}</strong></p>
       </div>` : `
       <div style="text-align:center;margin:1rem 0;padding:12px 20px;background:#dcfce7;border-radius:8px">
         <p style="color:#166534;font-weight:bold;margin:0">&#10003; This invoice is paid in full. No action needed.</p>
