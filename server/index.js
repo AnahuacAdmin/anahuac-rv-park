@@ -28,6 +28,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'", "https://api.open-meteo.com", "https://beta.ourmanna.com", "https://www.themealdb.com", "https://official-joke-api.appspot.com"],
+      workerSrc: ["'self'", "blob:"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
     },
