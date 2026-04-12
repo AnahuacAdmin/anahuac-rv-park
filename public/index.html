@@ -34,7 +34,6 @@
   </style>
 </head>
 <body class="login-page">
-  <button onclick="spinAndReload(this)" id="refreshBtn" title="Refresh Page" style="position:fixed;top:12px;right:16px;z-index:9999;width:44px;height:44px;border-radius:50%;background:white;border:2px solid #1a5c32;font-size:1.3rem;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.15);transition:all 0.3s" onmouseover="this.style.background='#f59e0b';this.style.borderColor='#d97706'" onmouseout="this.style.background='white';this.style.borderColor='#1a5c32'">🔄</button>
   <div id="splash" class="splash">
     <img src="/park_Logo.png" alt="" class="splash-logo">
     <div class="splash-title">Anahuac RV Park</div>
@@ -193,5 +192,12 @@
   <script src="/js/pages/users.js"></script>
   <script src="/js/pages/admin.js"></script>
   <script src="/js/pages/lotmgmt.js"></script>
+<button id="refreshBtn" onclick="this.classList.add('spin');setTimeout(()=>window.location.reload(),600)" title="Refresh Page" style="position:fixed;top:15px;right:15px;z-index:99999;width:48px;height:48px;border-radius:50%;background:white;border:3px solid #1a5c32;font-size:1.4rem;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.2)" onmouseover="this.style.background='#f59e0b'" onmouseout="this.style.background='white'">🔄</button>
+<a href="/portal.html" target="_blank" id="portalQuickBtn" title="Open Tenant Portal" style="position:fixed;bottom:20px;right:15px;z-index:99999;background:linear-gradient(135deg,#f59e0b,#d97706);color:#0d1a50;border:none;border-radius:30px;padding:12px 20px;font-size:0.9rem;font-weight:700;cursor:pointer;display:none;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(245,158,11,0.4);text-decoration:none;animation:portalPulse 2.5s infinite">🐊 Tenant Portal ↗</a>
+<style>
+#refreshBtn.spin{animation:spinBtn 0.6s linear}
+@keyframes spinBtn{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes portalPulse{0%,100%{box-shadow:0 4px 15px rgba(245,158,11,0.4)}50%{box-shadow:0 4px 25px rgba(245,158,11,0.8)}}
+</style>
 </body>
 </html>
