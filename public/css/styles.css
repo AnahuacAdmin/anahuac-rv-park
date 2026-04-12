@@ -7,6 +7,15 @@
 /* === PREMIUM UI - Anahuac RV Park Management === */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* === GLOBAL SCROLLBARS — wide, visible, branded === */
+::-webkit-scrollbar { width: 16px; height: 16px; }
+::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; border: 1px solid #ddd; }
+::-webkit-scrollbar-thumb { background: #1a5c32; border-radius: 10px; border: 3px solid #f1f1f1; }
+::-webkit-scrollbar-thumb:hover { background: #f59e0b; }
+::-webkit-scrollbar-corner { background: #f1f1f1; }
+/* Firefox */
+html { scrollbar-width: auto; scrollbar-color: #1a5c32 #f1f1f1; }
+
 :root {
   /* Brand Colors - Texas Bayou */
   --brand-primary: #1a5c32;
@@ -633,6 +642,9 @@ a { text-decoration: none; color: inherit; }
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
+.nav-menu::-webkit-scrollbar { width: 6px; }
+.nav-menu::-webkit-scrollbar-track { background: transparent; border: none; }
+.nav-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border: none; }
 .nav-link {
   display: block;
   padding: 0.7rem 1rem;
@@ -994,13 +1006,7 @@ a { text-decoration: none; color: inherit; }
   overflow-x: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: auto;
-  scrollbar-color: var(--gray-400) var(--gray-200);
 }
-.table-container::-webkit-scrollbar { height: 10px; width: 8px; }
-.table-container::-webkit-scrollbar-track { background: var(--gray-100); border-radius: 10px; }
-.table-container::-webkit-scrollbar-thumb { background: var(--gray-400); border-radius: 10px; }
-.table-container::-webkit-scrollbar-thumb:hover { background: var(--gray-500); }
 .table-container table thead th { position: sticky; top: 0; background: var(--gray-50); z-index: 2; }
 .table-container table th:first-child, .table-container table td:first-child {
   position: sticky; left: 0; background: #fff; z-index: 1;
@@ -1016,13 +1022,7 @@ a { text-decoration: none; color: inherit; }
   overflow-y: auto;
   max-height: calc(100vh - 240px);
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: auto;
-  scrollbar-color: var(--gray-500) var(--gray-200);
 }
-.billing-scroll::-webkit-scrollbar { height: 12px; width: 8px; }
-.billing-scroll::-webkit-scrollbar-track { background: var(--gray-100); border-radius: 10px; }
-.billing-scroll::-webkit-scrollbar-thumb { background: var(--gray-400); border-radius: 10px; border: 2px solid var(--gray-100); }
-.billing-scroll::-webkit-scrollbar-thumb:hover { background: var(--gray-500); }
 
 .billing-table thead th { position: sticky; top: 0; background: var(--gray-50); z-index: 2; }
 
@@ -1273,8 +1273,6 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
 
   .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius); }
   .table-container::after { opacity: 1; }
-  .table-container::-webkit-scrollbar { height: 4px; }
-  .table-container::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 2px; }
   table { font-size: 0.78rem; }
   th, td { padding: 0.5rem 0.5rem; }
   .billing-table th, .billing-table td { padding: 0.35rem 0.4rem; font-size: 0.72rem; }
