@@ -45,14 +45,11 @@ router.post('/create-checkout-session', async (req, res) => {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
+      // Force card-only: disables Stripe Link, Apple Pay, Google Pay
       payment_method_types: ['card'],
       payment_method_options: {
         card: { request_three_d_secure: 'automatic' },
       },
-      // Disable Stripe Link / saved payment methods — card only
-      phone_number_collection: { enabled: false },
-      custom_fields: [],
-      customer_email: invoice.email || undefined,
       line_items: [
         {
           price_data: {
