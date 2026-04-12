@@ -4,7 +4,7 @@
  * Proprietary and Confidential.
  * Unauthorized copying, distribution, or use is strictly prohibited.
  */
-const CACHE_NAME = 'rvpark-v29';
+const CACHE_NAME = 'rvpark-v30';
 
 // App shell: files needed for the UI to render offline.
 const APP_SHELL = [

@@ -239,13 +239,7 @@ async function loadDashboard() {
     </div>
   `;
 
-  // Debug: log admin status and chart availability
-  console.log('[dashboard] isAdmin:', isAdmin(), 'API.user:', JSON.stringify(API.user));
-  console.log('[dashboard] Chart.js:', typeof Chart, 'revenueChart in DOM:', !!document.getElementById('revenueChart'));
-  if (!document.getElementById('revenueChart')) {
-    console.error('[dashboard] NO CANVAS — isAdmin()=' + isAdmin() + ' role=' + (API.user?.role || 'NONE'));
-  }
-  renderDashboardCharts(data);
+  waitForChartAndRender(data);
 
   // Count-up animation for stat values
   setTimeout(() => {
@@ -353,94 +347,72 @@ async function refreshHealth() {
   }
 }
 
-function renderDashboardCharts(data) {
-  // Poll for Chart.js — retry every 500ms up to 10 times
-  var attempts = 0;
-  function tryRender() {
-    attempts++;
-    if (typeof Chart === 'undefined') {
-      if (attempts < 10) {
-        console.log('[charts] waiting for Chart.js... attempt', attempts);
-        setTimeout(tryRender, 500);
-      } else {
-        console.error('[charts] Chart.js never loaded after 5s');
-        var target = document.querySelector('.dash-charts-row');
-        if (target) target.innerHTML = '<div class="card" style="padding:2rem;text-align:center;color:#dc2626"><strong>Charts unavailable</strong><br>Chart.js failed to load. Try refreshing.</div>';
-      }
-      return;
-    }
+function waitForChartAndRender(data, attempts) {
+  attempts = attempts || 0;
+  if (typeof Chart !== 'undefined') {
+    console.log('[charts] Chart.js ready (v' + Chart.version + '), rendering...');
+    doRenderCharts(data);
+    return;
+  }
+  if (attempts >= 20) {
+    console.error('[charts] Chart.js never loaded after 10s');
+    var target = document.querySelector('.dash-charts-row');
+    if (target) target.innerHTML = '<div class="card" style="padding:2rem;text-align:center;color:#dc2626"><strong>Charts unavailable</strong><br>Chart.js failed to load. Try refreshing the page.</div>';
+    return;
+  }
+  console.log('[charts] waiting... attempt ' + (attempts + 1));
+  setTimeout(function() { waitForChartAndRender(data, attempts + 1); }, 500);
+}
+
+function doRenderCharts(data) {
+  try {
     var revCanvas = document.getElementById('revenueChart');
     if (!revCanvas) {
-      console.log('[charts] no canvas in DOM, isAdmin=' + isAdmin());
+      console.log('[charts] no canvas — isAdmin=' + isAdmin() + ' role=' + (API.user && API.user.role));
       return;
     }
-    console.log('[charts] rendering with Chart.js', Chart.version);
-    try {
-      if (revCanvas) {
-        revCanvas.parentElement.style.height = '220px';
-        revCanvas.parentElement.style.position = 'relative';
-        var ctx1 = revCanvas.getContext('2d');
-        var labels = (data.revenueHistory || []).map(function(r) { return r.label || ''; });
-        var collected = (data.revenueHistory || []).map(function(r) { return r.collected || 0; });
-        var outstanding = (data.revenueHistory || []).map(function(r) { return r.outstanding || 0; });
-        new Chart(ctx1, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [
-              { label: 'Collected', data: collected, backgroundColor: '#1a5c32', borderRadius: 4 },
-              { label: 'Outstanding', data: outstanding, backgroundColor: '#dc2626', borderRadius: 4 }
-            ]
-          },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
-            scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '$' + v.toLocaleString(); } } } }
-          }
-        });
-      }
 
-      // Occupancy Donut
-      var occCanvas = document.getElementById('occupancyChart');
-      if (occCanvas) {
-        occCanvas.parentElement.style.height = '200px';
-        occCanvas.parentElement.style.position = 'relative';
-        var ctx2 = occCanvas.getContext('2d');
-        new Chart(ctx2, {
-          type: 'doughnut',
-          data: {
-            labels: ['Occupied', 'Vacant', 'Reserved'],
-            datasets: [{ data: [data.occupied || 0, data.vacant || 0, data.reserved || 0], backgroundColor: ['#1a5c32', '#f59e0b', '#a8a29e'], borderWidth: 2, borderColor: '#fff' }]
-          },
-          options: {
-            responsive: true, maintainAspectRatio: false, cutout: '65%',
-            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
-          }
-        });
-      }
+    // Revenue Bar Chart
+    revCanvas.parentElement.style.height = '220px';
+    revCanvas.parentElement.style.position = 'relative';
+    new Chart(revCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: (data.revenueHistory || []).map(function(r) { return r.label || ''; }),
+        datasets: [
+          { label: 'Collected', data: (data.revenueHistory || []).map(function(r) { return r.collected || 0; }), backgroundColor: '#1a5c32', borderRadius: 4 },
+          { label: 'Outstanding', data: (data.revenueHistory || []).map(function(r) { return r.outstanding || 0; }), backgroundColor: '#dc2626', borderRadius: 4 }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '$' + v.toLocaleString(); } } } } }
+    });
 
-      // Invoice Status Donut
-      var invCanvas = document.getElementById('invoiceChart');
-      if (invCanvas) {
-        invCanvas.parentElement.style.height = '200px';
-        invCanvas.parentElement.style.position = 'relative';
-        var ctx3 = invCanvas.getContext('2d');
-        new Chart(ctx3, {
-          type: 'doughnut',
-          data: {
-            labels: ['Paid', 'Pending', 'Partial'],
-            datasets: [{ data: [data.paidInvoices || 0, data.pendingInvoices || 0, data.partialInvoices || 0], backgroundColor: ['#16a34a', '#f59e0b', '#dc2626'], borderWidth: 2, borderColor: '#fff' }]
-          },
-          options: {
-            responsive: true, maintainAspectRatio: false, cutout: '65%',
-            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
-          }
-        });
-      }
-    } catch(e) {
-      console.error('[charts] render error:', e);
+    // Occupancy Donut
+    var occCanvas = document.getElementById('occupancyChart');
+    if (occCanvas) {
+      occCanvas.parentElement.style.height = '200px';
+      occCanvas.parentElement.style.position = 'relative';
+      new Chart(occCanvas.getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: ['Occupied', 'Vacant', 'Reserved'], datasets: [{ data: [data.occupied || 0, data.vacant || 0, data.reserved || 0], backgroundColor: ['#1a5c32', '#f59e0b', '#a8a29e'], borderWidth: 2, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
+      });
     }
+
+    // Invoice Status Donut
+    var invCanvas = document.getElementById('invoiceChart');
+    if (invCanvas) {
+      invCanvas.parentElement.style.height = '200px';
+      invCanvas.parentElement.style.position = 'relative';
+      new Chart(invCanvas.getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: ['Paid', 'Pending', 'Partial'], datasets: [{ data: [data.paidInvoices || 0, data.pendingInvoices || 0, data.partialInvoices || 0], backgroundColor: ['#16a34a', '#f59e0b', '#dc2626'], borderWidth: 2, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
+      });
+    }
+
+    console.log('[charts] all 3 charts rendered successfully');
+  } catch(e) {
+    console.error('[charts] render error:', e);
   }
-  // Start polling after 500ms
-  setTimeout(tryRender, 500);
 }
