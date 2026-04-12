@@ -1,6 +1,15 @@
 async function loadSiteMap() {
-  const lots = await API.get('/lots');
-  if (!lots) return;
+  // Cache-bust: force fresh data
+  const allLots = await API.get('/lots?_t=' + Date.now());
+  if (!allLots) return;
+
+  // Deduplicate by lot id (in case LEFT JOIN produces multiple rows)
+  const seen = new Set();
+  const lots = allLots.filter(lot => {
+    if (seen.has(lot.id)) return false;
+    seen.add(lot.id);
+    return true;
+  });
 
   const rows = {};
   lots.forEach(lot => {
