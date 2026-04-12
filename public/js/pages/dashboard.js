@@ -217,9 +217,9 @@ async function loadDashboard() {
     </div>` : ''}
 
     <div class="card dash-fade-in" style="animation-delay:0.8s">
-      <button onclick="var b=document.getElementById('calc-body');b.style.display=b.style.display==='none'?'':'none'" style="width:100%;background:none;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:0">
+      <button id="calc-toggle-btn" style="width:100%;background:none;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:0">
         <h3 style="margin:0">🧮 Quick Calculator</h3>
-        <span style="color:var(--gray-400);font-size:0.8rem">tap to expand ▼</span>
+        <span id="calc-toggle-icon" style="color:var(--gray-400);font-size:0.8rem">tap to expand ▼</span>
       </button>
       <div id="calc-body" style="display:none;margin-top:0.75rem">
         <div id="calc-expr" style="text-align:right;font-size:0.78rem;color:var(--gray-400);min-height:1rem;overflow:hidden"></div>
@@ -437,6 +437,21 @@ var _calcCurrent = '0', _calcPrev = '', _calcOp = '', _calcReset = false;
 function initCalc() {
   var container = document.getElementById('calc-keys');
   if (!container) return;
+  // Wire toggle button via addEventListener (CSP-safe)
+  var toggleBtn = document.getElementById('calc-toggle-btn');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function() {
+      var body = document.getElementById('calc-body');
+      var icon = document.getElementById('calc-toggle-icon');
+      if (body.style.display === 'none') {
+        body.style.display = '';
+        if (icon) icon.textContent = 'tap to collapse ▲';
+      } else {
+        body.style.display = 'none';
+        if (icon) icon.textContent = 'tap to expand ▼';
+      }
+    });
+  }
   var keys = [
     { label: 'C', cls: 'calc-red', action: 'clear' },
     { label: '⌫', cls: 'calc-gray', action: 'back' },
