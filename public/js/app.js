@@ -558,6 +558,20 @@ function toggleHelp(id) {
 
 const APP_URL = window.location.origin;
 
+async function openPortalPreview() {
+  try {
+    const res = await fetch('/api/portal/admin-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API.token },
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to start preview'); return; }
+    window.open('/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant)), '_blank');
+  } catch (err) {
+    alert('Preview failed: ' + (err.message || 'unknown'));
+  }
+}
+
 function spinAndReload(btn) {
   btn.classList.add('spinning');
   setTimeout(function() { window.location.reload(); }, 600);

@@ -19,6 +19,37 @@ const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.
 // Track failed PIN attempts per tenant (in-memory, resets on restart)
 const _failedAttempts = {};
 
+// Admin preview tokens (in-memory, short-lived)
+const _previewTokens = new Map();
+const PREVIEW_TTL = 15 * 60 * 1000; // 15 minutes
+
+// Generate an admin preview token (requires admin JWT)
+router.post('/admin-preview', (req, res) => {
+  const authHeader = req.headers.authorization?.split(' ')[1];
+  if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const user = jwt.verify(authHeader, SECRET);
+    if (user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  } catch { return res.status(401).json({ error: 'Invalid token' }); }
+
+  // Find the first active tenant to use as sample data
+  const tenant = db.prepare('SELECT id, first_name, last_name, lot_id, phone, email FROM tenants WHERE is_active = 1 LIMIT 1').get();
+  if (!tenant) return res.status(404).json({ error: 'No active tenants to preview' });
+
+  const token = 'prev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  _previewTokens.set(token, { tenantId: tenant.id, createdAt: Date.now() });
+
+  // Clean expired tokens
+  for (const [k, v] of _previewTokens) {
+    if (Date.now() - v.createdAt > PREVIEW_TTL) _previewTokens.delete(k);
+  }
+
+  // Generate a real tenant JWT so the portal API calls work
+  const tenantJwt = jwt.sign({ id: tenant.id, role: 'tenant', lot_id: tenant.lot_id, preview: true }, SECRET, { expiresIn: '15m' });
+
+  res.json({ token: tenantJwt, previewToken: token, tenant: { id: tenant.id, first_name: tenant.first_name, last_name: tenant.last_name, lot_id: tenant.lot_id } });
+});
+
 // Tenant login — lot number + last name + PIN
 router.post('/login', (req, res) => {
   const { lot_id, last_name, pin } = req.body || {};

@@ -757,8 +757,41 @@ function portalLogout() {
   document.getElementById('pin-input').value = '';
 }
 
+// Admin preview mode
+let _isAdminPreview = false;
+(function checkAdminPreview() {
+  const p = new URLSearchParams(location.search);
+  const previewToken = p.get('adminPreview');
+  const tenantData = p.get('tenant');
+  if (previewToken && tenantData) {
+    try {
+      _portalToken = previewToken;
+      _portalTenant = JSON.parse(tenantData);
+      _isAdminPreview = true;
+      sessionStorage.setItem('portal_token', previewToken);
+      sessionStorage.setItem('portal_tenant', JSON.stringify(_portalTenant));
+      history.replaceState({}, '', '/portal.html');
+    } catch {}
+  }
+})();
+
 // Auto-login if token exists
 if (_portalToken && _portalTenant) { showPortal(); }
+
+// Show admin preview banner after portal loads
+if (_isAdminPreview) {
+  setTimeout(function() {
+    const wrapper = document.getElementById('portal-wrapper');
+    if (!wrapper) return;
+    const banner = document.createElement('div');
+    banner.style.cssText = 'width:100%;max-width:480px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:2px solid #d97706;border-radius:12px;padding:0.6rem 1rem;margin-bottom:0.75rem;text-align:center;font-size:0.85rem;font-weight:600;color:#92400e;display:flex;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:wrap';
+    banner.innerHTML = '👁️ Admin Preview Mode — Viewing as tenant would see it <button onclick="window.close()" style="margin-left:0.5rem;background:#d97706;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">Exit Preview</button>';
+    wrapper.insertBefore(banner, wrapper.firstChild);
+    // Disable payment in preview
+    var payBtn = document.querySelector('#pay-section .btn-green');
+    if (payBtn) { payBtn.onclick = function(e) { e.preventDefault(); alert('Payment disabled in preview mode.'); }; payBtn.style.opacity = '0.6'; }
+  }, 1000);
+}
 </script>
 </body>
 </html>
