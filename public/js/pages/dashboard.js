@@ -277,24 +277,6 @@ async function loadDashboard() {
     loadDashVendors();
   }
 
-  // DEBUG - chart diagnostics
-  setTimeout(function() {
-    console.log('=== CHART DEBUG ===');
-    console.log('Chart.js available:', typeof Chart);
-    console.log('revenueChart canvas:', document.getElementById('revenueChart'));
-    console.log('occupancyChart canvas:', document.getElementById('occupancyChart'));
-    console.log('invoiceChart canvas:', document.getElementById('invoiceChart'));
-    var canvas = document.getElementById('revenueChart');
-    if (!canvas) {
-      console.log('ERROR: revenueChart canvas NOT FOUND in DOM');
-      console.log('All canvas elements:', document.querySelectorAll('canvas'));
-    } else {
-      console.log('Canvas found, dimensions:', canvas.offsetWidth, 'x', canvas.offsetHeight);
-      console.log('Parent dimensions:', canvas.parentElement.offsetWidth, 'x', canvas.parentElement.offsetHeight);
-      console.log('Parent style:', canvas.parentElement.style.cssText);
-      console.log('isAdmin:', typeof isAdmin === 'function' ? isAdmin() : 'function not found');
-    }
-  }, 2000);
 }
 
 async function loadDashVendors() {
@@ -366,15 +348,25 @@ async function refreshHealth() {
 }
 
 function renderDashboardCharts(data) {
-  // Nuclear approach: wait 1.5s, force canvas sizing, guaranteed render
   setTimeout(function() {
+    // Visible debug: write status into the chart area if it exists
+    var debugTarget = document.querySelector('.dash-charts-row');
+    if (!debugTarget) {
+      console.log('[charts] dash-charts-row NOT in DOM — isAdmin() was false or charts HTML skipped');
+      return;
+    }
     if (typeof Chart === 'undefined') {
       console.error('[charts] Chart.js not loaded');
+      if (debugTarget) debugTarget.innerHTML = '<div class="card" style="padding:2rem;text-align:center;color:#dc2626"><strong>Chart.js failed to load from CDN</strong><br>Check internet connection</div>';
       return;
     }
     try {
       // Revenue Bar Chart
       var revCanvas = document.getElementById('revenueChart');
+      if (!revCanvas) {
+        console.error('[charts] revenueChart canvas not in DOM');
+        return;
+      }
       if (revCanvas) {
         revCanvas.parentElement.style.height = '220px';
         revCanvas.parentElement.style.position = 'relative';
