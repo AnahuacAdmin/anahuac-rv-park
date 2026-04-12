@@ -4,7 +4,7 @@
  * Proprietary and Confidential.
  * Unauthorized copying, distribution, or use is strictly prohibited.
  */
-const CACHE_NAME = 'rvpark-v23';
+const CACHE_NAME = 'rvpark-v24';
 
 // App shell: files needed for the UI to render offline.
 const APP_SHELL = [
@@ -25,9 +25,13 @@ const APP_SHELL = [
   '/js/pages/checkins.js',
   '/js/pages/messages.js',
   '/js/pages/reservations.js',
+  '/js/pages/electric.js',
+  '/js/pages/reports.js',
   '/js/pages/waitlist.js',
   '/js/pages/users.js',
   '/js/pages/admin.js',
+  '/js/pages/lotmgmt.js',
+  '/js/pages/vendors.js',
   '/park_Logo.png',
   '/manifest.json',
 ];
