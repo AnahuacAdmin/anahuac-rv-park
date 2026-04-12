@@ -712,13 +712,7 @@ tr:hover { background: var(--gray-50); }
 .lot-flag-badge.red { background: #dc2626; }
 .lot-flag-badge.yellow { background: #eab308; color: #1f2937; }
 .lot-card .lot-balance { font-size: 0.7rem; font-weight: 700; color: #dc2626; margin-top: 2px; }
-.lot-card.flag-eviction { border-color: #7f1d1d !important; border-width: 3px; box-shadow: 0 0 0 1px #7f1d1d inset, 0 0 12px rgba(127,29,29,0.4); }
-.eviction-badge {
-  position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%);
-  background: #7f1d1d; color: #fff; font-size: 0.6rem; font-weight: 800;
-  padding: 1px 6px; border-radius: 3px; letter-spacing: 0.5px;
-  border: 1px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
+/* Removed: .flag-eviction and .eviction-badge — replaced with subtle glow via inline style */
  
 /* Lot detail tabs */
 .tab-bar { display: flex; gap: 0.25rem; border-bottom: 2px solid var(--gray-200); margin-bottom: 1rem; }

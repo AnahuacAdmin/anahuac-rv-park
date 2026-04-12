@@ -37,15 +37,12 @@ async function loadSiteMap() {
             : lot.payment_flag === 'partial'
               ? '<span class="lot-flag-badge yellow" title="Partial payment">!</span>'
               : '';
-          const hasEviction = lot.eviction_warning === 1 && lot.balance_due > 0;
-          const evictionBadge = hasEviction
-            ? '<div class="eviction-badge" title="Eviction warning">EVICTION</div>'
-            : '';
+          const hasOverdue = lot.balance_due > 0 && lot.payment_flag;
           const _isAdmin = API.user?.role === 'admin';
+          const glowStyle = (_isAdmin && hasOverdue) ? 'box-shadow:0 0 12px rgba(255,80,80,0.8);' : '';
           return `
-          <div class="lot-card ${lot.status} ${_isAdmin ? flagClass : ''} ${_isAdmin && hasEviction ? 'flag-eviction' : ''}" onclick="showLotDetail('${lot.id}')">
+          <div class="lot-card ${lot.status} ${_isAdmin ? flagClass : ''}" style="${glowStyle}" onclick="showLotDetail('${lot.id}')">
             ${_isAdmin ? flagBadge : ''}
-            ${_isAdmin ? evictionBadge : ''}
             <div class="lot-id">${lot.id}</div>
             <div class="lot-tenant">${(lot.status === 'occupied' && lot.tenant_id) ? (lot.first_name + ' ' + lot.last_name) : (lot.notes || (lot.status === 'owner_reserved' ? 'Reserved' : lot.status === 'vacant' ? 'Available' : ''))}</div>
             <div class="lot-status">
