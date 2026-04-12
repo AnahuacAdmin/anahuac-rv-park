@@ -87,7 +87,7 @@ function renderInvoiceRow(inv) {
   if (inv.deleted) return renderDeletedInvoiceRow(inv);
   return `
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}">
-      <td>${inv.invoice_number}</td>
+      <td>${inv.invoice_number}${inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.6rem">PRORATED</span>' : ''}</td>
       <td><strong>${inv.lot_id}</strong></td>
       <td>${inv.first_name} ${inv.last_name}</td>
       <td>${formatDate(inv.invoice_date)}</td>

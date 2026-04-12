@@ -75,7 +75,11 @@ async function showCheckIn() {
       </div>
       <div class="form-row">
         <div class="form-group"><label>Email</label><input name="email" type="email"></div>
-        <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${new Date().toISOString().split('T')[0]}" required></div>
+        <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${new Date().toISOString().split('T')[0]}" required onchange="calcProration(this.form)"></div>
+      </div>
+      <div id="proration-info" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem">
+        <strong style="color:#1e40af">Prorated First Month</strong>
+        <div id="proration-detail" style="font-size:0.9rem;margin-top:0.25rem"></div>
       </div>
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
       <button type="submit" class="btn btn-success btn-full mt-2">Check In</button>
@@ -91,6 +95,35 @@ function updateRateLabel(sel) {
   if (type === 'daily') { if (label) label.textContent = 'Daily Rate ($)'; if (input && input.value === '295') input.value = '50'; }
   else if (type === 'weekly') { if (label) label.textContent = 'Weekly Rate ($)'; if (input && input.value === '295') input.value = '200'; }
   else { if (label) label.textContent = 'Monthly Rate ($)'; }
+  calcProration(sel.form);
+}
+
+function calcProration(form) {
+  const infoEl = document.getElementById('proration-info');
+  const detailEl = document.getElementById('proration-detail');
+  if (!infoEl || !detailEl) return;
+
+  const type = form.rent_type?.value || 'monthly';
+  const dateVal = form.check_in_date?.value;
+  const rate = parseFloat(form.monthly_rent?.value) || 0;
+
+  // No proration for daily/weekly
+  if (type !== 'monthly' || !dateVal || !rate) { infoEl.style.display = 'none'; return; }
+
+  const moveIn = new Date(dateVal + 'T00:00:00');
+  const day = moveIn.getDate();
+  if (day === 1) { infoEl.style.display = 'none'; return; } // 1st of month = no proration
+
+  const year = moveIn.getFullYear();
+  const month = moveIn.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const remainingDays = daysInMonth - day + 1; // Include move-in day
+  const prorated = +((rate / daysInMonth) * remainingDays).toFixed(2);
+  const monthName = moveIn.toLocaleString('default', { month: 'long' });
+
+  detailEl.innerHTML = `Move-in: ${monthName} ${day} = <strong>${remainingDays} days remaining</strong> of ${daysInMonth}<br>` +
+    `$${rate.toFixed(2)} / ${daysInMonth} days × ${remainingDays} days = <strong style="color:#16a34a">$${prorated.toFixed(2)} prorated</strong>`;
+  infoEl.style.display = '';
 }
 
 async function processCheckIn(e) {
@@ -133,6 +166,35 @@ async function processCheckIn(e) {
   } catch (err) {
     // Tenant was created but checkin record failed — not fatal, warn and continue.
     console.error('Checkin record failed:', err);
+  }
+
+  // Auto-generate prorated invoice for mid-month move-in (monthly tenants only)
+  const rentType = data.rent_type || 'monthly';
+  const moveInDate = new Date(data.check_in_date + 'T00:00:00');
+  const moveDay = moveInDate.getDate();
+  if (rentType === 'monthly' && moveDay > 1) {
+    try {
+      const monthlyRate = parseFloat(data.monthly_rent) || 0;
+      const yr = moveInDate.getFullYear();
+      const mo = moveInDate.getMonth();
+      const dim = new Date(yr, mo + 1, 0).getDate();
+      const remaining = dim - moveDay + 1;
+      const prorated = +((monthlyRate / dim) * remaining).toFixed(2);
+      const moName = moveInDate.toLocaleString('default', { month: 'long' });
+      const endDate = `${yr}-${String(mo + 1).padStart(2, '0')}-${dim}`;
+      await API.post('/invoices', {
+        tenant_id: tenant.id,
+        invoice_date: data.check_in_date,
+        due_date: data.check_in_date,
+        billing_period_start: data.check_in_date,
+        billing_period_end: endDate,
+        rent_amount: prorated,
+        notes: `Prorated - ${moName} ${yr} (${remaining}/${dim} days)`,
+      });
+      console.log(`Prorated invoice created: $${prorated} for ${remaining} days`);
+    } catch (err) {
+      console.error('Prorated invoice failed (non-fatal):', err);
+    }
   }
 
   closeModal();
