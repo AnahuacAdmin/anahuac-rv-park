@@ -5,15 +5,25 @@ async function loadReports() {
   }
   const now = new Date();
   document.getElementById('page-content').innerHTML = `
-    <div class="page-header"><h2>📊 Monthly Income Report</h2></div>
-    <div class="filter-bar">
-      <select id="report-month">
-        ${[...Array(12)].map((_, i) => `<option value="${i+1}" ${i+1===now.getMonth()+1?'selected':''}>${new Date(2000,i).toLocaleString('default',{month:'long'})}</option>`).join('')}
-      </select>
-      <select id="report-year">
-        ${[now.getFullYear(), now.getFullYear()-1].map(y => `<option value="${y}">${y}</option>`).join('')}
-      </select>
-      <button class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+    <div class="page-header">
+      <h2>📊 Reports</h2>
+      <div class="btn-group">
+        <button class="btn btn-warning" onclick="showTaxReport()">🧾 Tax Reports</button>
+        <button class="btn btn-outline" onclick="exportInvoicesToExcel()">📊 Export Invoices to Excel</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <h3>Monthly Income Report</h3>
+      <div class="filter-bar" style="margin-bottom:0">
+        <select id="report-month">
+          ${[...Array(12)].map((_, i) => `<option value="${i+1}" ${i+1===now.getMonth()+1?'selected':''}>${new Date(2000,i).toLocaleString('default',{month:'long'})}</option>`).join('')}
+        </select>
+        <select id="report-year">
+          ${[now.getFullYear(), now.getFullYear()-1].map(y => `<option value="${y}">${y}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+      </div>
     </div>
     <div id="report-content"></div>
   `;

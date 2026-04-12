@@ -42,8 +42,6 @@ async function loadBilling() {
         <button class="btn btn-success" onclick="showGenerateInvoices()">Generate Monthly Invoices</button>
         <button class="btn btn-danger" onclick="checkLateFees()">Check Late Fees</button>
         <button class="btn btn-warning" onclick="sendUnpaidPaymentReminders()">Send Payment Reminder (SMS)</button>
-        <button class="btn btn-warning" onclick="showTaxReport()">Tax Reports</button>
-        <button class="btn btn-outline" onclick="exportInvoicesToExcel()">Export to Excel</button>
         <button class="btn btn-primary" onclick="showCreateInvoice()">+ Single Invoice</button>
       </div>
     </div>
@@ -973,10 +971,14 @@ async function checkLateFees() {
 }
 
 // --- Excel export of currently filtered invoices ---
-function exportInvoicesToExcel() {
+async function exportInvoicesToExcel() {
   if (typeof XLSX === 'undefined') {
     alert('Excel library failed to load. Check your internet connection and try again.');
     return;
+  }
+  // Auto-fetch invoices if not already loaded (e.g. called from Reports page)
+  if (!window._allInvoices || !window._allInvoices.length) {
+    try { window._allInvoices = await API.get('/invoices') || []; } catch {}
   }
   if (!window._allInvoices || !window._allInvoices.length) {
     alert('No invoices to export.');
