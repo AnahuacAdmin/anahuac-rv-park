@@ -355,7 +355,25 @@
 </div>
 
 <script>
-// --- Admin Preview Detection (FIRST, before splash) ---
+// --- Admin Auto-Login: if admin token exists, redirect to preview ---
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('adminPreview')) return; // Already have preview token, skip
+  if (params.get('paid') || params.get('cancelled')) return; // Payment return, skip
+  var adminToken = localStorage.getItem('rv_token');
+  if (!adminToken) return; // Not an admin, skip
+  // Try to get preview token
+  fetch('/api/portal/admin-preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken }
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.token && data.tenant) {
+      window.location.replace('/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant)));
+    }
+  }).catch(function() {}); // Silently fail — show normal login
+})();
+
+// --- Admin Preview Detection ---
 let _isAdminPreview = false;
 let _portalToken = sessionStorage.getItem('portal_token');
 let _portalTenant = JSON.parse(sessionStorage.getItem('portal_tenant') || 'null');
