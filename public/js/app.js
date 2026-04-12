@@ -481,53 +481,8 @@ const HELP_CONTENT = {
   </ol>`
 };
 
-// --- Welcome Tour for First-Time Users ---
-function showWelcomeTour() {
-  // DISABLED — was locking up the app. Force cleanup and exit.
-  localStorage.setItem('hasSeenTour', '1');
-  document.querySelectorAll('.celebration-overlay, .modal-overlay[style*="display"], [id*="tour"]').forEach(function(el) { el.remove(); });
-  try { closeModal(); } catch(e) {}
-  return;
-  const steps = [
-    { title: '🐊 Welcome to Anahuac RV Park!', text: 'This management system helps you run every aspect of the park. Let us show you around!' },
-    { title: '📊 Dashboard', text: 'Your command center — occupancy, revenue, quick actions, and system health all in one place.' },
-    { title: '🗺️ Site Map', text: 'Visual overview of every lot. Color-coded by status — click any lot to see tenant details.' },
-    { title: '👤 Tenants', text: 'Manage all active tenants. Edit contact info, set recurring fees, move between lots.' },
-    { title: '🏕️ Check-In/Out', text: 'New tenants start here. Full intake form with deposit tracking and prorated billing.' },
-    { title: '⚡ Meter Readings', text: 'Enter electric readings monthly. Use Mobile Entry with your phone while walking the park.' },
-    { title: '🧾 Billing', text: 'Generate invoices, email them to tenants, and track payments. Tenants can pay online!' },
-    { title: '📊 Reports', text: 'Monthly income reports, tax summaries, and Excel exports for your accountant.' },
-    { title: '✅ You\'re Ready!', text: 'Remember — click the green <strong>? How To Use</strong> button at the top of any page for help. You can also press <strong>?</strong> on your keyboard for shortcuts. Welcome aboard!' },
-  ];
-  let step = 0;
-  function render() {
-    const s = steps[step];
-    const isLast = step === steps.length - 1;
-    const isFirst = step === 0;
-    showModal(s.title, `
-      <div style="text-align:center;padding:0.5rem 0">
-        <p style="font-size:0.95rem;line-height:1.6;margin-bottom:1.5rem">${s.text}</p>
-        <div style="display:flex;justify-content:center;gap:0.5rem;align-items:center">
-          ${!isFirst ? '<button class="btn btn-outline" onclick="this.closest(\'.modal\').querySelector(\'[data-tour-prev]\').click()" style="width:auto;padding:0.5rem 1rem">← Back</button>' : ''}
-          <span style="color:var(--gray-400);font-size:0.78rem">${step + 1} of ${steps.length}</span>
-          ${isLast
-            ? '<button class="btn btn-primary" onclick="localStorage.setItem(\'hasSeenTour\',\'1\');closeModal()" style="width:auto;padding:0.5rem 1.5rem">Get Started! 🎉</button>'
-            : '<button class="btn btn-primary" onclick="this.closest(\'.modal\').querySelector(\'[data-tour-next]\').click()" style="width:auto;padding:0.5rem 1.5rem">Next →</button>'}
-        </div>
-        <p style="margin-top:1rem"><a href="#" onclick="event.preventDefault();localStorage.setItem(\'hasSeenTour\',\'1\');closeModal()" style="color:var(--gray-400);font-size:0.8rem;text-decoration:underline">Skip tour</a></p>
-        <button data-tour-next style="display:none" onclick=""></button>
-        <button data-tour-prev style="display:none" onclick=""></button>
-      </div>
-    `);
-    // Wire hidden buttons
-    const modal = document.getElementById('modal-body');
-    const nextBtn = modal.querySelector('[data-tour-next]');
-    const prevBtn = modal.querySelector('[data-tour-prev]');
-    if (nextBtn) nextBtn.onclick = () => { step++; render(); };
-    if (prevBtn) prevBtn.onclick = () => { step--; render(); };
-  }
-  setTimeout(render, 500);
-}
+// --- Welcome Tour (DISABLED) ---
+function showWelcomeTour() { localStorage.setItem('hasSeenTour','1'); return; }
 
 // --- Keyboard Shortcuts ---
 function showKeyboardShortcuts() {
