@@ -260,7 +260,7 @@ async function sendAdvancedBroadcast(e) {
   }
   if (!confirm(`Send this notification to ${data.recipients === 'all' ? 'ALL tenants' : data.recipients === 'unpaid' ? 'unpaid tenants' : data.recipients}?`)) return;
 
-  const toast = showStatusToast('📢', 'Sending notifications...');
+  const toast = showStatusToast('📢', 'Sending notifications...', -1);
   try {
     const r = await API.post('/messages/broadcast-advanced', data);
     toast.update('✅', 'Notifications sent!');
@@ -323,7 +323,7 @@ async function sendPortalLink() {
 
   if (sel.value === 'ALL') {
     if (!confirm('Send the portal link to ALL active tenants with phone numbers? This may send many SMS messages.')) return;
-    const toast = showStatusToast('📲', 'Sending portal links...');
+    const toast = showStatusToast('📲', 'Sending portal links...', -1);
     try {
       const r = await API.post('/messages/broadcast-advanced', {
         message_type: 'portal_invite',
@@ -348,7 +348,7 @@ async function sendPortalLink() {
     if (!phone) { if (errEl) { errEl.textContent = 'This tenant has no phone number.'; errEl.style.display = ''; } return; }
 
     const personalMsg = msg.replace('[Name]', name).replace('[name]', name);
-    const toast = showStatusToast('📲', `Sending to ${name}...`);
+    const toast = showStatusToast('📲', `Sending to ${name}...`, -1);
     try {
       await API.post('/messages', {
         tenant_id: parseInt(sel.value),

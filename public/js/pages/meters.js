@@ -287,8 +287,6 @@ async function saveQuickUpdate(e, lotId, tenantId) {
     await API.post('/meters', data);
     closeModal();
     showStatusToast('✅', `${lotId} reading saved!`);
-    const t = document.querySelector('.status-toast.visible');
-    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
     loadMeters();
   } catch (err) {
     alert('Save failed: ' + (err.message || 'unknown'));

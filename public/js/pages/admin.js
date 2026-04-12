@@ -98,8 +98,6 @@ async function saveEvictionSettings() {
       auto_eviction_email: document.getElementById('auto-evict-email')?.checked ? '1' : '0',
     });
     showStatusToast('✅', 'Eviction settings saved!');
-    const t = document.querySelector('.status-toast.visible');
-    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
   } catch (err) { alert('Failed to save: ' + (err.message || 'unknown')); }
 }
 
@@ -108,8 +106,6 @@ async function saveElectricRate() {
   try {
     await API.put('/settings', { electric_rate: val });
     showStatusToast('✅', `Electric rate saved: $${val}/kWh`);
-    const t = document.querySelector('.status-toast.visible');
-    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
   } catch (err) {
     alert('Failed to save: ' + (err.message || 'unknown'));
   }
@@ -120,8 +116,6 @@ async function saveWifiPassword() {
   try {
     await API.put('/settings', { wifi_password: val });
     showStatusToast('✅', 'WiFi password saved!');
-    const t = document.querySelector('.status-toast.visible');
-    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
   } catch (err) {
     alert('Failed to save: ' + (err.message || 'unknown'));
   }

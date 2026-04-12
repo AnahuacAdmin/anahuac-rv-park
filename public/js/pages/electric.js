@@ -271,8 +271,6 @@ async function downloadLotPdf(lotId) {
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
     }).from(wrapper.firstElementChild).save();
     showStatusToast('✅', 'PDF downloaded!');
-    const st = document.querySelector('.status-toast.visible');
-    if (st) setTimeout(() => st.classList.remove('visible'), 3000);
   } catch (err) {
     alert('PDF generation failed: ' + (err.message || 'unknown'));
   } finally {
@@ -342,8 +340,6 @@ async function sendElectricSms(lotId, tenantId) {
     });
     closeModal();
     showStatusToast('✅', 'Electric summary texted to tenant!');
-    const t = document.querySelector('.status-toast.visible');
-    if (t) setTimeout(() => t.classList.remove('visible'), 3000);
   } catch (err) {
     alert('SMS failed: ' + (err.message || 'unknown'));
     const btn = document.querySelector('#modal-body .btn-success');
