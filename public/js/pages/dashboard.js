@@ -1,3 +1,9 @@
+/*
+ * Anahuac RV Park Management System
+ * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
+ * Proprietary and Confidential.
+ * Unauthorized copying, distribution, or use is strictly prohibited.
+ */
 async function fetchWeather() {
   try {
     const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.7724&longitude=-94.6799&current=temperature_2m,weathercode,windspeed_10m,relative_humidity_2m&temperature_unit=fahrenheit&windspeed_unit=mph');

@@ -1,3 +1,9 @@
+/*
+ * Anahuac RV Park Management System
+ * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
+ * Proprietary and Confidential.
+ * Unauthorized copying, distribution, or use is strictly prohibited.
+ */
 // Creates (or resets) the admin user in the configured database.
 // Usage:  node create-admin.js
 // Honors DB_PATH env var (same as the server).

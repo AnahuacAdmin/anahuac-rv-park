@@ -1,3 +1,9 @@
+/*
+ * Anahuac RV Park Management System
+ * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
+ * Proprietary and Confidential.
+ * Unauthorized copying, distribution, or use is strictly prohibited.
+ */
 function recurringSummary(t) {
   const parts = [];
   if (t.recurring_late_fee) parts.push(`Late ${formatMoney(t.recurring_late_fee)}`);

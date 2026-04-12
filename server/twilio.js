@@ -1,3 +1,9 @@
+/*
+ * Anahuac RV Park Management System
+ * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
+ * Proprietary and Confidential.
+ * Unauthorized copying, distribution, or use is strictly prohibited.
+ */
 // Thin Twilio wrapper. Lazy-loaded so missing env vars don't crash boot.
 let _client = null;
 function getClient() {

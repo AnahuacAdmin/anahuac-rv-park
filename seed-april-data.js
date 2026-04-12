@@ -1,3 +1,9 @@
+/*
+ * Anahuac RV Park Management System
+ * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
+ * Proprietary and Confidential.
+ * Unauthorized copying, distribution, or use is strictly prohibited.
+ */
 // Seed April 2026 invoices for all active tenants based on existing meter readings.
 const { db, initializeDatabase } = require('./server/database');
 

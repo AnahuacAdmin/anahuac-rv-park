@@ -1,3 +1,9 @@
+/*
+ * Anahuac RV Park Management System
+ * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
+ * Proprietary and Confidential.
+ * Unauthorized copying, distribution, or use is strictly prohibited.
+ */
 const API = {
   token: localStorage.getItem('rv_token'),
   user: JSON.parse(localStorage.getItem('rv_user') || 'null'),

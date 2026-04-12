@@ -1,3 +1,9 @@
+/*
+ * Anahuac RV Park Management System
+ * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
+ * Proprietary and Confidential.
+ * Unauthorized copying, distribution, or use is strictly prohibited.
+ */
 // Backfill real April 2026 meter face values.
 // Usage:  node backfill-meters.js
 // Honors DB_PATH env var (same as the server).

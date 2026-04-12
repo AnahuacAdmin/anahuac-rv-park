@@ -1,3 +1,9 @@
+/*
+ * Anahuac RV Park Management System
+ * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
+ * Proprietary and Confidential.
+ * Unauthorized copying, distribution, or use is strictly prohibited.
+ */
 async function loadCheckins() {
   const [checkins, tenants, lots] = await Promise.all([
     API.get('/checkins'), API.get('/tenants'), API.get('/lots')

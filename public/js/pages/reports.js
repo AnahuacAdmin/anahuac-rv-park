@@ -1,3 +1,9 @@
+/*
+ * Anahuac RV Park Management System
+ * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
+ * Proprietary and Confidential.
+ * Unauthorized copying, distribution, or use is strictly prohibited.
+ */
 async function loadReports() {
   if (API.user?.role !== 'admin') {
     document.getElementById('page-content').innerHTML = '<div class="card"><p>Admin access required.</p></div>';
