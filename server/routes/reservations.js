@@ -60,7 +60,7 @@ router.post('/', (req, res) => {
     const nights = Math.max(1, Math.round(
       (new Date(b.departure_date) - new Date(b.arrival_date)) / 86400000
     ));
-    const rate = Number(b.rate_per_night) || 50;
+    const rate = Number(b.rate_per_night) || 30;
     const total = +(nights * rate).toFixed(2);
     const deposit = Number(b.deposit_paid) || 0;
     const confNum = 'RES-' + Date.now().toString(36).toUpperCase();
@@ -215,7 +215,7 @@ router.post('/group', (req, res) => {
       .run(b.group_name, b.primary_contact_name || null, b.primary_contact_phone || null, b.primary_contact_email || null, b.arrival_date, b.departure_date, nights, b.billing_type || 'separate', b.notes || null);
     const groupId = gResult.lastInsertRowid;
 
-    const rate = Number(b.rate_per_night) || 50;
+    const rate = Number(b.rate_per_night) || 30;
     const lotResults = [];
     for (const lot of b.lots) {
       const confNum = 'RES-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 4).toUpperCase();

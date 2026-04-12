@@ -24,8 +24,17 @@ async function loadBilling() {
       ${pausedTenants.length ? `<div><strong style="color:#f59e0b">⏸️ Manager Hold (${pausedTenants.length})</strong>: ${pausedTenants.map(t => `<span class="badge badge-warning" title="${(t.eviction_pause_note || '').replace(/"/g,'&quot;')}">${t.lot_id} ${t.first_name} ${t.last_name}</span>`).join(' ')}</div>` : ''}
     </div>` : '';
 
+  const rateLegend = `<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.75rem">
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#2563eb;margin-right:3px"></span>Monthly</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#7c3aed;margin-right:3px"></span>Weekly</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f59e0b;margin-right:3px"></span>Daily</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#eab308;margin-right:3px"></span>Prorated</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#9ca3af;margin-right:3px"></span>Electric Only</span>
+  </div>`;
+
   document.getElementById('page-content').innerHTML = `
     ${evictionBanner}
+    ${rateLegend}
     ${helpPanel('billing')}
     <div class="page-header">
       <h2>Billing & Invoices</h2>
@@ -85,8 +94,11 @@ function toggleShowDeleted(checked) {
 
 function renderInvoiceRow(inv) {
   if (inv.deleted) return renderDeletedInvoiceRow(inv);
+  const _t = (window._billingTenants || []).find(x => x.id === inv.tenant_id);
+  const _rt = _t?.rent_type || 'monthly';
+  const _rtColor = { monthly:'#2563eb', weekly:'#7c3aed', daily:'#f59e0b', prorated:'#eab308', electric_only:'#9ca3af', premium:'#2563eb', standard:'#2563eb' }[_rt] || '#2563eb';
   return `
-    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}">
+    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_rtColor}">
       <td>${inv.invoice_number}${inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.6rem">PRORATED</span>' : ''}</td>
       <td><strong>${inv.lot_id}</strong></td>
       <td>${inv.first_name} ${inv.last_name}</td>

@@ -122,7 +122,7 @@ function filterReservations(status) {
 
 async function showNewReservation() {
   const [lots, settings] = await Promise.all([API.get('/lots'), API.get('/settings')]);
-  const nightly_rate = settings?.reservation_nightly_rate || settings?.reservation_rate || 50;
+  const nightly_rate = settings?.reservation_nightly_rate || settings?.reservation_rate || 30;
   showModal('New Reservation', resForm(lots, { rate_per_night: nightly_rate }));
 }
 
@@ -150,7 +150,7 @@ function resForm(lots, r = {}) {
         <div class="form-group"><label>Departure Date</label><input name="departure_date" type="date" value="${r.departure_date || ''}" required onchange="calcResNights(this.form)"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Rate per Night ($)</label><input name="rate_per_night" type="number" step="0.01" value="${r.rate_per_night ?? 50}" onchange="calcResNights(this.form)"></div>
+        <div class="form-group"><label>Rate per Night ($)</label><input name="rate_per_night" type="number" step="0.01" value="${r.rate_per_night ?? 30}" onchange="calcResNights(this.form)"></div>
         <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_paid" type="number" step="0.01" value="${r.deposit_paid || 0}"></div>
       </div>
       <div id="res-calc" style="background:#eff6ff;padding:0.6rem 1rem;border-radius:6px;margin-bottom:1rem;font-size:0.9rem;display:none">
@@ -192,7 +192,7 @@ async function saveReservation(e, id) {
   const data = Object.fromEntries(form);
   data.guest_name = ((data.first_name || '') + ' ' + (data.last_name || '')).trim();
   delete data.first_name; delete data.last_name;
-  data.rate_per_night = parseFloat(data.rate_per_night) || 50;
+  data.rate_per_night = parseFloat(data.rate_per_night) || 30;
   data.deposit_paid = parseFloat(data.deposit_paid) || 0;
   try {
     if (id) {
@@ -375,7 +375,7 @@ let _groupLotCount = 0;
 
 async function showGroupReservation() {
   const [lots, settings] = await Promise.all([API.get('/lots'), API.get('/settings')]);
-  const nightly_rate = settings?.reservation_nightly_rate || settings?.reservation_rate || 50;
+  const nightly_rate = settings?.reservation_nightly_rate || settings?.reservation_rate || 30;
   _groupLotCount = 0;
   const today = new Date().toISOString().split('T')[0];
   showModal('👨‍👩‍👧‍👦 Group Reservation', `
