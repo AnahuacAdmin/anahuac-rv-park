@@ -78,9 +78,12 @@ router.post('/:id/email', async (req, res) => {
     const total = Number(invoice.total_amount || 0).toFixed(2);
 
     const hasBalance = Number(balance) > 0.005;
+    const balNum = Number(balance);
+    const fee = +(balNum * 0.03).toFixed(2);
+    const totalWithFee = +(balNum + fee).toFixed(2);
 
     const payLine = hasBalance
-      ? `\nClick here to pay your balance online with a credit card (a 3% convenience fee will be added at checkout):\n${APP_URL}/pay.html?pay=${invoice.id}\n`
+      ? `\nPay online: ${APP_URL}/pay.html?pay=${invoice.id}\nTotal with 3% convenience fee: $${totalWithFee.toFixed(2)} (fee: $${fee.toFixed(2)})\n`
       : '';
 
     const textBody =
@@ -98,8 +101,11 @@ Thank you for being part of our community. If you have any questions about this 
 
     const payButtonHtml = hasBalance ? `
       <div style="text-align:center;margin:1.5rem 0">
-        <a href="${APP_URL}/pay.html?pay=${invoice.id}" style="display:inline-block;background:#1a5c32;color:#ffffff;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:bold;text-decoration:none;margin:16px 0">CLICK HERE TO PAY YOUR BALANCE ONLINE WITH A CREDIT CARD</a>
-        <p style="font-size:13px;color:#555;margin-top:10px">A 3% convenience fee will be added at checkout. Total with fee: <strong>$${(Number(balance) * 1.03).toFixed(2)}</strong></p>
+        <a href="${APP_URL}/pay.html?pay=${invoice.id}" style="display:inline-block;background:#1a5c32;color:#ffffff;padding:16px 32px;border-radius:10px;text-decoration:none;margin:16px 0;line-height:1.5;text-align:center">
+          <span style="font-size:18px;font-weight:bold;display:block">&#128179; PAY NOW &mdash; $${totalWithFee.toFixed(2)}</span>
+          <span style="font-size:12px;font-weight:normal;opacity:0.85;display:block">(Includes 3% convenience fee of $${fee.toFixed(2)})</span>
+        </a>
+        <p style="font-size:12px;color:#666;margin-top:8px">This link will stop working once your payment is received.</p>
       </div>` : `
       <div style="text-align:center;margin:1rem 0;padding:12px 20px;background:#dcfce7;border-radius:8px">
         <p style="color:#166534;font-weight:bold;margin:0">&#10003; This invoice is paid in full. No action needed.</p>
@@ -465,6 +471,28 @@ router.post('/generate', (req, res) => {
     // Mid-month move proration: if last_move_date falls inside this period,
     // split the rent between the old and new lot by days.
     let rentAmount = tenant.monthly_rent;
+
+    // Flat rate billing: one amount covers everything, skip electric
+    if (tenant.flat_rate && tenant.flat_rate_amount > 0) {
+      const invoiceNum = nextInvoiceNumber();
+      const flatAmount = Number(tenant.flat_rate_amount);
+      const tenantCredit = Number(tenant.credit_balance) || 0;
+      let creditApplied = 0;
+      if (tenantCredit > 0 && flatAmount > 0) {
+        creditApplied = +Math.min(tenantCredit, flatAmount).toFixed(2);
+        db.prepare('UPDATE tenants SET credit_balance = credit_balance - ? WHERE id = ?').run(creditApplied, tenant.id);
+      }
+      const total = +(flatAmount - creditApplied).toFixed(2);
+      db.prepare(`
+        INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
+          rent_amount, electric_amount, subtotal, total_amount, balance_due, status, notes, credit_applied)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'pending', ?, ?)
+      `).run(tenant.id, tenant.lot_id, invoiceNum, startDate, dueDate, startDate, endDate,
+        flatAmount, flatAmount, total, total, 'Flat rate — all-inclusive', creditApplied);
+      generated.push(tenant.lot_id);
+      continue; // skip the normal calculation below
+    }
+
     let moveNote = '';
     if (tenant.last_move_date && tenant.last_move_date >= startDate && tenant.last_move_date <= endDate) {
       const daysInMonth = new Date(billing_year, billing_month, 0).getDate();
