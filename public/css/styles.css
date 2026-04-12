@@ -604,7 +604,7 @@ a { text-decoration: none; color: inherit; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
 .page-header h2 { font-size: 1.5rem; color: var(--gray-900); }
 .card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 1.25rem; margin-bottom: 1rem; }
-.billing-page-card { display: flex; flex-direction: column; max-height: calc(100vh - 200px); overflow: hidden; }
+.billing-page-card { display: flex; flex-direction: column; max-height: calc(100vh - 200px); }
 .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .stat-card { background: white; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -615,36 +615,56 @@ a { text-decoration: none; color: inherit; }
 .stat-card.danger .stat-value { color: var(--danger); }
  
 /* Tables */
-.table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: auto; scrollbar-color: #9ca3af var(--gray-200); }
-.table-container::-webkit-scrollbar { height: 10px; }
-.table-container::-webkit-scrollbar-track { background: var(--gray-200); border-radius: 5px; }
-.table-container::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 5px; }
+.table-container {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  max-height: calc(100vh - 300px);
+  scrollbar-width: auto; scrollbar-color: #9ca3af var(--gray-200);
+}
+.table-container::-webkit-scrollbar { height: 12px; width: 8px; }
+.table-container::-webkit-scrollbar-track { background: var(--gray-200); border-radius: 6px; }
+.table-container::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 6px; }
 .table-container::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+/* Sticky first column for all wide tables */
+.table-container table th:first-child, .table-container table td:first-child {
+  position: sticky; left: 0; background: #fff; z-index: 1;
+}
+.table-container table thead th:first-child { background: var(--gray-50); z-index: 3; }
 .billing-table { min-width: 1400px; }
 .billing-table th, .billing-table td { padding: 0.4rem 0.5rem; font-size: 0.78rem; white-space: nowrap; }
 .billing-table th { font-size: 0.7rem; }
  
-/* Billing table: horizontal scroll with visible scrollbar */
+/* Billing table: dual-axis scroll with always-visible scrollbars.
+   The outer wrapper (.billing-scroll) handles vertical scroll and constrains
+   height so the horizontal scrollbar never hides below the fold.
+   The inner wrapper (.billing-scroll-x) handles horizontal scroll only. */
 .billing-scroll {
   flex: 1;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: auto;
-  max-height: none;
   position: relative;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #9ca3af var(--gray-200);
+}
+.billing-scroll::-webkit-scrollbar { width: 8px; }
+.billing-scroll::-webkit-scrollbar-track { background: var(--gray-200); }
+.billing-scroll::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 4px; }
+
+.billing-scroll-x {
+  overflow-x: auto;
+  overflow-y: visible;
   width: 100%;
   scrollbar-width: auto;
   scrollbar-color: #6b7280 var(--gray-200);
 }
-
-/* Thick, visible scrollbars for billing table */
-.billing-scroll::-webkit-scrollbar { height: 16px; }
-.billing-scroll::-webkit-scrollbar-track { background: var(--gray-200); border-radius: 8px; }
-.billing-scroll::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 8px; border: 2px solid var(--gray-200); }
-.billing-scroll::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+.billing-scroll-x::-webkit-scrollbar { height: 14px; }
+.billing-scroll-x::-webkit-scrollbar-track { background: var(--gray-200); border-radius: 7px; }
+.billing-scroll-x::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 7px; border: 2px solid var(--gray-200); }
+.billing-scroll-x::-webkit-scrollbar-thumb:hover { background: #4b5563; }
  
-/* Sticky header row */
+/* Sticky header row — works for billing table and all .table-container tables */
 .billing-table thead th { position: sticky; top: 0; background: var(--gray-50); z-index: 2; }
+.table-container table thead th { position: sticky; top: 0; background: var(--gray-50); z-index: 2; }
  
 /* Sticky first two columns */
 .billing-table th:nth-child(2), .billing-table td:nth-child(2) { position: sticky; left: 0; background: #fff; z-index: 1; box-shadow: 1px 0 0 var(--gray-200); }

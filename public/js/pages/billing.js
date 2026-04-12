@@ -59,13 +59,15 @@ async function loadBilling() {
       </label>
     </div>
     <div class="card billing-page-card">
-      <div class="table-container table-scroll billing-scroll">
-        <table class="billing-table">
+      <div class="billing-scroll">
+        <div class="billing-scroll-x">
+          <table class="billing-table">
           <thead><tr><th>Invoice #</th><th>Lot</th><th>Tenant</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="invoices-body">
             ${renderInvoiceRows(invoices)}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   `;
