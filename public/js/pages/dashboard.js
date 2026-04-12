@@ -119,6 +119,7 @@ async function loadDashboard() {
     <!-- Quick Actions -->
     <div class="dash-actions dash-fade-in" style="animation-delay:0.45s">
       <button class="dash-action-btn" onclick="navigateTo('meters')"><span class="dash-action-icon">⚡</span>Meter Readings</button>
+      <button class="dash-action-btn" onclick="navigateTo('electric')"><span class="dash-action-icon">📊</span>Electric Analytics</button>
       ${isAdmin() ? `<button class="dash-action-btn" onclick="navigateTo('billing')"><span class="dash-action-icon">🧾</span>Invoices${data.pendingInvoices ? `<span class="dash-action-badge">${data.pendingInvoices}</span>` : ''}</button>` : ''}
       ${isAdmin() ? `<button class="dash-action-btn" onclick="navigateTo('payments')"><span class="dash-action-icon">💰</span>Payments</button>` : ''}
       <button class="dash-action-btn" onclick="navigateTo('checkins')"><span class="dash-action-icon">🏕️</span>Check In</button>
