@@ -179,8 +179,8 @@ a { text-decoration: none; color: inherit; }
 .login-logo {
   display: block;
   margin: 0 auto 1rem;
-  max-height: 120px;
-  max-width: 120px;
+  max-height: 160px;
+  max-width: 160px;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -1288,6 +1288,7 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
   .btn-sm { padding: 0.4rem 0.65rem; font-size: 0.75rem; min-height: 36px; }
 
   .login-box { padding: 1.75rem 1.25rem; }
+  .login-logo { max-height: 120px; max-width: 120px; }
 
   .sitemap-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.6rem; }
   .lot-card { min-height: 80px; padding: 0.6rem; }
