@@ -211,6 +211,7 @@ async function loadDashboard() {
 }
 
 const _healthIcons = { 'Database': '🗄️', 'Stripe': '💳', 'Twilio': '📱', 'Internet': '🌐', 'Railway App': '🚂' };
+const _healthLinks = { 'Database': 'https://railway.app/dashboard', 'Stripe': 'https://dashboard.stripe.com', 'Twilio': 'https://console.twilio.com', 'Internet': 'https://downdetector.com', 'Railway App': 'https://railway.app/dashboard' };
 const _healthDots = { ok: '🟢', warning: '🟡', error: '🔴' };
 
 async function refreshHealth() {
@@ -233,6 +234,7 @@ async function refreshHealth() {
         </div>
         <div style="font-size:0.75rem;color:var(--gray-500)">${s.message}</div>
         <div style="font-size:0.65rem;color:var(--gray-500);margin-top:0.15rem">${s.responseTime}ms</div>
+        ${_healthLinks[s.name] ? `<a href="${_healthLinks[s.name]}" target="_blank" style="font-size:0.65rem;color:#9ca3af;text-decoration:none">Open Dashboard →</a>` : ''}
       </div>
     `).join('');
 
