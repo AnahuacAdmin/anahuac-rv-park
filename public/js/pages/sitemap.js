@@ -41,10 +41,11 @@ async function loadSiteMap() {
           const evictionBadge = hasEviction
             ? '<div class="eviction-badge" title="Eviction warning">EVICTION</div>'
             : '';
+          const _isAdmin = API.user?.role === 'admin';
           return `
-          <div class="lot-card ${lot.status} ${flagClass} ${hasEviction ? 'flag-eviction' : ''}" onclick="showLotDetail('${lot.id}')">
-            ${flagBadge}
-            ${evictionBadge}
+          <div class="lot-card ${lot.status} ${_isAdmin ? flagClass : ''} ${_isAdmin && hasEviction ? 'flag-eviction' : ''}" onclick="showLotDetail('${lot.id}')">
+            ${_isAdmin ? flagBadge : ''}
+            ${_isAdmin ? evictionBadge : ''}
             <div class="lot-id">${lot.id}</div>
             <div class="lot-tenant">${(lot.status === 'occupied' && lot.tenant_id) ? (lot.first_name + ' ' + lot.last_name) : (lot.notes || (lot.status === 'owner_reserved' ? 'Reserved' : lot.status === 'vacant' ? 'Available' : ''))}</div>
             <div class="lot-status">
@@ -52,7 +53,7 @@ async function loadSiteMap() {
                 lot.status === 'vacant' ? '<span class="badge badge-success">Vacant</span>' :
                 '<span class="badge badge-gray">Reserved</span>'}
             </div>
-            ${lot.payment_flag ? `<div class="lot-balance">Bal: ${formatMoney(lot.balance_due)}</div>` : ''}
+            ${_isAdmin && lot.payment_flag ? `<div class="lot-balance">Bal: ${formatMoney(lot.balance_due)}</div>` : ''}
             ${lot.size_restriction ? `<div style="font-size:0.65rem;color:var(--warning);margin-top:2px">${lot.size_restriction}</div>` : ''}
           </div>
         `;}).join('')}

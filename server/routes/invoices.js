@@ -1,10 +1,11 @@
 const router = require('express').Router();
 const { Resend } = require('resend');
 const { db } = require('../database');
-const { authenticate } = require('../middleware');
+const { authenticate, blockStaff } = require('../middleware');
 const { sendSms } = require('../twilio');
 
 router.use(authenticate);
+router.use(blockStaff);
 
 const FROM_ADDRESS = 'Anahuac RV Park <invoices@anrvpark.com>';
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';

@@ -307,6 +307,11 @@ function showModal(title, bodyHtml) {
 function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
 
 function navigateTo(page) {
+  // Block staff from financial pages
+  if (API.user?.role === 'staff' && ['billing', 'payments', 'users', 'admin', 'waitlist'].includes(page)) {
+    alert('Access restricted. Contact your administrator.');
+    return;
+  }
   currentPage = page;
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
   const activeLink = document.querySelector(`[data-page="${page}"]`);
@@ -436,10 +441,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Show Users nav entry only for admins
   function refreshUsersNavVisibility() {
     const isAdmin = API.user?.role === 'admin';
-    const u = document.getElementById('nav-users');
-    const a = document.getElementById('nav-admin');
-    if (u) u.style.display = isAdmin ? '' : 'none';
-    if (a) a.style.display = isAdmin ? '' : 'none';
+    const isStaff = API.user?.role === 'staff';
+    // Admin-only nav items
+    document.querySelectorAll('#nav-users, #nav-admin').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
+    // Financial nav items — hidden for staff
+    document.querySelectorAll('[data-page="billing"], [data-page="payments"]').forEach(el => {
+      const li = el.closest('li');
+      if (li) li.style.display = isStaff ? 'none' : '';
+    });
+    // Waitlist — hide for staff
+    document.querySelectorAll('[data-page="waitlist"]').forEach(el => {
+      const li = el.closest('li');
+      if (li) li.style.display = isStaff ? 'none' : '';
+    });
   }
   refreshUsersNavVisibility();
   // Re-check after login

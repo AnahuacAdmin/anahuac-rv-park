@@ -81,8 +81,10 @@ router.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-// All routes below require authentication.
+// All routes below require authentication + admin role (financial data).
 router.use(authenticate);
+const { blockStaff } = require('../middleware');
+router.use(blockStaff);
 
 router.get('/', (req, res) => {
   const payments = db.prepare(`

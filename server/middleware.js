@@ -23,4 +23,14 @@ function authenticate(req, res, next) {
   }
 }
 
-module.exports = { authenticate, SECRET, TOKEN_TTL };
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  next();
+}
+
+function blockStaff(req, res, next) {
+  if (req.user?.role === 'staff') return res.status(403).json({ error: 'Access denied — financial data is restricted' });
+  next();
+}
+
+module.exports = { authenticate, requireAdmin, blockStaff, SECRET, TOKEN_TTL };

@@ -48,6 +48,8 @@ function initials(name) {
   return (name || '?').split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2);
 }
 
+function isAdmin() { return API.user?.role === 'admin'; }
+
 async function loadDashboard() {
   const [data, weather, bibleVerse] = await Promise.all([API.get('/dashboard'), fetchWeather(), fetchBibleVerse()]);
   if (!data) return;
@@ -67,25 +69,27 @@ async function loadDashboard() {
 
     <!-- Stats -->
     <div class="dash-top-bar">
+      ${isAdmin() ? `
       <div class="dash-top-item dash-fade-in dash-border-green" onclick="navigateTo('billing')" style="animation-delay:0.1s">
         <div class="dash-top-icon">💰</div>
-        <span class="dash-top-val" data-count="${Math.round(data.monthlyRevenue)}">${formatMoney(data.monthlyRevenue)}</span>
+        <span class="dash-top-val">${formatMoney(data.monthlyRevenue)}</span>
         <span class="dash-top-label">Revenue This Month</span>
         <span class="dash-trend" style="color:${trendColor}">${trendIcon} ${Math.abs(revTrend)}%</span>
-      </div>
+      </div>` : ''}
       <div class="dash-top-item dash-fade-in dash-border-blue" onclick="navigateTo('sitemap')" style="animation-delay:0.15s">
         <div class="dash-top-icon">🏠</div>
         <span class="dash-top-val">${data.occupancyRate}%</span>
         <span class="dash-top-label">Occupancy</span>
         <span class="dash-trend" style="color:#2563eb">${data.occupied}/${data.totalLots - data.reserved} lots</span>
       </div>
+      ${isAdmin() ? `
       <div class="dash-top-item dash-fade-in dash-border-red" onclick="navigateTo('billing')" style="animation-delay:0.2s">
         <div class="dash-top-icon">⚠️</div>
         <span class="dash-top-val" style="color:#dc2626">${formatMoney(data.totalOutstanding)}</span>
         <span class="dash-top-label">Outstanding</span>
         <span class="dash-trend" style="color:#dc2626">${data.pendingInvoices + data.partialInvoices} invoices</span>
-      </div>
-      <div class="dash-top-item dash-fade-in dash-border-purple" onclick="navigateTo('tenants')" style="animation-delay:0.25s">
+      </div>` : ''}
+      <div class="dash-top-item dash-fade-in dash-border-purple" onclick="navigateTo('${isAdmin() ? 'tenants' : 'checkins'}')" style="animation-delay:0.25s">
         <div class="dash-top-icon">👥</div>
         <span class="dash-top-val">${data.activeTenants}</span>
         <span class="dash-top-label">Active Tenants</span>
@@ -93,7 +97,8 @@ async function loadDashboard() {
       </div>
     </div>
 
-    <!-- Charts -->
+    <!-- Charts (admin only) -->
+    ${isAdmin() ? `
     <div class="dash-charts-row">
       <div class="card dash-chart-card dash-fade-in" style="animation-delay:0.3s">
         <h3>Revenue (Last 6 Months)</h3>
@@ -109,13 +114,13 @@ async function loadDashboard() {
         <div class="dash-donut-center">${data.paidInvoices + data.pendingInvoices + data.partialInvoices}</div>
         <canvas id="invoiceChart" height="200"></canvas>
       </div>
-    </div>
+    </div>` : ''}
 
     <!-- Quick Actions -->
     <div class="dash-actions dash-fade-in" style="animation-delay:0.45s">
       <button class="dash-action-btn" onclick="navigateTo('meters')"><span class="dash-action-icon">⚡</span>Meter Readings</button>
-      <button class="dash-action-btn" onclick="navigateTo('billing')"><span class="dash-action-icon">🧾</span>Invoices${data.pendingInvoices ? `<span class="dash-action-badge">${data.pendingInvoices}</span>` : ''}</button>
-      <button class="dash-action-btn" onclick="navigateTo('payments')"><span class="dash-action-icon">💰</span>Payments</button>
+      ${isAdmin() ? `<button class="dash-action-btn" onclick="navigateTo('billing')"><span class="dash-action-icon">🧾</span>Invoices${data.pendingInvoices ? `<span class="dash-action-badge">${data.pendingInvoices}</span>` : ''}</button>` : ''}
+      ${isAdmin() ? `<button class="dash-action-btn" onclick="navigateTo('payments')"><span class="dash-action-icon">💰</span>Payments</button>` : ''}
       <button class="dash-action-btn" onclick="navigateTo('checkins')"><span class="dash-action-icon">🏕️</span>Check In</button>
       <button class="dash-action-btn" onclick="navigateTo('reservations')"><span class="dash-action-icon">📅</span>Reservations${data.pendingReservations ? `<span class="dash-action-badge">${data.pendingReservations}</span>` : ''}</button>
       <button class="dash-action-btn" onclick="navigateTo('messages')"><span class="dash-action-icon">📱</span>Messaging</button>
