@@ -113,6 +113,20 @@ async function loadAdmin() {
     </div>
 
     <div class="card">
+      <h3>📡 Offline Mode</h3>
+      <p><small>When internet is lost, check-ins, meter readings, and cash payments are saved locally on your device and auto-sync when reconnected.</small></p>
+      <div id="offline-admin-status" style="margin:0.75rem 0;font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+      <div class="btn-group mt-1">
+        <button class="btn btn-outline" onclick="viewPendingSync()">📋 View Pending Items</button>
+        <button class="btn btn-primary" onclick="if(typeof syncPendingRecords==='function'){syncPendingRecords();showStatusToast('🔄','Sync triggered')}">🔄 Force Sync</button>
+        <button class="btn btn-danger" onclick="clearOfflineCache()">🗑️ Clear Offline Cache</button>
+      </div>
+      <div style="margin-top:0.75rem">
+        <a href="/emergency-form.html" target="_blank" class="btn btn-outline" style="display:inline-flex">🖨️ Print Emergency Backup Forms</a>
+      </div>
+    </div>
+
+    <div class="card">
       <h3>Database Backup</h3>
       <p>Last backup: <strong id="last-backup-display">${lastBackup}</strong></p>
       <div class="btn-group mt-2">
@@ -133,6 +147,7 @@ async function loadAdmin() {
   // Load dynamic sections
   loadFlatRateTenants();
   loadAlertHistory();
+  loadOfflineAdminStatus();
 }
 
 async function saveEvictionSettings() {
@@ -289,6 +304,44 @@ async function loadFlatRateTenants() {
       <p style="font-size:0.78rem;color:#78716c;margin-top:0.5rem">${flat.length} tenant${flat.length > 1 ? 's' : ''} on flat rate — Total: ${formatMoney(flat.reduce((s, t) => s + (Number(t.flat_rate_amount) || 0), 0))}/month</p>
     `;
   } catch { el.innerHTML = ''; }
+}
+
+async function viewPendingSync() {
+  if (typeof getAllPending !== 'function') { alert('Offline engine not loaded.'); return; }
+  const pending = await getAllPending();
+  if (!pending.length) { showModal('Pending Sync Items', '<p style="text-align:center;color:#78716c;padding:1rem">No items waiting to sync.</p>'); return; }
+  showModal('Pending Sync Items', `
+    <table><thead><tr><th>Type</th><th>Created</th><th>Data Preview</th></tr></thead>
+    <tbody>${pending.map(p => `<tr><td><span class="badge badge-warning">${p.type}</span></td><td style="font-size:0.78rem">${p.createdAt || '—'}</td><td style="font-size:0.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${JSON.stringify(p.data).slice(0, 80)}</td></tr>`).join('')}</tbody>
+    </table>
+    <p class="mt-2" style="font-size:0.82rem;color:#78716c">${pending.length} item${pending.length > 1 ? 's' : ''} waiting to sync. They will auto-sync when online.</p>
+  `);
+}
+
+async function clearOfflineCache() {
+  if (!confirm('Clear ALL offline cached data and pending items? This cannot be undone.')) return;
+  if (typeof clearAllPending === 'function') await clearAllPending();
+  try {
+    const db = await openOfflineDb();
+    const tx = db.transaction('cache', 'readwrite');
+    tx.objectStore('cache').clear();
+  } catch {}
+  showStatusToast('✅', 'Offline cache cleared');
+  loadOfflineAdminStatus();
+}
+
+async function loadOfflineAdminStatus() {
+  const el = document.getElementById('offline-admin-status');
+  if (!el) return;
+  try {
+    const pending = typeof getAllPending === 'function' ? await getAllPending() : [];
+    const cached = typeof getCachedTenants === 'function' ? await getCachedTenants() : null;
+    el.innerHTML = `
+      <div>Status: <strong>${navigator.onLine ? '🟢 Online' : '🔴 Offline'}</strong></div>
+      <div>Pending sync: <strong>${pending.length}</strong> item${pending.length !== 1 ? 's' : ''}</div>
+      ${cached ? `<div>Tenant cache: <strong>${cached.data?.length || 0} tenants</strong> (cached ${new Date(cached.cachedAt).toLocaleString()})</div>` : '<div>Tenant cache: not yet cached</div>'}
+    `;
+  } catch { el.textContent = 'Offline engine not available.'; }
 }
 
 async function saveAlertSettings() {

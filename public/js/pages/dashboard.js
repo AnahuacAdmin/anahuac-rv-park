@@ -215,6 +215,15 @@ async function loadDashboard() {
       <span class="dash-weather-sep">|</span>
       <span class="dash-weather-detail">${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
     </div>` : ''}
+
+    <div class="dash-fade-in" style="display:flex;gap:0.75rem;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.8rem;animation-delay:0.75s">
+      <span style="display:flex;align-items:center;gap:4px" id="connection-indicator">${navigator.onLine ? '🟢 Online' : '🔴 Offline'}</span>
+      <span style="color:var(--gray-400)">|</span>
+      <span style="color:var(--gray-500)">Last sync: <span id="sync-status">—</span></span>
+      <button class="btn btn-sm btn-outline" style="padding:0.2rem 0.6rem;font-size:0.72rem;border-radius:6px" onclick="if(typeof syncPendingRecords==='function')syncPendingRecords()">🔄 Sync Now</button>
+      <span style="color:var(--gray-400)">|</span>
+      <a href="/emergency-form.html" target="_blank" style="color:var(--brand-primary,#1a5c32);font-weight:600;text-decoration:none">🖨️ Emergency Forms</a>
+    </div>
   `;
 
   setTimeout(() => renderDashboardCharts(data), 150);

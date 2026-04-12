@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anahuac RV Park — Emergency Backup Forms</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11pt;
+    color: #111;
+    background: #fff;
+    padding: 0.5in;
+  }
+
+  .page {
+    page-break-after: always;
+    max-width: 8in;
+    margin: 0 auto;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* --- Header --- */
+  .header {
+    text-align: center;
+    border-bottom: 3px solid #1a5c32;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .header h1 {
+    font-size: 18pt;
+    color: #1a5c32;
+    margin-bottom: 2px;
+    letter-spacing: 1px;
+  }
+  .header .address {
+    font-size: 10pt;
+    margin-bottom: 4px;
+  }
+  .header .verse {
+    font-style: italic;
+    font-size: 9pt;
+    color: #444;
+  }
+  .header .date-line {
+    text-align: right;
+    font-size: 10pt;
+    margin-top: 4px;
+  }
+
+  .print-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #1a5c32;
+    color: #fff;
+    border: none;
+    padding: 8px 18px;
+    font-family: inherit;
+    font-size: 10pt;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .print-btn:hover { background: #14472a; }
+
+  /* --- Section titles --- */
+  .section-title {
+    background: #1a5c32;
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 13pt;
+    font-weight: bold;
+    margin: 14px 0 10px 0;
+    letter-spacing: 0.5px;
+  }
+
+  /* --- Form fields --- */
+  .field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    margin-bottom: 8px;
+  }
+  .field {
+    flex: 1 1 auto;
+    min-width: 180px;
+  }
+  .field.narrow { min-width: 100px; flex: 0 1 120px; }
+  .field.wide { min-width: 100%; }
+  .field label {
+    font-size: 9pt;
+    font-weight: bold;
+    color: #333;
+    display: block;
+    margin-bottom: 1px;
+  }
+  .field .line {
+    border-bottom: 1.5px solid #111;
+    height: 22px;
+    width: 100%;
+  }
+  .field .line.tall { height: 20px; margin-bottom: 4px; }
+
+  /* --- Rate circles --- */
+  .rate-options {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    margin: 4px 0 8px 0;
+    font-size: 10pt;
+  }
+  .rate-options span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .circle {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #111;
+    border-radius: 50%;
+  }
+
+  /* --- Checkbox squares --- */
+  .checkbox-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin: 4px 0 8px 0;
+    font-size: 10pt;
+  }
+  .checkbox-row span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .box {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border: 2px solid #111;
+  }
+
+  /* --- Notes lines --- */
+  .notes-lines .line {
+    border-bottom: 1px solid #999;
+    height: 22px;
+    width: 100%;
+  }
+
+  /* --- Signature row --- */
+  .sig-row {
+    display: flex;
+    gap: 40px;
+    margin-top: 14px;
+    padding-top: 6px;
+  }
+  .sig-row .field { flex: 1; }
+
+  /* --- Meter table --- */
+  .meter-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin-top: 6px;
+  }
+  .meter-table th {
+    background: #1a5c32;
+    color: #fff;
+    padding: 4px 6px;
+    text-align: center;
+    font-weight: bold;
+    border: 1px solid #1a5c32;
+  }
+  .meter-table td {
+    border: 1px solid #999;
+    padding: 3px 6px;
+    height: 20px;
+    text-align: center;
+  }
+  .meter-table td:first-child {
+    font-weight: bold;
+    background: #f4f4f4;
+    text-align: center;
+    width: 50px;
+  }
+  .meter-table .total-row td {
+    font-weight: bold;
+    background: #e8e8e8;
+    border-top: 2px solid #111;
+  }
+
+  /* --- Payment slip --- */
+  .payment-slip {
+    border: 2px solid #1a5c32;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    page-break-inside: avoid;
+  }
+  .payment-slip .slip-title {
+    font-weight: bold;
+    font-size: 11pt;
+    color: #1a5c32;
+    border-bottom: 1px solid #1a5c32;
+    padding-bottom: 3px;
+    margin-bottom: 6px;
+  }
+  .payment-slip .field-row { margin-bottom: 5px; }
+  .payment-slip .field label { font-size: 8pt; }
+  .payment-slip .field .line { height: 18px; }
+  .payment-slip .checkbox-row { font-size: 9pt; }
+
+  /* --- Footer --- */
+  .footer {
+    border-top: 2px solid #1a5c32;
+    margin-top: 16px;
+    padding-top: 6px;
+    text-align: center;
+    font-size: 8.5pt;
+    color: #444;
+  }
+  .footer .warning {
+    font-weight: bold;
+    color: #b00;
+    font-size: 9.5pt;
+    margin-bottom: 2px;
+  }
+
+  /* --- Print styles --- */
+  @media print {
+    .print-btn { display: none !important; }
+    body { padding: 0; margin: 0; }
+    .page { max-width: 100%; }
+    @page {
+      size: letter;
+      margin: 0.4in;
+    }
+  }
+
+  /* Screen-only helpers */
+  @media screen {
+    .page {
+      border: 1px solid #ccc;
+      padding: 0.4in;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========================================================= -->
+<!-- PAGE 1: EMERGENCY CHECK-IN FORM                           -->
+<!-- ========================================================= -->
+<div class="page">
+  <div class="header">
+    <button class="print-btn" onclick="window.print()">Print Forms</button>
+    <h1>Anahuac RV Park &mdash; Emergency Backup Forms</h1>
+    <div class="address">1003 Davis Ave, Anahuac, TX 77514 &nbsp;|&nbsp; 409-267-6603</div>
+    <div class="verse">&ldquo;The earth is the Lord&rsquo;s, and everything in it.&rdquo; &mdash; Psalm 24:1</div>
+    <div class="date-line">Date: <span id="date1"></span></div>
+  </div>
+
+  <div class="section-title">FORM 1 &mdash; EMERGENCY CHECK-IN</div>
+
+  <div class="field-row">
+    <div class="field narrow"><label>Date</label><div class="line"></div></div>
+    <div class="field narrow"><label>Time</label><div class="line"></div></div>
+    <div class="field narrow"><label>Lot Number</label><div class="line"></div></div>
+  </div>
+
+  <div class="field-row">
+    <div class="field"><label>First Name</label><div class="line"></div></div>
+    <div class="field"><label>Last Name</label><div class="line"></div></div>
+  </div>
+
+  <div class="field-row">
+    <div class="field"><label>Phone Number</label><div class="line"></div></div>
+    <div class="field"><label>Email</label><div class="line"></div></div>
+  </div>
+
+  <div style="margin-bottom:8px;">
+    <label style="font-size:9pt;font-weight:bold;color:#333;">Rate Type (circle one):</label>
+    <div class="rate-options">
+      <span><span class="circle"></span> Daily $50</span>
+      <span><span class="circle"></span> Weekly $200</span>
+      <span><span class="circle"></span> Monthly $295</span>
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field"><label>Move-in Date</label><div class="line"></div></div>
+    <div class="field"><label>Deposit Paid $</label><div class="line"></div></div>
+  </div>
+
+  <div style="margin:10px 0 4px 0; font-weight:bold; font-size:10pt; color:#1a5c32;">Vehicle / RV Information</div>
+  <div class="field-row">
+    <div class="field"><label>Make</label><div class="line"></div></div>
+    <div class="field"><label>Model</label><div class="line"></div></div>
+    <div class="field narrow"><label>Year</label><div class="line"></div></div>
+    <div class="field narrow"><label>Length (ft)</label><div class="line"></div></div>
+  </div>
+
+  <div class="field-row">
+    <div class="field"><label>License Plate #</label><div class="line"></div></div>
+  </div>
+
+  <div style="margin:10px 0 4px 0; font-weight:bold; font-size:10pt; color:#1a5c32;">Emergency Contact</div>
+  <div class="field-row">
+    <div class="field"><label>Emergency Contact Name</label><div class="line"></div></div>
+    <div class="field"><label>Phone</label><div class="line"></div></div>
+  </div>
+
+  <div class="field-row">
+    <div class="field"><label>ID / Driver's License #</label><div class="line"></div></div>
+  </div>
+
+  <div style="margin:10px 0 4px 0; font-weight:bold; font-size:10pt; color:#1a5c32;">Notes</div>
+  <div class="notes-lines">
+    <div class="line"></div>
+    <div class="line"></div>
+    <div class="line"></div>
+  </div>
+
+  <div class="sig-row">
+    <div class="field"><label>Staff Signature</label><div class="line"></div></div>
+    <div class="field"><label>Manager Signature</label><div class="line"></div></div>
+  </div>
+
+  <div class="footer">
+    <div class="warning">&#9888;&#65039; Enter all data into the system when internet is restored</div>
+    <div>Call manager: 409-267-6603</div>
+    <div>&copy; 2026 Anahuac RV Park LLC</div>
+  </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- PAGE 2: EMERGENCY METER READINGS                          -->
+<!-- ========================================================= -->
+<div class="page">
+  <div class="header">
+    <button class="print-btn" onclick="window.print()">Print Forms</button>
+    <h1>Anahuac RV Park &mdash; Emergency Backup Forms</h1>
+    <div class="address">1003 Davis Ave, Anahuac, TX 77514 &nbsp;|&nbsp; 409-267-6603</div>
+    <div class="verse">&ldquo;The earth is the Lord&rsquo;s, and everything in it.&rdquo; &mdash; Psalm 24:1</div>
+    <div class="date-line">Date: <span id="date2"></span></div>
+  </div>
+
+  <div class="section-title">FORM 2 &mdash; EMERGENCY METER READINGS</div>
+
+  <div class="field-row">
+    <div class="field narrow"><label>Date</label><div class="line"></div></div>
+    <div class="field"><label>Rate per kWh: $ <span style="text-decoration:underline">&nbsp;0.15&nbsp;</span></label></div>
+  </div>
+
+  <table class="meter-table">
+    <thead>
+      <tr>
+        <th>Lot</th>
+        <th>Previous Reading</th>
+        <th>Current Reading</th>
+        <th>kWh Used</th>
+        <th>Charge ($)</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>A1</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>A2</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>A3</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>A4</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>A5</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>A6</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>A7</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>A8</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>A9</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>A10</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B1</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B2</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B3</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B4</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B5</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B6</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B7</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B8</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B9</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>B10</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>C1</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>C2</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>C3</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>C4</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>C5</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>D1</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>D2</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>D3</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>D4</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>D5</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>E1</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>E2</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>E3</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>E4</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>E5</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr class="total-row"><td>TOTAL</td><td></td><td></td><td></td><td></td><td></td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <div class="warning">&#9888;&#65039; Enter all data into the system when internet is restored</div>
+    <div>Call manager: 409-267-6603</div>
+    <div>&copy; 2026 Anahuac RV Park LLC</div>
+  </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- PAGE 3: EMERGENCY CASH PAYMENT SLIPS (5x)                 -->
+<!-- ========================================================= -->
+<div class="page">
+  <div class="header">
+    <button class="print-btn" onclick="window.print()">Print Forms</button>
+    <h1>Anahuac RV Park &mdash; Emergency Backup Forms</h1>
+    <div class="address">1003 Davis Ave, Anahuac, TX 77514 &nbsp;|&nbsp; 409-267-6603</div>
+    <div class="verse">&ldquo;The earth is the Lord&rsquo;s, and everything in it.&rdquo; &mdash; Psalm 24:1</div>
+    <div class="date-line">Date: <span id="date3"></span></div>
+  </div>
+
+  <div class="section-title">FORM 3 &mdash; EMERGENCY CASH PAYMENT RECEIPTS</div>
+
+  <!-- Slip 1 -->
+  <div class="payment-slip">
+    <div class="slip-title">Cash Payment Receipt #1</div>
+    <div class="field-row">
+      <div class="field narrow"><label>Date</label><div class="line"></div></div>
+      <div class="field"><label>Tenant Name</label><div class="line"></div></div>
+      <div class="field narrow"><label>Lot</label><div class="line"></div></div>
+    </div>
+    <div class="field-row">
+      <div class="field narrow"><label>Amount Received $</label><div class="line"></div></div>
+      <div class="field narrow"><label>Receipt #</label><div class="line"></div></div>
+      <div class="field narrow"><label>Staff Initials</label><div class="line"></div></div>
+    </div>
+    <div style="margin-bottom:2px;">
+      <label style="font-size:8pt;font-weight:bold;color:#333;">Payment For:</label>
+      <div class="checkbox-row">
+        <span><span class="box"></span> Rent</span>
+        <span><span class="box"></span> Electric</span>
+        <span><span class="box"></span> Late Fee</span>
+        <span><span class="box"></span> Deposit</span>
+        <span><span class="box"></span> Other: ___________</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slip 2 -->
+  <div class="payment-slip">
+    <div class="slip-title">Cash Payment Receipt #2</div>
+    <div class="field-row">
+      <div class="field narrow"><label>Date</label><div class="line"></div></div>
+      <div class="field"><label>Tenant Name</label><div class="line"></div></div>
+      <div class="field narrow"><label>Lot</label><div class="line"></div></div>
+    </div>
+    <div class="field-row">
+      <div class="field narrow"><label>Amount Received $</label><div class="line"></div></div>
+      <div class="field narrow"><label>Receipt #</label><div class="line"></div></div>
+      <div class="field narrow"><label>Staff Initials</label><div class="line"></div></div>
+    </div>
+    <div style="margin-bottom:2px;">
+      <label style="font-size:8pt;font-weight:bold;color:#333;">Payment For:</label>
+      <div class="checkbox-row">
+        <span><span class="box"></span> Rent</span>
+        <span><span class="box"></span> Electric</span>
+        <span><span class="box"></span> Late Fee</span>
+        <span><span class="box"></span> Deposit</span>
+        <span><span class="box"></span> Other: ___________</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slip 3 -->
+  <div class="payment-slip">
+    <div class="slip-title">Cash Payment Receipt #3</div>
+    <div class="field-row">
+      <div class="field narrow"><label>Date</label><div class="line"></div></div>
+      <div class="field"><label>Tenant Name</label><div class="line"></div></div>
+      <div class="field narrow"><label>Lot</label><div class="line"></div></div>
+    </div>
+    <div class="field-row">
+      <div class="field narrow"><label>Amount Received $</label><div class="line"></div></div>
+      <div class="field narrow"><label>Receipt #</label><div class="line"></div></div>
+      <div class="field narrow"><label>Staff Initials</label><div class="line"></div></div>
+    </div>
+    <div style="margin-bottom:2px;">
+      <label style="font-size:8pt;font-weight:bold;color:#333;">Payment For:</label>
+      <div class="checkbox-row">
+        <span><span class="box"></span> Rent</span>
+        <span><span class="box"></span> Electric</span>
+        <span><span class="box"></span> Late Fee</span>
+        <span><span class="box"></span> Deposit</span>
+        <span><span class="box"></span> Other: ___________</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slip 4 -->
+  <div class="payment-slip">
+    <div class="slip-title">Cash Payment Receipt #4</div>
+    <div class="field-row">
+      <div class="field narrow"><label>Date</label><div class="line"></div></div>
+      <div class="field"><label>Tenant Name</label><div class="line"></div></div>
+      <div class="field narrow"><label>Lot</label><div class="line"></div></div>
+    </div>
+    <div class="field-row">
+      <div class="field narrow"><label>Amount Received $</label><div class="line"></div></div>
+      <div class="field narrow"><label>Receipt #</label><div class="line"></div></div>
+      <div class="field narrow"><label>Staff Initials</label><div class="line"></div></div>
+    </div>
+    <div style="margin-bottom:2px;">
+      <label style="font-size:8pt;font-weight:bold;color:#333;">Payment For:</label>
+      <div class="checkbox-row">
+        <span><span class="box"></span> Rent</span>
+        <span><span class="box"></span> Electric</span>
+        <span><span class="box"></span> Late Fee</span>
+        <span><span class="box"></span> Deposit</span>
+        <span><span class="box"></span> Other: ___________</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slip 5 -->
+  <div class="payment-slip">
+    <div class="slip-title">Cash Payment Receipt #5</div>
+    <div class="field-row">
+      <div class="field narrow"><label>Date</label><div class="line"></div></div>
+      <div class="field"><label>Tenant Name</label><div class="line"></div></div>
+      <div class="field narrow"><label>Lot</label><div class="line"></div></div>
+    </div>
+    <div class="field-row">
+      <div class="field narrow"><label>Amount Received $</label><div class="line"></div></div>
+      <div class="field narrow"><label>Receipt #</label><div class="line"></div></div>
+      <div class="field narrow"><label>Staff Initials</label><div class="line"></div></div>
+    </div>
+    <div style="margin-bottom:2px;">
+      <label style="font-size:8pt;font-weight:bold;color:#333;">Payment For:</label>
+      <div class="checkbox-row">
+        <span><span class="box"></span> Rent</span>
+        <span><span class="box"></span> Electric</span>
+        <span><span class="box"></span> Late Fee</span>
+        <span><span class="box"></span> Deposit</span>
+        <span><span class="box"></span> Other: ___________</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="warning">&#9888;&#65039; Enter all data into the system when internet is restored</div>
+    <div>Call manager: 409-267-6603</div>
+    <div>&copy; 2026 Anahuac RV Park LLC</div>
+  </div>
+</div>
+
+<script>
+  // Auto-fill today's date on all pages
+  (function() {
+    var today = new Date();
+    var options = { year: 'numeric', month: 'long', day: 'numeric' };
+    var formatted = today.toLocaleDateString('en-US', options);
+    var spans = ['date1', 'date2', 'date3'];
+    for (var i = 0; i < spans.length; i++) {
+      var el = document.getElementById(spans[i]);
+      if (el) el.textContent = formatted;
+    }
+  })();
+</script>
+
+</body>
+</html>
