@@ -239,6 +239,12 @@ async function loadDashboard() {
     </div>
   `;
 
+  // Debug: log admin status and chart availability
+  console.log('[dashboard] isAdmin:', isAdmin(), 'API.user:', JSON.stringify(API.user));
+  console.log('[dashboard] Chart.js:', typeof Chart, 'revenueChart in DOM:', !!document.getElementById('revenueChart'));
+  if (!document.getElementById('revenueChart')) {
+    console.error('[dashboard] NO CANVAS — isAdmin()=' + isAdmin() + ' role=' + (API.user?.role || 'NONE'));
+  }
   renderDashboardCharts(data);
 
   // Count-up animation for stat values
