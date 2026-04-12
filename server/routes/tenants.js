@@ -56,15 +56,16 @@ router.post('/', (req, res) => {
       INSERT INTO tenants (lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
         rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
         recurring_late_fee, recurring_mailbox_fee, recurring_misc_fee, recurring_misc_description,
-        recurring_credit, recurring_credit_description)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        recurring_credit, recurring_credit_description, id_number, date_of_birth, deposit_amount)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
       str(b.emergency_contact), str(b.emergency_phone),
       str(b.rv_make), str(b.rv_model), str(b.rv_year), str(b.rv_length), str(b.license_plate),
       num(b.monthly_rent) || 295, b.rent_type || 'standard', str(b.move_in_date), str(b.notes),
       num(b.recurring_late_fee), num(b.recurring_mailbox_fee), num(b.recurring_misc_fee),
-      str(b.recurring_misc_description), num(b.recurring_credit), str(b.recurring_credit_description)
+      str(b.recurring_misc_description), num(b.recurring_credit), str(b.recurring_credit_description),
+      str(b.id_number), str(b.date_of_birth), num(b.deposit_amount)
     );
     if (b.lot_id) {
       db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('occupied', b.lot_id);
@@ -85,7 +86,8 @@ router.put('/:id', (req, res) => {
       monthly_rent=?, rent_type=?, move_in_date=?, notes=?,
       recurring_late_fee=?, recurring_mailbox_fee=?, recurring_misc_fee=?, recurring_misc_description=?,
       recurring_credit=?, recurring_credit_description=?,
-      sms_opt_in=?, email_opt_in=?, invoice_delivery=?
+      sms_opt_in=?, email_opt_in=?, invoice_delivery=?,
+      id_number=?, date_of_birth=?, deposit_amount=?
     WHERE id = ?
   `).run(
     str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
@@ -98,6 +100,7 @@ router.put('/:id', (req, res) => {
     b.sms_opt_in !== undefined ? (Number(b.sms_opt_in) || 0) : 1,
     b.email_opt_in !== undefined ? (Number(b.email_opt_in) || 0) : 1,
     b.invoice_delivery || 'both',
+    str(b.id_number), str(b.date_of_birth), Number(b.deposit_amount) || 0,
     req.params.id
   );
   res.json({ success: true });

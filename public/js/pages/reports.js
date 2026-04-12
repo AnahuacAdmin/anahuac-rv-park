@@ -11,6 +11,7 @@ async function loadReports() {
   }
   const now = new Date();
   document.getElementById('page-content').innerHTML = `
+    ${helpPanel('reports')}
     <div class="page-header">
       <h2>📊 Reports</h2>
       <div class="btn-group">

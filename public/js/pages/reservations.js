@@ -23,6 +23,7 @@ async function renderReservationList() {
   const activeGroups = groups.filter(g => g.status !== 'cancelled');
 
   document.getElementById('page-content').innerHTML = `
+    ${helpPanel('reservations')}
     <div class="page-header">
       <h2>Reservations</h2>
       <div class="btn-group">

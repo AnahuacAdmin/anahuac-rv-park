@@ -96,7 +96,7 @@ const DAILY_TIPS = [
   '💡 Use Mobile Entry mode on the Meter Readings page to speed up monthly readings.',
   '💡 Click any lot on the Site Map to see tenant details and billing history.',
   '💡 Set recurring fees on a tenant to auto-apply them on every invoice.',
-  '💡 Use the Tax Reports button in Billing for a year-end financial summary.',
+  '💡 Use the Tax Reports button on the Reports page for a year-end financial summary.',
   '💡 Back up your database regularly from the Admin page.',
   '💡 The Check Late Fees button auto-applies $25 fees to invoices 3+ days old.',
   '💡 Export invoices to Excel for easy spreadsheet analysis.',
@@ -234,64 +234,124 @@ function formatDate(d) { if (!d) return '—'; return new Date(d + 'T00:00:00').
 
 // Help/instructions panels for each module
 const HELP_CONTENT = {
-  dashboard: `<p><strong>Overview of park status.</strong> Check daily for outstanding balances, meter reading progress, and recent activity. Use quick action buttons to navigate to any module.</p>`,
+  dashboard: `<p><strong>Overview of park status.</strong> Check daily for outstanding balances, occupancy, and recent activity. Use the quick-action buttons to jump to any module. Revenue and occupancy charts update automatically.</p>
+  <p><strong>Staff view:</strong> Staff members see occupancy and tenant info but not financial data (billing, payments, reports).</p>`,
   checkins: `<p><strong>Checking in a new tenant:</strong></p><ol>
-    <li>Click <em>Check-In New Tenant</em>.</li>
+    <li>Click <em>Check-In</em>.</li>
+    <li>Enter tenant name, phone, and email.</li>
     <li>Select an available lot from the dropdown.</li>
-    <li>Enter tenant full name, phone, email, date of birth and ID type.</li>
-    <li>Enter RV details — make, model, year, length and license plate.</li>
-    <li>Set move-in date, monthly rate, deposit amount and take initial meter reading.</li>
-    <li>Have tenant acknowledge all lease terms by checking each box.</li>
-    <li>Click <em>Complete Check-In</em>. Tenant is now active in the system.</li>
+    <li>Choose rate type (<strong>Monthly</strong>, <strong>Weekly</strong>, or <strong>Daily</strong>) and set the rate amount.</li>
+    <li>Enter RV details — make, model, year, length, and license plate.</li>
+    <li>Enter ID/driver's license number (for records) and emergency contact.</li>
+    <li>Set the check-in date. For monthly tenants moving in mid-month, the system automatically calculates and shows the <strong>prorated first-month amount</strong>.</li>
+    <li>Enter deposit amount if applicable.</li>
+    <li>Click <em>Check In</em>. The system creates the tenant, marks the lot occupied, and generates a prorated invoice if applicable.</li>
+    <li>After check-in you can <strong>Send a Welcome Text</strong> (via SMS) or <strong>Print a Welcome Card</strong> with WiFi password, park rules, and a QR code for online payment.</li>
   </ol>
   <p><strong>Checking out a tenant:</strong></p><ol>
-    <li>Go to Check-In/Out module and click the <em>Check-Out</em> tab.</li>
-    <li>Select the tenant lot from the dropdown.</li>
-    <li>Enter the move-out date.</li>
-    <li>Take a final meter reading and enter it.</li>
-    <li>Select reason for leaving.</li>
-    <li>Enter forwarding address.</li>
-    <li>Enter any deposit deductions for damages or cleaning with a description.</li>
-    <li>System will calculate deposit refund automatically.</li>
-    <li>Click <em>Process Check-Out</em>. Lot will be marked vacant automatically.</li>
+    <li>Click <em>Check-Out</em>.</li>
+    <li>Select the tenant from the dropdown.</li>
+    <li>Enter the check-out date and any notes.</li>
+    <li>Click <em>Check Out</em>. The lot is automatically marked vacant.</li>
   </ol>`,
-  meters: `<ol>
-    <li>On the 1st of each month go to Meter Readings.</li>
-    <li>For each occupied lot enter the current meter reading number shown on the physical meter.</li>
-    <li>Previous reading auto-fills from last month.</li>
-    <li>System calculates kWh used and electric charge automatically.</li>
-    <li>Click <em>Save</em> after each entry or <em>Save All</em> at the bottom.</li>
-    <li>Readings feed directly into billing.</li>
+  meters: `<p><strong>Two ways to enter readings:</strong></p>
+  <p><strong>Table mode</strong> — for desktop:</p><ol>
+    <li>Click any <strong>Current Reading</strong> or <strong>Date</strong> cell to edit it inline.</li>
+    <li>kWh and charge recalculate automatically.</li>
+    <li>Use <em>+ Quick Add</em> to select a lot and enter a new reading.</li>
+    <li>Use <em>+ New Reading</em> for full control over previous/current values.</li>
+    <li>Click the camera icon on any reading to view its attached photo.</li>
+  </ol>
+  <p><strong>Mobile Entry</strong> — for walking the park:</p><ol>
+    <li>Click <em>Mobile Entry</em> to enter one-lot-at-a-time mode.</li>
+    <li>Each card shows lot, tenant, and previous reading.</li>
+    <li>Optionally <strong>take a photo</strong> of the meter using your phone camera.</li>
+    <li>Enter the current reading — kWh and charge calculate instantly.</li>
+    <li>Click <em>Save Reading</em> and it auto-advances to the next lot.</li>
+    <li>Progress bar tracks how many lots are done.</li>
   </ol>`,
-  billing: `<ol>
-    <li>After all meter readings are entered click <em>Generate Monthly Invoices</em>.</li>
-    <li>Review each invoice for accuracy.</li>
-    <li>Add any one-time fees, late fees or credits by clicking <em>Edit</em> on the invoice.</li>
-    <li>Click <em>Print</em> or <em>View</em> to see the formatted invoice with logo.</li>
-    <li>Hand or mail invoice to tenant.</li>
-  </ol>`,
+  billing: `<p><strong>Invoice workflow:</strong></p><ol>
+    <li>After all meter readings are entered, click <em>Generate Monthly Invoices</em>. Choose month/year and click Generate.</li>
+    <li>Invoices are <strong>color-coded by rate type</strong> (green = monthly, purple = weekly, amber = daily, gray = electric only). Look for the colored left border on each row.</li>
+    <li>Click directly on <strong>Mailbox Fee, Misc Fee, Late Fee, Refund, or Notes</strong> cells to edit them inline — no need to open a form.</li>
+    <li><em>Check Late Fees</em> auto-applies $25 to invoices 3+ days overdue.</li>
+    <li>Use <em>View</em> to see a formatted invoice, <em>PDF</em> to download, <em>Email</em> to send with PDF attachment, or <em>SMS</em> to text a summary.</li>
+    <li><em>Pay Now</em> opens Stripe online payment (3% convenience fee).</li>
+    <li>Deleted invoices can be shown/restored using the <em>Show Deleted</em> checkbox.</li>
+  </ol>
+  <p>Prorated invoices show a <span style="background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:10px;font-size:0.75rem">PRORATED</span> badge.</p>
+  <p><strong>Tax Reports</strong> and <strong>Export to Excel</strong> are on the <em>Reports</em> page.</p>`,
   payments: `<ol>
-    <li>When a tenant pays click <em>Log Payment</em> on their row.</li>
-    <li>Enter amount paid, payment method (Cash, Check, Money Order, or Credit/Debit Card — 3% convenience fee applies to card) and date.</li>
-    <li>System updates balance automatically.</li>
+    <li>When a tenant pays, click <em>Log Payment</em> on their row.</li>
+    <li>Enter amount, payment method (Cash, Check, Money Order, or Credit/Debit Card — 3% convenience fee applies to card), and date.</li>
+    <li>An <strong>SMS receipt</strong> is automatically sent to the tenant if they have a phone number on file.</li>
+    <li>System updates invoice balance automatically. Overpayments are stored as <strong>tenant credit</strong>.</li>
     <li>Filter by <em>Unpaid</em> to see who still owes.</li>
+    <li>Tenants can also pay online via the <strong>Tenant Portal</strong> or from the payment link in their invoice email.</li>
   </ol>`,
-  messages: `<ol>
-    <li>Select message type from dropdown.</li>
-    <li>Choose recipients — individual tenant, all tenants, or all unpaid.</li>
-    <li>Template auto-fills but can be edited.</li>
-    <li>Click <em>Send</em> to save message record.</li>
-    <li>Click <em>Print</em> to print a physical notice to hand to tenant.</li>
-  </ol>`,
+  messages: `<p><strong>Messaging options:</strong></p>
+  <ul>
+    <li><strong>Send Message</strong> — send to one tenant (record only, or via SMS).</li>
+    <li><strong>Broadcast to All</strong> — message all tenants at once.</li>
+    <li><strong>Send Notification</strong> — advanced: choose a template (Late Payment, Weather Emergency, Power Outage, General, Custom), pick recipients (all, unpaid only, or specific lot), and deliver via SMS, Email, or both.</li>
+    <li><strong>Share Tenant Portal</strong> — text the portal login link to a tenant or all tenants so they can view invoices and pay online.</li>
+  </ul>`,
   waitlist: `<ol>
-    <li>Click <em>Add to Waitlist</em> to add a new prospect.</li>
-    <li>Fill in contact info, RV size and estimated move-in date.</li>
-    <li>When a lot opens click <em>Assign</em> next to the prospect name.</li>
-    <li>Enter the lot number.</li>
-    <li>Go to Check-In to complete the move-in process.</li>
+    <li>Click <em>+ Add to Waitlist</em> to add a prospective tenant.</li>
+    <li>Fill in contact info, RV length, and preferred lot.</li>
+    <li>Track status: <strong>Waiting</strong> → <strong>Contacted</strong> → <strong>Placed</strong>.</li>
+    <li>When a lot opens, edit the entry to update status, then go to <em>Check-In/Out</em> to move them in.</li>
   </ol>`,
-  sitemap: `<p>Click any lot to view tenant details. Colors show status — <strong>orange</strong> is occupied, <strong>yellow</strong> is vacant, <strong>blue</strong> is reserved.</p>`,
-  tenants: `<p>Manage all active tenants. Click <em>Edit</em> to update contact info, RV details, monthly rent, or <strong>recurring monthly fees</strong> (late fee, mailbox fee, misc fee, credit/discount) that auto-apply each time monthly invoices are generated.</p>`
+  sitemap: `<p>Click any lot to view full tenant details, billing, payment history, meter readings, and notices.</p>
+  <ul>
+    <li><strong>Green border</strong> = Occupied</li>
+    <li><strong>Green fill</strong> = Vacant (available)</li>
+    <li><strong>Gray</strong> = Owner Reserved</li>
+    <li><strong>Red border + glow</strong> = Unpaid / Overdue balance</li>
+    <li><strong>Yellow border</strong> = Partial payment</li>
+  </ul>
+  <p>Admin view shows balance amounts and payment flags on each lot.</p>`,
+  tenants: `<p>View and manage all active tenants. Click <em>Edit</em> to update:</p>
+  <ul>
+    <li>Contact info (phone, email), RV details, monthly rent, and rate type</li>
+    <li><strong>Recurring monthly fees</strong> (late fee, mailbox fee, misc fee, credit/discount) — these auto-apply every time you generate invoices</li>
+    <li><strong>Communication preferences</strong> — invoice delivery method (Email + SMS, Email only, SMS only, or Print/Manual)</li>
+    <li><strong>Move to Different Lot</strong> — transfers the tenant with prorated billing and meter reading handoff</li>
+    <li><strong>Reset Portal PIN</strong> — if a tenant forgets their portal login</li>
+  </ul>
+  <p>Click <em>History</em> to see a tenant's check-in/out records and payment history.</p>
+  <p><em>Recurring Fees Summary</em> shows all auto-charges across tenants at a glance.</p>`,
+  electric: `<p><strong>Electric Analytics</strong> shows usage trends and costs across the park.</p>
+  <ul>
+    <li>Top stats: average kWh/lot, highest and lowest users, average bill</li>
+    <li>Line chart: usage by lot over time (toggle 3/6/12 month view)</li>
+    <li><strong>Per-Lot Detail</strong>: select a lot to see its individual stats, bar chart, and readings table</li>
+    <li><strong>Download PDF</strong>: generates a branded electric usage report for the selected lot</li>
+    <li><strong>Text to Tenant</strong>: sends an SMS summary of the tenant's electric usage</li>
+  </ul>`,
+  reports: `<p><strong>Monthly Income Report:</strong></p><ol>
+    <li>Select a month and year, then click <em>Generate Report</em>.</li>
+    <li>View totals: collected, invoiced, outstanding, occupancy rate, electric revenue.</li>
+    <li>See breakdown by rate type and top 5 highest balances.</li>
+    <li><em>Print Report</em>, <em>Download PDF</em>, or <em>Download CSV</em> for spreadsheets.</li>
+  </ol>
+  <p><strong>Tax Reports</strong>: generates annual financial summary for tax filing.</p>
+  <p><strong>Export Invoices to Excel</strong>: downloads all invoices as an .xlsx file.</p>`,
+  reservations: `<p><strong>Managing reservations:</strong></p><ol>
+    <li>Click <em>+ New Reservation</em> to book a single lot, or <em>Group Reservation</em> for multiple lots.</li>
+    <li>Enter guest name, contact info, lot, dates, and nightly rate. Total auto-calculates.</li>
+    <li>Use <em>Calendar View</em> to see all reservations on a monthly calendar, or <em>List View</em> for a table.</li>
+    <li>Click <em>View</em> to see a printable confirmation, <em>Download PDF</em>, or <em>Email to Guest</em>.</li>
+    <li>When the guest arrives, click <em>Check In</em> on their reservation to convert it to an active tenant.</li>
+  </ol>`,
+  admin: `<p><strong>System Administration:</strong></p>
+  <ul>
+    <li><strong>Electric Rate</strong>: set the per-kWh rate used for all meter reading charges.</li>
+    <li><strong>WiFi Password</strong>: shown on the printed Welcome Card given to new tenants.</li>
+    <li><strong>Eviction Settings</strong>: configure auto-SMS/email notifications when tenants are 5+ days overdue. Set manager phone/email for alerts.</li>
+    <li><strong>Database Backup</strong>: download the full database as a .sqlite file. Restore from a previous backup.</li>
+    <li><strong>Export All Data</strong>: download all tenants, lots, meters, payments, and invoices as an Excel file.</li>
+  </ul>`
 };
 
 function helpPanel(key) {

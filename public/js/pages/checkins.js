@@ -54,39 +54,76 @@ async function showCheckIn() {
 
   showModal('Check-In New Tenant', `
     <form onsubmit="processCheckIn(event)">
-      <div class="form-row">
-        <div class="form-group"><label>First Name</label><input name="first_name" required></div>
-        <div class="form-group"><label>Last Name</label><input name="last_name" required></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Assign to Lot</label>
-          <select name="lot_id" required>
-            <option value="">Select lot...</option>
-            ${vacantLots.map(l => `<option value="${l.id}">${l.id}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}</option>`).join('')}
-          </select>
+      <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+        <legend><strong>Tenant Info</strong></legend>
+        <div class="form-row">
+          <div class="form-group"><label>First Name</label><input name="first_name" required></div>
+          <div class="form-group"><label>Last Name</label><input name="last_name" required></div>
         </div>
-        <div class="form-group">
-          <label>Rate Type</label>
-          <select name="rent_type" onchange="updateRateLabel(this)">
-            <option value="monthly" selected>Monthly</option>
-            <option value="weekly">Weekly</option>
-            <option value="daily">Daily</option>
-          </select>
+        <div class="form-row">
+          <div class="form-group"><label>Phone</label><input name="phone"></div>
+          <div class="form-group"><label>Email</label><input name="email" type="email"></div>
         </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label id="rate-label">Monthly Rate ($)</label><input name="monthly_rent" type="number" step="0.01" value="295"></div>
-        <div class="form-group"><label>Phone</label><input name="phone"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Email</label><input name="email" type="email"></div>
-        <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${new Date().toISOString().split('T')[0]}" required onchange="calcProration(this.form)"></div>
-      </div>
-      <div id="proration-info" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem">
-        <strong style="color:#1e40af">Prorated First Month</strong>
-        <div id="proration-detail" style="font-size:0.9rem;margin-top:0.25rem"></div>
-      </div>
+        <div class="form-row">
+          <div class="form-group"><label>ID / Driver's License #</label><input name="id_number" placeholder="For records only"></div>
+          <div class="form-group"><label>Date of Birth</label><input name="date_of_birth" type="date"></div>
+        </div>
+      </fieldset>
+
+      <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+        <legend><strong>Lot & Rate</strong></legend>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Assign to Lot</label>
+            <select name="lot_id" required>
+              <option value="">Select lot...</option>
+              ${vacantLots.map(l => `<option value="${l.id}">${l.id}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Rate Type</label>
+            <select name="rent_type" onchange="updateRateLabel(this)">
+              <option value="monthly" selected>Monthly</option>
+              <option value="weekly">Weekly</option>
+              <option value="daily">Daily</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label id="rate-label">Monthly Rate ($)</label><input name="monthly_rent" type="number" step="0.01" value="295"></div>
+          <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${new Date().toISOString().split('T')[0]}" required onchange="calcProration(this.form)"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" type="number" step="0.01" value="0"></div>
+          <div class="form-group"></div>
+        </div>
+        <div id="proration-info" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.5rem">
+          <strong style="color:#1e40af">Prorated First Month</strong>
+          <div id="proration-detail" style="font-size:0.9rem;margin-top:0.25rem"></div>
+        </div>
+      </fieldset>
+
+      <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+        <legend><strong>Vehicle / RV</strong></legend>
+        <div class="form-row">
+          <div class="form-group"><label>RV Make</label><input name="rv_make" placeholder="e.g. Keystone"></div>
+          <div class="form-group"><label>RV Model</label><input name="rv_model" placeholder="e.g. Cougar"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Year</label><input name="rv_year" placeholder="e.g. 2020"></div>
+          <div class="form-group"><label>Length (ft)</label><input name="rv_length" placeholder="e.g. 32"></div>
+        </div>
+        <div class="form-group"><label>License Plate</label><input name="license_plate" placeholder="e.g. ABC-1234"></div>
+      </fieldset>
+
+      <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+        <legend><strong>Emergency Contact</strong></legend>
+        <div class="form-row">
+          <div class="form-group"><label>Contact Name</label><input name="emergency_contact"></div>
+          <div class="form-group"><label>Contact Phone</label><input name="emergency_phone"></div>
+        </div>
+      </fieldset>
+
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
       <button type="submit" class="btn btn-success btn-full mt-2">Check In</button>
       <p id="checkin-error" class="error-text" style="display:none"></p>
@@ -150,11 +187,16 @@ async function processCheckIn(e) {
 
   let tenant;
   try {
-    // Create tenant
+    // Create tenant with all intake fields
     tenant = await API.post('/tenants', {
       lot_id: data.lot_id, first_name: data.first_name, last_name: data.last_name,
       phone: data.phone, email: data.email, monthly_rent: parseFloat(data.monthly_rent),
-      rent_type: data.rent_type || 'monthly', move_in_date: data.check_in_date
+      rent_type: data.rent_type || 'monthly', move_in_date: data.check_in_date,
+      rv_make: data.rv_make, rv_model: data.rv_model, rv_year: data.rv_year,
+      rv_length: data.rv_length, license_plate: data.license_plate,
+      emergency_contact: data.emergency_contact, emergency_phone: data.emergency_phone,
+      id_number: data.id_number, date_of_birth: data.date_of_birth,
+      deposit_amount: parseFloat(data.deposit_amount) || 0,
     });
     if (!tenant?.id) throw new Error('Tenant was not created — no ID returned');
   } catch (err) {

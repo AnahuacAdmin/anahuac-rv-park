@@ -17,6 +17,7 @@ async function loadElectric() {
   const trendColor = trend <= 0 ? '#16a34a' : '#dc2626'; // Lower usage = green
 
   document.getElementById('page-content').innerHTML = `
+    ${helpPanel('electric')}
     <div class="page-header">
       <h2>⚡ Electric Analytics</h2>
       <div class="btn-group">

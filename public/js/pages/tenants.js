@@ -125,6 +125,11 @@ function tenantForm(lots, tenant = {}) {
         <div class="form-group"><label>RV Length</label><input name="rv_length" value="${tenant.rv_length || ''}"></div>
       </div>
       <div class="form-group"><label>License Plate</label><input name="license_plate" value="${tenant.license_plate || ''}"></div>
+      <div class="form-row">
+        <div class="form-group"><label>ID / Driver's License #</label><input name="id_number" value="${tenant.id_number || ''}"></div>
+        <div class="form-group"><label>Date of Birth</label><input name="date_of_birth" type="date" value="${tenant.date_of_birth || ''}"></div>
+      </div>
+      <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" type="number" step="0.01" value="${tenant.deposit_amount || 0}"></div>
       ${tenant.id ? `
         <div class="form-group">
           <button type="button" class="btn btn-warning" onclick="showMoveTenant(${tenant.id}, '${tenant.lot_id}', \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Move to Different Lot</button>
@@ -188,6 +193,7 @@ async function saveTenant(e, id) {
   data.sms_opt_in = data.sms_opt_in === '1' ? 1 : 0;
   data.email_opt_in = data.email_opt_in === '1' ? 1 : 0;
   data.invoice_delivery = data.invoice_delivery || 'both';
+  data.deposit_amount = parseFloat(data.deposit_amount) || 0;
 
   if (id) {
     await API.put(`/tenants/${id}`, data);

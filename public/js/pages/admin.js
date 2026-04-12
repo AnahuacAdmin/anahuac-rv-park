@@ -22,6 +22,7 @@ async function loadAdmin() {
   const autoEvictEmail = settings?.auto_eviction_email === '1';
 
   document.getElementById('page-content').innerHTML = `
+    ${helpPanel('admin')}
     <div class="page-header"><h2>Admin &amp; Backup</h2></div>
 
     <div class="card" style="border-left:4px solid #f59e0b">
