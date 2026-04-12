@@ -482,8 +482,11 @@ const HELP_CONTENT = {
 
 // --- Welcome Tour for First-Time Users ---
 function showWelcomeTour() {
-  // DISABLED — was locking up the app. Will rebuild properly later.
-  localStorage.setItem('hasSeenTour', '1'); return;
+  // DISABLED — was locking up the app. Force cleanup and exit.
+  localStorage.setItem('hasSeenTour', '1');
+  document.querySelectorAll('.celebration-overlay, .modal-overlay[style*="display"], [id*="tour"]').forEach(function(el) { el.remove(); });
+  try { closeModal(); } catch(e) {}
+  return;
   const steps = [
     { title: '🐊 Welcome to Anahuac RV Park!', text: 'This management system helps you run every aspect of the park. Let us show you around!' },
     { title: '📊 Dashboard', text: 'Your command center — occupancy, revenue, quick actions, and system health all in one place.' },
