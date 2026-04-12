@@ -14,7 +14,9 @@ let _stripe = null;
 function getStripe() {
   if (_stripe) return _stripe;
   if (!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY not set');
-  _stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  _stripe = require('stripe')(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2022-11-15',
+  });
   return _stripe;
 }
 

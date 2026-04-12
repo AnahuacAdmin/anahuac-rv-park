@@ -15,7 +15,9 @@ function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY environment variable.');
   }
-  _stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  _stripe = require('stripe')(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2022-11-15',   // Pin to pre-Link-auto-enable API version
+  });
   return _stripe;
 }
 
@@ -44,12 +46,8 @@ router.post('/create-checkout-session', async (req, res) => {
     const origin = req.headers.origin || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
 
     const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      // Force card-only: disables Stripe Link, Apple Pay, Google Pay
       payment_method_types: ['card'],
-      payment_method_options: {
-        card: { request_three_d_secure: 'automatic' },
-      },
+      mode: 'payment',
       line_items: [
         {
           price_data: {

@@ -131,16 +131,14 @@ router.post('/pay', tenantAuth, (req, res) => {
     const feeCents = Math.round(balanceCents * 0.03);
 
     if (!process.env.STRIPE_SECRET_KEY) return res.status(500).json({ error: 'Payment system not configured' });
-    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2022-11-15',
+    });
     const origin = APP_URL;
 
     stripe.checkout.sessions.create({
-      mode: 'payment',
-      // Force card-only: disables Stripe Link, Apple Pay, Google Pay
       payment_method_types: ['card'],
-      payment_method_options: {
-        card: { request_three_d_secure: 'automatic' },
-      },
+      mode: 'payment',
       line_items: [
         { price_data: { currency: 'usd', product_data: { name: `Anahuac RV Park — Balance Due`, description: `Lot ${req.tenant.lot_id}` }, unit_amount: balanceCents }, quantity: 1 },
         { price_data: { currency: 'usd', product_data: { name: 'Convenience Fee (3%)' }, unit_amount: feeCents }, quantity: 1 },
