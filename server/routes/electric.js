@@ -6,6 +6,7 @@ router.use(authenticate);
 
 // Electric analytics data — usage history, stats, per-lot details
 router.get('/analytics', (req, res) => {
+  try {
   const months = parseInt(req.query.months) || 6;
 
   // Monthly usage per lot for the last N months
@@ -54,10 +55,15 @@ router.get('/analytics', (req, res) => {
   const avgCharge = lotStats.length ? +(lotStats.reduce((s, l) => s + l.charge, 0) / lotStats.length).toFixed(2) : 0;
 
   res.json({ history, allLots, currentMonth, lastMonth, highest, lowest, avgKwh, avgCharge });
+  } catch (err) {
+    console.error('[electric] analytics failed:', err);
+    res.status(500).json({ error: 'Failed to load analytics' });
+  }
 });
 
 // Per-lot detail
 router.get('/lot/:lotId', (req, res) => {
+  try {
   const readings = db.prepare(`
     SELECT mr.*, t.first_name, t.last_name
     FROM meter_readings mr
@@ -79,6 +85,10 @@ router.get('/lot/:lotId', (req, res) => {
   const lowestMonth = monthly.filter(m => m.kwh > 0).reduce((l, m) => m.kwh < (l?.kwh || Infinity) ? m : l, null);
 
   res.json({ readings, monthly: monthly.reverse(), avgKwh, avgCharge, highestMonth, lowestMonth });
+  } catch (err) {
+    console.error('[electric] lot detail failed:', err);
+    res.status(500).json({ error: 'Failed to load lot electric data' });
+  }
 });
 
 module.exports = router;

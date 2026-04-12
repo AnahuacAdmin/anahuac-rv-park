@@ -1,6 +1,9 @@
+let _messagesCache = [];
+
 async function loadMessages() {
   const messages = await API.get('/messages');
   if (!messages) return;
+  _messagesCache = messages || [];
 
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('messages')}
@@ -28,7 +31,7 @@ async function loadMessages() {
                   ${m.is_broadcast ? '<span class="badge badge-gray">broadcast</span>' : ''}
                 </td>
                 <td class="btn-group">
-                  <button class="btn btn-sm btn-outline" onclick="viewMessage(${m.id}, '${(m.subject || '').replace(/'/g, "\\'")}', \`${(m.body || '').replace(/`/g, "\\`").replace(/\n/g, '<br>')}\`, '${m.first_name || 'All'} ${m.last_name || 'Tenants'}')">View</button>
+                  <button class="btn btn-sm btn-outline" onclick="viewMessageById(${m.id})">View</button>
                   <button class="btn btn-sm btn-danger" onclick="deleteMessage(${m.id})">Del</button>
                 </td>
               </tr>
@@ -150,11 +153,18 @@ async function sendBroadcast(e) {
 }
 
 function viewMessage(id, subject, body, tenant) {
-  showModal(subject || 'Message', `
-    <p><strong>To:</strong> ${tenant}</p>
+  showModal(escapeHtml(subject || 'Message'), `
+    <p><strong>To:</strong> ${escapeHtml(tenant)}</p>
     <hr style="margin:1rem 0">
-    <div>${body}</div>
+    <div>${escapeHtml(body).replace(/&lt;br&gt;/g, '<br>')}</div>
   `);
+}
+
+function viewMessageById(id) {
+  const m = _messagesCache.find(x => x.id === id);
+  if (!m) return;
+  const tenant = (m.first_name || 'All') + ' ' + (m.last_name || 'Tenants');
+  viewMessage(id, m.subject, (m.body || '').replace(/\n/g, '<br>'), tenant);
 }
 
 async function deleteMessage(id) {

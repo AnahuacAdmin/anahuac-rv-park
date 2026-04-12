@@ -91,9 +91,12 @@ router.get('/latest', (req, res) => {
   res.json(results);
 });
 
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB max
+
 // Save a base64 photo to disk, return the filename.
 function savePhoto(readingId, base64Data) {
   if (!base64Data) return null;
+  if (base64Data.length > MAX_PHOTO_SIZE * 1.37) return null; // base64 is ~37% larger
   const filename = `meter-${readingId}.jpg`;
   const filepath = path.join(PHOTOS_DIR, filename);
   fs.writeFileSync(filepath, Buffer.from(base64Data, 'base64'));
@@ -142,6 +145,7 @@ router.put('/:id', (req, res) => {
 
 // Serve a meter reading photo from disk (or from DB for legacy base64 data).
 router.get('/:id/photo', (req, res) => {
+  try {
   const row = db.prepare('SELECT photo FROM meter_readings WHERE id = ?').get(req.params.id);
   if (!row?.photo) return res.status(404).json({ error: 'No photo for this reading' });
 
@@ -164,6 +168,10 @@ router.get('/:id/photo', (req, res) => {
   } catch {}
 
   res.status(404).json({ error: 'Photo file not found' });
+  } catch (err) {
+    console.error('[meters] photo serve error:', err);
+    res.status(500).json({ error: 'Failed to serve photo' });
+  }
 });
 
 router.delete('/:id', (req, res) => {

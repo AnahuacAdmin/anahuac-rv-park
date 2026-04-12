@@ -4,7 +4,7 @@ let currentPage = 'dashboard';
 function showCelebration(emoji, text, duration = 3000) {
   const el = document.createElement('div');
   el.className = 'celebration-overlay';
-  el.innerHTML = `<div class="celebration-content"><div class="celebration-emoji">${emoji}</div><div class="celebration-text">${text}</div></div>`;
+  el.innerHTML = `<div class="celebration-content"><div class="celebration-emoji">${emoji}</div><div class="celebration-text">${escapeHtml(text)}</div></div>`;
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add('visible'));
   setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 400); }, duration);
@@ -18,10 +18,10 @@ function showStatusToast(emoji, text) {
     el.className = 'status-toast';
     document.body.appendChild(el);
   }
-  el.innerHTML = `${emoji} ${text}`;
+  el.innerHTML = `${emoji} ${escapeHtml(text)}`;
   el.classList.add('visible');
   return {
-    update: (newEmoji, newText) => { el.innerHTML = `${newEmoji} ${newText}`; },
+    update: (newEmoji, newText) => { el.innerHTML = `${newEmoji} ${escapeHtml(newText)}`; },
     hide: (delay = 2000) => { setTimeout(() => { el.classList.remove('visible'); }, delay); },
   };
 }
@@ -82,7 +82,7 @@ async function doGlobalSearch(q) {
     for (const g of groups) {
       if (!g.items.length) continue;
       html += `<div class="search-group-label">${g.icon} ${g.label}</div>`;
-      html += g.items.map(it => `<div class="search-result" onclick="${it.action}; closeSearch()"><div><div class="sr-title">${it.title}</div><div class="sr-sub">${it.sub}</div></div></div>`).join('');
+      html += g.items.map(it => `<div class="search-result" onclick="${it.action}; closeSearch()"><div><div class="sr-title">${escapeHtml(it.title)}</div><div class="sr-sub">${escapeHtml(it.sub)}</div></div></div>`).join('');
     }
     if (!html) html = '<div class="search-no-results">No results found</div>';
     resultsEl.innerHTML = html;
@@ -257,7 +257,16 @@ function toggleHelp(id) {
   else { el.style.display = 'none'; caret.textContent = '▼'; }
 }
 
-const APP_URL = 'https://web-production-89794.up.railway.app';
+const APP_URL = window.location.origin;
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function showPageLoading() {
+  const el = document.getElementById('page-content');
+  if (el) el.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;padding:3rem"><div class="loading-spinner"></div></div>';
+}
 
 function showShareApp() {
   showModal('Share App', `

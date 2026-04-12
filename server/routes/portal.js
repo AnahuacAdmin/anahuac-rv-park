@@ -5,7 +5,9 @@ const { db } = require('../database');
 const { SECRET, TOKEN_TTL } = require('../middleware');
 const { sendSms } = require('../twilio');
 
-const MANAGER_PHONE = '+14092676603';
+function getManagerPhone() {
+  return db.prepare("SELECT value FROM settings WHERE key = 'manager_phone'").get()?.value;
+}
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
 // Track failed PIN attempts per tenant (in-memory, resets on restart)
@@ -23,12 +25,12 @@ router.post('/login', (req, res) => {
     LIMIT 1
   `).get(lot_id.trim(), last_name.trim());
 
-  if (!tenant) return res.status(401).json({ error: 'Lot number and last name not found. Please contact management at 409-267-6603.' });
+  if (!tenant) return res.status(401).json({ error: 'Invalid credentials. Please check your lot number and last name, or contact management.' });
 
   // Check lockout
   const key = 'tenant_' + tenant.id;
   if ((_failedAttempts[key] || 0) >= 3) {
-    return res.status(429).json({ error: 'Too many attempts. Please contact management at 409-267-6603.' });
+    return res.status(429).json({ error: 'Too many attempts. Please contact management.' });
   }
 
   // If no PIN set, tell frontend to show setup screen
@@ -42,7 +44,7 @@ router.post('/login', (req, res) => {
   if (!bcrypt.compareSync(String(pin), tenant.portal_pin)) {
     _failedAttempts[key] = (_failedAttempts[key] || 0) + 1;
     const remaining = 3 - _failedAttempts[key];
-    if (remaining <= 0) return res.status(429).json({ error: 'Too many attempts. Please contact management at 409-267-6603.' });
+    if (remaining <= 0) return res.status(429).json({ error: 'Too many attempts. Please contact management.' });
     return res.status(401).json({ error: `Incorrect PIN. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining.`, needs_pin: true });
   }
 
@@ -145,7 +147,7 @@ router.post('/pay', tenantAuth, (req, res) => {
     });
   } catch (err) {
     console.error('[portal] pay error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -159,7 +161,10 @@ router.post('/message', tenantAuth, (req, res) => {
 
   // Forward to manager via SMS
   try {
-    sendSms(MANAGER_PHONE, `Portal message from ${req.tenant.name} (Lot ${req.tenant.lot_id}): ${message.trim()}`).catch(e => console.error('[portal] mgr SMS failed:', e.message));
+    const mgrPhone = getManagerPhone();
+    if (mgrPhone) {
+      sendSms(mgrPhone, `Portal message from ${req.tenant.name} (Lot ${req.tenant.lot_id}): ${message.trim()}`).catch(e => console.error('[portal] mgr SMS failed:', e.message));
+    }
   } catch {}
 
   res.json({ success: true });

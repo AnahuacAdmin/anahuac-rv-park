@@ -51,6 +51,25 @@ const loginLimiter = rateLimit({
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/recover', loginLimiter);
 
+const portalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+});
+app.use('/api/portal/login', portalLimiter);
+app.use('/api/portal/setup-pin', portalLimiter);
+
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many payment requests. Please try again later.' },
+});
+app.use('/api/payments/create-checkout-session', paymentLimiter);
+
 // Health check (used by Railway) — verifies DB is loaded.
 let dbReady = false;
 function healthHandler(req, res) {

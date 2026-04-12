@@ -92,7 +92,7 @@ function resRows(list) {
     return `
       <tr class="res-row" data-status="${r.status}">
         <td><strong>${r.confirmation_number}</strong></td>
-        <td>${r.guest_name}</td>
+        <td>${escapeHtml(r.guest_name)}</td>
         <td><strong>${r.lot_id || '—'}</strong></td>
         <td>${formatDate(r.arrival_date)}</td>
         <td>${formatDate(r.departure_date)}</td>
@@ -114,8 +114,6 @@ function resRows(list) {
 
 function filterReservations(status) {
   const filtered = status === 'all' ? _allReservations : _allReservations.filter(r => r.status === status);
-  document.getElementById('res-upcoming')?.closest('tbody')?.parentElement?.closest('.card')?.querySelector('tbody')
-  // Simpler: re-render full list.
   if (status === 'all') { renderReservationList(); return; }
   document.getElementById('page-content').querySelector('#res-upcoming').innerHTML = resRows(filtered);
 }
@@ -258,7 +256,7 @@ async function viewReservation(id) {
           </tbody>
         </table>
       </div>
-      ${r.notes ? `<p style="margin-top:1rem"><strong>Notes:</strong> ${r.notes}</p>` : ''}
+      ${r.notes ? `<p style="margin-top:1rem"><strong>Notes:</strong> ${escapeHtml(r.notes)}</p>` : ''}
       <p style="margin-top:1.5rem;font-size:0.85rem;color:#555">
         Status: <strong>${r.status}</strong><br>
         Please present this confirmation upon arrival. Check-in time is 2:00 PM and check-out time is 11:00 AM.

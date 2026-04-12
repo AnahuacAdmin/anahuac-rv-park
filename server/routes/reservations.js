@@ -163,16 +163,21 @@ router.post('/:id/checkin', (req, res) => {
 
 // Calendar data: all non-cancelled reservations in a date window.
 router.get('/calendar/range', (req, res) => {
-  const { from, to } = req.query;
-  if (!from || !to) return res.status(400).json({ error: 'from and to query params required' });
-  const rows = db.prepare(`
-    SELECT r.id, r.guest_name, r.lot_id, r.arrival_date, r.departure_date, r.status, r.confirmation_number
-    FROM reservations r
-    WHERE r.status != 'cancelled'
-      AND r.arrival_date <= ? AND r.departure_date >= ?
-    ORDER BY r.arrival_date
-  `).all(to, from);
-  res.json(rows);
+  try {
+    const { from, to } = req.query;
+    if (!from || !to) return res.status(400).json({ error: 'from and to query params required' });
+    const rows = db.prepare(`
+      SELECT r.id, r.guest_name, r.lot_id, r.arrival_date, r.departure_date, r.status, r.confirmation_number
+      FROM reservations r
+      WHERE r.status != 'cancelled'
+        AND r.arrival_date <= ? AND r.departure_date >= ?
+      ORDER BY r.arrival_date
+    `).all(to, from);
+    res.json(rows);
+  } catch (err) {
+    console.error('[reservations] calendar range failed:', err);
+    res.status(500).json({ error: 'Failed to load calendar data' });
+  }
 });
 
 router.delete('/:id', (req, res) => {

@@ -51,6 +51,8 @@ function initials(name) {
 function isAdmin() { return API.user?.role === 'admin'; }
 
 async function loadDashboard() {
+  const el = document.getElementById('page-content');
+  if (el) el.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;padding:3rem"><div class="loading-spinner"></div></div>';
   const [data, weather, bibleVerse] = await Promise.all([API.get('/dashboard'), fetchWeather(), fetchBibleVerse()]);
   if (!data) return;
 

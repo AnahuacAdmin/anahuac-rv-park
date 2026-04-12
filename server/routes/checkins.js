@@ -5,7 +5,7 @@ const { sendSms } = require('../twilio');
 
 router.use(authenticate);
 
-const APP_URL = 'https://web-production-89794.up.railway.app';
+const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
 router.get('/', (req, res) => {
   const checkins = db.prepare(`

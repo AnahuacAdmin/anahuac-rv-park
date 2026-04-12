@@ -44,7 +44,7 @@ async function loadSiteMap() {
           <div class="lot-card ${lot.status} ${_isAdmin ? flagClass : ''}" style="${glowStyle}" onclick="showLotDetail('${lot.id}')">
             ${_isAdmin ? flagBadge : ''}
             <div class="lot-id">${lot.id}</div>
-            <div class="lot-tenant">${(lot.status === 'occupied' && lot.tenant_id) ? (lot.first_name + ' ' + lot.last_name) : (lot.notes || (lot.status === 'owner_reserved' ? 'Reserved' : lot.status === 'vacant' ? 'Available' : ''))}</div>
+            <div class="lot-tenant">${(lot.status === 'occupied' && lot.tenant_id) ? escapeHtml(lot.first_name + ' ' + lot.last_name) : escapeHtml(lot.notes || (lot.status === 'owner_reserved' ? 'Reserved' : lot.status === 'vacant' ? 'Available' : ''))}</div>
             <div class="lot-status">
               ${lot.status === 'occupied' ? '<span class="badge badge-info">Occupied</span>' :
                 lot.status === 'vacant' ? '<span class="badge badge-success">Vacant</span>' :
@@ -93,9 +93,9 @@ async function showLotDetail(lotId) {
       <button class="tab-btn" onclick="switchLotTab(event,'tab-notices')">Notices</button>
     </div>
     <div id="tab-tenant" class="tab-pane active">
-      <p><strong>Name:</strong> ${tenant.first_name} ${tenant.last_name}</p>
-      <p><strong>Phone:</strong> ${tenant.phone || '—'}</p>
-      <p><strong>Email:</strong> ${tenant.email || '—'}</p>
+      <p><strong>Name:</strong> ${escapeHtml(tenant.first_name)} ${escapeHtml(tenant.last_name)}</p>
+      <p><strong>Phone:</strong> ${escapeHtml(tenant.phone || '—')}</p>
+      <p><strong>Email:</strong> ${escapeHtml(tenant.email || '—')}</p>
       <p><strong>Move-in date:</strong> ${formatDate(tenant.move_in_date)}</p>
       <hr>
       <h4>RV Details</h4>
@@ -138,7 +138,7 @@ async function showLotDetail(lotId) {
       ${messages.length ? messages.map(m => `
         <div class="notice-item">
           <div style="display:flex;justify-content:space-between"><strong>${m.subject || '(no subject)'}</strong><span style="font-size:0.75rem;color:var(--gray-500)">${formatDate((m.sent_date||'').split(' ')[0])}</span></div>
-          <div style="font-size:0.8rem;color:var(--gray-700);margin-top:0.25rem">${(m.body || '').replace(/</g,'&lt;')}</div>
+          <div style="font-size:0.8rem;color:var(--gray-700);margin-top:0.25rem">${escapeHtml(m.body || '')}</div>
         </div>
       `).join('') : '<p>No notices sent.</p>'}
     </div>

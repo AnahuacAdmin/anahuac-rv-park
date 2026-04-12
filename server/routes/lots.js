@@ -44,14 +44,19 @@ router.get('/', (req, res) => {
 });
 
 router.get('/:id', (req, res) => {
-  const lot = db.prepare(`
-    SELECT l.*, t.id as tenant_id, t.first_name, t.last_name, t.monthly_rent, t.phone, t.email, t.rent_type
-    FROM lots l
-    LEFT JOIN tenants t ON l.id = t.lot_id AND t.is_active = 1
-    WHERE l.id = ?
-  `).get(req.params.id);
-  if (!lot) return res.status(404).json({ error: 'Lot not found' });
-  res.json(lot);
+  try {
+    const lot = db.prepare(`
+      SELECT l.*, t.id as tenant_id, t.first_name, t.last_name, t.monthly_rent, t.phone, t.email, t.rent_type
+      FROM lots l
+      LEFT JOIN tenants t ON l.id = t.lot_id AND t.is_active = 1
+      WHERE l.id = ?
+    `).get(req.params.id);
+    if (!lot) return res.status(404).json({ error: 'Lot not found' });
+    res.json(lot);
+  } catch (err) {
+    console.error('[lots] get lot failed:', err);
+    res.status(500).json({ error: 'Failed to load lot' });
+  }
 });
 
 router.get('/:id/detail', (req, res) => {
@@ -91,14 +96,21 @@ router.get('/:id/detail', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const existing = db.prepare('SELECT * FROM lots WHERE id = ?').get(req.params.id);
-  if (!existing) return res.status(404).json({ error: 'Lot not found' });
-  const status = req.body.status ?? existing.status;
-  const notes = req.body.notes ?? existing.notes;
-  const size_restriction = req.body.size_restriction ?? existing.size_restriction;
-  db.prepare('UPDATE lots SET status = ?, notes = ?, size_restriction = ? WHERE id = ?')
-    .run(status, notes, size_restriction, req.params.id);
-  res.json({ success: true });
+  try {
+    const existing = db.prepare('SELECT * FROM lots WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Lot not found' });
+    const status = req.body.status ?? existing.status;
+    const validStatuses = ['vacant', 'occupied', 'owner_reserved', 'maintenance'];
+    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid lot status' });
+    const notes = req.body.notes ?? existing.notes;
+    const size_restriction = req.body.size_restriction ?? existing.size_restriction;
+    db.prepare('UPDATE lots SET status = ?, notes = ?, size_restriction = ? WHERE id = ?')
+      .run(status, notes, size_restriction, req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[lots] update lot failed:', err);
+    res.status(500).json({ error: 'Failed to update lot' });
+  }
 });
 
 module.exports = router;

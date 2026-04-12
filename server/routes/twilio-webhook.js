@@ -1,14 +1,27 @@
 const express = require('express');
+const twilio = require('twilio');
 const { db } = require('../database');
 const { sendSms, normalizePhone } = require('../twilio');
-
-const MANAGER_PHONE = '+14092676603';
 
 const router = express.Router();
 
 // Public endpoint — no auth. Twilio POSTs here when a tenant replies to an SMS.
 router.post('/', express.urlencoded({ extended: false }), async (req, res) => {
   try {
+    // Verify Twilio webhook signature to prevent spoofed requests
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    if (authToken) {
+      const signature = req.headers['x-twilio-signature'] || '';
+      const url = (process.env.APP_URL || `${req.protocol}://${req.get('host')}`) + req.originalUrl;
+      const valid = twilio.validateRequest(authToken, signature, url, req.body || {});
+      if (!valid) {
+        console.warn('[twilio-webhook] invalid signature — rejecting request');
+        return res.status(403).type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+      }
+    } else {
+      console.warn('[twilio-webhook] TWILIO_AUTH_TOKEN not set — skipping signature verification');
+    }
+
     const from = req.body.From || '';
     const body = req.body.Body || '';
     console.log(`[twilio-webhook] incoming SMS from ${from}: ${body}`);
@@ -34,8 +47,13 @@ router.post('/', express.urlencoded({ extended: false }), async (req, res) => {
     // Forward to manager
     const forwardMsg = `Reply from ${tenantName} (Lot ${lotId}): ${body}\nReply to: ${from}`;
     try {
-      await sendSms(MANAGER_PHONE, forwardMsg);
-      console.log(`[twilio-webhook] forwarded to manager ${MANAGER_PHONE}`);
+      const mgrPhone = db.prepare("SELECT value FROM settings WHERE key = 'manager_phone'").get()?.value;
+      if (mgrPhone) {
+        await sendSms(mgrPhone, forwardMsg);
+        console.log(`[twilio-webhook] forwarded to manager`);
+      } else {
+        console.warn('[twilio-webhook] no manager_phone in settings — cannot forward');
+      }
     } catch (e) {
       console.error('[twilio-webhook] forward to manager failed:', e.message);
     }

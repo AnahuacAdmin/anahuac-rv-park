@@ -29,7 +29,7 @@ function requireAdmin(req, res, next) {
 }
 
 function blockStaff(req, res, next) {
-  if (req.user?.role === 'staff') return res.status(403).json({ error: 'Access denied — financial data is restricted' });
+  if (!req.user?.role || req.user.role === 'staff') return res.status(403).json({ error: 'Access denied — financial data is restricted' });
   next();
 }
 

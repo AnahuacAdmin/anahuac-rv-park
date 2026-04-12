@@ -338,10 +338,10 @@ async function printWelcomeCard(tenantName, lotId, tenantId) {
     <h2>Your Home Away From Home</h2>
   </div>
   <div class="tenant-info">
-    <div class="name">${tenantName}</div>
+    <div class="name">${escapeHtml(tenantName)}</div>
     <div class="lot">Lot ${lotId}</div>
   </div>
-  ${wifiPassword ? `<div class="wifi-box"><div class="label">WiFi Password</div><div class="password">${wifiPassword}</div></div>` : ''}
+  ${wifiPassword ? `<div class="wifi-box"><div class="label">WiFi Password</div><div class="password">${escapeHtml(wifiPassword)}</div></div>` : ''}
   <div class="contact">409-267-6603 &nbsp;|&nbsp; anrvpark.com &nbsp;|&nbsp; 1003 Davis Ave, Anahuac TX 77514</div>
   <div class="rules">
     <h3>Park Rules</h3>

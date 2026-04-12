@@ -333,7 +333,9 @@ async function initializeDatabase() {
   // Seed admin user
   const existingUser = dbWrapper.prepare('SELECT id FROM users WHERE username = ?').get('admin');
   if (!existingUser) {
-    const hash = bcrypt.hashSync('anahuac2026', 10);
+    const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'changeme123';
+    const hash = bcrypt.hashSync(defaultPassword, 10);
+    if (defaultPassword === 'changeme123') console.warn('[database] WARNING: Using default admin password. Set DEFAULT_ADMIN_PASSWORD env var.');
     dbWrapper.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('admin', hash, 'admin');
   }
 
@@ -346,13 +348,15 @@ async function initializeDatabase() {
     dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('park_phone', '409-267-6603');
     dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('late_fee_amount', '25');
     dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('late_fee_day', '5');
-    dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('recovery_pin', 'anahuac911');
+    const defaultPin = process.env.DEFAULT_RECOVERY_PIN || '0000';
+    dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('recovery_pin', defaultPin);
+    if (defaultPin === '0000') console.warn('[database] WARNING: Using default recovery PIN. Set DEFAULT_RECOVERY_PIN env var.');
   }
 
   // Ensure recovery_pin exists even on already-seeded databases
   const pinRow = dbWrapper.prepare('SELECT key FROM settings WHERE key = ?').get('recovery_pin');
   if (!pinRow) {
-    dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('recovery_pin', 'anahuac911');
+    dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('recovery_pin', process.env.DEFAULT_RECOVERY_PIN || '0000');
   }
 
   // Seed lots

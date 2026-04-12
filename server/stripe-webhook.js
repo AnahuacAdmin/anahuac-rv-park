@@ -19,7 +19,7 @@ function registerStripeWebhook(app) {
     (req, res) => {
       const sig = req.headers['stripe-signature'];
       const secret = process.env.STRIPE_WEBHOOK_SECRET;
-      if (!secret) return res.status(500).send('STRIPE_WEBHOOK_SECRET not set');
+      if (!secret) { console.error('[stripe] STRIPE_WEBHOOK_SECRET not set'); return res.status(500).send('Webhook not configured'); }
 
       let event;
       try {
@@ -88,7 +88,7 @@ function registerStripeWebhook(app) {
         res.json({ received: true });
       } catch (err) {
         console.error('[stripe] webhook handler error:', err);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'Webhook processing error' });
       }
     }
   );

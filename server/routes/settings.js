@@ -11,10 +11,20 @@ router.get('/', (req, res) => {
   res.json(obj);
 });
 
+const ALLOWED_SETTINGS = new Set([
+  'electric_rate', 'park_name', 'park_address', 'park_phone', 'park_email',
+  'late_fee_amount', 'late_fee_day', 'recovery_pin', 'wifi_password',
+  'manager_phone', 'manager_email', 'auto_eviction_sms', 'auto_eviction_email',
+  'reservation_nightly_rate', 'default_monthly_rate', 'default_daily_rate', 'default_weekly_rate',
+]);
+
 router.put('/', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
   const update = db.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime(?))');
   for (const [key, value] of Object.entries(req.body)) {
-    update.run(key, value, new Date().toISOString());
+    if (!ALLOWED_SETTINGS.has(key)) continue;
+    const sanitized = String(value).slice(0, 1000);
+    update.run(key, sanitized, new Date().toISOString());
   }
   res.json({ success: true });
 });

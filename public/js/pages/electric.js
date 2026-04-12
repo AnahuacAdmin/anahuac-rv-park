@@ -172,12 +172,6 @@ Recent: ${data.readings.slice(0, 3).map(r => r.reading_date + ': ' + r.kwh_used 
 async function smsLotSummary(lotId) {
   const text = document.getElementById('share-summary-text')?.value;
   if (!text) return;
-  try {
-    const tenants = await API.get('/tenants');
-    const tenant = tenants?.find(t => t.lot_id === lotId && t.is_active);
-    if (!tenant?.phone) { alert('No phone number on file for this lot.'); return; }
-    await API.post(`/invoices/${0}/sms`, {}); // This won't work — use messages instead
-  } catch {}
   // Use the messaging system
   try {
     const tenants = await API.get('/tenants');

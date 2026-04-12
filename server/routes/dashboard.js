@@ -5,6 +5,7 @@ const { authenticate } = require('../middleware');
 router.use(authenticate);
 
 router.get('/', (req, res) => {
+  try {
   const totalLots = db.prepare('SELECT COUNT(*) as count FROM lots').get().count;
   const occupied = db.prepare("SELECT COUNT(*) as count FROM lots WHERE status = 'occupied'").get().count;
   const vacant = db.prepare("SELECT COUNT(*) as count FROM lots WHERE status = 'vacant'").get().count;
@@ -76,6 +77,10 @@ router.get('/', (req, res) => {
     activity: activity.slice(0, 10), upcomingReservations,
     occupancyRate: totalLots - reserved > 0 ? Math.round((occupied / (totalLots - reserved)) * 100) : 0,
   });
+  } catch (err) {
+    console.error('[dashboard] failed:', err);
+    res.status(500).json({ error: 'Failed to load dashboard data' });
+  }
 });
 
 module.exports = router;

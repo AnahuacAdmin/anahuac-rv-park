@@ -238,7 +238,7 @@ function quickCalc(input, prev) {
   if (isNaN(curr) || curr <= prev) { el.style.display = 'none'; return; }
   const kwh = curr - prev;
   document.getElementById('quick-kwh').textContent = kwh.toLocaleString();
-  document.getElementById('quick-charge').textContent = '$' + (kwh * 0.15).toFixed(2);
+  document.getElementById('quick-charge').textContent = '$' + (kwh * (_mobileRate || 0.15)).toFixed(2);
   el.style.display = '';
 }
 

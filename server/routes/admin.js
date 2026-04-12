@@ -22,7 +22,7 @@ router.get('/backup-info', requireAdmin, (req, res) => {
 router.get('/backup', requireAdmin, (req, res) => {
   try {
     saveDb();
-    if (!fs.existsSync(DB_PATH)) return res.status(500).json({ error: 'Database file not found at ' + DB_PATH });
+    if (!fs.existsSync(DB_PATH)) return res.status(500).json({ error: 'Database file not found' });
     const today = new Date().toISOString().split('T')[0];
     const filename = `rvpark-backup-${today}.sqlite`;
 

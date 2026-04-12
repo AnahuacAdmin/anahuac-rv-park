@@ -77,7 +77,7 @@ router.post('/create-checkout-session', async (req, res) => {
     res.json({ id: session.id, url: session.url });
   } catch (err) {
     console.error('[payments] create-checkout-session failed:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Payment session creation failed' });
   }
 });
 
