@@ -14,6 +14,16 @@ router.use(authenticate);
 
 const PARK_PREFIX = 'Anahuac RV Park: ';
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
+const FROM_ADDRESS = 'Anahuac RV Park <invoices@anrvpark.com>';
+const REPLY_TO = 'anrvpark@gmail.com';
+const EMAIL_FOOTER_TEXT = '\n\n—\nAnahuac RV Park, LLC\n1003 Davis Ave, Anahuac, TX 77514\n409-267-6603\n\nYou are receiving this because you are a tenant at Anahuac RV Park LLC. Call 409-267-6603 to opt out of email communications.';
+const EMAIL_FOOTER_HTML = `
+  <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e7e5e4;font-size:12px;color:#78716c;line-height:1.6">
+    <p style="margin:0"><strong>Anahuac RV Park, LLC</strong></p>
+    <p style="margin:2px 0">1003 Davis Ave, Anahuac, TX 77514</p>
+    <p style="margin:2px 0">Phone: <a href="tel:4092676603" style="color:#1a5c32">409-267-6603</a> | Email: <a href="mailto:anrvpark@gmail.com" style="color:#1a5c32">anrvpark@gmail.com</a></p>
+    <p style="margin:8px 0 0;font-size:11px;color:#a8a29e">You are receiving this because you are a tenant at Anahuac RV Park LLC, 1003 Davis Ave, Anahuac TX 77514. Call 409-267-6603 to opt out of email communications.</p>
+  </div>`;
 
 let _resend = null;
 function getResend() {
@@ -133,13 +143,17 @@ router.post('/broadcast-advanced', async (req, res) => {
           const resend = getResend();
           if (!resend) { emailSkipped++; continue; }
           try {
+            const emailSubject = subject
+              ? `Hi ${t.first_name} — ${subject}`
+              : `Hi ${t.first_name} — A message from Anahuac RV Park`;
             await resend.emails.send({
-              from: 'Anahuac RV Park <invoices@anrvpark.com>',
-              reply_to: 'anrvpark@gmail.com',
+              from: FROM_ADDRESS,
+              reply_to: REPLY_TO,
               to: t.email,
-              subject: subject || `Anahuac RV Park - ${message_type || 'Notice'}`,
-              text: personalMsg + '\n\nAnahuac RV Park\n409-267-6603',
-              html: `<p>${personalMsg.replace(/\n/g, '<br>')}</p><p>Anahuac RV Park<br>409-267-6603</p>`,
+              subject: emailSubject,
+              text: personalMsg + EMAIL_FOOTER_TEXT,
+              html: `<p>${personalMsg.replace(/\n/g, '<br>')}</p>${EMAIL_FOOTER_HTML}`,
+              headers: { 'List-Unsubscribe': '<mailto:anrvpark@gmail.com?subject=unsubscribe>' },
             });
             emailSent++;
           } catch (e) { emailFailed++; errors.push(`Email ${t.lot_id}: ${e.message}`); }

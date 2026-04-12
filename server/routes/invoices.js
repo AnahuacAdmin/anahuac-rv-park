@@ -14,7 +14,18 @@ router.use(authenticate);
 router.use(blockStaff);
 
 const FROM_ADDRESS = 'Anahuac RV Park <invoices@anrvpark.com>';
+const REPLY_TO = 'anrvpark@gmail.com';
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
+
+const EMAIL_FOOTER_TEXT = '\n\n—\nAnahuac RV Park, LLC\n1003 Davis Ave, Anahuac, TX 77514\n409-267-6603\n\nYou are receiving this because you are a tenant at Anahuac RV Park LLC. Call 409-267-6603 to opt out of email communications.';
+
+const EMAIL_FOOTER_HTML = `
+  <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e7e5e4;font-size:12px;color:#78716c;line-height:1.6">
+    <p style="margin:0"><strong>Anahuac RV Park, LLC</strong></p>
+    <p style="margin:2px 0">1003 Davis Ave, Anahuac, TX 77514</p>
+    <p style="margin:2px 0">Phone: <a href="tel:4092676603" style="color:#1a5c32">409-267-6603</a> | Email: <a href="mailto:anrvpark@gmail.com" style="color:#1a5c32">anrvpark@gmail.com</a></p>
+    <p style="margin:8px 0 0;font-size:11px;color:#a8a29e">You are receiving this because you are a tenant at Anahuac RV Park LLC, 1003 Davis Ave, Anahuac TX 77514. Call 409-267-6603 to opt out of email communications.</p>
+  </div>`;
 
 // Sequential invoice number: finds the last INV-NNNN and increments.
 function nextInvoiceNumber() {
@@ -83,12 +94,7 @@ Due:       ${invoice.due_date}
 Total:     $${total}
 Balance:   $${balance}
 ${payLine}
-Thank you for being part of our community. If you have any questions about this invoice, call us at 409-267-6603.
-
-Warm regards,
-Anahuac RV Park, LLC
-1003 Davis Ave, Anahuac, TX 77514
-409-267-6603`;
+Thank you for being part of our community. If you have any questions about this invoice, call us at 409-267-6603.${EMAIL_FOOTER_TEXT}`;
 
     const payButtonHtml = hasBalance ? `
       <div style="text-align:center;margin:1.5rem 0">
@@ -109,25 +115,31 @@ Anahuac RV Park, LLC
       </table>
       ${payButtonHtml}
       <p>Thank you for being part of our community. If you have any questions about this invoice, call us at 409-267-6603.</p>
-      <p>Warm regards,<br>
-      Anahuac RV Park, LLC<br>
-      1003 Davis Ave, Anahuac, TX 77514<br>
-      409-267-6603</p>
+      ${EMAIL_FOOTER_HTML}
     `;
 
     console.log(`[invoices] emailing invoice ${invoice.invoice_number} to ${invoice.email} (PDF ${Math.round(pdfBase64.length / 1024)}KB base64)`);
+    // Build a personal, non-spammy subject line
+    const invoiceMonth = invoice.invoice_date ? new Date(invoice.invoice_date + 'T00:00:00').toLocaleString('en-US', { month: 'long', year: 'numeric' }) : '';
+    const emailSubject = hasBalance
+      ? `Hi ${invoice.first_name} — Your Anahuac RV Park Statement${invoiceMonth ? ' for ' + invoiceMonth : ''}`
+      : `Anahuac RV Park — Paid Invoice ${invoice.invoice_number}`;
+
     const { data, error } = await resend.emails.send({
       from: FROM_ADDRESS,
-      reply_to: 'anrvpark@gmail.com',
+      reply_to: REPLY_TO,
       to: invoice.email,
-      subject: `Anahuac RV Park - Invoice for Lot ${invoice.lot_id}`,
+      subject: emailSubject,
       text: textBody,
       html: htmlBody,
       attachments: [{
         filename: `Invoice-${invoice.invoice_number}.pdf`,
         content: Buffer.from(pdfBase64, 'base64'),
       }],
-      headers: { 'X-Entity-Ref-ID': `invoice-${invoice.id}-${Date.now()}` },
+      headers: {
+        'X-Entity-Ref-ID': `invoice-${invoice.id}-${Date.now()}`,
+        'List-Unsubscribe': `<mailto:anrvpark@gmail.com?subject=unsubscribe>`,
+      },
     }, { idempotencyKey: `invoice-email-${invoice.id}-${Math.floor(Date.now() / 60000)}` });
     if (error) {
       console.error('[invoices] resend returned error:', error);
@@ -215,7 +227,7 @@ function runLateFeeCheck() {
         try { sendSms(mgrPhone, `EVICTION ALERT - Anahuac RV Park: ${name} Lot ${tenant.lot_id} is 5+ days overdue. Balance: $${balance.toFixed(2)}. Login: ${APP_URL}`); } catch (e) { console.error('[eviction] mgr SMS failed:', e.message); }
       }
       if (mgrEmail && resend) {
-        try { resend.emails.send({ from: FROM_ADDRESS, to: mgrEmail, subject: `EVICTION ALERT: ${name} Lot ${tenant.lot_id}`, text: `Eviction warning triggered for ${name}, Lot ${tenant.lot_id}. Balance: $${balance.toFixed(2)}. Date: ${today}. Login: ${APP_URL}` }); } catch (e) { console.error('[eviction] mgr email failed:', e.message); }
+        try { resend.emails.send({ from: FROM_ADDRESS, reply_to: REPLY_TO, to: mgrEmail, subject: `Lot ${tenant.lot_id} — Past Due Alert for ${name}`, text: `Eviction warning triggered for ${name}, Lot ${tenant.lot_id}. Balance: $${balance.toFixed(2)}. Date: ${today}. Login: ${APP_URL}` }); } catch (e) { console.error('[eviction] mgr email failed:', e.message); }
       }
 
       // Auto-notify tenant (only once)
@@ -225,7 +237,7 @@ function runLateFeeCheck() {
           try { sendSms(tenant.phone, evictionMsg); } catch (e) { console.error('[eviction] tenant SMS failed:', e.message); }
         }
         if (autoEmail && tenant.email && resend) {
-          try { resend.emails.send({ from: FROM_ADDRESS, reply_to: 'anrvpark@gmail.com', to: tenant.email, subject: 'IMPORTANT: Past Due Notice - Anahuac RV Park', text: evictionMsg, html: `<p>${evictionMsg.replace(/\n/g, '<br>')}</p><div style="text-align:center;margin:1rem 0"><a href="${APP_URL}/portal.html" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none">LOG IN TO PAY NOW</a></div>` }); } catch (e) { console.error('[eviction] tenant email failed:', e.message); }
+          try { resend.emails.send({ from: FROM_ADDRESS, reply_to: REPLY_TO, to: tenant.email, subject: `Hi ${tenant.first_name} — Important notice about your Anahuac RV Park account`, text: evictionMsg + EMAIL_FOOTER_TEXT, html: `<p>${evictionMsg.replace(/\n/g, '<br>')}</p><div style="text-align:center;margin:1rem 0"><a href="${APP_URL}/portal.html" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none">LOG IN TO PAY NOW</a></div>${EMAIL_FOOTER_HTML}`, headers: { 'List-Unsubscribe': '<mailto:anrvpark@gmail.com?subject=unsubscribe>' } }); } catch (e) { console.error('[eviction] tenant email failed:', e.message); }
         }
         db.prepare('UPDATE tenants SET eviction_notified = 1 WHERE id = ?').run(tid);
       }
