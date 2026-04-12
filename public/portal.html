@@ -860,9 +860,9 @@ if (_isAdminPreview) {
     const banner = document.createElement('div');
     banner.style.cssText = 'width:100%;max-width:480px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:2px solid #d97706;border-radius:12px;padding:0.6rem 1rem;margin-bottom:0.75rem;text-align:center;font-size:0.85rem;font-weight:600;color:#92400e;display:flex;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:wrap';
     banner.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:wrap">👁️ Admin Preview Mode <select id="admin-tenant-switcher" onchange="switchPreviewTenant(this.value)" style="padding:4px 8px;border-radius:8px;border:1px solid #d97706;font-size:0.78rem;font-weight:600;max-width:200px"></select> <button onclick="window.location.href=\'/\'" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">← Back to Admin</button></div>';
-    // Load tenant list for switcher
-    loadPreviewTenantList();
     wrapper.insertBefore(banner, wrapper.firstChild);
+    // Load tenant list for switcher (must be after banner is in DOM)
+    loadPreviewTenantList();
     // Disable payment in preview
     setTimeout(function() {
       var payBtn = document.querySelector('#pay-section .btn-green');

@@ -343,11 +343,16 @@ async function refreshHealth() {
 }
 
 function renderDashboardCharts(data) {
-  if (typeof Chart === 'undefined') return;
+  if (typeof Chart === 'undefined') {
+    console.warn('[dashboard] Chart.js not loaded — retrying in 1s');
+    setTimeout(function() { renderDashboardCharts(data); }, 1000);
+    return;
+  }
 
+  try {
   // Revenue Bar Chart with gradient
   const revCtx = document.getElementById('revenueChart')?.getContext('2d');
-  if (revCtx) {
+  if (revCtx && data.revenueHistory) {
     const greenGrad = revCtx.createLinearGradient(0, 0, 0, 220);
     greenGrad.addColorStop(0, '#1a5c32'); greenGrad.addColorStop(1, '#86efac');
     const redGrad = revCtx.createLinearGradient(0, 0, 0, 220);
@@ -406,4 +411,5 @@ function renderDashboardCharts(data) {
       },
     });
   }
+  } catch (err) { console.error('[dashboard] chart render failed:', err); }
 }
