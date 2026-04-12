@@ -7,6 +7,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>localStorage.setItem('hasSeenTour','1');</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1a5c32">
@@ -195,7 +196,7 @@
   <script src="/js/pages/lotmgmt.js"></script>
   <script src="/js/pages/vendors.js"></script>
 <button id="refreshBtn" class="post-login-btn" onclick="this.classList.add('spin');setTimeout(()=>window.location.reload(),600)" title="Refresh Page" style="position:fixed;top:15px;right:15px;z-index:99999;width:48px;height:48px;border-radius:50%;background:white;border:3px solid #1a5c32;font-size:1.4rem;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.2)" onmouseover="this.style.background='#f59e0b'" onmouseout="this.style.background='white'">🔄</button>
-<button id="portalQuickBtn" class="post-login-btn" title="Open Tenant Portal (Admin Preview)" onclick="openPortalPreview()" style="position:fixed;bottom:20px;right:15px;z-index:99999;background:linear-gradient(135deg,#f59e0b,#d97706);color:#0d1a50;border:none;border-radius:30px;padding:12px 20px;font-size:0.9rem;font-weight:700;cursor:pointer;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(245,158,11,0.4);text-decoration:none;animation:portalPulse 2.5s infinite">🐊 Tenant Portal ↗</button>
+<a href="/portal.html" target="_blank" id="portalQuickBtn" class="post-login-btn" style="position:fixed;bottom:20px;right:15px;z-index:99999;background:linear-gradient(135deg,#f59e0b,#d97706);color:#0d1a50;border-radius:30px;padding:12px 20px;font-size:0.9rem;font-weight:700;box-shadow:0 4px 15px rgba(245,158,11,0.4);text-decoration:none;align-items:center;gap:8px">🐊 Tenant Portal ↗</a>
 <style>
 #refreshBtn.spin{animation:spinBtn 0.6s linear}
 @keyframes spinBtn{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}

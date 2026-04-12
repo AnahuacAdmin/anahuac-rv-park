@@ -98,8 +98,9 @@ let _wasEverOffline = false; // Only show "back online" if we were actually offl
 function isOffline() { return !_isOnline; }
 
 function showOfflineBanner() {
-  // Never show if actually online
-  if (navigator.onLine) return;
+  // NUCLEAR: never show unless genuinely offline right now
+  if (navigator.onLine === true) return;
+  if (window.navigator && window.navigator.onLine === true) return;
   _wasEverOffline = true;
   var banner = document.getElementById('offline-banner');
   if (!banner) {
@@ -300,3 +301,11 @@ function initOfflineMode() {
 
 // Auto-init after a short delay to let API load
 setTimeout(initOfflineMode, 1000);
+
+// Nuclear safety: kill offline banner 3 seconds after load if online
+setTimeout(function() {
+  if (navigator.onLine) {
+    var b = document.getElementById('offline-banner');
+    if (b) b.remove();
+  }
+}, 3000);
