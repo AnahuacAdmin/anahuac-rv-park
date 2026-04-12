@@ -354,25 +354,28 @@ async function refreshHealth() {
 }
 
 function renderDashboardCharts(data) {
-  setTimeout(function() {
-    // Visible debug: write status into the chart area if it exists
-    var debugTarget = document.querySelector('.dash-charts-row');
-    if (!debugTarget) {
-      console.log('[charts] dash-charts-row NOT in DOM — isAdmin() was false or charts HTML skipped');
-      return;
-    }
+  // Poll for Chart.js — retry every 500ms up to 10 times
+  var attempts = 0;
+  function tryRender() {
+    attempts++;
     if (typeof Chart === 'undefined') {
-      console.error('[charts] Chart.js not loaded');
-      if (debugTarget) debugTarget.innerHTML = '<div class="card" style="padding:2rem;text-align:center;color:#dc2626"><strong>Chart.js failed to load from CDN</strong><br>Check internet connection</div>';
+      if (attempts < 10) {
+        console.log('[charts] waiting for Chart.js... attempt', attempts);
+        setTimeout(tryRender, 500);
+      } else {
+        console.error('[charts] Chart.js never loaded after 5s');
+        var target = document.querySelector('.dash-charts-row');
+        if (target) target.innerHTML = '<div class="card" style="padding:2rem;text-align:center;color:#dc2626"><strong>Charts unavailable</strong><br>Chart.js failed to load. Try refreshing.</div>';
+      }
       return;
     }
+    var revCanvas = document.getElementById('revenueChart');
+    if (!revCanvas) {
+      console.log('[charts] no canvas in DOM, isAdmin=' + isAdmin());
+      return;
+    }
+    console.log('[charts] rendering with Chart.js', Chart.version);
     try {
-      // Revenue Bar Chart
-      var revCanvas = document.getElementById('revenueChart');
-      if (!revCanvas) {
-        console.error('[charts] revenueChart canvas not in DOM');
-        return;
-      }
       if (revCanvas) {
         revCanvas.parentElement.style.height = '220px';
         revCanvas.parentElement.style.position = 'relative';
@@ -437,5 +440,7 @@ function renderDashboardCharts(data) {
     } catch(e) {
       console.error('[charts] render error:', e);
     }
-  }, 1500);
+  }
+  // Start polling after 500ms
+  setTimeout(tryRender, 500);
 }
