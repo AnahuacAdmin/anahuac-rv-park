@@ -60,10 +60,21 @@ async function showCheckIn() {
             ${vacantLots.map(l => `<option value="${l.id}">${l.id}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}</option>`).join('')}
           </select>
         </div>
-        <div class="form-group"><label>Monthly Rent ($)</label><input name="monthly_rent" type="number" step="0.01" value="295"></div>
+        <div class="form-group">
+          <label>Rate Type</label>
+          <select name="rent_type" onchange="updateRateLabel(this)">
+            <option value="monthly" selected>Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="daily">Daily</option>
+          </select>
+        </div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label id="rate-label">Monthly Rate ($)</label><input name="monthly_rent" type="number" step="0.01" value="295"></div>
         <div class="form-group"><label>Phone</label><input name="phone"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input name="email" type="email"></div>
         <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${new Date().toISOString().split('T')[0]}" required></div>
       </div>
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
@@ -71,6 +82,15 @@ async function showCheckIn() {
       <p id="checkin-error" class="error-text" style="display:none"></p>
     </form>
   `);
+}
+
+function updateRateLabel(sel) {
+  const label = document.getElementById('rate-label');
+  const input = sel.form.monthly_rent;
+  const type = sel.value;
+  if (type === 'daily') { if (label) label.textContent = 'Daily Rate ($)'; if (input && input.value === '295') input.value = '50'; }
+  else if (type === 'weekly') { if (label) label.textContent = 'Weekly Rate ($)'; if (input && input.value === '295') input.value = '200'; }
+  else { if (label) label.textContent = 'Monthly Rate ($)'; }
 }
 
 async function processCheckIn(e) {
@@ -94,7 +114,8 @@ async function processCheckIn(e) {
     // Create tenant
     tenant = await API.post('/tenants', {
       lot_id: data.lot_id, first_name: data.first_name, last_name: data.last_name,
-      phone: data.phone, monthly_rent: parseFloat(data.monthly_rent), move_in_date: data.check_in_date
+      phone: data.phone, email: data.email, monthly_rent: parseFloat(data.monthly_rent),
+      rent_type: data.rent_type || 'monthly', move_in_date: data.check_in_date
     });
     if (!tenant?.id) throw new Error('Tenant was not created — no ID returned');
   } catch (err) {

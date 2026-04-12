@@ -29,7 +29,7 @@ async function loadTenants() {
                 <td><strong>${t.lot_id}</strong></td>
                 <td>${t.first_name} ${t.last_name}${(t.eviction_warning === 1 && t.balance_due > 0) ? ' <span class="badge badge-danger" title="Eviction warning">EVICTION</span>' : ''}${t.credit_balance > 0 ? ` <span class="badge badge-success" title="Account credit">Credit: ${formatMoney(t.credit_balance)}</span>` : ''}</td>
                 <td>${formatMoney(t.monthly_rent)}</td>
-                <td><span class="badge badge-${t.rent_type === 'premium' ? 'warning' : t.rent_type === 'electric_only' ? 'info' : 'gray'}">${t.rent_type}</span></td>
+                <td><span class="badge badge-${t.rent_type === 'daily' ? 'info' : t.rent_type === 'weekly' ? 'info' : t.rent_type === 'premium' ? 'warning' : t.rent_type === 'electric_only' ? 'info' : 'gray'}">${t.rent_type}</span></td>
                 <td>${recurringSummary(t)}</td>
                 <td>${formatDate(t.move_in_date)}</td>
                 <td class="btn-group">
@@ -87,9 +87,11 @@ function tenantForm(lots, tenant = {}) {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Rent Type</label>
+          <label>Rate Type</label>
           <select name="rent_type">
-            <option value="standard" ${tenant.rent_type === 'standard' ? 'selected' : ''}>Standard</option>
+            <option value="monthly" ${tenant.rent_type === 'monthly' || tenant.rent_type === 'standard' ? 'selected' : ''}>Monthly</option>
+            <option value="weekly" ${tenant.rent_type === 'weekly' ? 'selected' : ''}>Weekly</option>
+            <option value="daily" ${tenant.rent_type === 'daily' ? 'selected' : ''}>Daily</option>
             <option value="premium" ${tenant.rent_type === 'premium' ? 'selected' : ''}>Premium</option>
             <option value="prorated" ${tenant.rent_type === 'prorated' ? 'selected' : ''}>Prorated</option>
             <option value="electric_only" ${tenant.rent_type === 'electric_only' ? 'selected' : ''}>Electric Only</option>
