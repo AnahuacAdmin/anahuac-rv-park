@@ -742,11 +742,11 @@ async function emailInvoice(id) {
 
   try {
     const inv = await API.get(`/invoices/${id}`);
-    if (!inv) return;
-    if (!inv.email) { alert('No email address on file for this tenant.'); return; }
-    if (!confirm(`Send invoice to ${inv.email}?`)) return;
+    if (!inv) { sessionStorage.removeItem(key); return; }
+    if (!inv.email) { sessionStorage.removeItem(key); alert('No email address on file for this tenant.'); return; }
+    if (!confirm(`Send invoice to ${inv.email}?`)) { sessionStorage.removeItem(key); return; }
 
-    const emailToast = showStatusToast('📧', 'Sending email...', -1);
+    showStatusToast('📧', 'Sending email...', -1);
 
     // Generate PDF
     const wrap = document.createElement('div');
@@ -761,10 +761,11 @@ async function emailInvoice(id) {
     const pdfBase64 = await blobToBase64(pdfBlob);
     const result = await API.post(`/invoices/${id}/email`, { pdfBase64 });
 
+    // Always dismiss the "Sending..." toast first
+    dismissToast();
+
     if (result?.success) {
       showStatusToast('✅', `Email delivered to ${result.sentTo}`);
-    } else {
-      emailToast.hide(0);
     }
   } catch (err) {
     dismissToast();

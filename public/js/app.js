@@ -18,7 +18,6 @@ function showCelebration(emoji, text, duration = 3000) {
 
 let _toastTimer = null;
 let _toastSafetyTimer = null;
-const TOAST_SAFETY_MAX = 30000; // hard cap: no toast lives longer than 30s
 
 function showStatusToast(emoji, text, autoDismissMs = 4000) {
   let el = document.getElementById('status-toast');
@@ -30,29 +29,39 @@ function showStatusToast(emoji, text, autoDismissMs = 4000) {
   }
   clearTimeout(_toastTimer);
   clearTimeout(_toastSafetyTimer);
+  // Reset state completely
+  el.style.transition = 'none';
   el.classList.remove('toast-fade-out');
-  el.innerHTML = `<span class="status-toast-content">${emoji} ${escapeHtml(text)}</span><button class="status-toast-close" onclick="dismissToast()" aria-label="Close">&times;</button>`;
   el.classList.add('visible');
+  el.style.opacity = '1';
+  el.style.transform = 'translateX(-50%) translateY(0)';
+  // Force reflow then restore transition
+  void el.offsetHeight;
+  el.style.transition = '';
+  el.innerHTML = `<span class="status-toast-content">${emoji} ${escapeHtml(text)}</span><button class="status-toast-close" onclick="dismissToast()" aria-label="Close">&times;</button>`;
+  // Auto-dismiss
   if (autoDismissMs >= 0) {
-    _toastTimer = setTimeout(dismissToast, autoDismissMs);
+    _toastTimer = setTimeout(function() { dismissToast(); }, autoDismissMs);
   }
-  // Safety net: even "persistent" toasts auto-dismiss after 30s
-  _toastSafetyTimer = setTimeout(dismissToast, TOAST_SAFETY_MAX);
+  // SAFETY NET: no toast survives longer than 8 seconds, period
+  _toastSafetyTimer = setTimeout(function() { dismissToast(); }, 8000);
   return {
-    update: (newEmoji, newText, resetTimer = true) => {
-      const content = el.querySelector('.status-toast-content');
+    update: function(newEmoji, newText, resetTimer) {
+      if (resetTimer === undefined) resetTimer = true;
+      var content = el.querySelector('.status-toast-content');
       if (content) content.innerHTML = `${newEmoji} ${escapeHtml(newText)}`;
       if (resetTimer) {
         clearTimeout(_toastTimer);
         clearTimeout(_toastSafetyTimer);
-        _toastTimer = setTimeout(dismissToast, autoDismissMs >= 0 ? autoDismissMs : 4000);
-        _toastSafetyTimer = setTimeout(dismissToast, TOAST_SAFETY_MAX);
+        _toastTimer = setTimeout(function() { dismissToast(); }, autoDismissMs >= 0 ? autoDismissMs : 4000);
+        _toastSafetyTimer = setTimeout(function() { dismissToast(); }, 8000);
       }
     },
-    hide: (delay = 0) => {
+    hide: function(delay) {
+      if (delay === undefined) delay = 0;
       clearTimeout(_toastTimer);
       clearTimeout(_toastSafetyTimer);
-      if (delay > 0) { _toastTimer = setTimeout(dismissToast, delay); } else { dismissToast(); }
+      if (delay > 0) { _toastTimer = setTimeout(function() { dismissToast(); }, delay); } else { dismissToast(); }
     },
   };
 }
@@ -60,12 +69,20 @@ function showStatusToast(emoji, text, autoDismissMs = 4000) {
 function dismissToast() {
   clearTimeout(_toastTimer);
   clearTimeout(_toastSafetyTimer);
-  const el = document.getElementById('status-toast');
+  _toastTimer = null;
+  _toastSafetyTimer = null;
+  var el = document.getElementById('status-toast');
   if (!el) return;
-  el.classList.add('toast-fade-out');
-  setTimeout(() => {
+  // Force hide immediately via inline styles — no CSS race conditions
+  el.style.opacity = '0';
+  el.style.transform = 'translateX(-50%) translateY(-120%)';
+  el.style.pointerEvents = 'none';
+  setTimeout(function() {
     el.classList.remove('visible', 'toast-fade-out');
-  }, 300);
+    el.style.opacity = '';
+    el.style.transform = '';
+    el.style.pointerEvents = '';
+  }, 400);
 }
 
 function getTimeGreeting() {
