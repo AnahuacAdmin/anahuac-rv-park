@@ -34,6 +34,7 @@
   </style>
 </head>
 <body class="login-page">
+  <button onclick="spinAndReload(this)" id="refreshBtn" title="Refresh Page" style="position:fixed;top:12px;right:16px;z-index:9999;width:44px;height:44px;border-radius:50%;background:white;border:2px solid #1a5c32;font-size:1.3rem;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.15);transition:all 0.3s" onmouseover="this.style.background='#f59e0b';this.style.borderColor='#d97706'" onmouseout="this.style.background='white';this.style.borderColor='#1a5c32'">🔄</button>
   <div id="splash" class="splash">
     <img src="/park_Logo.png" alt="" class="splash-logo">
     <div class="splash-title">Anahuac RV Park</div>
@@ -99,7 +100,6 @@
       <header class="mobile-header">
         <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Open menu">&#9776;</button>
         <h2>🐊 Anahuac RV Park</h2>
-        <button class="refresh-btn" onclick="spinAndReload(this)" aria-label="Refresh Page" title="Refresh Page">🔄</button>
       </header>
       <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
       <nav id="sidebar">
@@ -150,7 +150,6 @@
           <button id="logout-btn" class="btn btn-outline btn-full">🚪 Logout</button>
         </div>
       </nav>
-      <button class="refresh-btn refresh-btn-fixed" onclick="spinAndReload(this)" aria-label="Refresh Page" title="Refresh Page">🔄</button>
       <main id="content">
         <div id="page-content"></div>
         <footer style="text-align:center;padding:1.5rem 1rem 1rem;font-size:0.72rem;color:#9ca3af">&copy; 2026 Anahuac RV Park LLC &mdash; Proprietary Software</footer>
