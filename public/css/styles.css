@@ -1407,6 +1407,29 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
   box-shadow: 0 0 0 3px rgba(26, 92, 50, 0.1);
 }
 
+/* === BACK BUTTON === */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.85rem;
+  margin-bottom: 0.75rem;
+  background: #fff;
+  color: var(--brand-primary, #1a5c32);
+  border: 1.5px solid var(--brand-primary, #1a5c32);
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 36px;
+}
+.back-btn:hover {
+  background: var(--brand-primary, #1a5c32);
+  color: #fff;
+}
+.back-btn:active { transform: scale(0.96); }
+
 /* === REFRESH BUTTON === */
 .refresh-btn {
   width: 44px; height: 44px;

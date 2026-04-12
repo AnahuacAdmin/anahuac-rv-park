@@ -5,6 +5,13 @@
  * Unauthorized copying, distribution, or use is strictly prohibited.
  */
 let currentPage = 'dashboard';
+const _navHistory = [];
+
+function goBack() {
+  if (_navHistory.length === 0) return;
+  const prev = _navHistory.pop();
+  navigateTo(prev, true); // true = don't push to history
+}
 
 // --- Fun UI Celebrations & Status Toasts ---
 function showCelebration(emoji, text, duration = 3000) {
@@ -505,6 +512,7 @@ function showKeyboardShortcuts() {
         <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">B</kbd></td><td>Billing</td></tr>
         <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">R</kbd></td><td>Reports</td></tr>
         <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">?</kbd></td><td>Show this help</td></tr>
+        <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">Alt+←</kbd></td><td>Go back</td></tr>
         <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">Esc</kbd></td><td>Close modal</td></tr>
       </tbody>
     </table>
@@ -518,6 +526,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal();
     return;
   }
+  if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); goBack(); return; }
   const map = { 'd': 'dashboard', 's': 'sitemap', 't': 'tenants', 'm': 'meters', 'b': 'billing', 'r': 'reports' };
   if (map[e.key]) { e.preventDefault(); navigateTo(map[e.key]); }
   if (e.key === '?') { e.preventDefault(); showKeyboardShortcuts(); }
@@ -536,9 +545,10 @@ function showFirstVisitTip(page, emoji, tip) {
 
 function helpPanel(key) {
   const content = HELP_CONTENT[key];
-  if (!content) return '';
+  if (!content) return backButtonHtml();
   const id = `help-${key}`;
   return `
+    ${backButtonHtml()}
     <div class="help-panel">
       <button class="help-toggle" onclick="toggleHelp('${id}')">
         <span class="help-icon">?</span> How To Use This Section
@@ -581,9 +591,15 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function backButtonHtml() {
+  if (_navHistory.length === 0) return '';
+  return '<button onclick="goBack()" class="back-btn">← Back</button>';
+}
+
 function showPageLoading() {
   const el = document.getElementById('page-content');
   if (el) el.innerHTML = `
+    ${backButtonHtml()}
     <div style="padding:0.5rem 0">
       <div class="skeleton-pulse" style="height:28px;width:200px;margin-bottom:1.5rem"></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem">
@@ -643,12 +659,19 @@ function showModal(title, bodyHtml) {
 }
 function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
 
-function navigateTo(page) {
+function navigateTo(page, skipHistory) {
   if (!page) return; // guard against group-toggle clicks with no data-page
   // Block staff from financial pages
   if (API.user?.role === 'staff' && ['billing', 'payments', 'users', 'admin', 'waitlist', 'reports', 'lotmgmt'].includes(page)) {
     alert('Access restricted. Contact your administrator.');
     return;
+  }
+  // Push current page to history (no duplicates)
+  if (!skipHistory && currentPage && currentPage !== page) {
+    if (_navHistory[_navHistory.length - 1] !== currentPage) {
+      _navHistory.push(currentPage);
+      if (_navHistory.length > 10) _navHistory.shift();
+    }
   }
   currentPage = page;
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
