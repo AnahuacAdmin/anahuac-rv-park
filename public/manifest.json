@@ -4,11 +4,12 @@
   "description": "Anahuac RV Park Management System",
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#2c4a1e",
-  "background_color": "#ffffff",
+  "theme_color": "#1a5c32",
+  "background_color": "#1a5c32",
   "orientation": "any",
   "icons": [
-    { "src": "/park_Logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/park_Logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
