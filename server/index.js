@@ -19,7 +19,22 @@ app.set('trust proxy', 1);
 
 // Security headers
 app.use(helmet({
-  contentSecurityPolicy: false, // SPA inline scripts; tighten later if desired
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://api.open-meteo.com", "https://beta.ourmanna.com", "https://www.themealdb.com", "https://official-joke-api.appspot.com"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  xFrameOptions: { action: 'deny' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  permissionsPolicy: { features: { camera: [], microphone: [], geolocation: [] } },
 }));
 
 // CORS — restrict to allowed origin(s)
@@ -66,6 +81,16 @@ const portalLimiter = rateLimit({
 });
 app.use('/api/portal/login', portalLimiter);
 app.use('/api/portal/setup-pin', portalLimiter);
+
+// General portal rate limit: 100 requests per 15 minutes per IP
+const portalGeneralLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Rate limit exceeded. Please try again later.' },
+});
+app.use('/api/portal', portalGeneralLimiter);
 
 const paymentLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

@@ -120,6 +120,13 @@
     .collapse-body { max-height:0;overflow:hidden;transition:max-height 0.3s ease }
     .collapse-body.open { max-height:1000px }
 
+    /* Game cards */
+    .game-card { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.25rem;padding:0.75rem 0.5rem;border-radius:14px;text-decoration:none;color:#fff;min-height:110px;transition:transform 0.15s,box-shadow 0.15s;text-align:center }
+    .game-card:hover { transform:scale(1.04);box-shadow:0 6px 20px rgba(0,0,0,0.25) }
+    .game-card:active { transform:scale(0.97) }
+    .game-name { font-size:0.88rem;font-weight:700;line-height:1.2 }
+    .game-play { font-size:0.65rem;font-weight:600;opacity:0.8;letter-spacing:0.05em }
+
     /* Holiday banner */
     .holiday-banner { width:100%;max-width:480px;border-radius:14px;padding:0.75rem 1rem;margin-bottom:0.75rem;text-align:center;position:relative;overflow:hidden }
     .holiday-banner-text { font-size:1rem;font-weight:700;position:relative;z-index:1 }
@@ -270,6 +277,24 @@
     <div id="announcements-list"></div>
   </div>
 
+  <!-- Daily Joke -->
+  <div class="card" id="joke-card" style="display:none">
+    <div class="card-title">😄 Today's Joke</div>
+    <div id="joke-content"></div>
+  </div>
+
+  <!-- Gator Facts -->
+  <div class="card" style="border-left:4px solid #1a5c32">
+    <div class="card-title">🐊 Did You Know?</div>
+    <div id="gator-fact" style="font-size:0.92rem;line-height:1.5"></div>
+  </div>
+
+  <!-- Announcements -->
+  <div class="card" id="announcements-card" style="display:none">
+    <div class="card-title">📢 Park Announcements</div>
+    <div id="announcements-list"></div>
+  </div>
+
   <!-- Contact Management -->
   <div class="card">
     <div class="card-title">💬 Message Management</div>
@@ -277,31 +302,83 @@
     <form id="msg-form">
       <div class="form-group">
         <label>Your Message</label>
-        <textarea id="msg-text" placeholder="Type your message to park management..." required></textarea>
+        <textarea id="msg-text" placeholder="Type your message to park management..." required style="min-height:60px"></textarea>
       </div>
       <button type="submit" class="btn btn-green">Send Message</button>
     </form>
   </div>
 
-  <!-- Around Anahuac: Food -->
-  <div class="card">
-    <div class="card-title">🍽️ Nearby Restaurants</div>
-    <div class="link-grid">
-      <a class="link-btn" href="https://www.google.com/maps/search/Nautilus+Grill+Anahuac+TX" target="_blank"><span class="lb-icon">🦐</span> Nautilus Grill</a>
-      <a class="link-btn" href="https://www.google.com/maps/search/The+Roost+Anahuac+TX" target="_blank"><span class="lb-icon">🍗</span> The Roost</a>
-      <a class="link-btn" href="https://www.google.com/maps/search/Stingaree+Restaurant+Crystal+Beach+TX" target="_blank"><span class="lb-icon">🐟</span> Stingaree</a>
-      <a class="link-btn" href="https://www.google.com/maps/search/restaurants+near+Anahuac+TX+77514" target="_blank"><span class="lb-icon">🔍</span> Find More Food</a>
+  <!-- ========== GAMES ========== -->
+  <div style="text-align:center;margin:1rem 0 0.5rem;width:100%;max-width:480px">
+    <div style="font-size:1.2rem;font-weight:800;color:#1a5c32">🎮 FREE GAMES — NO DOWNLOADS NEEDED!</div>
+    <div style="font-size:0.78rem;color:#78716c">Tap any game to play in your browser</div>
+  </div>
+
+  <div class="card" style="padding:0.75rem">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+      <a href="https://www.solitaire.org" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#166534,#22c55e)">
+        <span style="font-size:2.5rem">🃏</span><span class="game-name">Solitaire</span><span class="game-play">PLAY NOW →</span></a>
+      <a href="https://www.nytimes.com/games/wordle" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#854d0e,#eab308)">
+        <span style="font-size:2.5rem">📝</span><span class="game-name">Wordle</span><span class="game-play">PLAY NOW →</span></a>
+      <a href="https://www.sudoku.com" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#581c87,#a855f7)">
+        <span style="font-size:2.5rem">🔢</span><span class="game-name">Sudoku</span><span class="game-play">PLAY NOW →</span></a>
+      <a href="https://www.jigsawplanet.com" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#1e3a5f,#3b82f6)">
+        <span style="font-size:2.5rem">🧩</span><span class="game-name">Jigsaw Puzzles</span><span class="game-play">PLAY NOW →</span></a>
+      <a href="https://www.chess.com/play/computer" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#1c1917,#57534e)">
+        <span style="font-size:2.5rem">♟️</span><span class="game-name">Chess</span><span class="game-play">PLAY NOW →</span></a>
+      <a href="https://www.mahjong.org" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#991b1b,#ef4444)">
+        <span style="font-size:2.5rem">🀄</span><span class="game-name">Mahjong</span><span class="game-play">PLAY NOW →</span></a>
+      <a href="https://www.arkadium.com/free-online-games/crossword/" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#78350f,#d97706)">
+        <span style="font-size:2.5rem">✏️</span><span class="game-name">Crossword</span><span class="game-play">PLAY NOW →</span></a>
+      <a href="https://silvergames.com/en/fishing-games" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#0c4a6e,#0ea5e9)">
+        <span style="font-size:2.5rem">🐟</span><span class="game-name">Fishing Games</span><span class="game-play">PLAY NOW →</span></a>
     </div>
   </div>
 
-  <!-- Local Attractions -->
+  <!-- ========== ENTERTAINMENT ========== -->
+  <div style="text-align:center;margin:1rem 0 0.5rem;width:100%;max-width:480px">
+    <div style="font-size:1.1rem;font-weight:800;color:#1a5c32">📺 ENTERTAINMENT</div>
+  </div>
+
+  <div class="card" style="padding:0.75rem">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+      <a href="https://www.youtube.com" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#7f1d1d,#dc2626);min-height:70px">
+        <span style="font-size:1.8rem">📺</span><span class="game-name" style="font-size:0.82rem">YouTube</span></a>
+      <a href="https://www.youtube.com/results?search_query=country+music+playlist+2026" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#14532d,#22c55e);min-height:70px">
+        <span style="font-size:1.8rem">🎸</span><span class="game-name" style="font-size:0.82rem">Country Music</span></a>
+      <a href="https://www.bible.com" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#78350f,#f59e0b);min-height:70px">
+        <span style="font-size:1.8rem">📖</span><span class="game-name" style="font-size:0.82rem">Read the Bible</span></a>
+      <a href="https://www.baytownsun.com" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#374151,#6b7280);min-height:70px">
+        <span style="font-size:1.8rem">📰</span><span class="game-name" style="font-size:0.82rem">Local News</span></a>
+      <a href="https://weather.com/weather/radar/interactive/l/29.77,-94.68" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#0c4a6e,#38bdf8);min-height:70px">
+        <span style="font-size:1.8rem">🌊</span><span class="game-name" style="font-size:0.82rem">Weather Radar</span></a>
+      <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer" class="game-card" style="background:linear-gradient(135deg,#14532d,#1db954);min-height:70px">
+        <span style="font-size:1.8rem">🎵</span><span class="game-name" style="font-size:0.82rem">Spotify</span></a>
+    </div>
+  </div>
+
+  <!-- ========== LOCAL INFO ========== -->
+  <div style="text-align:center;margin:1rem 0 0.5rem;width:100%;max-width:480px">
+    <div style="font-size:1.1rem;font-weight:800;color:#1a5c32">🐊 ABOUT ANAHUAC</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🍽️ Nearby Restaurants</div>
+    <div class="link-grid">
+      <a class="link-btn" href="https://www.google.com/maps/search/Nautilus+Grill+Anahuac+TX" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🦐</span> Nautilus Grill</a>
+      <a class="link-btn" href="https://www.google.com/maps/search/The+Roost+Anahuac+TX" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🍗</span> The Roost</a>
+      <a class="link-btn" href="https://www.google.com/maps/search/Stingaree+Restaurant+Crystal+Beach+TX" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🐟</span> Stingaree</a>
+      <a class="link-btn" href="https://www.google.com/maps/search/restaurants+near+Anahuac+TX+77514" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🔍</span> Find More Food</a>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-title">🗺️ Local Attractions</div>
     <div class="link-grid">
-      <a class="link-btn" href="https://www.fws.gov/refuge/anahuac" target="_blank"><span class="lb-icon">🐊</span> Wildlife Refuge</a>
-      <a class="link-btn" href="https://www.google.com/maps/place/Fort+Anahuac+Park" target="_blank"><span class="lb-icon">🎣</span> Fort Anahuac Park</a>
-      <a class="link-btn" href="https://www.gatorfest.com" target="_blank"><span class="lb-icon">🎪</span> Gatorfest Info</a>
-      <a class="link-btn" href="https://www.google.com/maps/dir/Anahuac+TX/Walmart+Baytown+TX" target="_blank"><span class="lb-icon">🛒</span> Walmart Baytown</a>
+      <a class="link-btn" href="https://www.fws.gov/refuge/anahuac" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🐊</span> Wildlife Refuge</a>
+      <a class="link-btn" href="https://www.google.com/maps/place/Fort+Anahuac+Park" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🎣</span> Fort Anahuac Park</a>
+      <a class="link-btn" href="https://www.gatorfest.com" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🎪</span> Gatorfest Info</a>
+      <a class="link-btn" href="https://tpwd.texas.gov/fishboat/fish/action/reptpt.php" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🎣</span> TX Fishing Report</a>
     </div>
   </div>
 
@@ -312,33 +389,7 @@
       <a class="emergency-btn" href="tel:911"><span>🚑</span> 911 Emergency</a>
       <a class="emergency-btn" href="tel:4092672444"><span>🏥</span> Chambers County EMS — 409-267-2444</a>
       <a class="emergency-btn" href="tel:4092673534"><span>👮</span> Anahuac Police — 409-267-3534</a>
-      <a class="link-btn" href="https://www.google.com/maps/dir/Anahuac+TX/Houston+Methodist+Baytown+Hospital" target="_blank" style="width:100%"><span class="lb-icon">🏥</span> Baytown Medical — Directions</a>
-    </div>
-  </div>
-
-  <!-- Games -->
-  <div class="card">
-    <div class="card-title">🎮 Take a Break!</div>
-    <div class="link-grid">
-      <a class="link-btn" href="https://www.nytimes.com/games/wordle" target="_blank"><span class="lb-icon">📝</span> Wordle</a>
-      <a class="link-btn" href="https://www.solitaire.org" target="_blank"><span class="lb-icon">🃏</span> Solitaire</a>
-      <a class="link-btn" href="https://www.sudoku.com" target="_blank"><span class="lb-icon">🔢</span> Sudoku</a>
-      <a class="link-btn" href="https://www.chess.com/play/computer" target="_blank"><span class="lb-icon">♟️</span> Chess</a>
-      <a class="link-btn" href="https://www.nytimes.com/crosswords" target="_blank"><span class="lb-icon">✏️</span> Crossword</a>
-      <a class="link-btn" href="https://www.mahjongg.com" target="_blank"><span class="lb-icon">🀄</span> Mahjongg</a>
-    </div>
-  </div>
-
-  <!-- Social / Entertainment -->
-  <div class="card">
-    <div class="card-title">📱 Entertainment & Social</div>
-    <div class="link-grid">
-      <a class="link-btn" href="https://www.youtube.com" target="_blank"><span class="lb-icon">📺</span> YouTube</a>
-      <a class="link-btn" href="https://open.spotify.com" target="_blank"><span class="lb-icon">🎵</span> Spotify</a>
-      <a class="link-btn" href="https://www.facebook.com" target="_blank"><span class="lb-icon">📘</span> Facebook</a>
-      <a class="link-btn" href="https://www.baytownsun.com" target="_blank"><span class="lb-icon">📰</span> Local News</a>
-      <a class="link-btn" href="https://weather.com/weather/radar/interactive/l/29.77,-94.68" target="_blank"><span class="lb-icon">🌊</span> Weather Radar</a>
-      <a class="link-btn" href="tel:4092676603"><span class="lb-icon">📞</span> Call the Park</a>
+      <a class="link-btn" href="https://www.google.com/maps/dir/Anahuac+TX/Houston+Methodist+Baytown+Hospital" target="_blank" rel="noopener noreferrer" style="width:100%"><span class="lb-icon">🏥</span> Baytown Medical — Directions</a>
     </div>
   </div>
 
@@ -349,7 +400,7 @@
       <span class="caret" style="color:#a8a29e">▼</span>
     </button>
     <div class="collapse-body">
-      <ul style="padding:0.75rem 0 0 1.25rem;font-size:0.85rem;line-height:1.7;color:#44403c">
+      <ul style="padding:0.75rem 0 0 1.25rem;font-size:0.92rem;line-height:1.8;color:#44403c">
         <li>Speed limit <strong>5 MPH</strong> — children & ducks in park!</li>
         <li>Quiet hours <strong>10pm – 7am</strong></li>
         <li>Pets welcome on leash — clean up after them</li>
@@ -507,8 +558,9 @@ async function showPortal() {
   document.getElementById('p-name').textContent = fullName;
   document.getElementById('p-lot').textContent = 'Lot ' + lotId;
 
-  // Apply holiday theme
+  // Apply holiday theme and start features
   applyHolidayTheme();
+  startGatorFacts();
 
   // Load data in parallel
   const [data] = await Promise.all([
@@ -516,6 +568,7 @@ async function showPortal() {
     loadWeather(),
     getActiveHoliday() ? Promise.resolve() : loadBibleVerse(),
     loadAnnouncements(),
+    loadJoke(),
   ]);
 
   if (data) {
@@ -716,6 +769,66 @@ function startNewYearCountdown() {
     setTimeout(tick, 1000);
   }
   tick();
+}
+
+// --- Auto-logout after 30 min inactivity ---
+let _inactivityTimer = null;
+function resetInactivity() {
+  clearTimeout(_inactivityTimer);
+  _inactivityTimer = setTimeout(function() {
+    if (_portalToken) { portalLogout(); alert('Session expired due to inactivity. Please log in again.'); }
+  }, 30 * 60 * 1000);
+}
+['click','keydown','scroll','touchstart'].forEach(function(evt) {
+  document.addEventListener(evt, resetInactivity, { passive: true });
+});
+resetInactivity();
+
+// Clear session on tab close
+window.addEventListener('beforeunload', function() {
+  if (!_isAdminPreview) {
+    sessionStorage.removeItem('portal_token');
+    sessionStorage.removeItem('portal_tenant');
+  }
+});
+
+// --- Daily Joke ---
+async function loadJoke() {
+  try {
+    const r = await fetch('https://official-joke-api.appspot.com/random_joke');
+    const d = await r.json();
+    const card = document.getElementById('joke-card');
+    if (card && d.setup) {
+      card.style.display = '';
+      document.getElementById('joke-content').innerHTML =
+        '<p style="font-size:0.92rem;margin-bottom:0.3rem"><strong>' + d.setup + '</strong></p>' +
+        '<p style="font-size:0.92rem;color:#1a5c32;font-weight:600">' + d.punchline + '</p>';
+    }
+  } catch {}
+}
+
+// --- Gator Facts ---
+const GATOR_FACTS = [
+  'Anahuac is the Alligator Capital of Texas! 🐊',
+  'American alligators can live up to 50 years!',
+  'Anahuac National Wildlife Refuge has over 400 bird species!',
+  'The Trinity River runs right through Chambers County!',
+  'Gatorfest has been a tradition in Anahuac since 1989!',
+  'Baby alligators make a high-pitched chirping sound to call their mother!',
+  'Anahuac was founded in 1830 — one of the oldest towns in Texas!',
+  'Alligators can run up to 20 mph on land — but only in short bursts!',
+  'Trinity Bay is home to some of the best fishing on the Texas coast!',
+  'The Anahuac National Wildlife Refuge covers over 34,000 acres!',
+];
+function showGatorFact() {
+  const el = document.getElementById('gator-fact');
+  if (!el) return;
+  const fact = GATOR_FACTS[Math.floor(Math.random() * GATOR_FACTS.length)];
+  el.textContent = fact;
+}
+function startGatorFacts() {
+  showGatorFact();
+  setInterval(showGatorFact, 10000);
 }
 
 async function loadWeather() {
