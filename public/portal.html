@@ -375,21 +375,49 @@
 </div>
 
 <script>
-// --- Splash ---
-(function(){var s=document.getElementById('splash'),c=document.getElementById('login-wrapper'),t=Date.now();function d(){var r=Math.max(0,1500-(Date.now()-t));setTimeout(function(){s.classList.add('fade-out');c.style.opacity='1';setTimeout(function(){s.style.display='none'},700)},r)}if(document.readyState==='complete')d();else window.addEventListener('load',d)})();
-
+// --- Admin Preview Detection (FIRST, before splash) ---
+let _isAdminPreview = false;
 let _portalToken = sessionStorage.getItem('portal_token');
 let _portalTenant = JSON.parse(sessionStorage.getItem('portal_tenant') || 'null');
 
-const params = new URLSearchParams(location.search);
-if (params.get('paid') === '1') { sessionStorage.setItem('portal_paid', '1'); history.replaceState({}, '', '/portal.html'); }
-if (params.get('cancelled') === '1') { history.replaceState({}, '', '/portal.html'); }
+(function() {
+  const p = new URLSearchParams(location.search);
+
+  // Admin preview: token + tenant passed in URL
+  const previewToken = p.get('adminPreview');
+  const tenantData = p.get('tenant');
+  if (previewToken && tenantData) {
+    try {
+      _portalToken = previewToken;
+      _portalTenant = JSON.parse(decodeURIComponent(tenantData));
+      _isAdminPreview = true;
+      sessionStorage.setItem('portal_token', previewToken);
+      sessionStorage.setItem('portal_tenant', JSON.stringify(_portalTenant));
+    } catch (e) { console.error('[portal] preview parse failed:', e); }
+    history.replaceState({}, '', '/portal.html');
+  }
+
+  // Payment return
+  if (p.get('paid') === '1') { sessionStorage.setItem('portal_paid', '1'); history.replaceState({}, '', '/portal.html'); }
+  if (p.get('cancelled') === '1') { history.replaceState({}, '', '/portal.html'); }
+})();
+
+// --- Splash ---
+(function(){
+  var s=document.getElementById('splash');
+  // If admin preview or auto-login, show portal-wrapper instead of login-wrapper
+  var target = (_portalToken && _portalTenant) ? document.getElementById('portal-wrapper') : document.getElementById('login-wrapper');
+  var t=Date.now();
+  function d(){var r=Math.max(0,1500-(Date.now()-t));setTimeout(function(){s.classList.add('fade-out');if(target)target.style.opacity='1';setTimeout(function(){s.style.display='none'},700)},r)}
+  if(document.readyState==='complete')d();else window.addEventListener('load',d);
+})();
 
 async function portalFetch(url, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (_portalToken) headers['Authorization'] = 'Bearer ' + _portalToken;
   const res = await fetch('/api/portal' + url, { ...opts, headers });
-  if (res.status === 401) { portalLogout(); return null; }
+  if (res.status === 401 && !_isAdminPreview) { portalLogout(); return null; }
+  if (res.status === 401 && _isAdminPreview) { console.warn('[portal] preview auth failed, showing cached data'); return null; }
   if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Request failed'); }
   return res.json();
 }
@@ -495,6 +523,14 @@ async function showPortal() {
     const balEl = document.getElementById('p-balance');
     balEl.textContent = '$' + bal.toFixed(2);
     balEl.className = 'balance-amount ' + (bal > 0 ? 'balance-owed' : 'balance-paid');
+  } else if (_isAdminPreview) {
+    // Preview mode with no API data — show placeholder
+    document.getElementById('p-balance').textContent = '$0.00';
+    document.getElementById('p-balance').className = 'balance-amount balance-paid';
+    document.getElementById('pay-section').innerHTML = '<p style="text-align:center;color:#78716c;font-size:0.85rem">Payment preview not available</p>';
+    document.getElementById('p-invoices').innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">Invoice data preview not available</p>';
+  }
+  if (data) {
 
     const payEl = document.getElementById('pay-section');
     if (bal > 0) {
@@ -757,25 +793,7 @@ function portalLogout() {
   document.getElementById('pin-input').value = '';
 }
 
-// Admin preview mode
-let _isAdminPreview = false;
-(function checkAdminPreview() {
-  const p = new URLSearchParams(location.search);
-  const previewToken = p.get('adminPreview');
-  const tenantData = p.get('tenant');
-  if (previewToken && tenantData) {
-    try {
-      _portalToken = previewToken;
-      _portalTenant = JSON.parse(tenantData);
-      _isAdminPreview = true;
-      sessionStorage.setItem('portal_token', previewToken);
-      sessionStorage.setItem('portal_tenant', JSON.stringify(_portalTenant));
-      history.replaceState({}, '', '/portal.html');
-    } catch {}
-  }
-})();
-
-// Auto-login if token exists
+// Auto-login if token exists (including admin preview)
 if (_portalToken && _portalTenant) { showPortal(); }
 
 // Show admin preview banner after portal loads
@@ -788,9 +806,11 @@ if (_isAdminPreview) {
     banner.innerHTML = '👁️ Admin Preview Mode — Viewing as tenant would see it <button onclick="window.close()" style="margin-left:0.5rem;background:#d97706;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">Exit Preview</button>';
     wrapper.insertBefore(banner, wrapper.firstChild);
     // Disable payment in preview
-    var payBtn = document.querySelector('#pay-section .btn-green');
-    if (payBtn) { payBtn.onclick = function(e) { e.preventDefault(); alert('Payment disabled in preview mode.'); }; payBtn.style.opacity = '0.6'; }
-  }, 1000);
+    setTimeout(function() {
+      var payBtn = document.querySelector('#pay-section .btn-green');
+      if (payBtn) { payBtn.onclick = function(e) { e.preventDefault(); alert('Payment disabled in preview mode.'); }; payBtn.style.opacity = '0.6'; }
+    }, 2000);
+  }, 500);
 }
 </script>
 </body>
