@@ -16,6 +16,11 @@ router.get('/', (req, res) => {
   for (const lot of lots) {
     lot.payment_flag = null;
     lot.balance_due = 0;
+    // If lot is not occupied, clear any stale tenant data from the LEFT JOIN
+    if (lot.status !== 'occupied') {
+      lot.tenant_id = null; lot.first_name = null; lot.last_name = null;
+      lot.eviction_warning = null;
+    }
     if (!lot.tenant_id) continue;
     const inv = db.prepare(`
       SELECT COALESCE(SUM(balance_due),0) as balance,

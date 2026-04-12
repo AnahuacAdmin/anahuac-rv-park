@@ -37,7 +37,7 @@ async function loadSiteMap() {
             ${flagBadge}
             ${evictionBadge}
             <div class="lot-id">${lot.id}</div>
-            <div class="lot-tenant">${lot.tenant_id ? (lot.first_name + ' ' + lot.last_name) : (lot.notes || (lot.status === 'owner_reserved' ? 'Reserved' : 'Available'))}</div>
+            <div class="lot-tenant">${(lot.status === 'occupied' && lot.tenant_id) ? (lot.first_name + ' ' + lot.last_name) : (lot.notes || (lot.status === 'owner_reserved' ? 'Reserved' : lot.status === 'vacant' ? 'Available' : ''))}</div>
             <div class="lot-status">
               ${lot.status === 'occupied' ? '<span class="badge badge-info">Occupied</span>' :
                 lot.status === 'vacant' ? '<span class="badge badge-success">Vacant</span>' :
