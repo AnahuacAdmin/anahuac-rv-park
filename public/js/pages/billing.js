@@ -38,8 +38,19 @@ async function loadBilling() {
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#9ca3af;margin-right:3px"></span>Electric Only</span>
   </div>`;
 
+  // Flat rate summary
+  const flatTenants = (tenants || []).filter(t => t.flat_rate);
+  const flatTotal = flatTenants.reduce((s, t) => s + (Number(t.flat_rate_amount) || 0), 0);
+  const flatSummary = flatTenants.length ? `
+    <div class="card" style="border-left:4px solid #16a34a;padding:0.6rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+      <span class="badge badge-success">FLAT RATE</span>
+      <span style="font-size:0.85rem"><strong>${flatTenants.length}</strong> tenant${flatTenants.length > 1 ? 's' : ''} on flat rate billing</span>
+      <span style="font-size:0.85rem">Total: <strong style="color:#1a5c32">${formatMoney(flatTotal)}</strong>/month</span>
+    </div>` : '';
+
   document.getElementById('page-content').innerHTML = `
     ${evictionBanner}
+    ${flatSummary}
     ${rateLegend}
     ${helpPanel('billing')}
     <div class="page-header">
@@ -57,6 +68,7 @@ async function loadBilling() {
         <option value="pending">Pending</option>
         <option value="partial">Partial</option>
         <option value="paid">Paid</option>
+        <option value="flat">Flat Rate Only</option>
       </select>
       <select id="invoice-month-filter" onchange="applyInvoiceFilters()">
         <option value="all">All Months</option>
@@ -101,9 +113,10 @@ function renderInvoiceRow(inv) {
   const _t = (window._billingTenants || []).find(x => x.id === inv.tenant_id);
   const _rt = _t?.rent_type || 'monthly';
   const _rtColor = { monthly:'#1a5c32', weekly:'#7c3aed', daily:'#f59e0b', prorated:'#eab308', electric_only:'#9ca3af', premium:'#1a5c32', standard:'#1a5c32' }[_rt] || '#1a5c32';
+  const _isFlat = _t?.flat_rate;
   return `
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_rtColor}">
-      <td>${inv.invoice_number}${inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.6rem">PRORATED</span>' : ''}</td>
+      <td>${inv.invoice_number}${inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.6rem">PRORATED</span>' : ''}${_isFlat ? ' <span class="badge badge-success" style="font-size:0.6rem" title="Flat rate covers all charges including electric">FLAT RATE</span>' : ''}</td>
       <td><strong>${inv.lot_id}</strong></td>
       <td>${inv.first_name} ${inv.last_name}</td>
       <td>${formatDate(inv.invoice_date)}</td>
@@ -317,7 +330,10 @@ function applyInvoiceFilters() {
   const month  = document.getElementById('invoice-month-filter').value;
   const year   = document.getElementById('invoice-year-filter').value;
   const filtered = window._allInvoices.filter(i => {
-    if (status !== 'all' && i.status !== status) return false;
+    if (status === 'flat') {
+      const _t = (window._billingTenants || []).find(x => x.id === i.tenant_id);
+      if (!_t?.flat_rate) return false;
+    } else if (status !== 'all' && i.status !== status) return false;
     const d = i.invoice_date || '';
     if (year !== 'all' && d.slice(0, 4) !== year) return false;
     if (month !== 'all' && parseInt(d.slice(5, 7)) !== parseInt(month)) return false;

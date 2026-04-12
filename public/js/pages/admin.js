@@ -39,6 +39,26 @@ async function loadAdmin() {
       </div>
     </div>
 
+    <div class="card" style="border-left:4px solid #16a34a">
+      <h3>💲 Flat Rate Billing</h3>
+      <p><small>Set a default flat rate for new tenants and manage bulk flat rate assignments.</small></p>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label>Default Flat Rate ($/month)</label>
+          <input type="number" step="0.01" id="default-flat-rate-input" value="${settings?.default_flat_rate || 0}" style="font-size:1.2rem;font-weight:700;max-width:180px">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" onclick="saveDefaultFlatRate()">Save Default</button>
+        </div>
+      </div>
+      <div class="btn-group mt-1" style="flex-wrap:wrap">
+        <button class="btn btn-success" onclick="applyFlatRateAll()">Apply to All Lots</button>
+        <button class="btn btn-warning" onclick="applyFlatRateRow()">Apply to Row...</button>
+        <button class="btn btn-danger" onclick="removeFlatRateAll()">Remove Flat Rate from All</button>
+      </div>
+      <div id="flat-rate-tenants" style="margin-top:1rem"></div>
+    </div>
+
     <div class="card">
       <h3>WiFi Password</h3>
       <p><small>This password is included in the welcome SMS sent to new tenants on check-in.</small></p>
@@ -88,6 +108,9 @@ async function loadAdmin() {
       <button class="btn btn-success mt-1" onclick="exportAllDataToExcel()">Export All Data to Excel</button>
     </div>
   `;
+
+  // Load flat rate tenant table
+  loadFlatRateTenants();
 }
 
 async function saveEvictionSettings() {
@@ -174,6 +197,76 @@ async function restoreDatabaseBackup(input) {
   } catch (err) {
     alert('Restore failed: ' + (err.message || 'unknown error'));
   }
+}
+
+async function saveDefaultFlatRate() {
+  const val = document.getElementById('default-flat-rate-input')?.value || '0';
+  try {
+    await API.put('/settings', { default_flat_rate: val });
+    showStatusToast('✅', `Default flat rate saved: $${val}/month`);
+  } catch (err) { alert('Failed to save: ' + (err.message || 'unknown')); }
+}
+
+async function applyFlatRateAll() {
+  const amount = parseFloat(document.getElementById('default-flat-rate-input')?.value);
+  if (!amount || amount <= 0) { alert('Enter a default flat rate amount first.'); return; }
+  if (!confirm(`Set ALL active tenants to flat rate billing at $${amount.toFixed(2)}/month?\n\nThis will override their current billing settings.`)) return;
+  try {
+    const r = await API.post('/tenants/bulk-flat-rate', { action: 'apply_all', amount });
+    showStatusToast('✅', `Flat rate applied to ${r.updated} tenants`);
+    loadFlatRateTenants();
+  } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
+}
+
+async function applyFlatRateRow() {
+  const amount = parseFloat(document.getElementById('default-flat-rate-input')?.value);
+  if (!amount || amount <= 0) { alert('Enter a default flat rate amount first.'); return; }
+  const row = prompt('Enter row letter (e.g. A, B, C):');
+  if (!row) return;
+  const letter = row.trim().toUpperCase();
+  if (!/^[A-Z]$/.test(letter)) { alert('Please enter a single letter A-Z.'); return; }
+  if (!confirm(`Apply flat rate of $${amount.toFixed(2)}/month to all tenants in Row ${letter}?`)) return;
+  try {
+    const r = await API.post('/tenants/bulk-flat-rate', { action: 'apply_row', amount, row_letter: letter });
+    showStatusToast('✅', `Flat rate applied to ${r.updated} tenants in Row ${letter}`);
+    loadFlatRateTenants();
+  } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
+}
+
+async function removeFlatRateAll() {
+  if (!confirm('Remove flat rate from ALL tenants?\n\nThey will go back to individual billing (rent + electric).')) return;
+  try {
+    const r = await API.post('/tenants/bulk-flat-rate', { action: 'remove_all' });
+    showStatusToast('✅', `Flat rate removed from ${r.updated} tenants`);
+    loadFlatRateTenants();
+  } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
+}
+
+async function loadFlatRateTenants() {
+  const el = document.getElementById('flat-rate-tenants');
+  if (!el) return;
+  try {
+    const tenants = await API.get('/tenants');
+    const flat = (tenants || []).filter(t => t.flat_rate);
+    if (!flat.length) {
+      el.innerHTML = '<p style="color:#78716c;font-size:0.85rem">No tenants currently on flat rate billing.</p>';
+      return;
+    }
+    el.innerHTML = `
+      <table style="width:100%;font-size:0.85rem">
+        <thead><tr><th>Lot</th><th>Tenant</th><th>Flat Rate</th><th>Actions</th></tr></thead>
+        <tbody>${flat.map(t => `
+          <tr>
+            <td><strong>${t.lot_id}</strong></td>
+            <td>${t.first_name} ${t.last_name}</td>
+            <td>${formatMoney(t.flat_rate_amount)}/mo</td>
+            <td><button class="btn btn-sm btn-outline" onclick="showEditTenant(${t.id})">Edit</button></td>
+          </tr>
+        `).join('')}</tbody>
+      </table>
+      <p style="font-size:0.78rem;color:#78716c;margin-top:0.5rem">${flat.length} tenant${flat.length > 1 ? 's' : ''} on flat rate — Total: ${formatMoney(flat.reduce((s, t) => s + (Number(t.flat_rate_amount) || 0), 0))}/month</p>
+    `;
+  } catch { el.innerHTML = ''; }
 }
 
 async function exportAllDataToExcel() {

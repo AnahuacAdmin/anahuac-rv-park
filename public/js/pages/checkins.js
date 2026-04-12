@@ -48,8 +48,16 @@ async function loadCheckins() {
   `;
 }
 
+let _checkinDefaultFlatRate = 0;
+
+function toggleCheckinFlatRate(cb) {
+  const group = document.getElementById('checkin-flat-rate-group');
+  if (group) group.style.display = cb.checked ? '' : 'none';
+}
+
 async function showCheckIn() {
-  const lots = await API.get('/lots');
+  const [lots, settings] = await Promise.all([API.get('/lots'), API.get('/settings')]);
+  _checkinDefaultFlatRate = parseFloat(settings?.default_flat_rate) || 0;
   const vacantLots = lots.filter(l => l.status === 'vacant');
 
   showModal('Check-In New Tenant', `
@@ -96,6 +104,15 @@ async function showCheckIn() {
         <div class="form-row">
           <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" type="number" step="0.01" value="0"></div>
           <div class="form-group"></div>
+        </div>
+        <div style="border:1px solid #16a34a;border-radius:8px;padding:0.6rem 0.75rem;margin-bottom:0.75rem">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:600;font-size:0.85rem;cursor:pointer;margin-bottom:0">
+            <input type="checkbox" name="flat_rate" value="1" onchange="toggleCheckinFlatRate(this)"> Flat Rate Billing
+          </label>
+          <p style="font-size:0.75rem;color:#78716c;margin:0.2rem 0 0 1.5rem">Covers all charges including electric — one fixed monthly amount</p>
+          <div id="checkin-flat-rate-group" style="display:none;margin-top:0.5rem">
+            <div class="form-group" style="margin-bottom:0"><label>Flat Rate Amount ($/month)</label><input name="flat_rate_amount" type="number" step="0.01" value="${_checkinDefaultFlatRate || 0}" placeholder="e.g. 450"></div>
+          </div>
         </div>
         <div id="proration-info" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.5rem">
           <strong style="color:#1e40af">Prorated First Month</strong>
@@ -197,6 +214,8 @@ async function processCheckIn(e) {
       emergency_contact: data.emergency_contact, emergency_phone: data.emergency_phone,
       id_number: data.id_number, date_of_birth: data.date_of_birth,
       deposit_amount: parseFloat(data.deposit_amount) || 0,
+      flat_rate: data.flat_rate === '1' ? 1 : 0,
+      flat_rate_amount: parseFloat(data.flat_rate_amount) || 0,
     });
     if (!tenant?.id) throw new Error('Tenant was not created — no ID returned');
   } catch (err) {

@@ -56,8 +56,9 @@ router.post('/', (req, res) => {
       INSERT INTO tenants (lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
         rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
         recurring_late_fee, recurring_mailbox_fee, recurring_misc_fee, recurring_misc_description,
-        recurring_credit, recurring_credit_description, id_number, date_of_birth, deposit_amount)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        recurring_credit, recurring_credit_description, id_number, date_of_birth, deposit_amount,
+        flat_rate, flat_rate_amount)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
       str(b.emergency_contact), str(b.emergency_phone),
@@ -65,7 +66,8 @@ router.post('/', (req, res) => {
       num(b.monthly_rent) || 295, b.rent_type || 'standard', str(b.move_in_date), str(b.notes),
       num(b.recurring_late_fee), num(b.recurring_mailbox_fee), num(b.recurring_misc_fee),
       str(b.recurring_misc_description), num(b.recurring_credit), str(b.recurring_credit_description),
-      str(b.id_number), str(b.date_of_birth), num(b.deposit_amount)
+      str(b.id_number), str(b.date_of_birth), num(b.deposit_amount),
+      num(b.flat_rate) ? 1 : 0, num(b.flat_rate_amount)
     );
     if (b.lot_id) {
       db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('occupied', b.lot_id);
@@ -87,7 +89,8 @@ router.put('/:id', (req, res) => {
       recurring_late_fee=?, recurring_mailbox_fee=?, recurring_misc_fee=?, recurring_misc_description=?,
       recurring_credit=?, recurring_credit_description=?,
       sms_opt_in=?, email_opt_in=?, invoice_delivery=?,
-      id_number=?, date_of_birth=?, deposit_amount=?
+      id_number=?, date_of_birth=?, deposit_amount=?,
+      flat_rate=?, flat_rate_amount=?
     WHERE id = ?
   `).run(
     str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
@@ -101,6 +104,7 @@ router.put('/:id', (req, res) => {
     b.email_opt_in !== undefined ? (Number(b.email_opt_in) || 0) : 1,
     b.invoice_delivery || 'both',
     str(b.id_number), str(b.date_of_birth), Number(b.deposit_amount) || 0,
+    b.flat_rate ? 1 : 0, Number(b.flat_rate_amount) || 0,
     req.params.id
   );
   res.json({ success: true });
@@ -221,6 +225,32 @@ router.delete('/:id', (req, res) => {
     db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('vacant', tenant.lot_id);
   }
   res.json({ success: true });
+});
+
+// Bulk flat rate operations
+router.post('/bulk-flat-rate', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const { action, amount, row_letter } = req.body;
+  const flatAmount = Number(amount) || 0;
+
+  if (action === 'apply_all') {
+    if (!flatAmount) return res.status(400).json({ error: 'Amount is required' });
+    const result = db.prepare('UPDATE tenants SET flat_rate = 1, flat_rate_amount = ? WHERE is_active = 1').run(flatAmount);
+    return res.json({ success: true, updated: result.changes });
+  }
+
+  if (action === 'apply_row') {
+    if (!row_letter || !flatAmount) return res.status(400).json({ error: 'Row and amount are required' });
+    const result = db.prepare("UPDATE tenants SET flat_rate = 1, flat_rate_amount = ? WHERE is_active = 1 AND lot_id LIKE ?").run(flatAmount, row_letter + '%');
+    return res.json({ success: true, updated: result.changes });
+  }
+
+  if (action === 'remove_all') {
+    const result = db.prepare('UPDATE tenants SET flat_rate = 0, flat_rate_amount = 0 WHERE is_active = 1').run();
+    return res.json({ success: true, updated: result.changes });
+  }
+
+  res.status(400).json({ error: 'Invalid action' });
 });
 
 module.exports = router;
