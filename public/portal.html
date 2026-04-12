@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2c4a1e">
+  <title>Tenant Portal - Anahuac RV Park</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-image: url('https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=1920&q=80');
+      background-size: cover; background-position: center; background-attachment: fixed;
+      min-height: 100vh; color: #1f2937;
+    }
+    .overlay { min-height: 100vh; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; align-items: center; padding: 1.5rem; }
+    .card {
+      background: rgba(255, 253, 240, 0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 16px; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+      width: 100%; max-width: 440px; padding: 2rem 1.75rem; margin-bottom: 1rem;
+      animation: fadeIn 0.5s ease-out;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .logo { display: block; margin: 0 auto 0.5rem; height: 70px; }
+    h1 { text-align: center; color: #2c4a1e; font-size: 1.4rem; margin-bottom: 0.25rem; }
+    .subtitle { text-align: center; color: #92400e; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-weight: 600; font-size: 0.85rem; color: #374151; margin-bottom: 0.3rem; }
+    .form-group input, .form-group textarea { width: 100%; padding: 0.7rem; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; }
+    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #2c4a1e; box-shadow: 0 0 0 3px rgba(44,74,30,0.15); }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .btn { display: block; width: 100%; padding: 0.85rem; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; }
+    .btn-green { background: linear-gradient(135deg, #16a34a, #2c4a1e); color: #fff; }
+    .btn-green:hover { filter: brightness(1.1); }
+    .btn-outline { background: #fff; border: 1.5px solid #d1d5db; color: #374151; }
+    .balance-box { text-align: center; padding: 1.25rem; background: #f0fdf4; border-radius: 12px; margin-bottom: 1rem; }
+    .balance-amount { font-size: 2.5rem; font-weight: 800; color: #2c4a1e; }
+    .balance-label { font-size: 0.85rem; color: #6b7280; margin-top: 0.25rem; }
+    .balance-paid { color: #16a34a; }
+    .balance-owed { color: #dc2626; }
+    .tenant-header { text-align: center; margin-bottom: 1rem; }
+    .tenant-name { font-size: 1.2rem; font-weight: 700; color: #2c4a1e; }
+    .tenant-lot { font-size: 0.9rem; color: #6b7280; }
+    .invoice-row { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; }
+    .msg-success { background: #dcfce7; color: #166534; padding: 0.75rem; border-radius: 8px; text-align: center; margin-bottom: 1rem; }
+    .msg-error { background: #fee2e2; color: #991b1b; padding: 0.75rem; border-radius: 8px; text-align: center; margin-bottom: 1rem; }
+    .link { text-align: center; margin-top: 0.75rem; font-size: 0.85rem; }
+    .link a { color: #fff; text-decoration: underline; }
+    .footer { text-align: center; color: rgba(255,255,255,0.7); font-size: 0.8rem; margin-top: 1rem; }
+    .hidden { display: none !important; }
+    @media (max-width: 480px) { .card { padding: 1.5rem 1.25rem; } .balance-amount { font-size: 2rem; } }
+  </style>
+</head>
+<body>
+<div class="overlay">
+
+  <!-- Login Screen -->
+  <div id="login-screen" class="card">
+    <img src="/park_Logo.png" alt="Anahuac RV Park" class="logo">
+    <h1>Tenant Portal</h1>
+    <p class="subtitle">Anahuac RV Park</p>
+    <div id="login-error" class="msg-error hidden"></div>
+    <form id="login-form">
+      <div class="form-group">
+        <label>Lot Number</label>
+        <input id="lot-input" placeholder="e.g. A3" required autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Last Name</label>
+        <input id="name-input" placeholder="Your last name" required autocomplete="off">
+      </div>
+      <button type="submit" class="btn btn-green">Sign In</button>
+    </form>
+    <p class="link"><a href="/">Admin Login</a></p>
+  </div>
+
+  <!-- Portal Dashboard -->
+  <div id="portal-screen" class="hidden">
+    <div class="card">
+      <img src="/park_Logo.png" alt="Anahuac RV Park" class="logo">
+      <div class="tenant-header">
+        <div class="tenant-name" id="p-name"></div>
+        <div class="tenant-lot" id="p-lot"></div>
+      </div>
+      <div class="balance-box">
+        <div class="balance-label">Current Balance</div>
+        <div class="balance-amount" id="p-balance"></div>
+      </div>
+      <div id="pay-section"></div>
+      <h3 style="font-size:0.9rem;color:#374151;margin:1rem 0 0.5rem">Recent Invoices</h3>
+      <div id="p-invoices"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:1rem;color:#2c4a1e;margin-bottom:0.75rem">Contact Management</h3>
+      <div id="msg-status"></div>
+      <form id="msg-form">
+        <div class="form-group">
+          <label>Your Message</label>
+          <textarea id="msg-text" placeholder="Type your message to park management..." required></textarea>
+        </div>
+        <button type="submit" class="btn btn-green">Send Message</button>
+      </form>
+    </div>
+
+    <div class="card" style="text-align:center;padding:1rem">
+      <p style="font-size:0.85rem;color:#6b7280">Need help? Call <a href="tel:4092676603" style="color:#2c4a1e;font-weight:700">409-267-6603</a></p>
+    </div>
+
+    <button onclick="portalLogout()" class="btn btn-outline" style="max-width:440px;margin-top:0.5rem">Log Out</button>
+  </div>
+
+  <p class="footer">Anahuac RV Park · 1003 Davis Ave, Anahuac, TX 77514 · 409-267-6603</p>
+</div>
+
+<script>
+let _portalToken = sessionStorage.getItem('portal_token');
+let _portalTenant = JSON.parse(sessionStorage.getItem('portal_tenant') || 'null');
+
+// Check for payment return
+const params = new URLSearchParams(location.search);
+if (params.get('paid') === '1') { sessionStorage.setItem('portal_paid', '1'); history.replaceState({}, '', '/portal.html'); }
+if (params.get('cancelled') === '1') { history.replaceState({}, '', '/portal.html'); }
+
+async function portalFetch(url, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (_portalToken) headers['Authorization'] = 'Bearer ' + _portalToken;
+  const res = await fetch('/api/portal' + url, { ...opts, headers });
+  if (res.status === 401) { portalLogout(); return null; }
+  if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Request failed'); }
+  return res.json();
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('login-error');
+  errEl.classList.add('hidden');
+  try {
+    const r = await portalFetch('/login', { method: 'POST', body: JSON.stringify({ lot_id: document.getElementById('lot-input').value, last_name: document.getElementById('name-input').value }) });
+    _portalToken = r.token;
+    _portalTenant = r.tenant;
+    sessionStorage.setItem('portal_token', r.token);
+    sessionStorage.setItem('portal_tenant', JSON.stringify(r.tenant));
+    showPortal();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  }
+});
+
+document.getElementById('msg-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const statusEl = document.getElementById('msg-status');
+  const text = document.getElementById('msg-text').value;
+  try {
+    await portalFetch('/message', { method: 'POST', body: JSON.stringify({ message: text }) });
+    statusEl.innerHTML = '<div class="msg-success">Message sent! We\'ll get back to you soon.</div>';
+    document.getElementById('msg-text').value = '';
+    setTimeout(() => statusEl.innerHTML = '', 5000);
+  } catch (err) {
+    statusEl.innerHTML = '<div class="msg-error">' + (err.message || 'Failed to send') + '</div>';
+  }
+});
+
+async function showPortal() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('portal-screen').classList.remove('hidden');
+  document.getElementById('p-name').textContent = _portalTenant.first_name + ' ' + _portalTenant.last_name;
+  document.getElementById('p-lot').textContent = 'Lot ' + _portalTenant.lot_id;
+
+  try {
+    const data = await portalFetch('/me');
+    const bal = data.balance || 0;
+    const balEl = document.getElementById('p-balance');
+    balEl.textContent = '$' + bal.toFixed(2);
+    balEl.className = 'balance-amount ' + (bal > 0 ? 'balance-owed' : 'balance-paid');
+
+    const payEl = document.getElementById('pay-section');
+    if (bal > 0) {
+      const withFee = (bal * 1.03).toFixed(2);
+      payEl.innerHTML = `<button class="btn btn-green" onclick="portalPay()" style="margin-bottom:0.5rem;font-size:1.1rem">Pay Now — $${withFee}</button><p style="text-align:center;font-size:0.75rem;color:#6b7280">Includes 3% card processing fee</p>`;
+    } else {
+      payEl.innerHTML = '<p style="text-align:center;color:#16a34a;font-weight:700;margin-bottom:0.5rem">All paid up!</p>';
+    }
+
+    // Show paid confirmation
+    if (sessionStorage.getItem('portal_paid')) {
+      sessionStorage.removeItem('portal_paid');
+      payEl.innerHTML = '<div class="msg-success">Payment received! Thank you!</div>' + payEl.innerHTML;
+    }
+
+    const invEl = document.getElementById('p-invoices');
+    invEl.innerHTML = (data.invoices || []).map(i =>
+      `<div class="invoice-row"><span>${i.invoice_number} — ${i.invoice_date}</span><span style="font-weight:700;color:${i.status === 'paid' ? '#16a34a' : '#dc2626'}">$${Number(i.balance_due).toFixed(2)}</span></div>`
+    ).join('') || '<p style="color:#9ca3af;font-size:0.85rem">No invoices</p>';
+  } catch (err) {
+    console.error('Portal load failed:', err);
+  }
+}
+
+async function portalPay() {
+  try {
+    const r = await portalFetch('/pay', { method: 'POST', body: '{}' });
+    if (r?.url) window.location.href = r.url;
+    else alert('Could not start payment. Please call 409-267-6603.');
+  } catch (err) { alert('Payment error: ' + (err.message || 'unknown')); }
+}
+
+function portalLogout() {
+  _portalToken = null; _portalTenant = null;
+  sessionStorage.removeItem('portal_token');
+  sessionStorage.removeItem('portal_tenant');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('portal-screen').classList.add('hidden');
+}
+
+// Auto-login if token exists
+if (_portalToken && _portalTenant) { showPortal(); }
+</script>
+</body>
+</html>

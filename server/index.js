@@ -60,6 +60,9 @@ function healthHandler(req, res) {
 app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
+// Tenant portal routes (public login + tenant-authenticated endpoints)
+app.use('/api/portal', require('./routes/portal'));
+
 // API routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
