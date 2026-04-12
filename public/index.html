@@ -99,6 +99,7 @@
       <header class="mobile-header">
         <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Open menu">&#9776;</button>
         <h2>🐊 Anahuac RV Park</h2>
+        <button class="refresh-btn" onclick="spinAndReload(this)" aria-label="Refresh Page" title="Refresh Page">🔄</button>
       </header>
       <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
       <nav id="sidebar">
@@ -135,6 +136,7 @@
           <li><a href="#" data-page="reports" class="nav-link" id="nav-reports" style="display:none">📊 Reports</a></li>
           <li><a href="#" data-page="users" class="nav-link" id="nav-users" style="display:none">👥 Users</a></li>
           <li><a href="#" data-page="admin" class="nav-link" id="nav-admin" style="display:none">🔧 Admin</a></li>
+          <li><a href="#" data-page="lotmgmt" class="nav-link" id="nav-lotmgmt" style="display:none">🏗️ Lot Management</a></li>
         </ul>
         <div class="sidebar-footer">
           <div id="sidebar-user-info" style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem;padding:0.5rem;background:rgba(255,255,255,0.05);border-radius:10px">
@@ -148,6 +150,7 @@
           <button id="logout-btn" class="btn btn-outline btn-full">🚪 Logout</button>
         </div>
       </nav>
+      <button class="refresh-btn refresh-btn-fixed" onclick="spinAndReload(this)" aria-label="Refresh Page" title="Refresh Page">🔄</button>
       <main id="content">
         <div id="page-content"></div>
         <footer style="text-align:center;padding:1.5rem 1rem 1rem;font-size:0.72rem;color:#9ca3af">&copy; 2026 Anahuac RV Park LLC &mdash; Proprietary Software</footer>
@@ -189,5 +192,6 @@
   <script src="/js/pages/waitlist.js"></script>
   <script src="/js/pages/users.js"></script>
   <script src="/js/pages/admin.js"></script>
+  <script src="/js/pages/lotmgmt.js"></script>
 </body>
 </html>

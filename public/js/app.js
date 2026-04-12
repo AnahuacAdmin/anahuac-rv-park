@@ -444,6 +444,11 @@ function toggleHelp(id) {
 
 const APP_URL = window.location.origin;
 
+function spinAndReload(btn) {
+  btn.classList.add('spinning');
+  setTimeout(function() { window.location.reload(); }, 600);
+}
+
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -513,7 +518,7 @@ function closeModal() { document.getElementById('modal-overlay').style.display =
 function navigateTo(page) {
   if (!page) return; // guard against group-toggle clicks with no data-page
   // Block staff from financial pages
-  if (API.user?.role === 'staff' && ['billing', 'payments', 'users', 'admin', 'waitlist', 'reports'].includes(page)) {
+  if (API.user?.role === 'staff' && ['billing', 'payments', 'users', 'admin', 'waitlist', 'reports', 'lotmgmt'].includes(page)) {
     alert('Access restricted. Contact your administrator.');
     return;
   }
@@ -536,7 +541,7 @@ function navigateTo(page) {
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, electric: loadElectric, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
-    users: loadUsers, reports: loadReports, admin: loadAdmin };
+    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt };
   if (loader[page]) {
     // Timeout fallback: if skeleton is still showing after 8s, show error
     const _skeletonTimeout = setTimeout(() => {
@@ -684,7 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isAdmin = API.user?.role === 'admin';
     const isStaff = API.user?.role === 'staff';
     // Admin-only nav items
-    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
+    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
     const adminDiv = document.getElementById('nav-admin-divider');
     if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
     // Financial nav items — hidden for staff
