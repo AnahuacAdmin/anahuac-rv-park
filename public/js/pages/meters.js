@@ -12,7 +12,7 @@ async function loadMeters() {
         <button class="btn btn-primary" onclick="showAddReading()">+ New Reading</button>
       </div>
     </div>
-    <div class="card">
+    <div class="card scrollable-table-card">
       <div class="table-container">
         <table>
           <thead><tr><th>Lot</th><th>Tenant</th><th>Date</th><th>Previous</th><th>Current</th><th>kWh Used</th><th>Rate</th><th>Charge</th><th>Actions</th></tr></thead>

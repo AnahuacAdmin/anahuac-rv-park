@@ -604,7 +604,8 @@ a { text-decoration: none; color: inherit; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
 .page-header h2 { font-size: 1.5rem; color: var(--gray-900); }
 .card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 1.25rem; margin-bottom: 1rem; }
-.billing-page-card { }
+.billing-page-card { max-height: calc(100vh - 180px); display: flex; flex-direction: column; overflow: hidden; }
+.billing-page-card .billing-scroll { flex: 1; min-height: 0; }
 .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .stat-card { background: white; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -614,11 +615,14 @@ a { text-decoration: none; color: inherit; }
 .stat-card.warning .stat-value { color: var(--warning); }
 .stat-card.danger .stat-value { color: var(--danger); }
  
+/* Scrollable table card — constrains the parent card so the table scrollbar stays in viewport */
+.scrollable-table-card { max-height: calc(100vh - 220px); display: flex; flex-direction: column; overflow: hidden; }
+.scrollable-table-card .table-container { flex: 1; min-height: 0; }
+
 /* Tables */
 .table-container {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: calc(100vh - 280px);
   -webkit-overflow-scrolling: touch;
   scrollbar-width: auto;
   scrollbar-color: #9ca3af var(--gray-200);

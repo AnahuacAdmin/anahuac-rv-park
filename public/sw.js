@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rvpark-v3';
+const CACHE_NAME = 'rvpark-v4';
 
 // App shell: files needed for the UI to render offline.
 const APP_SHELL = [

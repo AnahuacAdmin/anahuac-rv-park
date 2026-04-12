@@ -14,7 +14,7 @@ async function loadPayments() {
       <div class="stat-card success"><div class="stat-value">${formatMoney(totalCollected)}</div><div class="stat-label">Total Collected</div></div>
       <div class="stat-card"><div class="stat-value">${payments.length}</div><div class="stat-label">Total Payments</div></div>
     </div>
-    <div class="card">
+    <div class="card scrollable-table-card">
       <div class="table-container">
         <table>
           <thead><tr><th>Date</th><th>Lot</th><th>Tenant</th><th>Amount</th><th>Method</th><th>Invoice</th><th>Reference</th><th>Actions</th></tr></thead>

@@ -19,7 +19,7 @@ async function loadTenants() {
         <button class="btn btn-outline" onclick="showRecurringFeesSummary()">Recurring Fees Summary</button>
       </div>
     </div>
-    <div class="card">
+    <div class="card scrollable-table-card">
       <div class="table-container">
         <table>
           <thead><tr><th>Lot</th><th>Name</th><th>Rent</th><th>Type</th><th>Recurring Fees</th><th>Move-In</th><th>Actions</th></tr></thead>
