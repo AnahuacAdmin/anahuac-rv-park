@@ -283,20 +283,25 @@ async function sendWelcomeText(tenantId, tenantName) {
   }
 }
 
+let _checkoutTenants = [];
+
 async function showCheckOut() {
-  const tenants = await API.get('/tenants');
+  _checkoutTenants = await API.get('/tenants');
   showModal('Check-Out Tenant', `
     <form onsubmit="processCheckOut(event)">
       <div class="form-group">
         <label>Select Tenant</label>
         <select name="tenant_select" required onchange="checkoutSelected(this)">
           <option value="">Select tenant...</option>
-          ${tenants.map(t => `<option value="${t.id}|${t.lot_id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
+          ${_checkoutTenants.map(t => `<option value="${t.id}|${t.lot_id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
         </select>
         <input type="hidden" name="tenant_id">
         <input type="hidden" name="lot_id">
       </div>
       <div class="form-group"><label>Check-Out Date</label><input name="check_out_date" type="date" value="${new Date().toISOString().split('T')[0]}" required></div>
+
+      <div id="deposit-section" style="display:none"></div>
+
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
       <button type="submit" class="btn btn-warning btn-full mt-2">Check Out</button>
       <p id="checkout-error" class="error-text" style="display:none"></p>
@@ -308,6 +313,70 @@ function checkoutSelected(sel) {
   const [tid, lid] = sel.value.split('|');
   sel.form.tenant_id.value = tid;
   sel.form.lot_id.value = lid;
+
+  const tenant = _checkoutTenants.find(t => t.id === parseInt(tid));
+  const deposit = Number(tenant?.deposit_amount) || 0;
+  const balance = Number(tenant?.balance_due) || 0;
+  const section = document.getElementById('deposit-section');
+
+  if (deposit > 0) {
+    section.style.display = '';
+    section.innerHTML = `
+      <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+        <legend><strong>Deposit Settlement</strong></legend>
+        <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;font-size:0.9rem">
+          <div><strong>Deposit on file:</strong> <span style="color:var(--brand-primary,#1a5c32);font-weight:700">${formatMoney(deposit)}</span></div>
+          <div><strong>Balance owed:</strong> <span style="color:${balance > 0 ? '#dc2626' : '#16a34a'};font-weight:700">${formatMoney(balance)}</span></div>
+        </div>
+        <div class="form-group">
+          <label>Deposit Disposition</label>
+          <select name="deposit_action" onchange="updateDepositCalc(this, ${deposit}, ${balance})">
+            <option value="full_refund">Full Refund — return ${formatMoney(deposit)}</option>
+            <option value="partial_refund">Partial Refund — deduct damages/cleaning</option>
+            ${balance > 0 ? `<option value="apply_to_balance">Apply to Balance — reduce ${formatMoney(balance)} owed</option>` : ''}
+            <option value="no_refund">No Refund — tenant forfeits deposit</option>
+          </select>
+        </div>
+        <div id="deposit-partial" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Deduction Amount ($)</label>
+              <input name="deduction_amount" type="number" step="0.01" min="0" max="${deposit}" value="0" oninput="calcDepositRefund(this, ${deposit})">
+            </div>
+            <div class="form-group">
+              <label>Deduction Reason</label>
+              <input name="deduction_reason" placeholder="Damages, cleaning, etc.">
+            </div>
+          </div>
+          <div id="deposit-refund-calc" style="background:#f0fdf4;border:1px solid #dcfce7;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.9rem;color:#1a5c32">
+            Refund amount: <strong>${formatMoney(deposit)}</strong>
+          </div>
+        </div>
+        <div id="deposit-apply-info" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.9rem;color:#1e40af">
+          ${deposit >= balance
+            ? `Deposit covers full balance. Remaining <strong>${formatMoney(deposit - balance)}</strong> will be refunded.`
+            : `Deposit reduces balance from ${formatMoney(balance)} to <strong>${formatMoney(balance - deposit)}</strong>. No refund.`}
+        </div>
+      </fieldset>
+    `;
+  } else {
+    section.style.display = 'none';
+    section.innerHTML = '';
+  }
+}
+
+function updateDepositCalc(sel, deposit, balance) {
+  const partial = document.getElementById('deposit-partial');
+  const applyInfo = document.getElementById('deposit-apply-info');
+  if (partial) partial.style.display = sel.value === 'partial_refund' ? '' : 'none';
+  if (applyInfo) applyInfo.style.display = sel.value === 'apply_to_balance' ? '' : 'none';
+}
+
+function calcDepositRefund(input, deposit) {
+  const deduction = Math.min(Math.max(parseFloat(input.value) || 0, 0), deposit);
+  const refund = deposit - deduction;
+  const el = document.getElementById('deposit-refund-calc');
+  if (el) el.innerHTML = `Refund amount: <strong>${formatMoney(refund)}</strong>`;
 }
 
 async function processCheckOut(e) {
@@ -316,14 +385,50 @@ async function processCheckOut(e) {
   const errEl = document.getElementById('checkout-error');
   if (errEl) errEl.style.display = 'none';
   try {
-    await API.post('/checkins/checkout', {
+    const result = await API.post('/checkins/checkout', {
       tenant_id: parseInt(form.get('tenant_id')),
       lot_id: form.get('lot_id'),
       check_out_date: form.get('check_out_date'),
-      notes: form.get('notes')
+      notes: form.get('notes'),
+      deposit_action: form.get('deposit_action') || null,
+      deduction_amount: parseFloat(form.get('deduction_amount')) || 0,
+      deduction_reason: form.get('deduction_reason') || null,
     });
     closeModal();
-    loadCheckins();
+
+    // Show Move-Out Statement if deposit was settled
+    if (result.statement) {
+      const s = result.statement;
+      showModal('Move-Out Statement', `
+        <div style="max-width:500px;margin:0 auto">
+          <div style="text-align:center;border-bottom:2px solid var(--gray-200);padding-bottom:0.75rem;margin-bottom:1rem">
+            <div style="font-size:1.1rem;font-weight:700;color:var(--brand-primary,#1a5c32)">Anahuac RV Park</div>
+            <div style="font-size:0.8rem;color:var(--gray-500)">Move-Out Statement</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.9rem;margin-bottom:1rem">
+            <div><strong>Tenant:</strong> ${escapeHtml(s.tenant_name)}</div>
+            <div><strong>Lot:</strong> ${escapeHtml(s.lot_id)}</div>
+            <div><strong>Move-Out:</strong> ${formatDate(s.checkout_date)}</div>
+            <div><strong>Action:</strong> ${escapeHtml(s.action_label)}</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin-bottom:1rem">
+            <tbody>
+              <tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Deposit on File</td><td style="padding:0.4rem 0;text-align:right;font-weight:600">${formatMoney(s.deposit)}</td></tr>
+              ${s.deduction > 0 ? `<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0;color:#dc2626">Deductions${s.deduction_reason ? ' (' + escapeHtml(s.deduction_reason) + ')' : ''}</td><td style="padding:0.4rem 0;text-align:right;color:#dc2626">-${formatMoney(s.deduction)}</td></tr>` : ''}
+              ${s.applied_to_balance > 0 ? `<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0;color:#0284c7">Applied to Balance</td><td style="padding:0.4rem 0;text-align:right;color:#0284c7">-${formatMoney(s.applied_to_balance)}</td></tr>` : ''}
+              <tr style="border-top:2px solid var(--gray-900)"><td style="padding:0.5rem 0;font-weight:700;font-size:1rem">${s.refund > 0 ? 'Refund Due to Tenant' : 'Net Refund'}</td><td style="padding:0.5rem 0;text-align:right;font-weight:700;font-size:1rem;color:${s.refund > 0 ? '#16a34a' : 'var(--gray-700)'}">${formatMoney(s.refund)}</td></tr>
+            </tbody>
+          </table>
+          ${s.remaining_balance > 0 ? `<div style="background:#fee2e2;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.85rem;color:#991b1b;margin-bottom:1rem">Remaining balance owed: <strong>${formatMoney(s.remaining_balance)}</strong></div>` : ''}
+          <div class="btn-group" style="justify-content:center">
+            <button class="btn btn-outline" onclick="window.print()">🖨️ Print</button>
+            <button class="btn btn-primary" onclick="closeModal();loadCheckins()">Done</button>
+          </div>
+        </div>
+      `);
+    } else {
+      loadCheckins();
+    }
   } catch (err) {
     const msg = err.message || 'Check-out failed';
     if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }

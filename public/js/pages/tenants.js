@@ -293,8 +293,8 @@ async function showTenantHistory(tenantId, name) {
   const tenantPayments = payments || [];
   showModal(`History — ${name}`, `
     <h4>Check-In/Out History</h4>
-    ${tenantCheckins.length ? `<table><thead><tr><th>Lot</th><th>Check-In</th><th>Check-Out</th><th>Status</th></tr></thead><tbody>
-      ${tenantCheckins.map(c => `<tr><td>${c.lot_name || c.lot_id}</td><td>${formatDate(c.check_in_date)}</td><td>${c.check_out_date ? formatDate(c.check_out_date) : '—'}</td><td><span class="badge badge-${c.status === 'checked_in' ? 'success' : 'gray'}">${c.status}</span></td></tr>`).join('')}
+    ${tenantCheckins.length ? `<table><thead><tr><th>Lot</th><th>Check-In</th><th>Check-Out</th><th>Status</th><th>Notes</th></tr></thead><tbody>
+      ${tenantCheckins.map(c => `<tr><td>${c.lot_name || c.lot_id}</td><td>${formatDate(c.check_in_date)}</td><td>${c.check_out_date ? formatDate(c.check_out_date) : '—'}</td><td><span class="badge badge-${c.status === 'checked_in' ? 'success' : 'gray'}">${c.status}</span></td><td style="font-size:0.75rem;max-width:200px;white-space:pre-wrap">${c.notes ? escapeHtml(c.notes) : '—'}</td></tr>`).join('')}
     </tbody></table>` : '<p>No check-in records.</p>'}
     <h4 class="mt-2">Payment History</h4>
     ${tenantPayments.length ? `<table><thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Invoice</th></tr></thead><tbody>
