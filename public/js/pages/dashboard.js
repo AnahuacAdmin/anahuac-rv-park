@@ -239,7 +239,9 @@ async function loadDashboard() {
     </div>
   `;
 
-  setTimeout(() => renderDashboardCharts(data), 150);
+  // Render charts after fade-in animation completes (delay:0.4s + duration:0.5s = 900ms)
+  // Chart.js needs the canvas parent to be visible to measure dimensions
+  setTimeout(() => renderDashboardCharts(data), 1000);
 
   // Count-up animation for stat values
   setTimeout(() => {
