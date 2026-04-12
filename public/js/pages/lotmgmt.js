@@ -75,6 +75,7 @@ function lotForm(lot = {}) {
         <div class="form-group"><label>Row Letter</label><input name="row_letter" value="${lot.row_letter || ''}" required maxlength="2" placeholder="I"></div>
         <div class="form-group"><label>Lot Number</label><input name="lot_number" type="number" value="${lot.lot_number || 1}" required min="1"></div>
       </div>
+      ${isEdit ? '<div style="margin-bottom:0.75rem"><button type="button" class="btn btn-sm btn-outline" id="rename-lot-btn">🏷️ Rename/Relabel Lot ID</button></div>' : ''}
       <div class="form-row">
         <div class="form-group">
           <label>Lot Type</label>
@@ -126,7 +127,12 @@ async function showEditLot(id) {
   const lots = await API.get('/lots');
   const lot = lots?.find(l => l.id === id);
   if (!lot) return;
-  showModal(`Edit Lot ${id}`, lotForm(lot));
+  showModal('Edit Lot ' + id, lotForm(lot));
+  // Wire rename button via addEventListener (CSP-safe)
+  setTimeout(function() {
+    var renameBtn = document.getElementById('rename-lot-btn');
+    if (renameBtn) renameBtn.addEventListener('click', function() { showRenameLot(id); });
+  }, 100);
 }
 
 async function createLot(e) {
@@ -218,4 +224,58 @@ async function saveDefaultRates() {
     });
     showStatusToast('\u2705', 'Default rates saved!');
   } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
+}
+
+async function showRenameLot(oldId) {
+  // First do a dry run to get counts
+  try {
+    var dryRun = await API.post('/lots/' + oldId + '/rename', { new_id: 'DRY', dry_run: true });
+    var c = dryRun.counts || {};
+  } catch { var c = {}; }
+
+  closeModal();
+  showModal('🏷️ Rename Lot ' + oldId, '<div>' +
+    '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.85rem;color:#92400e">' +
+      '⚠️ <strong>Warning:</strong> Changing a Lot ID will update all tenant records, invoices, meter readings, and reservations linked to this lot. This cannot be undone.' +
+    '</div>' +
+    '<div class="form-group"><label>Current Lot ID</label><input value="' + oldId + '" readonly style="background:#f3f4f6;font-weight:700;font-size:1.1rem"></div>' +
+    '<div class="form-group"><label>New Lot ID</label><input id="rename-new-id" placeholder="e.g. A2" style="font-weight:700;font-size:1.1rem" autofocus></div>' +
+    '<div style="font-size:0.82rem;color:var(--gray-500);margin-bottom:1rem">' +
+      'Records that will be updated:<br>' +
+      '• ' + (c.tenants || 0) + ' tenant records<br>' +
+      '• ' + (c.invoices || 0) + ' invoices<br>' +
+      '• ' + (c.meters || 0) + ' meter readings<br>' +
+      '• ' + (c.checkins || 0) + ' check-in records<br>' +
+      '• ' + (c.reservations || 0) + ' reservations' +
+    '</div>' +
+    '<div class="form-group"><label>Type CONFIRM to proceed</label><input id="rename-confirm" placeholder="CONFIRM"></div>' +
+    '<button id="rename-submit-btn" class="btn btn-danger btn-full" disabled>Rename Lot</button>' +
+    '<p id="rename-error" class="error-text" style="display:none"></p>' +
+  '</div>');
+
+  setTimeout(function() {
+    var confirmInput = document.getElementById('rename-confirm');
+    var submitBtn = document.getElementById('rename-submit-btn');
+    if (confirmInput && submitBtn) {
+      confirmInput.addEventListener('input', function() {
+        submitBtn.disabled = this.value !== 'CONFIRM';
+      });
+      submitBtn.addEventListener('click', function() { executeRenameLot(oldId); });
+    }
+  }, 100);
+}
+
+async function executeRenameLot(oldId) {
+  var newId = (document.getElementById('rename-new-id')?.value || '').trim().toUpperCase();
+  var errEl = document.getElementById('rename-error');
+  if (!newId) { if (errEl) { errEl.textContent = 'Enter a new lot ID'; errEl.style.display = ''; } return; }
+  if (newId === oldId) { if (errEl) { errEl.textContent = 'New ID is the same as current'; errEl.style.display = ''; } return; }
+  try {
+    var result = await API.post('/lots/' + oldId + '/rename', { new_id: newId });
+    closeModal();
+    showStatusToast('\u2705', 'Lot renamed: ' + oldId + ' → ' + result.newId);
+    loadLotMgmt();
+  } catch (err) {
+    if (errEl) { errEl.textContent = err.message || 'Rename failed'; errEl.style.display = ''; }
+  }
 }

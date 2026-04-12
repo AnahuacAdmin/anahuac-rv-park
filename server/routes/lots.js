@@ -12,7 +12,7 @@ router.use(authenticate);
 
 router.get('/', (req, res) => {
   const lots = db.prepare(`
-    SELECT l.*, t.id as tenant_id, t.first_name, t.last_name, t.monthly_rent, t.rent_type, t.eviction_warning
+    SELECT l.*, t.id as tenant_id, t.first_name, t.last_name, t.monthly_rent, t.rent_type, t.eviction_warning, t.flat_rate
     FROM lots l
     LEFT JOIN tenants t ON l.id = t.lot_id AND t.is_active = 1
     GROUP BY l.id
@@ -105,17 +105,124 @@ router.put('/:id', (req, res) => {
   try {
     const existing = db.prepare('SELECT * FROM lots WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Lot not found' });
-    const status = req.body.status ?? existing.status;
+    const b = req.body;
+    const status = b.status ?? existing.status;
     const validStatuses = ['vacant', 'occupied', 'owner_reserved', 'maintenance'];
     if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid lot status' });
-    const notes = req.body.notes ?? existing.notes;
-    const size_restriction = req.body.size_restriction ?? existing.size_restriction;
-    db.prepare('UPDATE lots SET status = ?, notes = ?, size_restriction = ? WHERE id = ?')
-      .run(status, notes, size_restriction, req.params.id);
+    const notes = b.notes ?? existing.notes;
+    const size_restriction = b.size_restriction ?? existing.size_restriction;
+    const lot_type = b.lot_type ?? existing.lot_type ?? 'standard';
+    const amenities = b.amenities ?? existing.amenities ?? '';
+    const default_rate = b.default_rate !== undefined ? Number(b.default_rate) : (existing.default_rate || 295);
+    const width = b.width !== undefined ? parseInt(b.width) : existing.width;
+    const length = b.length !== undefined ? parseInt(b.length) : existing.length;
+    db.prepare('UPDATE lots SET status=?, notes=?, size_restriction=?, lot_type=?, amenities=?, default_rate=?, width=?, length=? WHERE id=?')
+      .run(status, notes, size_restriction, lot_type, amenities, default_rate, width, length, req.params.id);
     res.json({ success: true });
   } catch (err) {
     console.error('[lots] update lot failed:', err);
     res.status(500).json({ error: 'Failed to update lot' });
+  }
+});
+
+router.post('/', (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!b.id || !b.row_letter) return res.status(400).json({ error: 'Lot ID and row letter are required' });
+    const existing = db.prepare('SELECT id FROM lots WHERE id = ?').get(b.id);
+    if (existing) return res.status(409).json({ error: 'Lot ID already exists' });
+
+    const lot_number = parseInt(b.lot_number) || 1;
+    const width = parseInt(b.width) || 30;
+    const length = parseInt(b.length) || 60;
+    const status = b.status || 'vacant';
+    const lot_type = b.lot_type || 'standard';
+    const amenities = b.amenities || '';
+    const default_rate = Number(b.default_rate) || 295;
+    const notes = b.notes || null;
+    const size_restriction = b.size_restriction || null;
+
+    db.prepare(`
+      INSERT INTO lots (id, row_letter, lot_number, width, length, status, lot_type, amenities, default_rate, notes, size_restriction, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(b.id.toUpperCase(), b.row_letter.toUpperCase(), lot_number, width, length, status, lot_type, amenities, default_rate, notes, size_restriction);
+
+    res.json({ success: true, id: b.id.toUpperCase() });
+  } catch (err) {
+    console.error('[lots] create failed:', err);
+    res.status(500).json({ error: 'Failed to create lot' });
+  }
+});
+
+router.post('/:id/deactivate', (req, res) => {
+  try {
+    const lot = db.prepare('SELECT id, status FROM lots WHERE id = ?').get(req.params.id);
+    if (!lot) return res.status(404).json({ error: 'Lot not found' });
+    if (lot.status === 'occupied') return res.status(400).json({ error: 'Cannot deactivate an occupied lot' });
+    db.prepare('UPDATE lots SET is_active = 0, status = ? WHERE id = ?').run('maintenance', req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[lots] deactivate failed:', err);
+    res.status(500).json({ error: 'Failed to deactivate lot' });
+  }
+});
+
+router.post('/:id/activate', (req, res) => {
+  try {
+    db.prepare('UPDATE lots SET is_active = 1, status = ? WHERE id = ?').run('vacant', req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[lots] activate failed:', err);
+    res.status(500).json({ error: 'Failed to activate lot' });
+  }
+});
+
+// Rename/relabel a lot ID with cascade update across all tables
+router.post('/:id/rename', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  var oldId = req.params.id;
+  var newId = (req.body.new_id || '').trim().toUpperCase();
+  if (!newId) return res.status(400).json({ error: 'New lot ID is required' });
+  if (newId === oldId) return res.status(400).json({ error: 'New ID is the same as current ID' });
+
+  var existing = db.prepare('SELECT id FROM lots WHERE id = ?').get(oldId);
+  if (!existing) return res.status(404).json({ error: 'Lot not found' });
+
+  var conflict = db.prepare('SELECT id FROM lots WHERE id = ?').get(newId);
+  if (conflict) return res.status(409).json({ error: 'Lot ID "' + newId + '" already exists' });
+
+  // Count affected records for confirmation
+  var counts = {
+    tenants: db.prepare('SELECT COUNT(*) as c FROM tenants WHERE lot_id = ?').get(oldId).c,
+    invoices: db.prepare('SELECT COUNT(*) as c FROM invoices WHERE lot_id = ?').get(oldId).c,
+    meters: db.prepare('SELECT COUNT(*) as c FROM meter_readings WHERE lot_id = ?').get(oldId).c,
+    checkins: db.prepare('SELECT COUNT(*) as c FROM checkins WHERE lot_id = ?').get(oldId).c,
+  };
+  var resCounts = 0;
+  try { resCounts = db.prepare('SELECT COUNT(*) as c FROM reservations WHERE lot_id = ?').get(oldId).c; } catch {}
+  counts.reservations = resCounts;
+
+  // If dry_run, just return counts
+  if (req.body.dry_run) return res.json({ oldId: oldId, newId: newId, counts: counts });
+
+  // Execute in transaction
+  try {
+    var tx = db.transaction(function() {
+      db.prepare('UPDATE lots SET id = ? WHERE id = ?').run(newId, oldId);
+      db.prepare('UPDATE tenants SET lot_id = ? WHERE lot_id = ?').run(newId, oldId);
+      db.prepare('UPDATE invoices SET lot_id = ? WHERE lot_id = ?').run(newId, oldId);
+      db.prepare('UPDATE meter_readings SET lot_id = ? WHERE lot_id = ?').run(newId, oldId);
+      db.prepare('UPDATE checkins SET lot_id = ? WHERE lot_id = ?').run(newId, oldId);
+      try { db.prepare('UPDATE reservations SET lot_id = ? WHERE lot_id = ?').run(newId, oldId); } catch {}
+      // Also update last_move_old_lot_id references
+      db.prepare('UPDATE tenants SET last_move_old_lot_id = ? WHERE last_move_old_lot_id = ?').run(newId, oldId);
+    });
+    tx();
+    console.log('[lots] renamed ' + oldId + ' → ' + newId + ', counts:', JSON.stringify(counts));
+    res.json({ success: true, oldId: oldId, newId: newId, counts: counts });
+  } catch (err) {
+    console.error('[lots] rename failed:', err);
+    res.status(500).json({ error: 'Rename failed: ' + err.message });
   }
 });
 

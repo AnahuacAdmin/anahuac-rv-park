@@ -488,6 +488,7 @@ const HELP_CONTENT = {
     <li>Adding a new row letter automatically creates that row on the Site Map.</li>
     <li>Default rates auto-fill when checking in a new tenant to that lot.</li>
     <li>Owner Reserved lots show as reserved on the Site Map and cannot be checked in.</li>
+    <li><strong>Renaming a lot:</strong> Click Edit → 🏷️ Rename/Relabel to change a lot's ID. All tenant records, invoices, meter readings, and reservations are updated automatically. Type CONFIRM to proceed.</li>
   </ul>`,
   vendors: `<p><strong>📒 Vendor Directory</strong></p><ul>
     <li>Add plumbers, electricians, suppliers, and other contacts you call regularly.</li>
