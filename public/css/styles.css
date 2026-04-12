@@ -63,7 +63,7 @@
 .help-body strong { color: #16a34a; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--gray-100); color: var(--gray-900); }
 body.login-page {
-  background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80');
+  background-image: url('https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=1920&q=80');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
