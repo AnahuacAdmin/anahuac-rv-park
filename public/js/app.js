@@ -593,16 +593,24 @@ function toggleHelp(id) {
 const APP_URL = window.location.origin;
 
 async function openPortalPreview() {
+  // Open window FIRST (synchronous, preserves user gesture for popup blocker)
+  var win = window.open('about:blank', '_blank');
   try {
-    const res = await fetch('/api/portal/admin-preview', {
+    var token = API.token || localStorage.getItem('rv_token') || '';
+    var res = await fetch('/api/portal/admin-preview', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API.token },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Failed to start preview'); return; }
-    window.open('/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant)), '_blank');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    if (data.token && win) {
+      win.location.href = '/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant));
+    } else if (win) {
+      win.location.href = '/portal.html';
+    }
   } catch (err) {
-    alert('Preview failed: ' + (err.message || 'unknown'));
+    console.error('Portal preview error:', err);
+    if (win) win.location.href = '/portal.html';
   }
 }
 
