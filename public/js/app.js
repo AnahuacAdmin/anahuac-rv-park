@@ -725,8 +725,10 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('main-app').style.display = '';
       document.body.classList.remove('login-page');
+      // Force-show refresh button
+      var rb = document.getElementById('refreshBtn');
+      if (rb) { rb.style.display = 'flex'; rb.onclick = function() { location.reload(); }; }
       navigateTo('dashboard');
-      // showWelcomeTour disabled — was locking up the app
     } catch (err) {
       errEl.textContent = err.message;
       errEl.style.display = '';
@@ -889,6 +891,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-app').style.display = '';
     document.body.classList.remove('login-page');
+    var rb2 = document.getElementById('refreshBtn');
+    if (rb2) { rb2.style.display = 'flex'; rb2.onclick = function() { location.reload(); }; }
     navigateTo('dashboard');
   }
 });
