@@ -251,6 +251,23 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.sidebar-search')) closeSearch();
 });
 
+// --- Spellcheck: auto-enable on all text fields ---
+function enableSpellcheck(root) {
+  (root || document).querySelectorAll('textarea, input[type="text"], input:not([type])').forEach(function(el) {
+    el.setAttribute('spellcheck', 'true');
+    el.setAttribute('lang', 'en');
+  });
+}
+// Run on page load and observe DOM changes for dynamically added fields
+enableSpellcheck();
+new MutationObserver(function(mutations) {
+  for (var m of mutations) {
+    for (var n of m.addedNodes) {
+      if (n.nodeType === 1) enableSpellcheck(n);
+    }
+  }
+}).observe(document.body, { childList: true, subtree: true });
+
 // --- PWA: Service Worker Registration & Install Prompt ---
 let _deferredInstallPrompt = null;
 
@@ -441,6 +458,13 @@ const HELP_CONTENT = {
     <li><strong>Database Backup:</strong> download/restore .sqlite file.</li>
     <li><strong>Export All Data:</strong> full Excel export of all tables.</li>
     <li><strong>🖨️ Emergency Forms:</strong> printable check-in, meter reading, and payment forms for when internet is down.</li>
+  </ul>`,
+  vendors: `<p><strong>📒 Vendor Directory</strong></p><ul>
+    <li>Add plumbers, electricians, suppliers, and other contacts you call regularly.</li>
+    <li>Tap ⭐ to mark favorites — they show first and appear on the dashboard.</li>
+    <li>Tap 📞 to call directly from your phone.</li>
+    <li>Tap 📍 Directions to get Google Maps directions from the park.</li>
+    <li>Search and filter by category to find vendors fast.</li>
   </ul>`,
   users: `<p><strong>👥 Managing Users</strong></p>
   <p><strong>Roles:</strong></p><ul>
@@ -692,7 +716,7 @@ function navigateTo(page, skipHistory) {
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, electric: loadElectric, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
-    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt };
+    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors };
   // Contextual first-visit tips
   const _tips = {
     dashboard: ['💡', 'Bookmark this page for quick access! Use the Quick Action buttons to jump to any section.'],
@@ -851,7 +875,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isAdmin = API.user?.role === 'admin';
     const isStaff = API.user?.role === 'staff';
     // Admin-only nav items
-    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
+    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
     const adminDiv = document.getElementById('nav-admin-divider');
     if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
     // Financial nav items — hidden for staff

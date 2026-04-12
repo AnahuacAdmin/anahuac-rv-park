@@ -203,6 +203,15 @@ async function loadDashboard() {
       <div id="health-alert-history"></div>
     </div>` : ''}
 
+    ${isAdmin() ? `
+    <div class="card dash-fade-in" style="animation-delay:0.75s">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <h3>📒 Quick Contacts</h3>
+        <a href="#" onclick="event.preventDefault();navigateTo('vendors')" style="font-size:0.78rem;color:var(--brand-primary);font-weight:600">View All →</a>
+      </div>
+      <div id="dash-vendors" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+    </div>` : ''}
+
     ${weather ? `
     <div class="dash-weather dash-fade-in" style="animation-delay:0.7s">
       <span>${weather.emoji} <strong>${weather.temp}°F</strong> ${weather.condition}</span>
@@ -258,10 +267,27 @@ async function loadDashboard() {
   // Health monitor (admin only)
   if (isAdmin()) {
     refreshHealth();
-    // Auto-refresh every 5 minutes
     clearInterval(window._healthInterval);
     window._healthInterval = setInterval(refreshHealth, 5 * 60 * 1000);
+    // Load quick contacts
+    loadDashVendors();
   }
+}
+
+async function loadDashVendors() {
+  const el = document.getElementById('dash-vendors');
+  if (!el) return;
+  try {
+    const vendors = await API.get('/vendors');
+    const favs = (vendors || []).filter(v => v.is_favorite).slice(0, 3);
+    if (!favs.length) { el.innerHTML = '<span style="color:var(--gray-400)">No favorite vendors yet. <a href="#" onclick="event.preventDefault();navigateTo(\'vendors\')">Add some →</a></span>'; return; }
+    el.innerHTML = favs.map(v =>
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.3rem 0;border-bottom:1px solid var(--gray-100)">' +
+        '<span><strong>' + escapeHtml(v.name) + '</strong> <span class="badge badge-info" style="font-size:0.6rem">' + escapeHtml(v.category || '') + '</span></span>' +
+        (v.phone ? '<a href="tel:' + escapeHtml(v.phone) + '" class="btn btn-sm btn-success" style="padding:0.2rem 0.5rem;font-size:0.72rem" onclick="event.stopPropagation()">📞 Call</a>' : '') +
+      '</div>'
+    ).join('');
+  } catch { el.innerHTML = ''; }
 }
 
 const _healthIcons = { 'Database': '🗄️', 'Stripe': '💳', 'Twilio': '📱', 'Internet': '🌐', 'Railway App': '🚂' };

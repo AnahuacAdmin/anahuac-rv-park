@@ -157,6 +157,35 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN flat_rate INTEGER DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN flat_rate_amount REAL DEFAULT 0");
 
+  // Vendor directory
+  db.run(`CREATE TABLE IF NOT EXISTS vendors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category TEXT DEFAULT 'Other',
+    phone TEXT,
+    email TEXT,
+    website TEXT,
+    address TEXT,
+    city TEXT,
+    state TEXT DEFAULT 'TX',
+    zip TEXT,
+    notes TEXT,
+    is_favorite INTEGER DEFAULT 0,
+    last_used DATE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Seed default vendors if empty
+  const vendorCount = db.prepare('SELECT COUNT(*) as c FROM vendors').get().c;
+  if (vendorCount === 0) {
+    const seedVendors = db.prepare('INSERT INTO vendors (name, category, phone, notes, is_favorite) VALUES (?, ?, ?, ?, ?)');
+    seedVendors.run('Chambers County EMS', 'Emergency Services', '409-267-2444', 'Emergency medical services', 1);
+    seedVendors.run('Anahuac Police Department', 'Emergency Services', '409-267-3534', 'Local police non-emergency', 1);
+    seedVendors.run('CenterPoint Energy', 'Electrical', '713-659-2111', 'Electric utility provider', 1);
+    seedVendors.run('City of Anahuac Water', 'Water/Utilities', '409-267-3313', 'Municipal water service', 1);
+    seedVendors.run('Anahuac Hardware', 'Supplies/Hardware', '409-267-3218', 'Local hardware store', 0);
+  }
+
   // Health alert tracking
   db.run(`CREATE TABLE IF NOT EXISTS health_alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
