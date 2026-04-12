@@ -200,6 +200,7 @@ async function loadDashboard() {
       <div id="health-cards" style="display:flex;gap:0.6rem;flex-wrap:wrap">
         <div style="color:var(--gray-500);font-size:0.85rem">Loading...</div>
       </div>
+      <div id="health-alert-history"></div>
     </div>` : ''}
 
     ${weather ? `
@@ -292,6 +293,15 @@ async function refreshHealth() {
     alertEl.innerHTML = alertHtml;
 
     if (timeEl) timeEl.textContent = 'Checked ' + new Date().toLocaleTimeString();
+
+    // Show recent alerts if any
+    const alertHistEl = document.getElementById('health-alert-history');
+    if (alertHistEl && r.recentAlerts?.length) {
+      alertHistEl.innerHTML = `<div style="font-size:0.75rem;font-weight:600;color:var(--gray-600);margin:0.5rem 0 0.3rem">Recent Alerts</div>` +
+        r.recentAlerts.slice(0, 5).map(a => `<div style="font-size:0.72rem;color:var(--gray-500);padding:2px 0;border-bottom:1px solid var(--gray-100)">${a.resolved_at ? '✅' : '🔴'} <strong>${a.service}</strong> ${a.message || ''} <span style="color:var(--gray-400)">${a.alerted_at}${a.resolved_at ? ' → ' + a.resolved_at : ''}</span></div>`).join('');
+    } else if (alertHistEl) {
+      alertHistEl.innerHTML = '';
+    }
   } catch {
     cardsEl.innerHTML = '<div style="color:var(--gray-500);font-size:0.85rem">Health check failed</div>';
   }

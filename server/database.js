@@ -154,6 +154,23 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN id_number TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN date_of_birth DATE");
   addCol("ALTER TABLE tenants ADD COLUMN deposit_amount REAL DEFAULT 0");
+  addCol("ALTER TABLE tenants ADD COLUMN flat_rate INTEGER DEFAULT 0");
+  addCol("ALTER TABLE tenants ADD COLUMN flat_rate_amount REAL DEFAULT 0");
+
+  // Health alert tracking
+  db.run(`CREATE TABLE IF NOT EXISTS health_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    service TEXT NOT NULL,
+    status TEXT NOT NULL,
+    message TEXT,
+    alerted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME
+  )`);
+
+  addCol("ALTER TABLE lots ADD COLUMN lot_type TEXT DEFAULT 'standard'");
+  addCol("ALTER TABLE lots ADD COLUMN amenities TEXT");
+  addCol("ALTER TABLE lots ADD COLUMN default_rate REAL DEFAULT 295");
+  addCol("ALTER TABLE lots ADD COLUMN is_active INTEGER DEFAULT 1");
 
   db.run(`
     CREATE TABLE IF NOT EXISTS reservations (

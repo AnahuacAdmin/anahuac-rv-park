@@ -91,6 +91,27 @@ async function loadAdmin() {
       <button class="btn btn-danger mt-1" onclick="saveEvictionSettings()">Save Eviction Settings</button>
     </div>
 
+    <div class="card" style="border-left:4px solid #0284c7">
+      <h3>📱 Downtime Alert Recipients</h3>
+      <p><small>When enabled, managers receive SMS alerts when services go down and recover. Checks run every 5 minutes. Max 1 alert per service per hour.</small></p>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label>Alert Phone Numbers (comma-separated)</label>
+          <input type="text" id="alert-phones-input" value="${settings?.alert_phone_numbers || ''}" placeholder="+14092676603, +18325551234">
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem;margin-top:1.5rem">
+            <input type="checkbox" id="alerts-enabled" ${settings?.downtime_alerts_enabled === '1' ? 'checked' : ''}> Enable Downtime Alerts
+          </label>
+        </div>
+      </div>
+      <div class="btn-group mt-1">
+        <button class="btn btn-primary" onclick="saveAlertSettings()">Save Alert Settings</button>
+        <button class="btn btn-outline" onclick="sendTestAlert()">📲 Send Test Alert</button>
+      </div>
+      <div id="alert-history" style="margin-top:1rem"></div>
+    </div>
+
     <div class="card">
       <h3>Database Backup</h3>
       <p>Last backup: <strong id="last-backup-display">${lastBackup}</strong></p>
@@ -109,8 +130,9 @@ async function loadAdmin() {
     </div>
   `;
 
-  // Load flat rate tenant table
+  // Load dynamic sections
   loadFlatRateTenants();
+  loadAlertHistory();
 }
 
 async function saveEvictionSettings() {
@@ -265,6 +287,44 @@ async function loadFlatRateTenants() {
         `).join('')}</tbody>
       </table>
       <p style="font-size:0.78rem;color:#78716c;margin-top:0.5rem">${flat.length} tenant${flat.length > 1 ? 's' : ''} on flat rate — Total: ${formatMoney(flat.reduce((s, t) => s + (Number(t.flat_rate_amount) || 0), 0))}/month</p>
+    `;
+  } catch { el.innerHTML = ''; }
+}
+
+async function saveAlertSettings() {
+  try {
+    await API.put('/settings', {
+      alert_phone_numbers: document.getElementById('alert-phones-input')?.value || '',
+      downtime_alerts_enabled: document.getElementById('alerts-enabled')?.checked ? '1' : '0',
+    });
+    showStatusToast('✅', 'Alert settings saved!');
+  } catch (err) { alert('Failed to save: ' + (err.message || 'unknown')); }
+}
+
+async function sendTestAlert() {
+  try {
+    const r = await API.post('/health/test-alert', {});
+    showStatusToast('✅', `Test alert sent to ${r.sent}/${r.total} numbers`);
+  } catch (err) { alert('Test failed: ' + (err.message || 'unknown')); }
+}
+
+async function loadAlertHistory() {
+  const el = document.getElementById('alert-history');
+  if (!el) return;
+  try {
+    const alerts = await API.get('/health/alerts');
+    if (!alerts?.length) { el.innerHTML = '<p style="font-size:0.82rem;color:#78716c">No alerts yet. Alerts appear here when services go down.</p>'; return; }
+    el.innerHTML = `
+      <div style="font-size:0.8rem;font-weight:600;color:#44403c;margin-bottom:0.4rem">Recent Alerts</div>
+      ${alerts.slice(0, 5).map(a => `
+        <div style="display:flex;gap:0.5rem;align-items:flex-start;padding:0.35rem 0;border-bottom:1px solid var(--gray-200);font-size:0.82rem">
+          <span>${a.resolved_at ? '✅' : '🔴'}</span>
+          <div style="flex:1">
+            <strong>${a.service}</strong> — ${a.message || ''}
+            <div style="font-size:0.7rem;color:#a8a29e">${a.alerted_at}${a.resolved_at ? ' → Resolved ' + a.resolved_at : ' — ACTIVE'}</div>
+          </div>
+        </div>
+      `).join('')}
     `;
   } catch { el.innerHTML = ''; }
 }

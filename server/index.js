@@ -139,6 +139,8 @@ initializeDatabase()
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Anahuac RV Park Management running on 0.0.0.0:${PORT}`);
       scheduleDailyLateFeeCheck();
+      // Start background health monitor for downtime alerts
+      try { require('./routes/health').startHealthMonitor(); } catch (e) { console.error('[health-monitor] failed to start:', e.message); }
     });
   })
   .catch((err) => {
