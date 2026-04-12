@@ -9,7 +9,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#2c4a1e">
+  <meta name="theme-color" content="#1a5c32">
   <title>Tenant Portal - Anahuac RV Park</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -19,6 +19,21 @@
       background-size: cover; background-position: center; background-attachment: fixed;
       min-height: 100vh; color: #1f2937;
     }
+    /* Splash screen */
+    .splash {
+      position: fixed; inset: 0; z-index: 9999;
+      background: linear-gradient(160deg, #0f3d22 0%, #1a5c32 40%, #0f3d22 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+    .splash.fade-out { opacity: 0; visibility: hidden; }
+    .splash-logo { height: 100px; width: auto; margin-bottom: 1.25rem; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.3)); animation: splashLogoIn 0.8s ease-out; }
+    @keyframes splashLogoIn { from { opacity: 0; transform: scale(0.8) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    .splash-title { color: #f59e0b; font-size: 1.5rem; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 0.25rem; text-shadow: 0 2px 10px rgba(0,0,0,0.3); animation: splashTextIn 0.8s ease-out 0.15s both; }
+    .splash-subtitle { color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 500; margin-bottom: 2rem; animation: splashTextIn 0.8s ease-out 0.3s both; }
+    @keyframes splashTextIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .splash-spinner { width: 36px; height: 36px; border: 3px solid rgba(245,158,11,0.25); border-top-color: #f59e0b; border-radius: 50%; animation: splashSpin 0.8s linear infinite, splashTextIn 0.6s ease-out 0.5s both; }
+    @keyframes splashSpin { to { transform: rotate(360deg); } }
     .overlay { min-height: 100vh; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; align-items: center; padding: 1.5rem; }
     .card {
       background: rgba(255, 253, 240, 0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -58,7 +73,13 @@
   </style>
 </head>
 <body>
-<div class="overlay">
+<div id="splash" class="splash">
+  <img src="/park_Logo.png" alt="" class="splash-logo">
+  <div class="splash-title">Anahuac RV Park</div>
+  <div class="splash-subtitle">Welcome to the Gator Country! 🐊</div>
+  <div class="splash-spinner"></div>
+</div>
+<div class="overlay" style="opacity:0;transition:opacity 0.4s ease 0.1s" id="portal-content">
 
   <!-- Login Screen -->
   <div id="login-screen" class="card">
@@ -143,6 +164,25 @@
 </div>
 
 <script>
+// Splash screen: show for at least 1.5s, then fade out
+(function() {
+  var splashEl = document.getElementById('splash');
+  var contentEl = document.getElementById('portal-content');
+  var minTime = 1500;
+  var start = Date.now();
+  function dismissSplash() {
+    var elapsed = Date.now() - start;
+    var remaining = Math.max(0, minTime - elapsed);
+    setTimeout(function() {
+      splashEl.classList.add('fade-out');
+      contentEl.style.opacity = '1';
+      setTimeout(function() { splashEl.style.display = 'none'; }, 700);
+    }, remaining);
+  }
+  if (document.readyState === 'complete') dismissSplash();
+  else window.addEventListener('load', dismissSplash);
+})();
+
 let _portalToken = sessionStorage.getItem('portal_token');
 let _portalTenant = JSON.parse(sessionStorage.getItem('portal_tenant') || 'null');
 
