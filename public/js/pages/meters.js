@@ -21,12 +21,15 @@ async function loadMeters() {
     <div class="card scrollable-table-card">
       <div class="table-container">
         <table>
-          <thead><tr><th>Lot</th><th>Tenant</th><th>Date</th><th>Previous</th><th>Current</th><th>kWh Used</th><th>Rate</th><th>Charge</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Lot</th><th>Tenant</th><th>Photo</th><th>Date</th><th>Previous</th><th>Current</th><th>kWh Used</th><th>Rate</th><th>Charge</th><th>Actions</th></tr></thead>
           <tbody>
             ${readings.map(r => `
               <tr data-meter-id="${r.id}" data-prev="${r.previous_reading}" data-rate="${r.rate_per_kwh}">
                 <td><strong>${r.lot_id}</strong></td>
                 <td>${r.first_name} ${r.last_name}</td>
+                <td>${r.photo
+                  ? '<img src="/api/meters/' + r.id + '/photo" class="meter-thumb" onclick="showMeterPhotoLightbox(' + r.id + ',\'' + escapeHtml(r.lot_id) + '\',\'' + escapeHtml(r.first_name + ' ' + r.last_name) + '\',\'' + (r.reading_date || '') + '\',' + r.previous_reading + ',' + r.current_reading + ',' + r.kwh_used + ',' + r.electric_charge + ')" onerror="this.outerHTML=\'<span style=color:#a8a29e;font-size:0.75rem>📷 No photo</span>\'">'
+                  : '<span style="color:#a8a29e;font-size:0.75rem">📷</span>'}</td>
                 <td class="editable-cell" data-id="${r.id}" data-field="reading_date" data-type="date" data-value="${r.reading_date || ''}"><span class="editable-display">${formatDate(r.reading_date)}</span><span class="edit-pencil">&#9998;</span></td>
                 <td>${r.previous_reading.toLocaleString()}</td>
                 <td class="editable-cell" data-id="${r.id}" data-field="current_reading" data-type="number" data-value="${r.current_reading}"><span class="editable-display">${r.current_reading.toLocaleString()}</span><span class="edit-pencil">&#9998;</span></td>
@@ -34,7 +37,6 @@ async function loadMeters() {
                 <td>${formatMoney(r.rate_per_kwh)}</td>
                 <td class="meter-charge"><strong>${formatMoney(r.electric_charge)}</strong></td>
                 <td class="btn-group">
-                  ${r.photo ? `<button class="btn btn-sm btn-outline" onclick="viewReadingPhoto(${r.id})" title="View photo">&#128247;</button>` : ''}
                   <button class="btn btn-sm btn-success" onclick="showQuickUpdate(${r.id}, '${r.lot_id}', '${r.first_name} ${r.last_name}', ${r.current_reading}, ${r.tenant_id})">Update</button>
                   <button class="btn btn-sm btn-outline" onclick="showEditReading(${r.id}, '${r.lot_id}', ${r.previous_reading}, ${r.current_reading}, '${r.reading_date}')">Edit</button>
                 </td>
@@ -350,7 +352,21 @@ function qaSelected(sel) {
 }
 
 function viewReadingPhoto(id) {
-  showModal('Meter Photo', `<img src="/api/meters/${id}/photo" style="width:100%;border-radius:8px" onerror="this.parentElement.innerHTML='<p>Photo not available.</p>'">`);
+  showModal('Meter Photo', '<img src="/api/meters/' + id + '/photo" style="width:100%;border-radius:8px" onerror="this.parentElement.innerHTML=\'<p>Photo not available.</p>\'">');
+}
+
+function showMeterPhotoLightbox(id, lotId, tenantName, date, prev, curr, kwh, charge) {
+  showModal('📷 Meter Photo — Lot ' + lotId, '<div style="text-align:center">' +
+    '<img src="/api/meters/' + id + '/photo" style="width:100%;max-height:60vh;object-fit:contain;border-radius:10px;margin-bottom:1rem" onerror="this.outerHTML=\'<p style=color:#dc2626>Photo not available.</p>\'">' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;text-align:left;font-size:0.88rem;background:var(--gray-50,#fafaf9);padding:0.75rem;border-radius:8px">' +
+      '<div><strong>Lot:</strong> ' + escapeHtml(lotId) + '</div>' +
+      '<div><strong>Tenant:</strong> ' + escapeHtml(tenantName) + '</div>' +
+      '<div><strong>Date:</strong> ' + formatDate(date) + '</div>' +
+      '<div><strong>Previous:</strong> ' + Number(prev).toLocaleString() + '</div>' +
+      '<div><strong>Current:</strong> ' + Number(curr).toLocaleString() + '</div>' +
+      '<div><strong>kWh Used:</strong> ' + Number(kwh).toLocaleString() + '</div>' +
+      '<div><strong>Charge:</strong> ' + formatMoney(charge) + '</div>' +
+    '</div></div>');
 }
 
 async function deleteReading(id) {

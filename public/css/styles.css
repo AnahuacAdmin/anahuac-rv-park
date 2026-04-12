@@ -1410,6 +1410,22 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
   box-shadow: 0 0 0 3px rgba(26, 92, 50, 0.1);
 }
 
+/* === METER PHOTO THUMBNAILS === */
+.meter-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--gray-200, #e7e5e4);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: block;
+}
+.meter-thumb:hover {
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
 /* === CALCULATOR === */
 .calc-btn {
   min-height: 60px;
