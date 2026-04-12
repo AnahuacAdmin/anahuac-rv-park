@@ -135,6 +135,7 @@ async function initializeDatabase() {
     reservation_id INTEGER REFERENCES reservations(id)
   )`);
 
+  addCol("ALTER TABLE tenants ADD COLUMN portal_pin TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN eviction_paused INTEGER DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN eviction_pause_note TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN eviction_pause_date TEXT");

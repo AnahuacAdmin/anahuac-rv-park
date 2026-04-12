@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { db } = require('../database');
 const { SECRET, TOKEN_TTL } = require('../middleware');
 const { sendSms } = require('../twilio');
@@ -7,19 +8,68 @@ const { sendSms } = require('../twilio');
 const MANAGER_PHONE = '+14092676603';
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
-// Tenant login — lot number + last name, no password
+// Track failed PIN attempts per tenant (in-memory, resets on restart)
+const _failedAttempts = {};
+
+// Tenant login — lot number + last name + PIN
 router.post('/login', (req, res) => {
-  const { lot_id, last_name } = req.body || {};
+  const { lot_id, last_name, pin } = req.body || {};
   if (!lot_id || !last_name) return res.status(400).json({ error: 'Lot number and last name are required' });
 
   const tenant = db.prepare(`
-    SELECT t.id, t.first_name, t.last_name, t.lot_id, t.phone, t.email
+    SELECT t.id, t.first_name, t.last_name, t.lot_id, t.phone, t.email, t.portal_pin
     FROM tenants t
     WHERE LOWER(t.lot_id) = LOWER(?) AND LOWER(t.last_name) = LOWER(?) AND t.is_active = 1
     LIMIT 1
   `).get(lot_id.trim(), last_name.trim());
 
   if (!tenant) return res.status(401).json({ error: 'Lot number and last name not found. Please contact management at 409-267-6603.' });
+
+  // Check lockout
+  const key = 'tenant_' + tenant.id;
+  if ((_failedAttempts[key] || 0) >= 3) {
+    return res.status(429).json({ error: 'Too many attempts. Please contact management at 409-267-6603.' });
+  }
+
+  // If no PIN set, tell frontend to show setup screen
+  if (!tenant.portal_pin) {
+    return res.json({ needs_pin_setup: true, tenant_id: tenant.id, lot_id: tenant.lot_id, first_name: tenant.first_name, last_name: tenant.last_name });
+  }
+
+  // PIN is set — require it
+  if (!pin) return res.status(400).json({ error: 'PIN is required', needs_pin: true });
+
+  if (!bcrypt.compareSync(String(pin), tenant.portal_pin)) {
+    _failedAttempts[key] = (_failedAttempts[key] || 0) + 1;
+    const remaining = 3 - _failedAttempts[key];
+    if (remaining <= 0) return res.status(429).json({ error: 'Too many attempts. Please contact management at 409-267-6603.' });
+    return res.status(401).json({ error: `Incorrect PIN. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining.`, needs_pin: true });
+  }
+
+  // Success — clear attempts
+  delete _failedAttempts[key];
+  const token = jwt.sign({ id: tenant.id, lot_id: tenant.lot_id, role: 'tenant', name: `${tenant.first_name} ${tenant.last_name}` }, SECRET, { expiresIn: '2h' });
+  res.json({ token, tenant: { id: tenant.id, first_name: tenant.first_name, last_name: tenant.last_name, lot_id: tenant.lot_id } });
+});
+
+// Set up PIN for first time
+router.post('/setup-pin', (req, res) => {
+  const { lot_id, last_name, pin } = req.body || {};
+  if (!lot_id || !last_name || !pin) return res.status(400).json({ error: 'All fields required' });
+  if (!/^\d{4}$/.test(String(pin))) return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+
+  const tenant = db.prepare(`
+    SELECT t.id, t.first_name, t.last_name, t.lot_id, t.portal_pin
+    FROM tenants t
+    WHERE LOWER(t.lot_id) = LOWER(?) AND LOWER(t.last_name) = LOWER(?) AND t.is_active = 1
+    LIMIT 1
+  `).get(lot_id.trim(), last_name.trim());
+
+  if (!tenant) return res.status(401).json({ error: 'Tenant not found' });
+  if (tenant.portal_pin) return res.status(400).json({ error: 'PIN already set. Contact management to reset.' });
+
+  const hash = bcrypt.hashSync(String(pin), 10);
+  db.prepare('UPDATE tenants SET portal_pin = ? WHERE id = ?').run(hash, tenant.id);
 
   const token = jwt.sign({ id: tenant.id, lot_id: tenant.lot_id, role: 'tenant', name: `${tenant.first_name} ${tenant.last_name}` }, SECRET, { expiresIn: '2h' });
   res.json({ token, tenant: { id: tenant.id, first_name: tenant.first_name, last_name: tenant.last_name, lot_id: tenant.lot_id } });

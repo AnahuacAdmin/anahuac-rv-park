@@ -186,6 +186,11 @@ router.post('/:id/move', (req, res) => {
   }
 });
 
+router.post('/:id/reset-pin', (req, res) => {
+  db.prepare('UPDATE tenants SET portal_pin = NULL WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 router.post('/:id/pause-eviction', (req, res) => {
   const { note, arrangement_type, paused_by } = req.body || {};
   const today = new Date().toISOString().split('T')[0];

@@ -122,6 +122,7 @@ function tenantForm(lots, tenant = {}) {
       ${tenant.id ? `
         <div class="form-group">
           <button type="button" class="btn btn-warning" onclick="showMoveTenant(${tenant.id}, '${tenant.lot_id}', \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Move to Different Lot</button>
+          <button type="button" class="btn btn-outline" onclick="resetTenantPin(${tenant.id})">Reset Portal PIN</button>
         </div>
       ` : ''}
 
@@ -261,6 +262,14 @@ async function submitMoveTenant(e, tenantId) {
       alert('Failed to move tenant: ' + (err.message || 'unknown error'));
     }
   }
+}
+
+async function resetTenantPin(id) {
+  if (!confirm('Reset this tenant\'s portal PIN? They will need to set a new one on next login.')) return;
+  try {
+    await API.post(`/tenants/${id}/reset-pin`, {});
+    alert('Portal PIN has been reset.');
+  } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
 }
 
 async function showTenantHistory(tenantId, name) {

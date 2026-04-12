@@ -69,9 +69,32 @@
         <label>Last Name</label>
         <input id="name-input" placeholder="Your last name" required autocomplete="off">
       </div>
-      <button type="submit" class="btn btn-green">Sign In</button>
+      <div id="pin-field" class="form-group hidden">
+        <label>4-Digit PIN</label>
+        <input id="pin-input" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="****" autocomplete="off" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem">
+      </div>
+      <button type="submit" class="btn btn-green" id="login-btn">Sign In</button>
     </form>
     <p class="link"><a href="/">Admin Login</a></p>
+  </div>
+
+  <!-- PIN Setup Screen -->
+  <div id="pin-setup-screen" class="card hidden">
+    <img src="/park_Logo.png" alt="Anahuac RV Park" class="logo">
+    <h1>Set Up Your PIN</h1>
+    <p class="subtitle">Create a 4-digit PIN to secure your portal</p>
+    <div id="pin-setup-error" class="msg-error hidden"></div>
+    <form id="pin-setup-form">
+      <div class="form-group">
+        <label>Create PIN</label>
+        <input id="pin-new" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="****" required autocomplete="off" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem">
+      </div>
+      <div class="form-group">
+        <label>Confirm PIN</label>
+        <input id="pin-confirm" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="****" required autocomplete="off" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem">
+      </div>
+      <button type="submit" class="btn btn-green">Save PIN & Sign In</button>
+    </form>
   </div>
 
   <!-- Portal Dashboard -->
@@ -131,12 +154,59 @@ async function portalFetch(url, opts = {}) {
   return res.json();
 }
 
+let _pinRequired = false;
+let _setupTenant = null;
+
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errEl = document.getElementById('login-error');
   errEl.classList.add('hidden');
+  const lot = document.getElementById('lot-input').value;
+  const name = document.getElementById('name-input').value;
+  const pin = document.getElementById('pin-input').value;
   try {
-    const r = await portalFetch('/login', { method: 'POST', body: JSON.stringify({ lot_id: document.getElementById('lot-input').value, last_name: document.getElementById('name-input').value }) });
+    const r = await portalFetch('/login', { method: 'POST', body: JSON.stringify({ lot_id: lot, last_name: name, pin: pin || undefined }) });
+
+    // Needs PIN setup
+    if (r.needs_pin_setup) {
+      _setupTenant = { lot_id: r.lot_id, last_name: r.last_name };
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('pin-setup-screen').classList.remove('hidden');
+      return;
+    }
+
+    // Needs PIN entry (has pin but wasn't provided)
+    if (!r.token && r.needs_pin) {
+      throw new Error(r.error || 'PIN required');
+    }
+
+    _portalToken = r.token;
+    _portalTenant = r.tenant;
+    sessionStorage.setItem('portal_token', r.token);
+    sessionStorage.setItem('portal_tenant', JSON.stringify(r.tenant));
+    showPortal();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+    // Show PIN field if needed
+    if (err.message && (err.message.includes('PIN') || err.message.includes('pin'))) {
+      document.getElementById('pin-field').classList.remove('hidden');
+      document.getElementById('pin-input').focus();
+      _pinRequired = true;
+    }
+  }
+});
+
+document.getElementById('pin-setup-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('pin-setup-error');
+  errEl.classList.add('hidden');
+  const pin1 = document.getElementById('pin-new').value;
+  const pin2 = document.getElementById('pin-confirm').value;
+  if (pin1 !== pin2) { errEl.textContent = 'PINs do not match.'; errEl.classList.remove('hidden'); return; }
+  if (!/^\d{4}$/.test(pin1)) { errEl.textContent = 'PIN must be exactly 4 digits.'; errEl.classList.remove('hidden'); return; }
+  try {
+    const r = await portalFetch('/setup-pin', { method: 'POST', body: JSON.stringify({ lot_id: _setupTenant.lot_id, last_name: _setupTenant.last_name, pin: pin1 }) });
     _portalToken = r.token;
     _portalTenant = r.tenant;
     sessionStorage.setItem('portal_token', r.token);
@@ -207,11 +277,14 @@ async function portalPay() {
 }
 
 function portalLogout() {
-  _portalToken = null; _portalTenant = null;
+  _portalToken = null; _portalTenant = null; _setupTenant = null;
   sessionStorage.removeItem('portal_token');
   sessionStorage.removeItem('portal_tenant');
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('portal-screen').classList.add('hidden');
+  document.getElementById('pin-setup-screen').classList.add('hidden');
+  document.getElementById('pin-field').classList.add('hidden');
+  document.getElementById('pin-input').value = '';
 }
 
 // Auto-login if token exists
