@@ -889,33 +889,21 @@ async function loadPreviewTenantList() {
 }
 
 async function switchPreviewTenant(tenantId) {
+  if (!tenantId) return;
+  // Use admin token from localStorage (more reliable than preview JWT)
+  var adminToken = localStorage.getItem('rv_token') || _portalToken;
   try {
     var r = await fetch('/api/portal/admin-preview', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _portalToken },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
       body: JSON.stringify({ tenant_id: parseInt(tenantId) }),
     });
     var data = await r.json();
     if (!r.ok || !data.token) { alert('Failed to switch tenant'); return; }
-    _portalToken = data.token;
-    _portalTenant = data.tenant;
-    sessionStorage.setItem('portal_token', data.token);
-    sessionStorage.setItem('portal_tenant', JSON.stringify(data.tenant));
-    showPortal();
-    // Re-add banner since showPortal re-renders
-    setTimeout(function() {
-      var existing = document.querySelector('[id="admin-tenant-switcher"]');
-      if (!existing) {
-        var wrapper = document.getElementById('portal-wrapper');
-        if (wrapper) {
-          var banner = document.createElement('div');
-          banner.style.cssText = 'width:100%;max-width:480px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:2px solid #d97706;border-radius:12px;padding:0.6rem 1rem;margin-bottom:0.75rem;text-align:center;font-size:0.85rem;font-weight:600;color:#92400e';
-          banner.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:wrap">👁️ Admin Preview Mode <select id="admin-tenant-switcher" onchange="switchPreviewTenant(this.value)" style="padding:4px 8px;border-radius:8px;border:1px solid #d97706;font-size:0.78rem;font-weight:600;max-width:200px"></select> <button onclick="window.location.href=\'/\'" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">← Back to Admin</button></div>';
-          wrapper.insertBefore(banner, wrapper.firstChild);
-          loadPreviewTenantList();
-        }
-      }
-    }, 500);
+    // Hard reload with new token — most reliable way to refresh all content
+    sessionStorage.removeItem('portal_token');
+    sessionStorage.removeItem('portal_tenant');
+    window.location.replace('/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant)));
   } catch (err) { alert('Switch failed: ' + (err.message || 'unknown')); }
 }
 </script>
