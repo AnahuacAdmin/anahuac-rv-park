@@ -16,6 +16,72 @@ function showCelebration(emoji, text, duration = 3000) {
   setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 400); }, duration);
 }
 
+// --- Gator Check-In Celebration ---
+function celebrateTenantCheckIn(firstName, lotId) {
+  const overlay = document.createElement('div');
+  overlay.className = 'gator-celebration';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:4000;pointer-events:none;overflow:hidden';
+
+  // Confetti (35 pieces)
+  let confettiHtml = '';
+  const colors = ['#f59e0b','#1a5c32','#ffffff','#2d8a52','#d97706','#dcfce7'];
+  for (let i = 0; i < 35; i++) {
+    const c = colors[i % colors.length];
+    const left = Math.random() * 100;
+    const delay = Math.random() * 1.2;
+    const dur = 2.5 + Math.random() * 1.5;
+    const rot = Math.random() * 720 - 360;
+    const size = 6 + Math.random() * 6;
+    const shape = Math.random() > 0.5 ? '50%' : '2px';
+    confettiHtml += `<div style="position:absolute;top:-20px;left:${left}%;width:${size}px;height:${size * 1.4}px;background:${c};border-radius:${shape};opacity:0.9;animation:gatorConfettiFall ${dur}s ease-in ${delay}s forwards;transform:rotate(${rot}deg)"></div>`;
+  }
+
+  // Fireworks (7 bursts)
+  let fireworkHtml = '';
+  const fwColors = ['#f59e0b','#1a5c32','#dc2626','#ffffff','#f59e0b','#2d8a52','#fbbf24'];
+  const fwPositions = [[20,25],[75,20],[50,30],[30,45],[70,50],[15,60],[85,35]];
+  for (let i = 0; i < 7; i++) {
+    const [x, y] = fwPositions[i];
+    const c = fwColors[i];
+    const delay = i * 0.12;
+    // Each firework = center dot + 8 particles shooting outward
+    let particles = '';
+    for (let p = 0; p < 8; p++) {
+      const angle = p * 45;
+      const dist = 25 + Math.random() * 20;
+      const px = Math.cos(angle * Math.PI / 180) * dist;
+      const py = Math.sin(angle * Math.PI / 180) * dist;
+      particles += `<div style="position:absolute;width:5px;height:5px;background:${c};border-radius:50%;top:50%;left:50%;box-shadow:0 0 6px ${c};animation:gatorSparkle 0.8s ease-out ${delay + 0.1}s both;--sx:${px}px;--sy:${py}px"></div>`;
+    }
+    fireworkHtml += `<div style="position:absolute;top:${y}%;left:${x}%;width:0;height:0">
+      <div style="position:absolute;width:8px;height:8px;background:${c};border-radius:50%;top:-4px;left:-4px;box-shadow:0 0 12px ${c},0 0 24px ${c};animation:gatorBurst 0.6s ease-out ${delay}s both"></div>
+      ${particles}
+    </div>`;
+  }
+
+  // Gator running across bottom
+  const gatorHtml = `<div style="position:absolute;bottom:10%;left:-80px;font-size:4.5rem;animation:gatorRun 2.5s ease-in-out 0.3s forwards;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3))">
+    <span style="display:inline-block;animation:gatorBounce 0.3s ease-in-out infinite alternate">🐊</span>
+    <span style="position:absolute;right:-15px;bottom:5px;font-size:1.5rem;opacity:0.5;animation:gatorDust 0.4s ease-out infinite">💨</span>
+  </div>`;
+
+  // Center message
+  const msgHtml = `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;animation:gatorMsgIn 0.6s ease-out 0.2s both">
+    <div style="font-size:2.5rem;margin-bottom:0.5rem;animation:gatorMsgBounce 0.5s ease-out 0.4s both">🎉 Welcome! 🎉</div>
+    <div style="font-size:1.3rem;font-weight:800;color:#f59e0b;text-shadow:0 2px 8px rgba(0,0,0,0.5);line-height:1.4">${escapeHtml(firstName)} is checked in<br>to Lot ${escapeHtml(lotId)}!</div>
+  </div>`;
+
+  overlay.innerHTML = confettiHtml + fireworkHtml + gatorHtml + msgHtml;
+  document.body.appendChild(overlay);
+
+  // Fade out after 3.5s
+  setTimeout(() => {
+    overlay.style.transition = 'opacity 0.5s ease';
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 600);
+  }, 3500);
+}
+
 let _toastTimer = null;
 let _toastSafetyTimer = null;
 

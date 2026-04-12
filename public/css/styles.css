@@ -1388,6 +1388,44 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* === GATOR CHECK-IN CELEBRATION === */
+@keyframes gatorConfettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  80% { opacity: 0.8; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+@keyframes gatorRun {
+  0% { left: -80px; }
+  100% { left: calc(100% + 80px); }
+}
+@keyframes gatorBounce {
+  0% { transform: translateY(0) scaleX(1) rotate(-5deg); }
+  100% { transform: translateY(-18px) scaleX(1.05) rotate(5deg); }
+}
+@keyframes gatorDust {
+  0% { opacity: 0.5; transform: scale(1) translateX(0); }
+  100% { opacity: 0; transform: scale(1.5) translateX(-10px); }
+}
+@keyframes gatorBurst {
+  0% { transform: scale(0); opacity: 1; }
+  50% { transform: scale(2.5); opacity: 0.8; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+@keyframes gatorSparkle {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--sx), var(--sy)) scale(0.3); opacity: 0; }
+}
+@keyframes gatorMsgIn {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  60% { transform: translate(-50%, -50%) scale(1.08); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes gatorMsgBounce {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
 /* === NUMBER FORMATTING === */
 .tabular-nums { font-variant-numeric: tabular-nums; }
 

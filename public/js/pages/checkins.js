@@ -250,7 +250,7 @@ async function processCheckIn(e) {
   // Show success with option to send welcome text.
   const tenantName = `${data.first_name} ${data.last_name}`;
   const phone = data.phone;
-  showCelebration('🏕️🎉', 'Welcome to Anahuac RV Park!');
+  celebrateTenantCheckIn(data.first_name, data.lot_id);
   setTimeout(() => showModal('Check-In Complete', `
     <div style="text-align:center;padding:1rem 0">
       <div style="font-size:2.5rem;margin-bottom:0.5rem">&#9989;</div>
