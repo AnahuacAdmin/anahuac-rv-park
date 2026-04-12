@@ -215,8 +215,6 @@ async function submitPauseEviction(e, tenantId) {
     });
     closeModal();
     showStatusToast('⏸️', 'Eviction paused');
-    const t = document.querySelector('.status-toast.visible');
-    if (t) setTimeout(() => t.classList.remove('visible'), 2500);
     loadBilling();
   } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
 }
@@ -361,19 +359,24 @@ async function generateInvoices(e) {
   e.preventDefault();
   const form = new FormData(e.target);
   closeModal();
-  const toast = showStatusToast('🧾', 'Cooking up invoices...');
-  const result = await API.post('/invoices/generate', {
-    billing_month: parseInt(form.get('billing_month')),
-    billing_year: parseInt(form.get('billing_year'))
-  });
-  toast.hide(0);
-  if (result.generated > 0) {
-    showCelebration('🧾🎉', `${result.generated} Invoices Generated!`);
-    setTimeout(() => alert(`Lots: ${result.lots.join(', ')}`), 3200);
-  } else {
-    alert('No new invoices generated (already exist for this period).');
+  const toast = showStatusToast('🧾', 'Cooking up invoices...', -1);
+  try {
+    const result = await API.post('/invoices/generate', {
+      billing_month: parseInt(form.get('billing_month')),
+      billing_year: parseInt(form.get('billing_year'))
+    });
+    toast.hide(0);
+    if (result.generated > 0) {
+      showCelebration('🧾🎉', `${result.generated} Invoices Generated!`);
+      setTimeout(() => alert(`Lots: ${result.lots.join(', ')}`), 3200);
+    } else {
+      alert('No new invoices generated (already exist for this period).');
+    }
+    loadBilling();
+  } catch (err) {
+    toast.hide(0);
+    alert('Invoice generation failed: ' + (err.message || 'unknown'));
   }
-  loadBilling();
 }
 
 async function showCreateInvoice() {
@@ -743,7 +746,7 @@ async function emailInvoice(id) {
     if (!inv.email) { alert('No email address on file for this tenant.'); return; }
     if (!confirm(`Send invoice to ${inv.email}?`)) return;
 
-    showStatusToast('📧', 'Sending email...');
+    const emailToast = showStatusToast('📧', 'Sending email...', -1);
 
     // Generate PDF
     const wrap = document.createElement('div');
@@ -760,8 +763,11 @@ async function emailInvoice(id) {
 
     if (result?.success) {
       showStatusToast('✅', `Email delivered to ${result.sentTo}`);
+    } else {
+      emailToast.hide(0);
     }
   } catch (err) {
+    dismissToast();
     alert('Email failed: ' + (err.message || 'unknown error'));
   } finally {
     setTimeout(() => sessionStorage.removeItem(key), 5000);

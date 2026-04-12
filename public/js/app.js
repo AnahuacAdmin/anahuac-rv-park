@@ -16,7 +16,11 @@ function showCelebration(emoji, text, duration = 3000) {
   setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 400); }, duration);
 }
 
-function showStatusToast(emoji, text) {
+let _toastTimer = null;
+let _toastSafetyTimer = null;
+const TOAST_SAFETY_MAX = 30000; // hard cap: no toast lives longer than 30s
+
+function showStatusToast(emoji, text, autoDismissMs = 4000) {
   let el = document.getElementById('status-toast');
   if (!el) {
     el = document.createElement('div');
@@ -24,12 +28,44 @@ function showStatusToast(emoji, text) {
     el.className = 'status-toast';
     document.body.appendChild(el);
   }
-  el.innerHTML = `${emoji} ${escapeHtml(text)}`;
+  clearTimeout(_toastTimer);
+  clearTimeout(_toastSafetyTimer);
+  el.classList.remove('toast-fade-out');
+  el.innerHTML = `<span class="status-toast-content">${emoji} ${escapeHtml(text)}</span><button class="status-toast-close" onclick="dismissToast()" aria-label="Close">&times;</button>`;
   el.classList.add('visible');
+  if (autoDismissMs >= 0) {
+    _toastTimer = setTimeout(dismissToast, autoDismissMs);
+  }
+  // Safety net: even "persistent" toasts auto-dismiss after 30s
+  _toastSafetyTimer = setTimeout(dismissToast, TOAST_SAFETY_MAX);
   return {
-    update: (newEmoji, newText) => { el.innerHTML = `${newEmoji} ${escapeHtml(newText)}`; },
-    hide: (delay = 2000) => { setTimeout(() => { el.classList.remove('visible'); }, delay); },
+    update: (newEmoji, newText, resetTimer = true) => {
+      const content = el.querySelector('.status-toast-content');
+      if (content) content.innerHTML = `${newEmoji} ${escapeHtml(newText)}`;
+      if (resetTimer) {
+        clearTimeout(_toastTimer);
+        clearTimeout(_toastSafetyTimer);
+        _toastTimer = setTimeout(dismissToast, autoDismissMs >= 0 ? autoDismissMs : 4000);
+        _toastSafetyTimer = setTimeout(dismissToast, TOAST_SAFETY_MAX);
+      }
+    },
+    hide: (delay = 0) => {
+      clearTimeout(_toastTimer);
+      clearTimeout(_toastSafetyTimer);
+      if (delay > 0) { _toastTimer = setTimeout(dismissToast, delay); } else { dismissToast(); }
+    },
   };
+}
+
+function dismissToast() {
+  clearTimeout(_toastTimer);
+  clearTimeout(_toastSafetyTimer);
+  const el = document.getElementById('status-toast');
+  if (!el) return;
+  el.classList.add('toast-fade-out');
+  setTimeout(() => {
+    el.classList.remove('visible', 'toast-fade-out');
+  }, 300);
 }
 
 function getTimeGreeting() {

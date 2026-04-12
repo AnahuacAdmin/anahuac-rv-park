@@ -703,13 +703,21 @@ a { text-decoration: none; color: inherit; }
 
 /* === STATUS TOAST === */
 .status-toast {
-  position: fixed; top: 1rem; left: 50%; transform: translateX(-50%) translateY(-100%);
-  background: var(--gray-900); color: #fff; padding: 0.7rem 1.5rem; border-radius: var(--radius);
+  position: fixed; top: 1rem; left: 50%; transform: translateX(-50%) translateY(-120%);
+  background: var(--gray-900); color: #fff; padding: 0.7rem 1rem 0.7rem 1.5rem; border-radius: var(--radius);
   font-size: 0.95rem; font-weight: 600; z-index: 2500;
-  box-shadow: var(--shadow-xl); transition: transform 0.3s ease;
-  pointer-events: none;
+  box-shadow: var(--shadow-xl); transition: transform 0.35s ease, opacity 0.35s ease;
+  opacity: 0; pointer-events: none;
+  display: flex; align-items: center; gap: 0.5rem; max-width: 90vw;
 }
-.status-toast.visible { transform: translateX(-50%) translateY(0); }
+.status-toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
+.status-toast.toast-fade-out { opacity: 0; transform: translateX(-50%) translateY(-120%); pointer-events: none; }
+.status-toast-content { flex: 1; }
+.status-toast-close {
+  background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.2rem; cursor: pointer;
+  padding: 0 0.25rem; line-height: 1; flex-shrink: 0; transition: color 0.15s;
+}
+.status-toast-close:hover { color: #fff; }
 
 /* === DASHBOARD ANIMATIONS === */
 .dash-fade-in { animation: dashFadeIn 0.5s ease-out both; }
