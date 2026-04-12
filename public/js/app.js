@@ -460,6 +460,35 @@ const HELP_CONTENT = {
     <li><strong>Export All Data:</strong> full Excel export of all tables.</li>
     <li><strong>🖨️ Emergency Forms:</strong> printable check-in, meter reading, and payment forms for when internet is down.</li>
   </ul>`,
+  lotmgmt: `<p><strong>🏕️ What is Lot Management?</strong></p>
+  <p>Lot Management allows you to add, edit, and organize all the lots in your RV park. Changes made here automatically update everywhere — Site Map, Meter Readings, Check-In, and all dropdowns.</p>
+  <p><strong>➕ Adding a New Lot:</strong></p><ol>
+    <li>Click <em>+ Add New Lot</em>.</li>
+    <li>Enter the Lot ID (example: A1, B3, H6).</li>
+    <li>Select the Row letter (A, B, C...).</li>
+    <li>Choose the lot type: Standard, Premium, Pull-Through, or Owner Reserved.</li>
+    <li>Enter the lot size (example: 30ft × 60ft).</li>
+    <li>Check which amenities are available: 30amp, 50amp, Water, Sewer, WiFi.</li>
+    <li>Set a default monthly rate for this lot.</li>
+    <li>Add any notes about the lot.</li>
+    <li>Click Save — the lot appears everywhere instantly!</li>
+  </ol>
+  <p><strong>✏️ Editing a Lot:</strong></p><ul>
+    <li>Click <em>Edit</em> on any lot to update its details.</li>
+    <li>Change the type, size, amenities, or rate at any time.</li>
+    <li>Changes take effect immediately across the entire app.</li>
+  </ul>
+  <p><strong>🚫 Deactivating a Lot:</strong></p><ul>
+    <li>Click <em>Deactivate</em> to mark a lot as unavailable.</li>
+    <li>Deactivated lots won't show in Check-In or Site Map.</li>
+    <li>You can reactivate them anytime — no data is lost.</li>
+  </ul>
+  <p><strong>💡 Tips:</strong></p><ul>
+    <li>Lot IDs must be unique (no two lots can have the same ID).</li>
+    <li>Adding a new row letter automatically creates that row on the Site Map.</li>
+    <li>Default rates auto-fill when checking in a new tenant to that lot.</li>
+    <li>Owner Reserved lots show as reserved on the Site Map and cannot be checked in.</li>
+  </ul>`,
   vendors: `<p><strong>📒 Vendor Directory</strong></p><ul>
     <li>Add plumbers, electricians, suppliers, and other contacts you call regularly.</li>
     <li>Tap ⭐ to mark favorites — they show first and appear on the dashboard.</li>

@@ -18,6 +18,7 @@ async function loadLotMgmt() {
   const defaultPullThrough = settings?.default_rate_pullthrough || '325';
 
   document.getElementById('page-content').innerHTML = `
+    ${helpPanel('lotmgmt')}
     <div class="page-header">
       <h2>Lot Management</h2>
       <button class="btn btn-primary" onclick="showAddLot()">+ Add New Lot</button>
