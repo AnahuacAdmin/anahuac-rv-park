@@ -34,6 +34,9 @@ app.use(cors({
 // raw request body for signature verification.
 require('./stripe-webhook').registerStripeWebhook(app);
 
+// Twilio incoming SMS webhook — public, uses URL-encoded body, registered before JSON parser.
+app.use('/api/twilio/incoming-sms', require('./routes/twilio-webhook'));
+
 app.use(express.json({ limit: '5mb' })); // 5mb to allow base64 PDF attachments for emailed invoices
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
