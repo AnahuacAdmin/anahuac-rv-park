@@ -15,6 +15,7 @@ async function loadUsers() {
   if (!users) return;
 
   document.getElementById('page-content').innerHTML = `
+    ${helpPanel('users')}
     <div class="page-header">
       <h2>User Management</h2>
       <button class="btn btn-primary" onclick="showAddUser()">+ New User</button>
