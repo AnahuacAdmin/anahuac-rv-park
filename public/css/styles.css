@@ -101,6 +101,8 @@ body.login-page {
   background-repeat: no-repeat;
   background-attachment: fixed;
 }
+.post-login-btn { display: flex !important; }
+.login-page .post-login-btn { display: none !important; }
 a { text-decoration: none; color: inherit; }
 
 /* === PAGE TRANSITIONS === */

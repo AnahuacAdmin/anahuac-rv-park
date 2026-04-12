@@ -712,8 +712,6 @@ document.addEventListener('DOMContentLoaded', () => {
       await API.login(document.getElementById('username').value, document.getElementById('password').value);
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('main-app').style.display = '';
-      var rb=document.getElementById('refreshBtn');if(rb)rb.style.display='flex';
-      var pb=document.getElementById('portalQuickBtn');if(pb)pb.style.display='flex';
       document.body.classList.remove('login-page');
       navigateTo('dashboard');
       setTimeout(showWelcomeTour, 1500);
@@ -878,8 +876,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (API.token) {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-app').style.display = '';
-      var rb=document.getElementById('refreshBtn');if(rb)rb.style.display='flex';
-      var pb=document.getElementById('portalQuickBtn');if(pb)pb.style.display='flex';
     document.body.classList.remove('login-page');
     navigateTo('dashboard');
   }
