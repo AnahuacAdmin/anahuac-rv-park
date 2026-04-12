@@ -110,17 +110,21 @@ async function loadDashboard() {
     <div class="dash-charts-row">
       <div class="card dash-chart-card dash-fade-in" style="animation-delay:0.3s">
         <h3>Revenue (Last 6 Months)</h3>
-        <canvas id="revenueChart" height="220"></canvas>
+        <div style="position:relative;height:220px"><canvas id="revenueChart"></canvas></div>
       </div>
       <div class="card dash-chart-card dash-chart-small dash-fade-in" style="animation-delay:0.35s">
         <h3>Occupancy</h3>
-        <div class="dash-donut-center">${data.occupancyRate}%</div>
-        <canvas id="occupancyChart" height="200"></canvas>
+        <div style="position:relative;height:200px">
+          <div class="dash-donut-center">${data.occupancyRate}%</div>
+          <canvas id="occupancyChart"></canvas>
+        </div>
       </div>
       <div class="card dash-chart-card dash-chart-small dash-fade-in" style="animation-delay:0.4s">
         <h3>Invoice Status</h3>
-        <div class="dash-donut-center">${data.paidInvoices + data.pendingInvoices + data.partialInvoices}</div>
-        <canvas id="invoiceChart" height="200"></canvas>
+        <div style="position:relative;height:200px">
+          <div class="dash-donut-center">${data.paidInvoices + data.pendingInvoices + data.partialInvoices}</div>
+          <canvas id="invoiceChart"></canvas>
+        </div>
       </div>
     </div>` : ''}
 
