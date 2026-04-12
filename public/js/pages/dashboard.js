@@ -134,7 +134,15 @@ async function loadDashboard() {
       <button class="dash-action-btn" onclick="navigateTo('checkins')"><span class="dash-action-icon">🏕️</span>Check In</button>
       <button class="dash-action-btn" onclick="navigateTo('reservations')"><span class="dash-action-icon">📅</span>Reservations${data.pendingReservations ? `<span class="dash-action-badge">${data.pendingReservations}</span>` : ''}</button>
       <button class="dash-action-btn" onclick="navigateTo('messages')"><span class="dash-action-icon">📱</span>Messaging</button>
-      <a class="dash-action-btn dash-portal-btn" href="/portal.html" target="_blank"><span class="dash-action-icon">🐊</span>Tenant Portal<span style="font-size:0.65rem;font-weight:400;opacity:0.8;display:block;margin-top:1px">View &amp; Pay Bills ↗</span></a>
+      <button class="dash-action-btn dash-portal-btn" onclick="window.open('/portal.html','_blank')" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#0d1a50;border:2px solid #d97706;text-decoration:none">
+        <span class="dash-action-icon" style="font-size:2rem">🐊</span>
+        <span style="font-weight:700;font-size:0.85rem">Tenant Portal</span>
+        <span style="font-size:0.68rem;font-weight:400;opacity:0.8">View &amp; Pay Bills ↗</span>
+      </button>
+    </div>
+    <div style="text-align:center;margin:-0.75rem 0 1rem;font-size:0.8rem;color:var(--gray-500)">
+      Portal Link: <code style="background:var(--gray-100);padding:2px 6px;border-radius:4px;font-size:0.75rem">${APP_URL}/portal.html</code>
+      <button class="btn btn-sm btn-outline" style="margin-left:0.4rem;padding:0.2rem 0.5rem;font-size:0.7rem;border-radius:6px" onclick="navigator.clipboard?.writeText('${APP_URL}/portal.html').then(()=>showStatusToast('✅','Portal link copied!'))">📋 Copy</button>
     </div>
 
     <!-- Bottom Row -->
