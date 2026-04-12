@@ -97,6 +97,8 @@ let _lastSyncTime = null;
 function isOffline() { return !_isOnline; }
 
 function showOfflineBanner() {
+  // Double-check: don't show if actually online
+  if (navigator.onLine) { hideOfflineBanner(); return; }
   let banner = document.getElementById('offline-banner');
   if (!banner) {
     banner = document.createElement('div');
@@ -271,12 +273,18 @@ function patchApiForOffline() {
 
 // --- Initialize ---
 function initOfflineMode() {
+  // Re-check online status at init time (may have changed since script load)
+  _isOnline = navigator.onLine;
   openOfflineDb().then(() => {
     updateSyncBadge();
     startSyncEngine();
     patchApiForOffline();
-    if (!_isOnline) showOfflineBanner();
-    console.log('[offline] engine initialized');
+    if (!_isOnline) {
+      showOfflineBanner();
+    } else {
+      hideOfflineBanner();
+    }
+    console.log('[offline] engine initialized, online=' + _isOnline);
   }).catch(err => {
     console.error('[offline] failed to initialize:', err);
   });

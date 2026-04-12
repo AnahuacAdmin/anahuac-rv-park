@@ -6,6 +6,7 @@
  */
 let currentPage = 'dashboard';
 const _navHistory = [];
+localStorage.setItem('hasSeenTour', '1'); // Permanently disable welcome tour
 
 function goBack() {
   if (_navHistory.length === 0) return;
