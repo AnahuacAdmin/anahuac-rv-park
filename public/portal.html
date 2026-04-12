@@ -120,6 +120,24 @@
     .collapse-body { max-height:0;overflow:hidden;transition:max-height 0.3s ease }
     .collapse-body.open { max-height:1000px }
 
+    /* Holiday banner */
+    .holiday-banner { width:100%;max-width:480px;border-radius:14px;padding:0.75rem 1rem;margin-bottom:0.75rem;text-align:center;position:relative;overflow:hidden }
+    .holiday-banner-text { font-size:1rem;font-weight:700;position:relative;z-index:1 }
+    .holiday-banner-emoji { font-size:1.5rem;display:inline-block;animation:holidayFloat 3s ease-in-out infinite alternate }
+    @keyframes holidayFloat { 0%{transform:translateY(0)} 100%{transform:translateY(-6px)} }
+    /* Falling particles container */
+    .falling-particles { position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden }
+    .falling-particle { position:absolute;top:-30px;animation:particleFall linear forwards;opacity:0.7 }
+    @keyframes particleFall { 0%{transform:translateY(0) rotate(0deg);opacity:0.7} 100%{transform:translateY(105vh) rotate(360deg);opacity:0} }
+    /* Holiday recipe card */
+    .recipe-card { display:flex;gap:0.75rem;align-items:flex-start }
+    .recipe-card img { width:80px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0 }
+    .recipe-card-info { flex:1;min-width:0 }
+    .recipe-card-title { font-weight:700;font-size:0.9rem;color:var(--gray-900,#1c1917);margin-bottom:0.25rem }
+    .recipe-card-desc { font-size:0.78rem;color:#78716c;line-height:1.4 }
+    /* Countdown */
+    .countdown-timer { font-size:1.1rem;font-weight:800;letter-spacing:0.5px }
+
     .portal-footer { text-align:center;color:#a8a29e;font-size:0.75rem;margin:1rem 0 0.5rem;max-width:480px;line-height:1.5 }
     .hidden { display:none !important }
     @media (max-width:480px) { .card{padding:1.25rem 1rem} .balance-amount{font-size:2rem} .link-grid{gap:0.4rem} .link-btn{padding:0.55rem 0.6rem;font-size:0.78rem} }
@@ -182,6 +200,12 @@
 <!-- PORTAL DASHBOARD (clean background, no photo) -->
 <div id="portal-wrapper" class="hidden" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0.75rem 1rem 2rem">
 
+  <!-- Falling particles (holiday) -->
+  <div class="falling-particles" id="falling-particles"></div>
+
+  <!-- Holiday banner -->
+  <div class="holiday-banner" id="holiday-banner" style="display:none"></div>
+
   <!-- Hero header -->
   <div class="portal-hero">
     <div class="hero-gator">🐊</div>
@@ -220,6 +244,24 @@
     <div class="card-title" style="color:#92400e">✝️ Verse of the Day</div>
     <div class="verse-text" id="verse-text"></div>
     <div class="verse-ref" id="verse-ref"></div>
+  </div>
+
+  <!-- Holiday Corner -->
+  <div class="card" id="holiday-card" style="display:none">
+    <div class="card-title" id="holiday-card-title">🎉 Holiday Corner</div>
+    <div id="holiday-card-content"></div>
+  </div>
+
+  <!-- Holiday Recipe -->
+  <div class="card" id="recipe-card" style="display:none">
+    <div class="card-title">🍽️ Featured Recipe</div>
+    <div id="recipe-content"></div>
+  </div>
+
+  <!-- New Year Countdown -->
+  <div class="card" id="countdown-card" style="display:none;text-align:center">
+    <div class="card-title" style="justify-content:center">🎆 New Year Countdown</div>
+    <div class="countdown-timer" id="countdown-timer"></div>
   </div>
 
   <!-- Announcements -->
@@ -437,11 +479,14 @@ async function showPortal() {
   document.getElementById('p-name').textContent = fullName;
   document.getElementById('p-lot').textContent = 'Lot ' + lotId;
 
+  // Apply holiday theme
+  applyHolidayTheme();
+
   // Load data in parallel
   const [data] = await Promise.all([
     portalFetch('/me').catch(() => null),
     loadWeather(),
-    loadBibleVerse(),
+    getActiveHoliday() ? Promise.resolve() : loadBibleVerse(),
     loadAnnouncements(),
   ]);
 
@@ -468,6 +513,173 @@ async function showPortal() {
       `<div class="invoice-row"><span>${i.invoice_number} — ${i.invoice_date}</span><span style="font-weight:700;color:${i.status === 'paid' ? '#16a34a' : '#dc2626'}">$${Number(i.balance_due).toFixed(2)}</span></div>`
     ).join('') || '<p style="color:#a8a29e;font-size:0.85rem">No invoices yet</p>';
   }
+}
+
+// --- Holiday System ---
+const HOLIDAYS = {
+  christmas:    { s:[12,1],  e:[12,31], name:'Merry Christmas! 🎄',        mascot:'🎅', emoji:'❄️', bg:'linear-gradient(135deg,#165b33,#c41e3a)', accent:'#ffd700',
+                  verse:{t:'Today in the town of David a Savior has been born to you; he is the Messiah, the Lord.',r:'Luke 2:11'}, recipe:'christmas+pudding', music:'https://www.youtube.com/results?search_query=christmas+music+playlist' },
+  thanksgiving: { s:[11,1],  e:[11,30], name:'Happy Thanksgiving! 🦃',     mascot:'🦃', emoji:'🍂', bg:'linear-gradient(135deg,#3d1f00,#b85c00)', accent:'#f4a460',
+                  verse:{t:'Give thanks to the Lord, for he is good; his love endures forever.',r:'Psalm 107:1'}, recipe:'turkey' },
+  newYear:      { s:[1,1],   e:[1,7],   name:'Happy New Year! 🎆',         mascot:'🥂', emoji:'🎊', bg:'linear-gradient(135deg,#0a0a2e,#1a1a6e)', accent:'#ffd700',
+                  verse:{t:'For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you.',r:'Jeremiah 29:11'}, recipe:'champagne' },
+  valentines:   { s:[2,1],   e:[2,14],  name:"Happy Valentine's Day! ❤️",  mascot:'💕', emoji:'❤️', bg:'linear-gradient(135deg,#6e0a1e,#c41e3a)', accent:'#ff69b4',
+                  verse:{t:'Love is patient, love is kind. It does not envy, it does not boast.',r:'1 Corinthians 13:4'}, recipe:'chocolate' },
+  stPatricks:   { s:[3,10],  e:[3,17],  name:"St. Patrick's Day! ☘️",      mascot:'☘️', emoji:'🍀', bg:'linear-gradient(135deg,#0a3d0a,#1a7a1a)', accent:'#ffd700',
+                  verse:{t:'The Lord bless you and keep you; the Lord make his face shine on you.',r:'Numbers 6:24-25'}, recipe:'irish+stew' },
+  easter:       { s:[3,20],  e:[4,20],  name:'Happy Easter! 🐣',           mascot:'🐰', emoji:'🌸', bg:'linear-gradient(135deg,#4a235a,#9b59b6)', accent:'#f39c12',
+                  verse:{t:'He is not here; he has risen, just as he said.',r:'Matthew 28:6'}, recipe:'lamb' },
+  mothersDay:   { s:[5,8],   e:[5,12],  name:"Happy Mother's Day! 🌸",     mascot:'💐', emoji:'🌺', bg:'linear-gradient(135deg,#6e0a3d,#ff69b4)', accent:'#ffd700',
+                  verse:{t:'She is clothed with strength and dignity; she can laugh at the days to come.',r:'Proverbs 31:25'}, recipe:'cake' },
+  memorialDay:  { s:[5,24],  e:[5,27],  name:'Memorial Day 🎖️',            mascot:'🎖️', emoji:'🇺🇸', bg:'linear-gradient(135deg,#3c3b6e,#b22234)', accent:'#fff',
+                  verse:{t:'Greater love has no one than this: to lay down one\'s life for one\'s friends.',r:'John 15:13'}, recipe:'bbq' },
+  fathersDay:   { s:[6,14],  e:[6,18],  name:"Happy Father's Day! 👨‍👧",     mascot:'🏆', emoji:'⛳', bg:'linear-gradient(135deg,#0a1a3d,#1a3a6e)', accent:'#ffd700',
+                  verse:{t:'As a father has compassion on his children, so the Lord has compassion on those who fear him.',r:'Psalm 103:13'}, recipe:'steak' },
+  independence: { s:[6,28],  e:[7,4],   name:'Happy 4th of July! 🇺🇸',     mascot:'🦅', emoji:'✨', bg:'linear-gradient(135deg,#3c3b6e,#b22234)', accent:'#fff',
+                  verse:{t:'It is for freedom that Christ has set us free.',r:'Galatians 5:1'}, recipe:'bbq+ribs' },
+  laborDay:     { s:[8,30],  e:[9,2],   name:'Happy Labor Day! 🇺🇸',       mascot:'🌞', emoji:'🎉', bg:'linear-gradient(135deg,#3c3b6e,#b22234)', accent:'#fff',
+                  verse:{t:'Whatever you do, work at it with all your heart, as working for the Lord.',r:'Colossians 3:23'}, recipe:'burger' },
+  gatorfest:    { s:[9,12],  e:[9,22],  name:'Gatorfest Time! 🐊',         mascot:'🐊', emoji:'🎪', bg:'linear-gradient(135deg,#0a2e1a,#1a5c32)', accent:'#f59e0b',
+                  verse:{t:'This is the day the Lord has made; let us rejoice and be glad in it.',r:'Psalm 118:24'}, recipe:'cajun',
+                  extra:'<p style="margin-top:0.5rem"><a href="https://www.gatorfest.com" target="_blank" style="color:#f59e0b;font-weight:700;text-decoration:underline">🐊 See the Gatorfest schedule →</a></p><p style="font-size:0.8rem;color:#78716c;margin-top:0.25rem">Less than a mile from the park!</p>' },
+  halloween:    { s:[10,1],  e:[10,31], name:'Happy Halloween! 🎃',        mascot:'👻', emoji:'🦇', bg:'linear-gradient(135deg,#1a0a00,#ff6600)', accent:'#9b59b6',
+                  verse:{t:'Even though I walk through the darkest valley, I will fear no evil, for you are with me.',r:'Psalm 23:4'}, recipe:'pumpkin' },
+};
+
+function getActiveHoliday() {
+  const now = new Date();
+  const m = now.getMonth() + 1, d = now.getDate();
+  for (const [key, h] of Object.entries(HOLIDAYS)) {
+    if ((m > h.s[0] || (m === h.s[0] && d >= h.s[1])) && (m < h.e[0] || (m === h.e[0] && d <= h.e[1]))) return { key, ...h };
+  }
+  return null;
+}
+
+function applyHolidayTheme() {
+  const h = getActiveHoliday();
+  if (!h) return;
+
+  // Banner
+  const banner = document.getElementById('holiday-banner');
+  if (banner) {
+    banner.style.display = '';
+    banner.style.background = h.bg;
+    banner.style.color = '#fff';
+    banner.innerHTML = `<span class="holiday-banner-emoji">${h.mascot}</span> <span class="holiday-banner-text" style="color:${h.accent}">${h.name}</span> <span class="holiday-banner-emoji" style="animation-delay:0.5s">${h.mascot}</span>`;
+  }
+
+  // Hero gradient
+  const hero = document.querySelector('.portal-hero');
+  if (hero) hero.style.background = h.bg;
+
+  // Holiday verse override
+  if (h.verse) {
+    document.getElementById('verse-text').textContent = '"' + h.verse.t + '"';
+    document.getElementById('verse-ref').textContent = '— ' + h.verse.r;
+    document.getElementById('verse-card').style.display = '';
+  }
+
+  // Gator mascot override
+  const gatorEl = document.querySelector('.hero-gator');
+  if (gatorEl) gatorEl.textContent = h.mascot;
+
+  // Holiday content card
+  const hcard = document.getElementById('holiday-card');
+  if (hcard) {
+    hcard.style.display = '';
+    hcard.style.borderLeft = `4px solid ${h.accent}`;
+    document.getElementById('holiday-card-title').innerHTML = `${h.mascot} ${h.name.replace(/!.*/, '')}`;
+    let content = `<p style="font-size:0.88rem">${h.name}</p>`;
+    if (h.extra) content += h.extra;
+    if (h.music) content += `<p style="margin-top:0.5rem"><a href="${h.music}" target="_blank" style="color:${h.accent};font-weight:600;text-decoration:underline">🎵 Holiday Music Playlist →</a></p>`;
+    document.getElementById('holiday-card-content').innerHTML = content;
+  }
+
+  // Falling particles
+  spawnParticles(h.emoji, 20);
+
+  // Recipe
+  loadHolidayRecipe(h.recipe);
+
+  // New Year countdown (Dec 26 - Jan 1)
+  const now = new Date();
+  if ((now.getMonth() === 11 && now.getDate() >= 26) || (now.getMonth() === 0 && now.getDate() === 1)) {
+    startNewYearCountdown();
+  }
+}
+
+function spawnParticles(emoji, count) {
+  const container = document.getElementById('falling-particles');
+  if (!container) return;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'falling-particle';
+    el.textContent = emoji;
+    el.style.left = (Math.random() * 100) + '%';
+    el.style.fontSize = (0.8 + Math.random() * 1.2) + 'rem';
+    el.style.animationDuration = (4 + Math.random() * 6) + 's';
+    el.style.animationDelay = (Math.random() * 8) + 's';
+    el.style.opacity = 0.3 + Math.random() * 0.4;
+    container.appendChild(el);
+  }
+  // Respawn periodically
+  setInterval(() => {
+    if (container.children.length < count) {
+      const el = document.createElement('div');
+      el.className = 'falling-particle';
+      el.textContent = emoji;
+      el.style.left = (Math.random() * 100) + '%';
+      el.style.fontSize = (0.8 + Math.random() * 1.2) + 'rem';
+      el.style.animationDuration = (4 + Math.random() * 6) + 's';
+      el.style.opacity = 0.3 + Math.random() * 0.4;
+      container.appendChild(el);
+    }
+    // Clean up finished particles
+    Array.from(container.children).forEach(c => {
+      const rect = c.getBoundingClientRect();
+      if (rect.top > window.innerHeight + 50) c.remove();
+    });
+  }, 3000);
+}
+
+async function loadHolidayRecipe(query) {
+  const card = document.getElementById('recipe-card');
+  if (!card || !query) return;
+  try {
+    const r = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`);
+    const d = await r.json();
+    const meal = d?.meals?.[0];
+    if (!meal) return;
+    card.style.display = '';
+    document.getElementById('recipe-content').innerHTML = `
+      <div class="recipe-card">
+        <img src="${meal.strMealThumb}/preview" alt="${meal.strMeal}" onerror="this.style.display='none'">
+        <div class="recipe-card-info">
+          <div class="recipe-card-title">${meal.strMeal}</div>
+          <div class="recipe-card-desc">${(meal.strInstructions || '').slice(0, 120)}...</div>
+          <a href="https://www.themealdb.com/meal/${meal.idMeal}" target="_blank" style="font-size:0.78rem;color:#1a5c32;font-weight:600;margin-top:0.3rem;display:inline-block">View Full Recipe →</a>
+        </div>
+      </div>`;
+  } catch {}
+}
+
+function startNewYearCountdown() {
+  const card = document.getElementById('countdown-card');
+  if (!card) return;
+  card.style.display = '';
+  function tick() {
+    const now = new Date();
+    const ny = new Date(now.getFullYear() + (now.getMonth() === 0 && now.getDate() <= 1 ? 0 : 1), 0, 1);
+    const diff = ny - now;
+    if (diff <= 0) { document.getElementById('countdown-timer').innerHTML = '🎆🥂 Happy New Year! 🥂🎆'; return; }
+    const days = Math.floor(diff / 86400000);
+    const hrs = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    document.getElementById('countdown-timer').textContent = `${days}d ${hrs}h ${mins}m ${secs}s`;
+    setTimeout(tick, 1000);
+  }
+  tick();
 }
 
 async function loadWeather() {
