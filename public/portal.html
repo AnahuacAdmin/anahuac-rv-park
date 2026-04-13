@@ -350,48 +350,61 @@
 </div>
 
 <script>
-// --- Admin Auto-Login: if admin token exists, redirect to preview ---
+// --- BULLETPROOF Admin Preview Detection (runs FIRST) ---
 (function() {
   var params = new URLSearchParams(window.location.search);
-  if (params.get('adminPreview')) return; // Already have preview token, skip
-  if (params.get('paid') || params.get('cancelled')) return; // Payment return, skip
-  var adminToken = localStorage.getItem('rv_token');
-  if (!adminToken) return; // Not an admin, skip
-  // Save admin token backup for tenant switching later
-  sessionStorage.setItem('_adminToken', adminToken);
-  // Try to get preview token
-  fetch('/api/portal/admin-preview', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken }
-  }).then(function(r) { return r.json(); }).then(function(data) {
-    if (data.token && data.tenant) {
-      window.location.replace('/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant)));
+  var previewToken = params.get('adminPreview');
+  var tenantData = params.get('tenant');
+
+  if (previewToken) {
+    // Store tokens immediately
+    sessionStorage.setItem('portal_token', previewToken);
+    sessionStorage.setItem('_isAdminPreview', '1');
+    if (tenantData) {
+      try { sessionStorage.setItem('portal_tenant', JSON.stringify(JSON.parse(decodeURIComponent(tenantData)))); }
+      catch(e) { sessionStorage.setItem('portal_tenant', decodeURIComponent(tenantData)); }
     }
-  }).catch(function() {}); // Silently fail — show normal login
-})();
-
-// --- Admin Preview Detection ---
-let _isAdminPreview = false;
-let _portalToken = sessionStorage.getItem('portal_token');
-let _portalTenant = JSON.parse(sessionStorage.getItem('portal_tenant') || 'null');
-
-(function() {
-  const p = new URLSearchParams(location.search);
-
-  // Admin preview: token + tenant passed in URL
-  const previewToken = p.get('adminPreview');
-  const tenantData = p.get('tenant');
-  if (previewToken && tenantData) {
-    try {
-      _portalToken = previewToken;
-      _portalTenant = JSON.parse(decodeURIComponent(tenantData));
-      _isAdminPreview = true;
-      sessionStorage.setItem('portal_token', previewToken);
-      sessionStorage.setItem('portal_tenant', JSON.stringify(_portalTenant));
-    } catch (e) { console.error('[portal] preview parse failed:', e); }
-    history.replaceState({}, '', '/portal.html');
+    // Save admin token backup for tenant switching
+    var adminTok = localStorage.getItem('rv_token');
+    if (adminTok) sessionStorage.setItem('_adminToken', adminTok);
+    // Clean URL
+    window.history.replaceState({}, '', '/portal.html');
   }
 
+  // If no session and admin is logged in — auto-generate preview
+  var existingToken = sessionStorage.getItem('portal_token');
+  if (!existingToken && !previewToken) {
+    var adminToken = localStorage.getItem('rv_token');
+    if (adminToken && !params.get('paid') && !params.get('cancelled')) {
+      sessionStorage.setItem('_adminToken', adminToken);
+      document.addEventListener('DOMContentLoaded', function() {
+        var loginEl = document.getElementById('login-wrapper');
+        if (loginEl) loginEl.style.display = 'none';
+        fetch('/api/portal/admin-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken }
+        }).then(function(r) { return r.json(); }).then(function(data) {
+          if (data.token && data.tenant) {
+            sessionStorage.setItem('portal_token', data.token);
+            sessionStorage.setItem('portal_tenant', JSON.stringify(data.tenant));
+            sessionStorage.setItem('_isAdminPreview', '1');
+            window.location.reload();
+          } else {
+            if (loginEl) loginEl.style.display = '';
+          }
+        }).catch(function() { if (loginEl) loginEl.style.display = ''; });
+      });
+    }
+  }
+})();
+
+// --- Portal State ---
+var _isAdminPreview = sessionStorage.getItem('_isAdminPreview') === '1';
+var _portalToken = sessionStorage.getItem('portal_token');
+var _portalTenant = JSON.parse(sessionStorage.getItem('portal_tenant') || 'null');
+
+(function() {
+  var p = new URLSearchParams(location.search);
   // Payment return
   if (p.get('paid') === '1') { sessionStorage.setItem('portal_paid', '1'); history.replaceState({}, '', '/portal.html'); }
   if (p.get('cancelled') === '1') { history.replaceState({}, '', '/portal.html'); }
