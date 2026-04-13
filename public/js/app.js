@@ -594,18 +594,12 @@ function wirePortalButton() {
   pb._wired = true;
   pb.addEventListener('click', function() {
     var adminToken = localStorage.getItem('rv_token');
-    if (!adminToken) { window.open('/portal.html', '_blank'); return; }
-    var win = window.open('about:blank', '_blank');
-    fetch('/api/portal/admin-preview', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken }
-    }).then(function(r) { return r.json(); }).then(function(data) {
-      if (data.token && win) {
-        win.location.href = '/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant));
-      } else if (win) {
-        win.location.href = '/portal.html';
-      }
-    }).catch(function() { if (win) win.location.href = '/portal.html'; });
+    if (adminToken) {
+      // Store token hint so portal auto-detects admin
+      sessionStorage.setItem('_adminPreviewRequested', adminToken);
+    }
+    // Open portal synchronously — no popup blocker
+    window.open('/portal.html', '_blank');
   });
 }
 

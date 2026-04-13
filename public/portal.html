@@ -374,7 +374,9 @@
   // If no session and admin is logged in — auto-generate preview
   var existingToken = sessionStorage.getItem('portal_token');
   if (!existingToken && !previewToken) {
-    var adminToken = localStorage.getItem('rv_token');
+    // Check for token passed via sessionStorage from admin app button
+    var adminToken = sessionStorage.getItem('_adminPreviewRequested') || localStorage.getItem('rv_token');
+    sessionStorage.removeItem('_adminPreviewRequested'); // One-time use
     if (adminToken && !params.get('paid') && !params.get('cancelled')) {
       sessionStorage.setItem('_adminToken', adminToken);
       document.addEventListener('DOMContentLoaded', function() {
