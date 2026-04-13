@@ -39,6 +39,37 @@ router.put('/', (req, res) => {
   res.json({ success: true });
 });
 
+// --- Portal Local Links CRUD (admin only) ---
+router.get('/local-links', (req, res) => {
+  res.json(db.prepare('SELECT * FROM portal_local_links ORDER BY category, display_order, id').all());
+});
+
+router.post('/local-links', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var b = req.body || {};
+  if (!b.name) return res.status(400).json({ error: 'Name required' });
+  var maxOrder = db.prepare('SELECT COALESCE(MAX(display_order),0) as m FROM portal_local_links WHERE category=?').get(b.category || 'attraction').m;
+  var r = db.prepare('INSERT INTO portal_local_links (category, name, emoji, url, display_order, is_active) VALUES (?,?,?,?,?,?)').run(
+    b.category || 'attraction', b.name, b.emoji || '🔗', b.url || '', maxOrder + 1, b.is_active !== undefined ? (b.is_active ? 1 : 0) : 1
+  );
+  res.json({ id: r.lastInsertRowid });
+});
+
+router.put('/local-links/:id', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var b = req.body || {};
+  db.prepare('UPDATE portal_local_links SET category=?, name=?, emoji=?, url=?, is_active=? WHERE id=?').run(
+    b.category || 'attraction', b.name, b.emoji || '🔗', b.url || '', b.is_active ? 1 : 0, req.params.id
+  );
+  res.json({ success: true });
+});
+
+router.delete('/local-links/:id', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  db.prepare('DELETE FROM portal_local_links WHERE id=?').run(req.params.id);
+  res.json({ success: true });
+});
+
 // --- Portal Restaurants CRUD (admin only) ---
 router.get('/restaurants', (req, res) => {
   res.json(db.prepare('SELECT * FROM portal_restaurants ORDER BY display_order, id').all());

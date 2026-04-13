@@ -68,6 +68,11 @@ router.get('/admin-preview-tenants', (req, res) => {
   res.json(tenants);
 });
 
+// Public: local links for portal
+router.get('/local-links', (req, res) => {
+  res.json(db.prepare('SELECT id, category, name, emoji, url FROM portal_local_links WHERE is_active=1 ORDER BY category, display_order, id').all());
+});
+
 // Public: restaurants for portal
 router.get('/restaurants', (req, res) => {
   res.json(db.prepare('SELECT id, name, emoji, url FROM portal_restaurants WHERE is_active=1 ORDER BY display_order, id').all());

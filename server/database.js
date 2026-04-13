@@ -177,6 +177,30 @@ async function initializeDatabase() {
 
   addCol("ALTER TABLE tenants ADD COLUMN deposit_waived INTEGER DEFAULT 0");
 
+  // Portal local links
+  db.run(`CREATE TABLE IF NOT EXISTS portal_local_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT DEFAULT 'attraction',
+    name TEXT NOT NULL,
+    emoji TEXT DEFAULT '🔗',
+    url TEXT,
+    display_order INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1
+  )`);
+  var linkCount = 0;
+  try { linkCount = db.prepare('SELECT COUNT(*) as c FROM portal_local_links').get().c; } catch {}
+  if (linkCount === 0) {
+    var lins = db.prepare('INSERT INTO portal_local_links (category, name, emoji, url, display_order, is_active) VALUES (?,?,?,?,?,1)');
+    lins.run('attraction', 'City of Anahuac', '🏛️', 'https://anahuac.us/', 1);
+    lins.run('attraction', 'Tourism & Visiting', '🌿', 'https://anahuac.us/living-visiting/tourism/', 2);
+    lins.run('attraction', 'Wildlife Refuge', '🐊', 'https://www.fws.gov/refuge/anahuac', 3);
+    lins.run('attraction', 'Gatorfest Info', '🎪', 'https://anahuac.us/living-visiting/tourism/', 4);
+    lins.run('attraction', 'Fort Anahuac Park', '⚓', 'https://www.facebook.com/FortAnahuacPark', 5);
+    lins.run('fishing', 'TX Fishing Report', '🎣', 'https://tpwd.texas.gov/fishboat/fish/recreational/fishreport.phtml', 1);
+    lins.run('fishing', 'East Bay Report', '🐟', 'https://tpwd.texas.gov/fishboat/fish/action/reptform2.php?lake=TEXAS+CITY&archive=latest&yearcat=current&Submit=Go', 2);
+    lins.run('fishing', 'Tide Report', '🌊', 'https://tidesandcurrents.noaa.gov/noaatidepredictions.html?id=8771341&units=standard&timezone=LST/LDT&clock=12hour&datum=MLLW&interval=hilo&action=dailychart', 3);
+  }
+
   // Community board
   db.run(`CREATE TABLE IF NOT EXISTS community_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

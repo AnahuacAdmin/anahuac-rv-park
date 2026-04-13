@@ -133,6 +133,13 @@ async function loadAdmin() {
       <button class="btn btn-sm btn-primary" id="btn-add-restaurant">➕ Add Restaurant</button>
     </div>
 
+    <div class="card" style="border-left:4px solid #0284c7">
+      <h3>🔗 Portal Local Links</h3>
+      <p><small>Manage attraction, fishing, and community links shown on the tenant portal.</small></p>
+      <div id="admin-local-links-list" style="margin:0.75rem 0">Loading...</div>
+      <button class="btn btn-sm btn-primary" id="btn-add-local-link">➕ Add Link</button>
+    </div>
+
     <div class="card">
       <h3>Database Backup</h3>
       <p>Last backup: <strong id="last-backup-display">${lastBackup}</strong></p>
@@ -156,6 +163,12 @@ async function loadAdmin() {
   loadAlertHistory();
   loadOfflineAdminStatus();
   loadAdminRestaurants();
+  loadAdminLocalLinks();
+  // Wire add buttons
+  setTimeout(function() {
+    var llBtn = document.getElementById('btn-add-local-link');
+    if (llBtn) llBtn.addEventListener('click', showAddLocalLink);
+  }, 60);
   // Wire add restaurant button
   setTimeout(function() {
     var btn = document.getElementById('btn-add-restaurant');
@@ -493,4 +506,70 @@ async function deleteRestaurant(id, name) {
   if (!confirm('Delete "' + name + '" from portal?')) return;
   await API.del('/settings/restaurants/' + id);
   loadAdminRestaurants();
+}
+
+// --- Portal Local Links Admin ---
+var LINK_CATS = ['attraction', 'fishing', 'community'];
+
+async function loadAdminLocalLinks() {
+  var el = document.getElementById('admin-local-links-list');
+  if (!el) return;
+  try {
+    var list = await API.get('/settings/local-links');
+    if (!list || !list.length) { el.innerHTML = '<p style="font-size:0.82rem;color:#78716c">No links. Click Add to create one.</p>'; return; }
+    el.innerHTML = '<table style="width:100%;font-size:0.85rem"><thead><tr><th>Cat</th><th>Emoji</th><th>Name</th><th>Active</th><th>Actions</th></tr></thead><tbody>' +
+      list.map(function(l) {
+        return '<tr><td style="font-size:0.7rem">' + escapeHtml(l.category) + '</td><td>' + (l.emoji || '🔗') + '</td><td><strong>' + escapeHtml(l.name) + '</strong></td>' +
+          '<td>' + (l.is_active ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-gray">No</span>') + '</td>' +
+          '<td class="btn-group"><button class="btn btn-sm btn-outline" onclick="showEditLocalLink(' + l.id + ')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteLocalLink(' + l.id + ',\'' + escapeHtml(l.name).replace(/'/g, "\\'") + '\')">Del</button></td></tr>';
+      }).join('') + '</tbody></table>';
+  } catch { el.innerHTML = '<p style="color:#dc2626;font-size:0.82rem">Failed to load</p>'; }
+}
+
+function showAddLocalLink() {
+  showModal('➕ Add Local Link', localLinkFormHtml());
+  setTimeout(function() {
+    var form = document.getElementById('local-link-form');
+    if (form) form.addEventListener('submit', function(e) { saveLocalLink(e, null); });
+  }, 50);
+}
+
+async function showEditLocalLink(id) {
+  var list = await API.get('/settings/local-links');
+  var l = (list || []).find(function(x) { return x.id === id; });
+  if (!l) return;
+  showModal('Edit Link', localLinkFormHtml(l));
+  setTimeout(function() {
+    var form = document.getElementById('local-link-form');
+    if (form) form.addEventListener('submit', function(e) { saveLocalLink(e, id); });
+  }, 50);
+}
+
+function localLinkFormHtml(l) {
+  l = l || {};
+  return '<form id="local-link-form">' +
+    '<div class="form-row">' +
+      '<div class="form-group"><label>Category</label><select name="category">' + LINK_CATS.map(function(c) { return '<option value="' + c + '"' + (l.category === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>' +
+      '<div class="form-group"><label>Emoji</label><input name="emoji" value="' + escapeHtml(l.emoji || '🔗') + '" maxlength="4" style="font-size:1.5rem;text-align:center;width:60px"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Name</label><input name="name" value="' + escapeHtml(l.name || '') + '" required></div>' +
+    '<div class="form-group"><label>URL</label><input name="url" value="' + escapeHtml(l.url || '') + '" placeholder="https://..."></div>' +
+    '<label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem"><input type="checkbox" name="is_active" value="1" ' + (l.is_active !== 0 ? 'checked' : '') + '> Active</label>' +
+    '<button type="submit" class="btn btn-primary btn-full">' + (l.id ? 'Update' : 'Add') + ' Link</button></form>';
+}
+
+async function saveLocalLink(e, id) {
+  e.preventDefault();
+  var form = new FormData(e.target);
+  var data = { category: form.get('category'), name: form.get('name'), emoji: form.get('emoji'), url: form.get('url'), is_active: form.get('is_active') === '1' ? 1 : 0 };
+  if (id) await API.put('/settings/local-links/' + id, data);
+  else await API.post('/settings/local-links', data);
+  closeModal();
+  loadAdminLocalLinks();
+}
+
+async function deleteLocalLink(id, name) {
+  if (!confirm('Delete "' + name + '"?')) return;
+  await API.del('/settings/local-links/' + id);
+  loadAdminLocalLinks();
 }
