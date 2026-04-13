@@ -13,9 +13,11 @@ async function loadLotMgmt() {
   const [lots, settings] = await Promise.all([API.get('/lots'), API.get('/settings')]);
   if (!lots) return;
 
+  const defaultDaily = settings?.default_daily_rate || '30';
+  const defaultWeekly = settings?.default_weekly_rate || '150';
   const defaultStandard = settings?.default_rate_standard || '295';
   const defaultPremium = settings?.default_rate_premium || '350';
-  const defaultPullThrough = settings?.default_rate_pullthrough || '325';
+  const defaultPullThrough = settings?.default_rate_pullthrough || '375';
 
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('lotmgmt')}
@@ -57,11 +59,15 @@ async function loadLotMgmt() {
 
     <div class="card mt-2" style="border-left:4px solid var(--primary)">
       <h3>Default Rates by Lot Type</h3>
-      <p><small>These rates auto-fill when creating new lots.</small></p>
+      <p><small>These rates auto-fill on new lots and check-ins. Update here to change defaults park-wide.</small></p>
       <div class="form-row mt-1">
-        <div class="form-group"><label>Standard ($/mo)</label><input type="number" step="0.01" id="rate-standard" value="${defaultStandard}"></div>
-        <div class="form-group"><label>Premium ($/mo)</label><input type="number" step="0.01" id="rate-premium" value="${defaultPremium}"></div>
-        <div class="form-group"><label>Pull-Through ($/mo)</label><input type="number" step="0.01" id="rate-pullthrough" value="${defaultPullThrough}"></div>
+        <div class="form-group"><label>Daily Rate ($)</label><input type="number" step="0.01" id="rate-daily" value="${defaultDaily}"></div>
+        <div class="form-group"><label>Weekly Rate ($)</label><input type="number" step="0.01" id="rate-weekly" value="${defaultWeekly}"></div>
+      </div>
+      <div class="form-row mt-1">
+        <div class="form-group"><label>Standard — Gravel/Grass Sites ($/mo)</label><input type="number" step="0.01" id="rate-standard" value="${defaultStandard}"></div>
+        <div class="form-group"><label>Concrete Pad Sites ($/mo)</label><input type="number" step="0.01" id="rate-premium" value="${defaultPremium}"></div>
+        <div class="form-group"><label>Premium/Special — Near Pond, Laundry ($/mo)</label><input type="number" step="0.01" id="rate-pullthrough" value="${defaultPullThrough}"></div>
       </div>
       <button class="btn btn-primary mt-1" onclick="saveDefaultRates()">Save Default Rates</button>
     </div>
@@ -82,9 +88,9 @@ function lotForm(lot = {}) {
         <div class="form-group">
           <label>Lot Type</label>
           <select name="lot_type" onchange="lotTypeChanged(this)">
-            <option value="standard" ${(lot.lot_type||'standard')==='standard'?'selected':''}>Standard</option>
-            <option value="premium" ${lot.lot_type==='premium'?'selected':''}>Premium</option>
-            <option value="pull-through" ${lot.lot_type==='pull-through'?'selected':''}>Pull-Through</option>
+            <option value="standard" ${(lot.lot_type||'standard')==='standard'?'selected':''}>Standard — Gravel/Grass ($295)</option>
+            <option value="premium" ${lot.lot_type==='premium'?'selected':''}>Concrete Pad ($350)</option>
+            <option value="pull-through" ${lot.lot_type==='pull-through'?'selected':''}>Premium/Special ($375)</option>
             <option value="owner_reserved" ${lot.lot_type==='owner_reserved'?'selected':''}>Owner Reserved</option>
           </select>
         </div>
@@ -213,16 +219,18 @@ async function activateLot(id) {
 function lotTypeChanged(sel) {
   const rateInput = document.getElementById('lot-default-rate');
   if (!rateInput) return;
-  const rates = { standard: '295', premium: '350', 'pull-through': '325', owner_reserved: '0' };
+  const rates = { standard: '295', premium: '350', 'pull-through': '375', owner_reserved: '0' };
   rateInput.value = rates[sel.value] || '295';
 }
 
 async function saveDefaultRates() {
   try {
     await API.put('/settings', {
+      default_daily_rate: document.getElementById('rate-daily')?.value || '30',
+      default_weekly_rate: document.getElementById('rate-weekly')?.value || '150',
       default_rate_standard: document.getElementById('rate-standard')?.value || '295',
       default_rate_premium: document.getElementById('rate-premium')?.value || '350',
-      default_rate_pullthrough: document.getElementById('rate-pullthrough')?.value || '325',
+      default_rate_pullthrough: document.getElementById('rate-pullthrough')?.value || '375',
     });
     showStatusToast('\u2705', 'Default rates saved!');
   } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
