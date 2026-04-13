@@ -1427,6 +1427,9 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
   transform: scale(1.08);
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
+/* Dual photo lightbox */
+.meter-dual-photos { display: flex; gap: 1rem; }
+@media (max-width: 600px) { .meter-dual-photos { flex-direction: column; } }
 
 /* === CALCULATOR === */
 .calc-btn {

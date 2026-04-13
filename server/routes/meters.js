@@ -76,6 +76,12 @@ router.get('/latest', (req, res) => {
       reading = db.prepare('SELECT * FROM meter_readings WHERE lot_id = ? ORDER BY id DESC LIMIT 1').get(lot.id);
     }
 
+    // Find previous month's reading (second most recent)
+    var prevReading = null;
+    if (reading && tenant) {
+      prevReading = db.prepare('SELECT id, reading_date, previous_reading, current_reading, kwh_used, electric_charge, photo FROM meter_readings WHERE lot_id = ? AND tenant_id = ? AND id < ? ORDER BY id DESC LIMIT 1').get(lot.id, tenant.id, reading.id);
+    }
+
     results.push({
       id: reading?.id || 0,
       lot_id: lot.id,
@@ -91,6 +97,11 @@ router.get('/latest', (req, res) => {
       rate_per_kwh: reading?.rate_per_kwh || 0.15,
       electric_charge: reading?.electric_charge || 0,
       photo: reading?.photo || null,
+      prev_id: prevReading?.id || null,
+      prev_date: prevReading?.reading_date || null,
+      prev_photo: prevReading?.photo || null,
+      prev_kwh: prevReading?.kwh_used || null,
+      prev_charge: prevReading?.electric_charge || null,
     });
   }
 
