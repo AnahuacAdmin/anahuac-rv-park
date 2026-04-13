@@ -58,6 +58,7 @@ async function loadSiteMap() {
             </div>
             ${_isAdmin && lot.payment_flag ? `<div class="lot-balance">Bal: ${formatMoney(lot.balance_due)}</div>` : ''}
             ${lot.size_restriction ? `<div style="font-size:0.65rem;color:var(--warning);margin-top:2px">${lot.size_restriction}</div>` : ''}
+            ${lot.flat_rate ? '<div style="font-size:0.65rem;color:#16a34a;margin-top:2px;font-weight:600">FLAT RATE</div>' : ''}
           </div>
         `;}).join('')}
       </div>

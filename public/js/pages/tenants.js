@@ -35,7 +35,7 @@ async function loadTenants() {
                 <td><strong>${t.lot_id}</strong></td>
                 <td>${t.first_name} ${t.last_name}${t.credit_balance > 0 ? ` <span class="badge badge-success" title="Account credit">Credit: ${formatMoney(t.credit_balance)}</span>` : ''}</td>
                 <td>${formatMoney(t.monthly_rent)}</td>
-                <td><span class="badge badge-${t.rent_type === 'daily' ? 'info' : t.rent_type === 'weekly' ? 'info' : t.rent_type === 'premium' ? 'warning' : t.rent_type === 'electric_only' ? 'info' : 'gray'}">${t.rent_type}</span></td>
+                <td><span class="badge badge-${t.rent_type === 'daily' ? 'info' : t.rent_type === 'weekly' ? 'info' : t.rent_type === 'premium' ? 'warning' : t.rent_type === 'electric_only' ? 'info' : 'gray'}">${t.rent_type}</span>${t.flat_rate ? '<span class="badge badge-success" style="margin-left:4px">FLAT</span>' : ''}</td>
                 <td>${recurringSummary(t)}</td>
                 <td>${formatDate(t.move_in_date)}</td>
                 <td class="btn-group">
@@ -137,6 +137,22 @@ function tenantForm(lots, tenant = {}) {
         </div>
       ` : ''}
 
+      <fieldset style="border:1px solid #16a34a;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
+        <legend><strong style="color:#16a34a">Flat Rate Billing</strong></legend>
+        <p><small>When enabled, one fixed monthly amount covers rent + electric + all fees. No separate electric charge.</small></p>
+        <div class="form-row mt-1">
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:0.5rem">
+              <input type="checkbox" name="flat_rate" value="1" ${tenant.flat_rate ? 'checked' : ''} onchange="toggleFlatRate(this)"> Enable Flat Rate
+            </label>
+          </div>
+          <div class="form-group" id="flat-rate-amount-group" style="${tenant.flat_rate ? '' : 'display:none'}">
+            <label>Flat Rate Amount ($/month)</label>
+            <input name="flat_rate_amount" type="number" step="0.01" value="${tenant.flat_rate_amount || 0}">
+          </div>
+        </div>
+      </fieldset>
+
       <fieldset style="border:1px solid #ddd;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
         <legend><strong>Recurring Monthly Fees</strong></legend>
         <p><small>Automatically applied each time monthly invoices are generated.</small></p>
@@ -194,6 +210,8 @@ async function saveTenant(e, id) {
   data.email_opt_in = data.email_opt_in === '1' ? 1 : 0;
   data.invoice_delivery = data.invoice_delivery || 'both';
   data.deposit_amount = parseFloat(data.deposit_amount) || 0;
+  data.flat_rate = data.flat_rate === '1' ? 1 : 0;
+  data.flat_rate_amount = parseFloat(data.flat_rate_amount) || 0;
 
   if (id) {
     await API.put(`/tenants/${id}`, data);
@@ -354,6 +372,11 @@ async function showRecurringFeesSummary() {
   ` : `<p>No tenants have recurring fees configured. Open any tenant's <em>Edit</em> form and use the <strong>Recurring Monthly Fees</strong> section to add some.</p>`;
 
   showModal('Recurring Fees Summary', body);
+}
+
+function toggleFlatRate(cb) {
+  const group = document.getElementById('flat-rate-amount-group');
+  if (group) group.style.display = cb.checked ? '' : 'none';
 }
 
 async function removeTenant(id, name) {
