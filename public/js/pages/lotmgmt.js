@@ -22,6 +22,7 @@ async function loadLotMgmt() {
     <div class="page-header">
       <h2>Lot Management</h2>
       <button class="btn btn-primary" onclick="showAddLot()">+ Add New Lot</button>
+      <button class="btn btn-outline" onclick="printAllQRCodes()">🔲 Print All QR Codes</button>
     </div>
     <div class="card">
       <div class="table-container">
@@ -286,4 +287,26 @@ async function toggleShortTerm(lotId) {
     await API.put('/lots/' + lotId + '/short-term', {});
     loadLotMgmt();
   } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
+}
+
+async function printAllQRCodes() {
+  var lots = await API.get('/lots');
+  var active = (lots || []).filter(function(l) { return l.is_active !== 0; });
+  var baseUrl = window.location.origin;
+  var w = window.open('', '_blank', 'width=800,height=1000');
+  if (!w) { alert('Popup blocked'); return; }
+  w.document.write('<!DOCTYPE html><html><head><title>QR Codes - All Lots</title>' +
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>' +
+    '<style>body{font-family:sans-serif;padding:1rem}h1{text-align:center;color:#1a5c32}.lot-qr{display:inline-block;text-align:center;padding:1rem;margin:0.5rem;border:1px solid #ddd;border-radius:8px;width:200px}' +
+    '.lot-qr h3{margin:0 0 0.5rem;color:#1a5c32}.lot-qr p{margin:0.25rem 0;font-size:0.8rem;color:#666}@media print{.no-print{display:none}}</style></head><body>' +
+    '<h1>Anahuac RV Park — Lot QR Codes</h1><p style="text-align:center;color:#666">Scan to inquire about a lot</p><hr>' +
+    '<button class="no-print" onclick="window.print()" style="display:block;margin:1rem auto;padding:0.5rem 2rem;font-size:1rem">🖨️ Print</button>' +
+    active.map(function(l) {
+      return '<div class="lot-qr"><h3>Lot ' + l.id + '</h3><div id="qr-' + l.id + '"></div><p>' + (l.lot_type || 'standard') + '</p><p>' + l.width + 'x' + l.length + ' ft</p></div>';
+    }).join('') +
+    '<script>' + active.map(function(l) {
+      var url = baseUrl + '/portal.html?lot=' + encodeURIComponent(l.id);
+      return 'new QRCode(document.getElementById("qr-' + l.id + '"),{text:"' + url + '",width:150,height:150,colorDark:"#1a5c32"});';
+    }).join('') + '<\/script></body></html>');
+  w.document.close();
 }

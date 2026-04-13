@@ -158,6 +158,18 @@ async function showCheckIn() {
         </div>
       </fieldset>
 
+      <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+        <legend><strong>📄 Documents (optional)</strong></legend>
+        <p style="font-size:0.78rem;color:var(--gray-500);margin-bottom:0.5rem">Scan or upload tenant documents. Can also be added later from the Documents page.</p>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <label class="btn btn-sm btn-outline" style="cursor:pointer"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_id_file"> 📷 Photo ID</label>
+          <label class="btn btn-sm btn-outline" style="cursor:pointer"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_vehicle_file"> 📷 Vehicle Reg</label>
+          <label class="btn btn-sm btn-outline" style="cursor:pointer"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_insurance_file"> 📷 Insurance</label>
+          <label class="btn btn-sm btn-outline" style="cursor:pointer"><input type="file" accept="image/*,.pdf" style="display:none" name="doc_other_file"> 📁 Upload File</label>
+        </div>
+        <div id="checkin-doc-previews" style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap"></div>
+      </fieldset>
+
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
       <button type="submit" class="btn btn-success btn-full mt-2">Check In</button>
       <p id="checkin-error" class="error-text" style="display:none"></p>
@@ -187,7 +199,45 @@ async function showCheckIn() {
         if (this.checked) depAmt.value = '0';
       });
     }
+    // Document scan previews
+    var previewsEl = document.getElementById('checkin-doc-previews');
+    document.querySelectorAll('[name^="doc_"][type="file"]').forEach(function(input) {
+      input.addEventListener('change', function() {
+        if (!this.files[0] || !previewsEl) return;
+        var label = this.name.replace('doc_', '').replace('_file', '');
+        var div = document.createElement('div');
+        div.style.cssText = 'text-align:center;font-size:0.7rem;color:#16a34a';
+        div.innerHTML = '✅ ' + label;
+        previewsEl.appendChild(div);
+      });
+    });
   }, 50);
+}
+
+// Upload documents after check-in
+async function uploadCheckinDocs(tenantId, lotId) {
+  var docTypes = { doc_id_file: 'id', doc_vehicle_file: 'vehicle', doc_insurance_file: 'insurance', doc_other_file: 'other' };
+  var docNames = { id: 'Photo ID', vehicle: 'Vehicle Registration', insurance: 'RV Insurance', other: 'Other Document' };
+  for (var name in docTypes) {
+    var input = document.querySelector('[name="' + name + '"]');
+    if (!input || !input.files || !input.files[0]) continue;
+    try {
+      var file = input.files[0];
+      var base64 = await new Promise(function(resolve) {
+        var reader = new FileReader();
+        reader.onload = function() { resolve(reader.result.split(',')[1]); };
+        reader.readAsDataURL(file);
+      });
+      await API.post('/documents', {
+        tenant_id: tenantId,
+        lot_id: lotId,
+        doc_type: docTypes[name],
+        doc_name: docNames[docTypes[name]] + ' - ' + new Date().toISOString().split('T')[0],
+        file_data: base64,
+        file_type: file.type,
+      });
+    } catch (e) { console.error('Doc upload failed:', name, e); }
+  }
 }
 
 function updateRateLabel(sel) {
@@ -261,6 +311,8 @@ async function processCheckIn(e) {
       flat_rate_amount: parseFloat(data.flat_rate_amount) || 0,
     });
     if (!tenant?.id) throw new Error('Tenant was not created — no ID returned');
+    // Upload scanned documents if any
+    uploadCheckinDocs(tenant.id, data.lot_id);
   } catch (err) {
     const msg = err.message || 'Failed to create tenant';
     if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }

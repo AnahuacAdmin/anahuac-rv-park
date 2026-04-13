@@ -23,7 +23,7 @@ const ALLOWED_SETTINGS = new Set([
   'manager_phone', 'manager_email', 'auto_eviction_sms', 'auto_eviction_email',
   'reservation_nightly_rate', 'default_monthly_rate', 'default_daily_rate', 'default_weekly_rate',
   'default_rate_standard', 'default_rate_premium', 'default_rate_pullthrough',
-  'default_flat_rate',
+  'default_flat_rate', 'loyalty_6mo', 'loyalty_12mo', 'loyalty_24mo',
   'alert_phone_numbers', 'downtime_alerts_enabled',
 ]);
 

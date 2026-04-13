@@ -233,7 +233,13 @@ async function loadDashboard() {
       </div>
     </div>` : ''}
 
-    <div class="card dash-fade-in" style="animation-delay:0.85s">
+    ${isAdmin() ? `
+    <div class="card dash-fade-in" style="animation-delay:0.86s">
+      <h3>🏥 Park Health Score</h3>
+      <div id="dash-health-score" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+    </div>` : ''}
+
+    <div class="card dash-fade-in" style="animation-delay:0.88s">
       <button id="calc-toggle-btn" style="width:100%;background:none;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:0">
         <h3 style="margin:0">🧮 Quick Calculator</h3>
         <span id="calc-toggle-icon" style="color:var(--gray-400);font-size:0.8rem">tap to expand ▼</span>
@@ -307,6 +313,7 @@ async function loadDashboard() {
     loadDashDeposits();
     loadDashMaintenance();
     loadDashExpenses();
+    loadDashHealthScore();
   }
 
   // Init calculator
@@ -325,6 +332,22 @@ async function loadDashDeposits() {
       '<span>💰 <strong>' + paid + '</strong> paid</span>' +
       '<span>🚫 <strong>' + waived + '</strong> waived</span>' +
       '<span style="color:#d97706">⚠️ <strong>' + none + '</strong> not recorded</span>' +
+    '</div>';
+  } catch { el.innerHTML = ''; }
+}
+
+async function loadDashHealthScore() {
+  var el = document.getElementById('dash-health-score');
+  if (!el) return;
+  try {
+    var data = await API.get('/tenants/scores');
+    var avg = data?.averageScore || 0;
+    var emoji = avg >= 80 ? '🟢' : avg >= 60 ? '🟡' : avg >= 40 ? '🟠' : '🔴';
+    var atRisk = (data?.tenants || []).filter(function(t) { return t.score < 40; }).length;
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:0.75rem">' +
+      '<span style="font-size:1.5rem;font-weight:800;color:' + (avg >= 80 ? '#16a34a' : avg >= 60 ? '#f59e0b' : '#dc2626') + '">' + avg + '</span>' +
+      '<span>' + emoji + ' Average</span>' +
+      (atRisk > 0 ? '<span style="color:#dc2626">🔴 ' + atRisk + ' at risk</span>' : '') +
     '</div>';
   } catch { el.innerHTML = ''; }
 }

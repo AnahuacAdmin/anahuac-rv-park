@@ -177,6 +177,12 @@ async function initializeDatabase() {
 
   addCol("ALTER TABLE tenants ADD COLUMN deposit_waived INTEGER DEFAULT 0");
 
+  // Tenant loyalty and document expiry
+  addCol("ALTER TABLE tenants ADD COLUMN loyalty_exclude INTEGER DEFAULT 0");
+  addCol("ALTER TABLE tenants ADD COLUMN insurance_expiry DATE");
+  addCol("ALTER TABLE tenants ADD COLUMN registration_expiry DATE");
+  addCol("ALTER TABLE tenants ADD COLUMN grace_period_override INTEGER");
+
   // Tenant documents
   db.run(`CREATE TABLE IF NOT EXISTS tenant_documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

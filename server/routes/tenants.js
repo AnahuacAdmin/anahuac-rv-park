@@ -227,6 +227,21 @@ router.delete('/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// Tenant health scores and loyalty
+router.get('/scores', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var { calculateHealthScore, getScoreLabel, calculateLoyaltyDiscount } = require('./tenant-score');
+  var tenants = db.prepare('SELECT id, first_name, last_name, lot_id FROM tenants WHERE is_active=1').all();
+  var results = tenants.map(function(t) {
+    var score = calculateHealthScore(t.id);
+    var sl = getScoreLabel(score);
+    var loyalty = calculateLoyaltyDiscount(t.id);
+    return { id: t.id, first_name: t.first_name, last_name: t.last_name, lot_id: t.lot_id, score: score, scoreLabel: sl.label, scoreEmoji: sl.emoji, loyaltyMonths: loyalty.months, loyaltyPercent: loyalty.percent };
+  });
+  var avg = results.length ? Math.round(results.reduce(function(s, r) { return s + r.score; }, 0) / results.length) : 0;
+  res.json({ tenants: results, averageScore: avg });
+});
+
 // Bulk flat rate operations
 router.post('/bulk-flat-rate', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
