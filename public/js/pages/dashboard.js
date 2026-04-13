@@ -73,6 +73,7 @@ async function loadDashboard() {
 
     <div class="page-header dash-fade-in" style="animation-delay:0.05s">
       <h2>${getTimeGreeting()}, ${API.user?.username || 'Admin'}!</h2>
+      ${isAdmin() ? '<button class="btn btn-danger" style="font-size:0.85rem" onclick="showEmergencyBroadcast()">🚨 Emergency Alert</button>' : ''}
     </div>
 
     <!-- Stats -->
@@ -217,9 +218,19 @@ async function loadDashboard() {
     </div>` : ''}
 
     ${isAdmin() ? `
-    <div class="card dash-fade-in" style="animation-delay:0.8s">
-      <h3>💰 Deposit Summary</h3>
-      <div id="dash-deposits" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;width:100%;max-width:100%">
+      <div class="card dash-fade-in" style="flex:1;min-width:200px;animation-delay:0.8s">
+        <h3>💰 Deposit Summary</h3>
+        <div id="dash-deposits" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+      </div>
+      <div class="card dash-fade-in" style="flex:1;min-width:200px;animation-delay:0.82s">
+        <h3>🔧 Maintenance</h3>
+        <div id="dash-maintenance" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+      </div>
+      <div class="card dash-fade-in" style="flex:1;min-width:200px;animation-delay:0.84s">
+        <h3>💸 Expenses</h3>
+        <div id="dash-expenses" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+      </div>
     </div>` : ''}
 
     <div class="card dash-fade-in" style="animation-delay:0.85s">
@@ -291,9 +302,11 @@ async function loadDashboard() {
     refreshHealth();
     clearInterval(window._healthInterval);
     window._healthInterval = setInterval(refreshHealth, 5 * 60 * 1000);
-    // Load quick contacts and deposit summary
+    // Load dashboard widgets
     loadDashVendors();
     loadDashDeposits();
+    loadDashMaintenance();
+    loadDashExpenses();
   }
 
   // Init calculator
@@ -314,6 +327,69 @@ async function loadDashDeposits() {
       '<span style="color:#d97706">⚠️ <strong>' + none + '</strong> not recorded</span>' +
     '</div>';
   } catch { el.innerHTML = ''; }
+}
+
+async function loadDashMaintenance() {
+  var el = document.getElementById('dash-maintenance');
+  if (!el) return;
+  try {
+    var reqs = await API.get('/maintenance');
+    var open = (reqs || []).filter(function(r) { return r.status !== 'resolved'; }).length;
+    el.innerHTML = '<span>' + (open > 0 ? '⚠️' : '✅') + ' <strong>' + open + '</strong> open requests</span>' +
+      ' <a href="#" onclick="event.preventDefault();navigateTo(\'maintenance\')" style="font-size:0.78rem;color:var(--brand-primary)">View →</a>';
+  } catch { el.innerHTML = ''; }
+}
+
+async function loadDashExpenses() {
+  var el = document.getElementById('dash-expenses');
+  if (!el) return;
+  try {
+    var summary = await API.get('/expenses/summary');
+    el.innerHTML = '<span>This month: <strong>' + formatMoney(summary?.total || 0) + '</strong></span>' +
+      ' <a href="#" onclick="event.preventDefault();navigateTo(\'expenses\')" style="font-size:0.78rem;color:var(--brand-primary)">View →</a>';
+  } catch { el.innerHTML = ''; }
+}
+
+function showEmergencyBroadcast() {
+  var templates = [
+    { icon: '🌀', label: 'Hurricane Warning', msg: 'HURRICANE WARNING: Please secure your RV immediately and move inside. Contact management at 409-267-6603.' },
+    { icon: '🔥', label: 'Fire Alert', msg: 'FIRE ALERT: Please evacuate immediately. Call 911. Meet at the front office.' },
+    { icon: '💧', label: 'Water Shutoff', msg: 'WATER SHUTOFF: Water will be off today for maintenance. We apologize for the inconvenience.' },
+    { icon: '⚡', label: 'Power Outage', msg: 'POWER OUTAGE: We are aware of the outage and working to restore power. Updates coming.' },
+    { icon: '🌊', label: 'Flood Warning', msg: 'FLOOD WARNING: Please move vehicles to higher ground immediately. Contact 409-267-6603.' },
+  ];
+  showModal('🚨 Emergency Alert', '<div style="background:#fee2e2;border:2px solid #dc2626;border-radius:8px;padding:0.75rem;margin-bottom:1rem;color:#991b1b;font-weight:600">⚠️ This will send an SMS to ALL tenants with phone numbers. This cannot be undone.</div>' +
+    '<div class="form-group"><label>Select Template</label><select id="emergency-template" style="font-size:1rem">' +
+      templates.map(function(t, i) { return '<option value="' + i + '">' + t.icon + ' ' + t.label + '</option>'; }).join('') +
+      '<option value="custom">✏️ Custom Message</option></select></div>' +
+    '<div class="form-group"><label>Message</label><textarea id="emergency-msg" rows="4" style="font-size:1rem">' + escapeHtml(templates[0].msg) + '</textarea></div>' +
+    '<button class="btn btn-danger btn-full" id="btn-send-emergency" style="font-size:1.1rem;padding:1rem">🚨 SEND TO ALL TENANTS NOW</button>');
+  setTimeout(function() {
+    var sel = document.getElementById('emergency-template');
+    var msg = document.getElementById('emergency-msg');
+    if (sel) sel.addEventListener('change', function() {
+      var idx = parseInt(this.value);
+      if (!isNaN(idx) && templates[idx]) msg.value = templates[idx].msg;
+      else msg.value = '';
+    });
+    var btn = document.getElementById('btn-send-emergency');
+    if (btn) btn.addEventListener('click', async function() {
+      if (!confirm('CONFIRM: Send this emergency alert to ALL tenants?')) return;
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      try {
+        var r = await API.post('/messages/broadcast-advanced', {
+          message_type: 'Emergency',
+          recipients: 'all',
+          delivery: 'sms',
+          subject: 'Emergency Alert',
+          message: msg.value,
+        });
+        closeModal();
+        showStatusToast('🚨', 'Emergency alert sent to ' + (r.smsSent || 0) + ' tenants');
+      } catch (err) { alert('Failed: ' + (err.message || 'unknown')); btn.disabled = false; btn.textContent = '🚨 SEND TO ALL TENANTS NOW'; }
+    });
+  }, 50);
 }
 
 async function loadDashVendors() {

@@ -189,6 +189,43 @@ async function initializeDatabase() {
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Maintenance requests
+  db.run(`CREATE TABLE IF NOT EXISTS maintenance_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER REFERENCES tenants(id),
+    lot_id TEXT,
+    category TEXT DEFAULT 'Other',
+    description TEXT,
+    photo TEXT,
+    status TEXT DEFAULT 'submitted',
+    resolution_notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME
+  )`);
+
+  // Expenses
+  db.run(`CREATE TABLE IF NOT EXISTS expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    expense_date DATE NOT NULL,
+    category TEXT DEFAULT 'Other',
+    description TEXT,
+    amount REAL DEFAULT 0,
+    receipt_photo TEXT,
+    vendor TEXT,
+    paid_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Community announcements
+  db.run(`CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    message TEXT,
+    is_pinned INTEGER DEFAULT 0,
+    expires_at DATE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   // Short term lot flag
   addCol("ALTER TABLE lots ADD COLUMN short_term_only INTEGER DEFAULT 0");
   // Seed defaults: C1, C2, D1, D2 as short term

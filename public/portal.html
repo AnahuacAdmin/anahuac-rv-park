@@ -292,6 +292,19 @@
     <div id="gator-fact" style="font-size:0.92rem;line-height:1.5"></div>
   </div>
 
+  <!-- Report a Problem -->
+  <div class="card">
+    <div class="card-title">🔧 Report a Problem</div>
+    <div id="maint-status"></div>
+    <form id="maint-form">
+      <div class="form-group"><label>Category</label>
+        <select name="category" style="font-size:1rem"><option>Electrical</option><option>Plumbing</option><option>Water</option><option>Sewer</option><option>Pest</option><option>Parking</option><option>Other</option></select>
+      </div>
+      <div class="form-group"><label>Describe the Problem</label><textarea name="description" required placeholder="Tell us what's wrong..." style="min-height:60px"></textarea></div>
+      <button type="submit" class="btn btn-green">Submit Request</button>
+    </form>
+  </div>
+
   <!-- Contact Management -->
   <div class="card">
     <div class="card-title">💬 Message Management</div>
@@ -500,6 +513,22 @@ document.getElementById('pin-setup-form').addEventListener('submit', async (e) =
     sessionStorage.setItem('portal_tenant', JSON.stringify(r.tenant));
     showPortal();
   } catch (err) { errEl.textContent = err.message; errEl.classList.remove('hidden'); }
+});
+
+document.getElementById('maint-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  var statusEl = document.getElementById('maint-status');
+  var form = new FormData(e.target);
+  try {
+    await fetch('/api/maintenance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _portalToken },
+      body: JSON.stringify({ tenant_id: _portalTenant?.id, lot_id: _portalTenant?.lot_id, category: form.get('category'), description: form.get('description') }),
+    });
+    statusEl.innerHTML = '<div class="msg-success">Request submitted! Management has been notified. 🔧</div>';
+    e.target.reset();
+    setTimeout(function() { statusEl.innerHTML = ''; }, 5000);
+  } catch (err) { statusEl.innerHTML = '<div class="msg-error">' + (err.message || 'Failed') + '</div>'; }
 });
 
 document.getElementById('msg-form').addEventListener('submit', async (e) => {
@@ -860,14 +889,18 @@ async function loadPortalRestaurants() {
 
 async function loadAnnouncements() {
   try {
-    const data = await portalFetch('/me');
-    const msgs = (data?.announcements || []).slice(0, 5);
-    if (!msgs.length) return;
-    const card = document.getElementById('announcements-card');
+    // Fetch from announcements API (public endpoint)
+    var r = await fetch('/api/announcements/public');
+    var announcements = await r.json();
+    if (!announcements || !announcements.length) return;
+    var card = document.getElementById('announcements-card');
     card.style.display = '';
-    document.getElementById('announcements-list').innerHTML = msgs.map(m =>
-      `<div class="announcement"><div>${m.body || m.subject || '(no content)'}</div><div class="announcement-date">${m.sent_date || ''}</div></div>`
-    ).join('');
+    document.getElementById('announcements-list').innerHTML = announcements.map(function(a) {
+      return '<div class="announcement">' + (a.is_pinned ? '<span style="color:#f59e0b;font-size:0.7rem">📌 PINNED</span> ' : '') +
+        '<div><strong>' + (a.title || '') + '</strong></div>' +
+        '<div style="font-size:0.85rem">' + (a.message || '') + '</div>' +
+        '<div class="announcement-date">' + (a.created_at || '') + '</div></div>';
+    }).join('');
   } catch {}
 }
 
