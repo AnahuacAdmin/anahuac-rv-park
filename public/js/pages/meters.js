@@ -21,18 +21,20 @@ async function loadMeters() {
     <div class="card scrollable-table-card">
       <div class="table-container">
         <table>
-          <thead><tr><th>Lot</th><th>Tenant</th><th>Photo</th><th>Date</th><th>Previous</th><th>Current</th><th>kWh Used</th><th>Rate</th><th>Charge</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Lot</th><th>Tenant</th><th>Date</th><th>Previous</th><th>Current</th><th>Photo</th><th>kWh Used</th><th>Rate</th><th>Charge</th><th>Actions</th></tr></thead>
           <tbody>
-            ${readings.map(r => `
+            ${readings.map(r => {
+              var photoCell = r.photo
+                ? '<img src="/api/meters/' + r.id + '/photo" class="meter-thumb" onclick="showMeterPhotoLightbox(' + r.id + ',\'' + escapeHtml(r.lot_id) + '\',\'' + escapeHtml(r.first_name + ' ' + r.last_name) + '\',\'' + (r.reading_date || '') + '\',' + r.previous_reading + ',' + r.current_reading + ',' + r.kwh_used + ',' + r.electric_charge + ')" onerror="this.outerHTML=\'<span style=color:#a8a29e;font-size:0.7rem>📷</span>\'">'
+                : '<label style="cursor:pointer;display:inline-flex;align-items:center;gap:2px;font-size:0.7rem;color:#a8a29e" title="Take photo"><input type="file" accept="image/*" capture="environment" style="display:none" onchange="autoUploadPhoto(this,' + r.id + ',\'' + escapeHtml(r.lot_id) + '\')">📷+</label>';
+              return `
               <tr data-meter-id="${r.id}" data-prev="${r.previous_reading}" data-rate="${r.rate_per_kwh}">
                 <td><strong>${r.lot_id}</strong></td>
                 <td>${r.first_name} ${r.last_name}</td>
-                <td>${r.photo
-                  ? '<img src="/api/meters/' + r.id + '/photo" class="meter-thumb" onclick="showMeterPhotoLightbox(' + r.id + ',\'' + escapeHtml(r.lot_id) + '\',\'' + escapeHtml(r.first_name + ' ' + r.last_name) + '\',\'' + (r.reading_date || '') + '\',' + r.previous_reading + ',' + r.current_reading + ',' + r.kwh_used + ',' + r.electric_charge + ')" onerror="this.outerHTML=\'<span style=color:#a8a29e;font-size:0.75rem>📷 No photo</span>\'">'
-                  : '<span style="color:#a8a29e;font-size:0.75rem">📷</span>'}</td>
                 <td class="editable-cell" data-id="${r.id}" data-field="reading_date" data-type="date" data-value="${r.reading_date || ''}"><span class="editable-display">${formatDate(r.reading_date)}</span><span class="edit-pencil">&#9998;</span></td>
                 <td>${r.previous_reading.toLocaleString()}</td>
                 <td class="editable-cell" data-id="${r.id}" data-field="current_reading" data-type="number" data-value="${r.current_reading}"><span class="editable-display">${r.current_reading.toLocaleString()}</span><span class="edit-pencil">&#9998;</span></td>
+                <td id="photo-cell-${r.id}">${photoCell}</td>
                 <td class="meter-kwh"><strong>${r.kwh_used.toLocaleString()}</strong></td>
                 <td>${formatMoney(r.rate_per_kwh)}</td>
                 <td class="meter-charge"><strong>${formatMoney(r.electric_charge)}</strong></td>
@@ -40,8 +42,8 @@ async function loadMeters() {
                   <button class="btn btn-sm btn-success" onclick="showQuickUpdate(${r.id}, '${r.lot_id}', '${r.first_name} ${r.last_name}', ${r.current_reading}, ${r.tenant_id})">Update</button>
                   <button class="btn btn-sm btn-outline" onclick="showEditReading(${r.id}, '${r.lot_id}', ${r.previous_reading}, ${r.current_reading}, '${r.reading_date}')">Edit</button>
                 </td>
-              </tr>
-            `).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -367,6 +369,40 @@ function showMeterPhotoLightbox(id, lotId, tenantName, date, prev, curr, kwh, ch
       '<div><strong>kWh Used:</strong> ' + Number(kwh).toLocaleString() + '</div>' +
       '<div><strong>Charge:</strong> ' + formatMoney(charge) + '</div>' +
     '</div></div>');
+}
+
+// Instant photo upload from table or mobile
+async function autoUploadPhoto(input, readingId, lotId) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var cell = document.getElementById('photo-cell-' + readingId);
+  if (cell) cell.innerHTML = '<span style="font-size:0.75rem;color:#f59e0b">⏳ Uploading...</span>';
+
+  // Compress and convert to base64
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var scale = Math.min(1, 1024 / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      var base64 = dataUrl.split(',')[1] || '';
+
+      // Upload via existing meter update endpoint
+      API.put('/meters/' + readingId, { photo: base64 }).then(function() {
+        if (cell) cell.innerHTML = '<img src="/api/meters/' + readingId + '/photo?t=' + Date.now() + '" class="meter-thumb" onclick="showMeterPhotoLightbox(' + readingId + ',\'' + escapeHtml(lotId) + '\',\'\',\'\',0,0,0,0)">';
+        showStatusToast('✅', lotId + ' photo saved');
+      }).catch(function(err) {
+        if (cell) cell.innerHTML = '<span style="font-size:0.75rem;color:#dc2626">❌ Failed</span>';
+        console.error('Photo upload failed:', err);
+      });
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 async function deleteReading(id) {

@@ -132,6 +132,14 @@ router.post('/', (req, res) => {
 
 router.put('/:id', (req, res) => {
   const { previous_reading, current_reading, reading_date, photo } = req.body;
+
+  // Photo-only update (no reading data)
+  if (photo !== undefined && previous_reading === undefined && current_reading === undefined) {
+    const photoFile = savePhoto(req.params.id, photo);
+    db.prepare('UPDATE meter_readings SET photo = ? WHERE id = ?').run(photoFile, req.params.id);
+    return res.json({ success: true });
+  }
+
   const rate = db.prepare("SELECT value FROM settings WHERE key = 'electric_rate'").get();
   const ratePerKwh = parseFloat(rate?.value || 0.15);
   const kwh = current_reading - previous_reading;
