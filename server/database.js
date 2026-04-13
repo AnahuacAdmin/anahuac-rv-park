@@ -175,6 +175,8 @@ async function initializeDatabase() {
     ins.run('Find More Food', '🔍', 'https://www.google.com/maps/search/restaurants+near+Anahuac+TX+77514', 4);
   }
 
+  addCol("ALTER TABLE tenants ADD COLUMN deposit_waived INTEGER DEFAULT 0");
+
   // Short term lot flag
   addCol("ALTER TABLE lots ADD COLUMN short_term_only INTEGER DEFAULT 0");
   // Seed defaults: C1, C2, D1, D2 as short term

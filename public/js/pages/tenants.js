@@ -35,7 +35,7 @@ async function loadTenants() {
                 <td><strong>${t.lot_id}</strong></td>
                 <td>${t.first_name} ${t.last_name}${t.credit_balance > 0 ? ` <span class="badge badge-success" title="Account credit">Credit: ${formatMoney(t.credit_balance)}</span>` : ''}</td>
                 <td>${formatMoney(t.monthly_rent)}</td>
-                <td><span class="badge badge-${t.rent_type === 'daily' ? 'info' : t.rent_type === 'weekly' ? 'info' : t.rent_type === 'premium' ? 'warning' : t.rent_type === 'electric_only' ? 'info' : 'gray'}">${t.rent_type}</span>${t.flat_rate ? '<span class="badge badge-success" style="margin-left:4px">FLAT</span>' : ''}</td>
+                <td><span class="badge badge-${t.rent_type === 'daily' ? 'info' : t.rent_type === 'weekly' ? 'info' : t.rent_type === 'premium' ? 'warning' : t.rent_type === 'electric_only' ? 'info' : 'gray'}">${t.rent_type}</span>${t.flat_rate ? '<span class="badge badge-success" style="margin-left:4px">FLAT</span>' : ''}${t.deposit_waived ? '<span class="badge badge-gray" style="margin-left:4px;font-size:0.6rem">DEP WAIVED</span>' : ''}</td>
                 <td>${recurringSummary(t)}</td>
                 <td>${formatDate(t.move_in_date)}</td>
                 <td class="btn-group">

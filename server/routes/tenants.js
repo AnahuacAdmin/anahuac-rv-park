@@ -56,9 +56,9 @@ router.post('/', (req, res) => {
       INSERT INTO tenants (lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
         rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
         recurring_late_fee, recurring_mailbox_fee, recurring_misc_fee, recurring_misc_description,
-        recurring_credit, recurring_credit_description, id_number, date_of_birth, deposit_amount,
-        flat_rate, flat_rate_amount)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        recurring_credit, recurring_credit_description, id_number, date_of_birth, deposit_amount, deposit_waived,
+        flat_rate, flat_rate_amount, deposit_waived)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
       str(b.emergency_contact), str(b.emergency_phone),
@@ -67,7 +67,7 @@ router.post('/', (req, res) => {
       num(b.recurring_late_fee), num(b.recurring_mailbox_fee), num(b.recurring_misc_fee),
       str(b.recurring_misc_description), num(b.recurring_credit), str(b.recurring_credit_description),
       str(b.id_number), str(b.date_of_birth), num(b.deposit_amount),
-      num(b.flat_rate) ? 1 : 0, num(b.flat_rate_amount)
+      num(b.flat_rate) ? 1 : 0, num(b.flat_rate_amount), num(b.deposit_waived) ? 1 : 0
     );
     if (b.lot_id) {
       db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('occupied', b.lot_id);
@@ -89,7 +89,7 @@ router.put('/:id', (req, res) => {
       recurring_late_fee=?, recurring_mailbox_fee=?, recurring_misc_fee=?, recurring_misc_description=?,
       recurring_credit=?, recurring_credit_description=?,
       sms_opt_in=?, email_opt_in=?, invoice_delivery=?,
-      id_number=?, date_of_birth=?, deposit_amount=?,
+      id_number=?, date_of_birth=?, deposit_amount=?, deposit_waived=?,
       flat_rate=?, flat_rate_amount=?
     WHERE id = ?
   `).run(
@@ -103,7 +103,7 @@ router.put('/:id', (req, res) => {
     b.sms_opt_in !== undefined ? (Number(b.sms_opt_in) || 0) : 1,
     b.email_opt_in !== undefined ? (Number(b.email_opt_in) || 0) : 1,
     b.invoice_delivery || 'both',
-    str(b.id_number), str(b.date_of_birth), Number(b.deposit_amount) || 0,
+    str(b.id_number), str(b.date_of_birth), Number(b.deposit_amount) || 0, b.deposit_waived ? 1 : 0,
     b.flat_rate ? 1 : 0, Number(b.flat_rate_amount) || 0,
     req.params.id
   );

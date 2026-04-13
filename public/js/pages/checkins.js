@@ -377,9 +377,15 @@ function checkoutSelected(sel) {
   var balance = Number(tenant && tenant.balance_due) || 0;
   var section = document.getElementById('deposit-section');
 
-  console.log('[checkout] tenant:', tid, 'deposit:', deposit, 'balance:', balance);
+  var depositWaived = tenant && tenant.deposit_waived;
+  console.log('[checkout] tenant:', tid, 'deposit:', deposit, 'balance:', balance, 'waived:', depositWaived);
 
-  if (deposit > 0) {
+  if (depositWaived) {
+    section.style.display = '';
+    section.innerHTML = '<div style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:8px;padding:0.65rem 0.75rem;font-size:0.82rem;color:#57534e">' +
+      '⚠️ <strong>Deposit was WAIVED</strong> for this tenant at move-in. No deposit to settle.' +
+      '</div>';
+  } else if (deposit > 0) {
     section.style.display = '';
     section.innerHTML = `
       <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
