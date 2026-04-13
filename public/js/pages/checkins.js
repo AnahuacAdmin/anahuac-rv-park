@@ -307,10 +307,10 @@ let _checkoutTenants = [];
 async function showCheckOut() {
   _checkoutTenants = await API.get('/tenants');
   showModal('Check-Out Tenant', `
-    <form onsubmit="processCheckOut(event)">
+    <form id="checkout-form">
       <div class="form-group">
         <label>Select Tenant</label>
-        <select name="tenant_select" required onchange="checkoutSelected(this)">
+        <select name="tenant_select" id="checkout-tenant-select" required>
           <option value="">Select tenant...</option>
           ${_checkoutTenants.map(t => `<option value="${t.id}|${t.lot_id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
         </select>
@@ -326,6 +326,13 @@ async function showCheckOut() {
       <p id="checkout-error" class="error-text" style="display:none"></p>
     </form>
   `);
+  // Wire events via addEventListener (CSP-safe)
+  setTimeout(function() {
+    var sel = document.getElementById('checkout-tenant-select');
+    if (sel) sel.addEventListener('change', function() { checkoutSelected(this); });
+    var form = document.getElementById('checkout-form');
+    if (form) form.addEventListener('submit', function(e) { processCheckOut(e); });
+  }, 50);
 }
 
 function checkoutSelected(sel) {
@@ -349,7 +356,7 @@ function checkoutSelected(sel) {
         </div>
         <div class="form-group">
           <label>Deposit Disposition</label>
-          <select name="deposit_action" onchange="updateDepositCalc(this, ${deposit}, ${balance})">
+          <select name="deposit_action" id="deposit-action-select">
             <option value="full_refund">Full Refund — return ${formatMoney(deposit)}</option>
             <option value="partial_refund">Partial Refund — deduct damages/cleaning</option>
             ${balance > 0 ? `<option value="apply_to_balance">Apply to Balance — reduce ${formatMoney(balance)} owed</option>` : ''}
@@ -360,7 +367,7 @@ function checkoutSelected(sel) {
           <div class="form-row">
             <div class="form-group">
               <label>Deduction Amount ($)</label>
-              <input name="deduction_amount" type="number" step="0.01" min="0" max="${deposit}" value="0" oninput="calcDepositRefund(this, ${deposit})">
+              <input name="deduction_amount" id="deduction-amount-input" type="number" step="0.01" min="0" max="${deposit}" value="0">
             </div>
             <div class="form-group">
               <label>Deduction Reason</label>
@@ -378,6 +385,13 @@ function checkoutSelected(sel) {
         </div>
       </fieldset>
     `;
+    // Wire deposit event listeners (CSP-safe)
+    setTimeout(function() {
+      var actionSel = document.getElementById('deposit-action-select');
+      if (actionSel) actionSel.addEventListener('change', function() { updateDepositCalc(this, deposit, balance); });
+      var dedInput = document.getElementById('deduction-amount-input');
+      if (dedInput) dedInput.addEventListener('input', function() { calcDepositRefund(this, deposit); });
+    }, 50);
   } else {
     section.style.display = 'none';
     section.innerHTML = '';
