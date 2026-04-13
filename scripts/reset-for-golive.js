@@ -85,6 +85,13 @@ async function main() {
     db.prepare('UPDATE tenants SET credit_balance = 0, eviction_warning = 0, eviction_notified = 0, eviction_paused = 0, eviction_pause_note = NULL, eviction_pause_date = NULL, eviction_pause_by = NULL, portal_pin = NULL').run();
     console.log(`  ✅ Reset all tenant balances and flags`);
 
+    // Clear new Phase 1 tables
+    try { db.prepare('DELETE FROM maintenance_requests').run(); console.log('  ✅ Cleared maintenance requests'); } catch {}
+    try { db.prepare('DELETE FROM expenses').run(); console.log('  ✅ Cleared expenses'); } catch {}
+    try { db.prepare('DELETE FROM announcements').run(); console.log('  ✅ Cleared announcements'); } catch {}
+    try { db.prepare('DELETE FROM tenant_documents').run(); console.log('  ✅ Cleared tenant documents'); } catch {}
+    try { db.prepare('DELETE FROM health_alerts').run(); console.log('  ✅ Cleared health alerts'); } catch {}
+
     // Clear settings keys used for email rate-limiting
     db.prepare("DELETE FROM settings WHERE key LIKE 'last_email_%'").run();
     console.log(`  ✅ Cleared email rate-limit keys`);
@@ -93,6 +100,7 @@ async function main() {
     console.log('  GO-LIVE RESET COMPLETE! 🎉');
     console.log('  All test data has been wiped.');
     console.log('  New invoices will start at INV-0001.');
+    console.log('  New reservations will start at RES-0001.');
     console.log('  Tenants will need to re-set portal PINs.');
     console.log('========================================\n');
 

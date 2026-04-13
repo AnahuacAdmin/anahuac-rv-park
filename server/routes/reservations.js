@@ -10,6 +10,17 @@ const { authenticate } = require('../middleware');
 
 router.use(authenticate);
 
+// Sequential reservation number: RES-0001, RES-0002, etc.
+function nextReservationNumber() {
+  var last = db.prepare("SELECT confirmation_number FROM reservations WHERE confirmation_number LIKE 'RES-%' ORDER BY id DESC LIMIT 1").get();
+  var lastNum = 0;
+  if (last && last.confirmation_number) {
+    var match = last.confirmation_number.match(/^RES-(\d+)$/);
+    if (match) lastNum = parseInt(match[1]) || 0;
+  }
+  return 'RES-' + String(lastNum + 1).padStart(4, '0');
+}
+
 // List all reservations, newest first.
 router.get('/', (req, res) => {
   const rows = db.prepare(`
@@ -69,7 +80,7 @@ router.post('/', (req, res) => {
     const rate = Number(b.rate_per_night) || 30;
     const total = +(nights * rate).toFixed(2);
     const deposit = Number(b.deposit_paid) || 0;
-    const confNum = 'RES-' + Date.now().toString(36).toUpperCase();
+    const confNum = nextReservationNumber();
 
     const result = db.prepare(`
       INSERT INTO reservations
@@ -229,7 +240,7 @@ router.post('/group', (req, res) => {
     const rate = Number(b.rate_per_night) || 30;
     const lotResults = [];
     for (const lot of b.lots) {
-      const confNum = 'RES-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 4).toUpperCase();
+      const confNum = nextReservationNumber();
       const total = +(nights * rate).toFixed(2);
       const rResult = db.prepare(`INSERT INTO reservations (guest_name, phone, email, lot_id, arrival_date, departure_date, nights, rate_per_night, total_amount, deposit_paid, status, notes, confirmation_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'pending', ?, ?)`)
         .run(lot.occupant_name || b.primary_contact_name || b.group_name, b.primary_contact_phone || null, b.primary_contact_email || null, lot.lot_id, b.arrival_date, b.departure_date, nights, rate, total, `Group: ${b.group_name}`, confNum);
