@@ -45,16 +45,16 @@ async function loadVendors() {
     <div class="page-header">
       <h2>📒 Vendor Directory</h2>
       <div class="btn-group">
-        <button class="btn btn-primary" onclick="showAddVendor()">+ Add Vendor</button>
+        <button class="btn btn-primary" id="btn-add-vendor">+ Add Vendor</button>
       </div>
     </div>
     <div class="filter-bar">
-      <input type="text" id="vendor-search" placeholder="Search vendors..." oninput="filterVendors()" style="flex:1;max-width:300px">
-      <select id="vendor-cat-filter" onchange="filterVendors()">
+      <input type="text" id="vendor-search" placeholder="Search vendors..." style="flex:1;max-width:300px">
+      <select id="vendor-cat-filter">
         <option value="all">All Categories</option>
         ${VENDOR_CATEGORIES.map(c => '<option value="' + c.value + '">' + c.icon + ' ' + c.value + '</option>').join('')}
       </select>
-      <select id="vendor-sort" onchange="filterVendors()">
+      <select id="vendor-sort">
         <option value="name">Sort: Name</option>
         <option value="category">Sort: Category</option>
         <option value="favorite">Sort: Favorites First</option>
@@ -67,6 +67,18 @@ async function loadVendors() {
   `;
 
   window._allVendors = vendors;
+
+  // Wire events via addEventListener
+  setTimeout(function() {
+    var addBtn = document.getElementById('btn-add-vendor');
+    if (addBtn) addBtn.addEventListener('click', showAddVendor);
+    var searchEl = document.getElementById('vendor-search');
+    if (searchEl) searchEl.addEventListener('input', filterVendors);
+    var catEl = document.getElementById('vendor-cat-filter');
+    if (catEl) catEl.addEventListener('change', filterVendors);
+    var sortEl = document.getElementById('vendor-sort');
+    if (sortEl) sortEl.addEventListener('change', filterVendors);
+  }, 50);
 }
 
 function renderVendorCards(vendors) {
@@ -120,7 +132,7 @@ function filterVendors() {
 function vendorFormHtml(v) {
   v = v || {};
   return `
-    <form onsubmit="${v.id ? 'updateVendor(event,' + v.id + ')' : 'createVendor(event)'}">
+    <form id="vendor-form" data-vendor-id="${v.id || ''}">
       <div class="form-group"><label>Business Name</label><input name="name" value="${escapeHtml(v.name || '')}" required></div>
       <div class="form-row">
         <div class="form-group"><label>Category</label>
@@ -147,13 +159,23 @@ function vendorFormHtml(v) {
   `;
 }
 
-function showAddVendor() { showModal('+ Add Vendor', vendorFormHtml()); }
+function showAddVendor() {
+  showModal('+ Add Vendor', vendorFormHtml());
+  setTimeout(function() {
+    var form = document.getElementById('vendor-form');
+    if (form) form.addEventListener('submit', function(e) { createVendor(e); });
+  }, 50);
+}
 
 async function showEditVendor(id) {
   const vendors = await API.get('/vendors');
   const v = (vendors || []).find(x => x.id === id);
   if (!v) return;
   showModal('Edit Vendor', vendorFormHtml(v));
+  setTimeout(function() {
+    var form = document.getElementById('vendor-form');
+    if (form) form.addEventListener('submit', function(e) { updateVendor(e, id); });
+  }, 50);
 }
 
 async function createVendor(e) {
