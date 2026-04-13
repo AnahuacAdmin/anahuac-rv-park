@@ -587,6 +587,28 @@ function openPortalPreview() {
   if (!win) window.location.href = '/portal.html';
 }
 
+function wirePortalButton() {
+  var pb = document.getElementById('portalQuickBtn');
+  if (!pb || pb._wired) return;
+  pb.style.display = 'flex';
+  pb._wired = true;
+  pb.addEventListener('click', function() {
+    var adminToken = localStorage.getItem('rv_token');
+    if (!adminToken) { window.open('/portal.html', '_blank'); return; }
+    var win = window.open('about:blank', '_blank');
+    fetch('/api/portal/admin-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken }
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.token && win) {
+        win.location.href = '/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant));
+      } else if (win) {
+        win.location.href = '/portal.html';
+      }
+    }).catch(function() { if (win) win.location.href = '/portal.html'; });
+  });
+}
+
 function spinAndReload(btn) {
   btn.classList.add('spinning');
   setTimeout(function() { window.location.reload(); }, 600);
@@ -755,9 +777,10 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('main-app').style.display = '';
       document.body.classList.remove('login-page');
-      // Force-show refresh button
+      // Force-show refresh button and portal button
       var rb = document.getElementById('refreshBtn');
       if (rb) { rb.style.display = 'flex'; rb.onclick = function() { location.reload(); }; }
+      wirePortalButton();
       navigateTo('dashboard');
     } catch (err) {
       errEl.textContent = err.message;
@@ -923,6 +946,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.remove('login-page');
     var rb2 = document.getElementById('refreshBtn');
     if (rb2) { rb2.style.display = 'flex'; rb2.onclick = function() { location.reload(); }; }
+    wirePortalButton();
     navigateTo('dashboard');
   }
 });
