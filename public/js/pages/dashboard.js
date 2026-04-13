@@ -73,7 +73,7 @@ async function loadDashboard() {
 
     <div class="page-header dash-fade-in" style="animation-delay:0.05s">
       <h2>${getTimeGreeting()}, ${API.user?.username || 'Admin'}!</h2>
-      ${isAdmin() ? '<button class="btn btn-danger" style="font-size:0.85rem" onclick="showEmergencyBroadcast()">🚨 Emergency Alert</button>' : ''}
+      ${isAdmin() ? '<button class="btn btn-danger" style="font-size:0.85rem" onclick="showEmergencyBroadcast()" title="Send emergency SMS to ALL tenants immediately. Use only for real emergencies.">🚨 Emergency Alert</button>' : ''}
     </div>
 
     <!-- Stats -->

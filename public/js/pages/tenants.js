@@ -141,6 +141,7 @@ function tenantForm(lots, tenant = {}) {
         <div class="form-group"><label>Insurance Expiry</label><input name="insurance_expiry" type="date" value="${tenant.insurance_expiry || ''}"></div>
         <div class="form-group"><label>Registration Expiry</label><input name="registration_expiry" type="date" value="${tenant.registration_expiry || ''}"></div>
       </div>
+      <p style="font-size:0.72rem;color:var(--gray-400);margin:-0.25rem 0 0.5rem">📅 Set expiry dates for automatic SMS reminders at 30 and 7 days before expiry.</p>
       <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;font-size:0.85rem;cursor:pointer">
         <input type="checkbox" name="loyalty_exclude" value="1" ${tenant.loyalty_exclude ? 'checked' : ''}> Exclude from loyalty discount program
       </label>

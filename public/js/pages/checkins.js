@@ -160,7 +160,7 @@ async function showCheckIn() {
 
       <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
         <legend><strong>📄 Documents (optional)</strong></legend>
-        <p style="font-size:0.78rem;color:var(--gray-500);margin-bottom:0.5rem">Scan or upload tenant documents. Can also be added later from the Documents page.</p>
+        <p style="font-size:0.78rem;color:var(--gray-500);margin-bottom:0.5rem">Capture tenant documents now for your records. Tap any button to open your camera. Documents are stored securely and viewable from Administration → Documents. You can add more later.</p>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <label class="btn btn-sm btn-outline" style="cursor:pointer"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_id_file"> 📷 Photo ID</label>
           <label class="btn btn-sm btn-outline" style="cursor:pointer"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_vehicle_file"> 📷 Vehicle Reg</label>

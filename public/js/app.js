@@ -460,19 +460,32 @@ const HELP_CONTENT = {
     <li><strong>Export All Data:</strong> full Excel export of all tables.</li>
     <li><strong>🖨️ Emergency Forms:</strong> printable check-in, meter reading, and payment forms for when internet is down.</li>
   </ul>`,
-  maintenance: `<p><strong>🔧 Maintenance Requests</strong></p><ul>
-    <li>View all maintenance requests from tenants.</li>
-    <li>Update status: <strong>Submitted → Acknowledged → In Progress → Resolved</strong>.</li>
-    <li>Add resolution notes when resolving — tenant gets an SMS notification.</li>
-    <li>Tenants submit requests from the Tenant Portal.</li>
-  </ul>`,
-  expenses: `<p><strong>💸 Expense Tracking</strong></p><ul>
-    <li>Track all park expenses: repairs, utilities, supplies, equipment, etc.</li>
-    <li>Click <em>+ Add Expense</em> to record a new expense with amount, category, vendor, and date.</li>
-    <li>Filter by category and date range.</li>
-    <li>Monthly summary shows at the top.</li>
-    <li>Use for tax reporting — export data from the Reports page.</li>
-  </ul>`,
+  maintenance: `<p><strong>🔧 Maintenance Requests</strong></p>
+  <p>This page shows all repair and maintenance requests submitted by tenants from their portal.</p>
+  <p><strong>Viewing Requests:</strong></p><ul>
+    <li>New requests appear automatically when a tenant submits one.</li>
+    <li>You also receive an <strong>SMS notification</strong> instantly.</li>
+    <li>Requests sorted by status priority, then most recent first.</li>
+  </ul>
+  <p><strong>Updating Status:</strong></p><ol>
+    <li>Click <em>Acknowledge</em> when you've seen the request.</li>
+    <li>Click <em>In Progress</em> when work has started.</li>
+    <li>Click <em>Resolve</em> when complete — add resolution notes documenting what was done.</li>
+    <li>Tenant gets an SMS: "Your maintenance request has been resolved!"</li>
+  </ol>
+  <p>💡 <strong>TIP:</strong> Resolve requests promptly — it builds trust with tenants!</p>`,
+  expenses: `<p><strong>💸 Expense Tracking</strong></p>
+  <p>Track all money spent running the park for accounting and tax purposes.</p>
+  <p><strong>Adding an Expense:</strong></p><ol>
+    <li>Click <em>+ Add Expense</em>.</li>
+    <li>Enter the date, amount, and category.</li>
+    <li>Add vendor name (who you paid) and description.</li>
+    <li>Select how it was paid (Cash, Card, Check).</li>
+    <li>Click Save.</li>
+  </ol>
+  <p><strong>Categories:</strong> Repairs, Utilities, Supplies, Insurance, Equipment, Landscaping, Legal, Fuel, Office, Other.</p>
+  <p><strong>Reports:</strong> Monthly expense totals show at the top. Export to CSV for your accountant. Combined with income on the Reports page for P&L.</p>
+  <p>💡 <strong>TIP:</strong> Upload receipt photos immediately — makes tax time much easier!</p>`,
   documents: `<p><strong>📄 Document Management</strong></p><ul>
     <li>Upload and manage tenant documents: lease agreements, IDs, vehicle registration, insurance, etc.</li>
     <li><strong>Upload:</strong> Click <em>📤 Upload Document</em>, select the tenant, document type, name the file, and attach.</li>
