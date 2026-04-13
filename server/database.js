@@ -157,6 +157,24 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN flat_rate INTEGER DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN flat_rate_amount REAL DEFAULT 0");
 
+  // Portal restaurants
+  db.run(`CREATE TABLE IF NOT EXISTS portal_restaurants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    emoji TEXT DEFAULT '🍽️',
+    url TEXT,
+    display_order INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1
+  )`);
+  var rCount = db.prepare('SELECT COUNT(*) as c FROM portal_restaurants').get().c;
+  if (rCount === 0) {
+    var ins = db.prepare('INSERT INTO portal_restaurants (name, emoji, url, display_order, is_active) VALUES (?,?,?,?,1)');
+    ins.run('Nautilus Grill', '🦐', 'https://www.google.com/maps/search/Nautilus+Grill+Anahuac+TX', 1);
+    ins.run('The Roost', '🍗', 'https://www.google.com/maps/search/The+Roost+Anahuac+TX', 2);
+    ins.run('Stingaree', '🐟', 'https://www.google.com/maps/search/Stingaree+Restaurant+Crystal+Beach+TX', 3);
+    ins.run('Find More Food', '🔍', 'https://www.google.com/maps/search/restaurants+near+Anahuac+TX+77514', 4);
+  }
+
   // Short term lot flag
   addCol("ALTER TABLE lots ADD COLUMN short_term_only INTEGER DEFAULT 0");
   // Seed defaults: C1, C2, D1, D2 as short term

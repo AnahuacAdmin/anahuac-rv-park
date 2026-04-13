@@ -126,6 +126,13 @@ async function loadAdmin() {
       </div>
     </div>
 
+    <div class="card" style="border-left:4px solid #f59e0b">
+      <h3>🍽️ Portal Restaurants</h3>
+      <p><small>Manage the restaurant links shown to tenants on the portal.</small></p>
+      <div id="admin-restaurants-list" style="margin:0.75rem 0">Loading...</div>
+      <button class="btn btn-sm btn-primary" id="btn-add-restaurant">➕ Add Restaurant</button>
+    </div>
+
     <div class="card">
       <h3>Database Backup</h3>
       <p>Last backup: <strong id="last-backup-display">${lastBackup}</strong></p>
@@ -148,6 +155,12 @@ async function loadAdmin() {
   loadFlatRateTenants();
   loadAlertHistory();
   loadOfflineAdminStatus();
+  loadAdminRestaurants();
+  // Wire add restaurant button
+  setTimeout(function() {
+    var btn = document.getElementById('btn-add-restaurant');
+    if (btn) btn.addEventListener('click', showAddRestaurant);
+  }, 50);
 }
 
 async function saveEvictionSettings() {
@@ -412,4 +425,72 @@ async function exportAllDataToExcel() {
   } catch (err) {
     alert('Export failed: ' + (err.message || 'unknown error'));
   }
+}
+
+// --- Portal Restaurants Admin ---
+async function loadAdminRestaurants() {
+  var el = document.getElementById('admin-restaurants-list');
+  if (!el) return;
+  try {
+    var list = await API.get('/settings/restaurants');
+    if (!list || !list.length) { el.innerHTML = '<p style="font-size:0.82rem;color:#78716c">No restaurants. Click Add to create one.</p>'; return; }
+    el.innerHTML = '<table style="width:100%;font-size:0.85rem"><thead><tr><th>Emoji</th><th>Name</th><th>URL</th><th>Active</th><th>Actions</th></tr></thead><tbody>' +
+      list.map(function(r) {
+        return '<tr>' +
+          '<td>' + (r.emoji || '🍽️') + '</td>' +
+          '<td><strong>' + escapeHtml(r.name) + '</strong></td>' +
+          '<td style="font-size:0.75rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(r.url || '—') + '</td>' +
+          '<td>' + (r.is_active ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-gray">No</span>') + '</td>' +
+          '<td class="btn-group"><button class="btn btn-sm btn-outline" onclick="showEditRestaurant(' + r.id + ')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteRestaurant(' + r.id + ',\'' + escapeHtml(r.name).replace(/'/g, "\\'") + '\')">Del</button></td>' +
+        '</tr>';
+      }).join('') + '</tbody></table>';
+  } catch { el.innerHTML = '<p style="color:#dc2626;font-size:0.82rem">Failed to load restaurants</p>'; }
+}
+
+function showAddRestaurant() {
+  showModal('➕ Add Restaurant', restaurantFormHtml());
+  setTimeout(function() {
+    var form = document.getElementById('restaurant-form');
+    if (form) form.addEventListener('submit', function(e) { saveRestaurant(e, null); });
+  }, 50);
+}
+
+async function showEditRestaurant(id) {
+  var list = await API.get('/settings/restaurants');
+  var r = (list || []).find(function(x) { return x.id === id; });
+  if (!r) return;
+  showModal('Edit Restaurant', restaurantFormHtml(r));
+  setTimeout(function() {
+    var form = document.getElementById('restaurant-form');
+    if (form) form.addEventListener('submit', function(e) { saveRestaurant(e, id); });
+  }, 50);
+}
+
+function restaurantFormHtml(r) {
+  r = r || {};
+  return '<form id="restaurant-form">' +
+    '<div class="form-row">' +
+      '<div class="form-group"><label>Emoji</label><input name="emoji" value="' + escapeHtml(r.emoji || '🍽️') + '" maxlength="4" style="font-size:1.5rem;text-align:center;width:60px"></div>' +
+      '<div class="form-group"><label>Restaurant Name</label><input name="name" value="' + escapeHtml(r.name || '') + '" required></div>' +
+    '</div>' +
+    '<div class="form-group"><label>URL (Google Maps or website)</label><input name="url" value="' + escapeHtml(r.url || '') + '" placeholder="https://..."></div>' +
+    '<label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem"><input type="checkbox" name="is_active" value="1" ' + (r.is_active !== 0 ? 'checked' : '') + '> Active (visible on portal)</label>' +
+    '<button type="submit" class="btn btn-primary btn-full">' + (r.id ? 'Update' : 'Add') + ' Restaurant</button>' +
+  '</form>';
+}
+
+async function saveRestaurant(e, id) {
+  e.preventDefault();
+  var form = new FormData(e.target);
+  var data = { name: form.get('name'), emoji: form.get('emoji'), url: form.get('url'), is_active: form.get('is_active') === '1' ? 1 : 0 };
+  if (id) await API.put('/settings/restaurants/' + id, data);
+  else await API.post('/settings/restaurants', data);
+  closeModal();
+  loadAdminRestaurants();
+}
+
+async function deleteRestaurant(id, name) {
+  if (!confirm('Delete "' + name + '" from portal?')) return;
+  await API.del('/settings/restaurants/' + id);
+  loadAdminRestaurants();
 }

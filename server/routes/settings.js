@@ -38,4 +38,44 @@ router.put('/', (req, res) => {
   res.json({ success: true });
 });
 
+// --- Portal Restaurants CRUD (admin only) ---
+router.get('/restaurants', (req, res) => {
+  res.json(db.prepare('SELECT * FROM portal_restaurants ORDER BY display_order, id').all());
+});
+
+router.post('/restaurants', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var b = req.body || {};
+  if (!b.name) return res.status(400).json({ error: 'Name required' });
+  var maxOrder = db.prepare('SELECT COALESCE(MAX(display_order),0) as m FROM portal_restaurants').get().m;
+  var r = db.prepare('INSERT INTO portal_restaurants (name, emoji, url, display_order, is_active) VALUES (?,?,?,?,?)').run(
+    b.name, b.emoji || '🍽️', b.url || '', maxOrder + 1, b.is_active !== undefined ? (b.is_active ? 1 : 0) : 1
+  );
+  res.json({ id: r.lastInsertRowid });
+});
+
+router.put('/restaurants/:id', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var b = req.body || {};
+  db.prepare('UPDATE portal_restaurants SET name=?, emoji=?, url=?, is_active=? WHERE id=?').run(
+    b.name, b.emoji || '🍽️', b.url || '', b.is_active ? 1 : 0, req.params.id
+  );
+  res.json({ success: true });
+});
+
+router.delete('/restaurants/:id', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  db.prepare('DELETE FROM portal_restaurants WHERE id=?').run(req.params.id);
+  res.json({ success: true });
+});
+
+router.put('/restaurants/reorder', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var order = req.body?.order;
+  if (!Array.isArray(order)) return res.status(400).json({ error: 'order array required' });
+  var stmt = db.prepare('UPDATE portal_restaurants SET display_order=? WHERE id=?');
+  order.forEach(function(id, i) { stmt.run(i + 1, id); });
+  res.json({ success: true });
+});
+
 module.exports = router;

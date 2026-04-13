@@ -293,12 +293,7 @@
   <!-- ========== LOCAL INFO ========== -->
   <div class="card">
     <div class="card-title">🍽️ Nearby Restaurants</div>
-    <div class="link-grid">
-      <a class="link-btn" href="https://www.google.com/maps/search/Nautilus+Grill+Anahuac+TX" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🦐</span> Nautilus Grill</a>
-      <a class="link-btn" href="https://www.google.com/maps/search/The+Roost+Anahuac+TX" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🍗</span> The Roost</a>
-      <a class="link-btn" href="https://www.google.com/maps/search/Stingaree+Restaurant+Crystal+Beach+TX" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🐟</span> Stingaree</a>
-      <a class="link-btn" href="https://www.google.com/maps/search/restaurants+near+Anahuac+TX+77514" target="_blank" rel="noopener noreferrer"><span class="lb-icon">🔍</span> Find More Food</a>
-    </div>
+    <div class="link-grid" id="portal-restaurants">Loading...</div>
   </div>
 
   <div class="card">
@@ -517,6 +512,7 @@ async function showPortal() {
     loadWeather(),
     getActiveHoliday() ? Promise.resolve() : loadBibleVerse(),
     loadAnnouncements(),
+    loadPortalRestaurants(),
   ]);
 
   if (data) {
@@ -815,6 +811,19 @@ async function loadBibleVerse() {
     document.getElementById('verse-ref').textContent = '— ' + v.r;
     card.style.display = '';
   }
+}
+
+async function loadPortalRestaurants() {
+  var el = document.getElementById('portal-restaurants');
+  if (!el) return;
+  try {
+    var r = await fetch('/api/portal/restaurants');
+    var list = await r.json();
+    if (!list || !list.length) { el.innerHTML = '<span style="color:#a8a29e;font-size:0.85rem">No restaurants listed</span>'; return; }
+    el.innerHTML = list.map(function(rest) {
+      return '<a class="link-btn" href="' + (rest.url || '#') + '" target="_blank" rel="noopener noreferrer"><span class="lb-icon">' + (rest.emoji || '🍽️') + '</span> ' + rest.name + '</a>';
+    }).join('');
+  } catch { el.innerHTML = '<span style="color:#a8a29e;font-size:0.85rem">Could not load restaurants</span>'; }
 }
 
 async function loadAnnouncements() {

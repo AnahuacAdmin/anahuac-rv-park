@@ -68,6 +68,11 @@ router.get('/admin-preview-tenants', (req, res) => {
   res.json(tenants);
 });
 
+// Public: restaurants for portal
+router.get('/restaurants', (req, res) => {
+  res.json(db.prepare('SELECT id, name, emoji, url FROM portal_restaurants WHERE is_active=1 ORDER BY display_order, id').all());
+});
+
 // Tenant login — lot number + last name + PIN
 router.post('/login', (req, res) => {
   const { lot_id, last_name, pin } = req.body || {};
