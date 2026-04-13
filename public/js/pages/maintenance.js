@@ -38,7 +38,7 @@ function renderMaintList(reqs) {
       '</div>' +
       '<p style="margin:0.5rem 0;font-size:0.88rem">' + escapeHtml(r.description || '') + '</p>' +
       (r.resolution_notes ? '<p style="margin:0.25rem 0;font-size:0.82rem;color:#16a34a;border-left:2px solid #16a34a;padding-left:0.5rem"><strong>Resolution:</strong> ' + escapeHtml(r.resolution_notes) + '</p>' : '') +
-      (r.photo ? '<img src="/api/maintenance/' + r.id + '/photo" style="max-width:120px;border-radius:6px;margin:0.5rem 0" onerror="this.style.display=\'none\'">' : '') +
+      (r.has_photo ? '<img src="/api/maintenance/' + r.id + '/photo" style="max-width:200px;border-radius:8px;margin:0.5rem 0;cursor:pointer;border:1px solid #e7e5e4" onclick="showModal(\'📷 Maintenance Photo\',\'<img src=/api/maintenance/' + r.id + '/photo style=width:100%;border-radius:8px>\')" onerror="this.style.display=\'none\'">' : '') +
       '<div class="btn-group" style="margin-top:0.5rem">' +
         (r.status !== 'resolved' ? '<button class="btn btn-sm btn-outline" onclick="updateMaintStatus(' + r.id + ',\'acknowledged\')">Acknowledge</button>' +
           '<button class="btn btn-sm btn-warning" onclick="updateMaintStatus(' + r.id + ',\'in_progress\')">In Progress</button>' +

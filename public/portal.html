@@ -329,7 +329,16 @@
       <div class="form-group"><label>Category</label>
         <select name="category" style="font-size:1rem"><option>Electrical</option><option>Plumbing</option><option>Water</option><option>Sewer</option><option>Pest</option><option>Parking</option><option>Other</option></select>
       </div>
-      <div class="form-group"><label>Describe the Problem</label><textarea name="description" required placeholder="Tell us what's wrong..." style="min-height:60px"></textarea></div>
+      <div class="form-group"><label>Describe the Problem</label><textarea name="description" required placeholder="Tell us what's wrong..." style="min-height:60px" spellcheck="true"></textarea></div>
+      <div class="form-group">
+        <label>📷 Photo of the Problem (Recommended)</label>
+        <label class="btn btn-outline" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;min-height:50px;margin-top:0.25rem">
+          <input type="file" accept="image/*" capture="environment" style="display:none" id="maint-photo-input"> 📷 Tap to photograph the problem
+        </label>
+        <span id="maint-photo-status" style="font-size:0.78rem;color:#78716c"></span>
+        <div id="maint-photo-preview" style="margin-top:0.5rem"></div>
+        <input type="hidden" id="maint-photo-data">
+      </div>
       <button type="submit" class="btn btn-green">Submit Request</button>
     </form>
   </div>
@@ -552,19 +561,51 @@ document.getElementById('pin-setup-form').addEventListener('submit', async (e) =
   } catch (err) { errEl.textContent = err.message; errEl.classList.remove('hidden'); }
 });
 
+// Maintenance photo compression
+document.getElementById('maint-photo-input').addEventListener('change', function() {
+  var file = this.files && this.files[0];
+  var status = document.getElementById('maint-photo-status');
+  var preview = document.getElementById('maint-photo-preview');
+  var dataEl = document.getElementById('maint-photo-data');
+  if (!file) return;
+  if (status) status.textContent = '📸 Processing...';
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var scale = Math.min(1, 1200 / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      var sizeKB = Math.round(dataUrl.length * 0.75 / 1024);
+      if (dataEl) dataEl.value = dataUrl.split(',')[1];
+      if (status) status.textContent = '✅ Photo ready (' + sizeKB + 'KB)';
+      if (preview) preview.innerHTML = '<div style="position:relative;display:inline-block"><img src="' + dataUrl + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid #16a34a"><button type="button" style="position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer" onclick="this.parentElement.remove();document.getElementById(\'maint-photo-data\').value=\'\';document.getElementById(\'maint-photo-status\').textContent=\'\'">✕</button></div>';
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
 document.getElementById('maint-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   var statusEl = document.getElementById('maint-status');
   var form = new FormData(e.target);
+  var photoB64 = document.getElementById('maint-photo-data')?.value || null;
   try {
     await fetch('/api/maintenance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _portalToken },
-      body: JSON.stringify({ tenant_id: _portalTenant?.id, lot_id: _portalTenant?.lot_id, category: form.get('category'), description: form.get('description') }),
+      body: JSON.stringify({ tenant_id: _portalTenant?.id, lot_id: _portalTenant?.lot_id, category: form.get('category'), description: form.get('description'), photo: photoB64 }),
     });
-    statusEl.innerHTML = '<div class="msg-success">Request submitted! Management has been notified. 🔧</div>';
+    statusEl.innerHTML = '<div class="msg-success">✅ Request Submitted!<br>We received your maintenance request' + (photoB64 ? ' and photo' : '') + '.<br>You\'ll get a text when we acknowledge it.<br>For emergencies call <a href="tel:4092676603" style="color:#166534;font-weight:600">409-267-6603</a></div>';
     e.target.reset();
-    setTimeout(function() { statusEl.innerHTML = ''; }, 5000);
+    document.getElementById('maint-photo-data').value = '';
+    document.getElementById('maint-photo-status').textContent = '';
+    document.getElementById('maint-photo-preview').innerHTML = '';
+    setTimeout(function() { statusEl.innerHTML = ''; }, 8000);
   } catch (err) { statusEl.innerHTML = '<div class="msg-error">' + (err.message || 'Failed') + '</div>'; }
 });
 
