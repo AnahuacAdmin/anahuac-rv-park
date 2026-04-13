@@ -310,6 +310,9 @@ let _checkoutTenants = [];
 async function showCheckOut() {
   _checkoutTenants = await API.get('/tenants');
   showModal('Check-Out Tenant', `
+    <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.65rem 0.75rem;margin-bottom:1rem;font-size:0.82rem;color:#1e40af">
+      💡 <strong>TIP:</strong> Before checking out, make sure the tenant's deposit is recorded. Go to <em>Tenants → Edit → Deposit Paid</em>. The deposit settlement section appears here automatically.
+    </div>
     <form id="checkout-form">
       <div class="form-group">
         <label>Select Tenant</label>
@@ -324,7 +327,7 @@ async function showCheckOut() {
 
       <div id="deposit-section" style="display:none"></div>
 
-      <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
+      <div class="form-group"><label>Notes</label><textarea name="notes" placeholder="Any additional notes about this checkout..."></textarea></div>
       <button type="submit" class="btn btn-warning btn-full mt-2">Check Out</button>
       <p id="checkout-error" class="error-text" style="display:none"></p>
     </form>
@@ -362,6 +365,7 @@ function checkoutSelected(sel) {
         </div>
         <div class="form-group">
           <label>Deposit Disposition</label>
+          <p style="font-size:0.75rem;color:var(--gray-500);margin:-0.1rem 0 0.3rem">Select how to handle the security deposit collected at move-in</p>
           <select name="deposit_action" id="deposit-action-select">
             <option value="full_refund">Full Refund — return ${formatMoney(deposit)}</option>
             <option value="partial_refund">Partial Refund — deduct damages/cleaning</option>
@@ -373,11 +377,11 @@ function checkoutSelected(sel) {
           <div class="form-row">
             <div class="form-group">
               <label>Deduction Amount ($)</label>
-              <input name="deduction_amount" id="deduction-amount-input" type="number" step="0.01" min="0" max="${deposit}" value="0">
+              <input name="deduction_amount" id="deduction-amount-input" type="number" step="0.01" min="0" max="${deposit}" value="0" placeholder="Enter $ amount for damages">
             </div>
             <div class="form-group">
               <label>Deduction Reason</label>
-              <input name="deduction_reason" placeholder="Damages, cleaning, etc.">
+              <input name="deduction_reason" placeholder="e.g. carpet damage, cleaning fee, broken window">
             </div>
           </div>
           <div id="deposit-refund-calc" style="background:#f0fdf4;border:1px solid #dcfce7;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.9rem;color:#1a5c32">
@@ -400,7 +404,11 @@ function checkoutSelected(sel) {
     }, 50);
   } else {
     section.style.display = '';
-    section.innerHTML = '<p style="font-size:0.85rem;color:var(--gray-500);padding:0.5rem 0">No deposit on file for this tenant.</p>';
+    var tName = tenant ? (tenant.first_name + ' ' + tenant.last_name) : 'this tenant';
+    section.innerHTML = '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.65rem 0.75rem;font-size:0.82rem;color:#92400e">' +
+      '⚠️ <strong>No deposit on file</strong> for ' + escapeHtml(tName) + '.<br>' +
+      'If a deposit was collected, go to <em>Tenants → Edit ' + escapeHtml(tName) + ' → Deposit Paid</em> first, then return here.' +
+      '</div>';
   }
 }
 
@@ -434,6 +442,7 @@ async function processCheckOut(e) {
       deduction_reason: form.get('deduction_reason') || null,
     });
     closeModal();
+    showStatusToast('✅', "Tenant checked out! Don't forget to collect keys/access cards.");
 
     // Show Move-Out Statement if deposit was settled
     if (result.statement) {
