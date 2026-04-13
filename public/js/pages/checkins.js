@@ -339,14 +339,17 @@ async function showCheckOut() {
 }
 
 function checkoutSelected(sel) {
-  const [tid, lid] = sel.value.split('|');
+  var parts = sel.value.split('|');
+  var tid = parts[0], lid = parts[1];
   sel.form.tenant_id.value = tid;
   sel.form.lot_id.value = lid;
 
-  const tenant = _checkoutTenants.find(t => t.id === parseInt(tid));
-  const deposit = Number(tenant?.deposit_amount) || 0;
-  const balance = Number(tenant?.balance_due) || 0;
-  const section = document.getElementById('deposit-section');
+  var tenant = _checkoutTenants.find(function(t) { return t.id === parseInt(tid); });
+  var deposit = Number(tenant && tenant.deposit_amount) || 0;
+  var balance = Number(tenant && tenant.balance_due) || 0;
+  var section = document.getElementById('deposit-section');
+
+  console.log('[checkout] tenant:', tid, 'deposit:', deposit, 'balance:', balance);
 
   if (deposit > 0) {
     section.style.display = '';
@@ -396,8 +399,8 @@ function checkoutSelected(sel) {
       if (dedInput) dedInput.addEventListener('input', function() { calcDepositRefund(this, deposit); });
     }, 50);
   } else {
-    section.style.display = 'none';
-    section.innerHTML = '';
+    section.style.display = '';
+    section.innerHTML = '<p style="font-size:0.85rem;color:var(--gray-500);padding:0.5rem 0">No deposit on file for this tenant.</p>';
   }
 }
 
