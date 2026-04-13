@@ -362,6 +362,8 @@
   if (params.get('paid') || params.get('cancelled')) return; // Payment return, skip
   var adminToken = localStorage.getItem('rv_token');
   if (!adminToken) return; // Not an admin, skip
+  // Save admin token backup for tenant switching later
+  sessionStorage.setItem('_adminToken', adminToken);
   // Try to get preview token
   fetch('/api/portal/admin-preview', {
     method: 'POST',
@@ -893,8 +895,9 @@ async function loadPreviewTenantList() {
 
 async function switchPreviewTenant(tenantId) {
   if (!tenantId) return;
-  // Use admin token from localStorage (more reliable than preview JWT)
-  var adminToken = localStorage.getItem('rv_token') || _portalToken;
+  // Try admin token from localStorage, then from sessionStorage backup
+  var adminToken = localStorage.getItem('rv_token') || sessionStorage.getItem('_adminToken') || _portalToken;
+  console.log('[portal] switching tenant, token type:', adminToken === localStorage.getItem('rv_token') ? 'admin' : 'preview');
   try {
     var r = await fetch('/api/portal/admin-preview', {
       method: 'POST',
@@ -902,7 +905,7 @@ async function switchPreviewTenant(tenantId) {
       body: JSON.stringify({ tenant_id: parseInt(tenantId) }),
     });
     var data = await r.json();
-    if (!r.ok || !data.token) { alert('Failed to switch tenant'); return; }
+    if (!r.ok || !data.token) { alert('Failed to switch tenant: ' + (data.error || 'unknown')); return; }
     // Hard reload with new token — most reliable way to refresh all content
     sessionStorage.removeItem('portal_token');
     sessionStorage.removeItem('portal_tenant');

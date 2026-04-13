@@ -29,7 +29,8 @@ router.post('/admin-preview', (req, res) => {
   if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
   try {
     const user = jwt.verify(authHeader, SECRET);
-    if (user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    // Allow admin role OR existing preview tokens (for tenant switching)
+    if (user.role !== 'admin' && !user.preview) return res.status(403).json({ error: 'Admin access required' });
   } catch { return res.status(401).json({ error: 'Invalid token' }); }
 
   // Use specific tenant if requested, otherwise first active tenant
