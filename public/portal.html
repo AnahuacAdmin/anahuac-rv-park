@@ -79,13 +79,11 @@
     .link a { color:#fff;text-decoration:underline }
 
     /* Portal header */
-    .portal-hero { background:linear-gradient(135deg,#0f3d22,#1a5c32,#2d8a52);color:#fff;border-radius:16px;padding:1.25rem 1.5rem;margin-bottom:0.75rem;width:100%;max-width:800px;text-align:center;position:relative;overflow:hidden }
+    .portal-hero { background:linear-gradient(135deg,#0f3d22,#1a5c32,#2d8a52);color:#fff;border-radius:14px;padding:0.75rem 1.25rem;margin-bottom:0.75rem;width:100%;max-width:800px;position:relative;overflow:hidden }
     .portal-hero::after { content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M20 20c0-11.046-8.954-20-20-20v20h20z'/%3E%3C/g%3E%3C/svg%3E");pointer-events:none }
     .portal-hero > * { position:relative;z-index:1 }
-    .hero-gator { font-size:2.5rem;display:inline-block;animation:gatorWave 2s ease-in-out infinite }
-    @keyframes gatorWave { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(15deg)} 50%{transform:rotate(-10deg)} 75%{transform:rotate(12deg)} }
-    .hero-welcome { font-size:1.15rem;font-weight:700;color:#f59e0b;margin:0.25rem 0 }
-    .hero-date { font-size:0.78rem;color:rgba(255,255,255,0.7) }
+    .hero-welcome { font-size:1rem;font-weight:700;color:#f59e0b;margin:0 }
+    .hero-date { font-size:0.72rem;color:rgba(255,255,255,0.7) }
 
     /* Weather */
     .weather-bar { display:flex;align-items:center;justify-content:center;gap:0.6rem;font-size:0.85rem;padding:0.5rem 0;flex-wrap:wrap }
@@ -230,15 +228,14 @@
   <!-- Falling particles (holiday) -->
   <div class="falling-particles" id="falling-particles"></div>
 
-  <!-- Holiday banner -->
-  <div class="holiday-banner" id="holiday-banner" style="display:none"></div>
-
-  <!-- Hero header -->
-  <div class="portal-hero">
-    <div class="hero-gator">🐊</div>
-    <div class="hero-welcome" id="p-welcome">Welcome home!</div>
-    <div id="p-name-hero" style="font-size:0.9rem;font-weight:600;opacity:0.9"></div>
-    <div class="hero-date" id="p-date"></div>
+  <!-- Hero header (compact) -->
+  <div class="portal-hero" style="padding:0.75rem 1.25rem">
+    <div class="hero-welcome" id="p-welcome" style="font-size:1rem;margin:0">Welcome home! 🐊</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap">
+      <div id="p-name-hero" style="font-size:0.82rem;font-weight:600;opacity:0.9"></div>
+      <div class="hero-date" id="p-date" style="font-size:0.72rem"></div>
+    </div>
+    <div id="hero-verse" style="font-size:0.78rem;color:rgba(255,255,255,0.7);margin-top:0.4rem;font-style:italic;display:none"></div>
   </div>
 
   <!-- Two-column layout on desktop -->
@@ -592,18 +589,29 @@ async function showPortal() {
   const fullName = firstName + ' ' + (_portalTenant.last_name || '');
   const lotId = _portalTenant.lot_id || '?';
 
-  // Hero
-  const h = new Date().getHours();
-  const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  document.getElementById('p-welcome').textContent = `${greeting}, ${firstName}! 🐊`;
-  document.getElementById('p-name-hero').textContent = `Lot ${lotId}`;
-  document.getElementById('p-date').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  // Hero — compact with holiday inline
+  var hr = new Date().getHours();
+  var greeting = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  var holiday = getActiveHoliday();
+  var welcomeText = greeting + ', ' + firstName + '!';
+  if (holiday) welcomeText += ' ' + holiday.mascot + ' ' + holiday.name;
+  else welcomeText += ' 🐊';
+  document.getElementById('p-welcome').textContent = welcomeText;
+  document.getElementById('p-name-hero').textContent = 'Lot ' + lotId;
+  document.getElementById('p-date').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // Show verse inline in header
+  var heroVerse = document.getElementById('hero-verse');
+  if (holiday && holiday.verse && heroVerse) {
+    heroVerse.textContent = '✝️ "' + holiday.verse.t + '" — ' + holiday.verse.r;
+    heroVerse.style.display = '';
+  }
 
   // Tenant info
   document.getElementById('p-name').textContent = fullName;
   document.getElementById('p-lot').textContent = 'Lot ' + lotId;
 
-  // Apply holiday theme and start features
+  // Apply holiday theme (gradient colors, particles — but NOT banner)
   applyHolidayTheme();
   startGatorFacts();
 
@@ -759,29 +767,16 @@ function applyHolidayTheme() {
   const h = getActiveHoliday();
   if (!h) return;
 
-  // Banner
-  const banner = document.getElementById('holiday-banner');
-  if (banner) {
-    banner.style.display = '';
-    banner.style.background = h.bg;
-    banner.style.color = '#fff';
-    banner.innerHTML = `<span class="holiday-banner-emoji">${h.mascot}</span> <span class="holiday-banner-text" style="color:${h.accent}">${h.name}</span> <span class="holiday-banner-emoji" style="animation-delay:0.5s">${h.mascot}</span>`;
-  }
-
-  // Hero gradient
-  const hero = document.querySelector('.portal-hero');
+  // Hero gradient only (banner removed — holiday name is inline in welcome text)
+  var hero = document.querySelector('.portal-hero');
   if (hero) hero.style.background = h.bg;
 
-  // Holiday verse override
+  // Holiday verse override for the verse card (in case it's still visible)
   if (h.verse) {
     document.getElementById('verse-text').textContent = '"' + h.verse.t + '"';
     document.getElementById('verse-ref').textContent = '— ' + h.verse.r;
     document.getElementById('verse-card').style.display = '';
   }
-
-  // Gator mascot override
-  const gatorEl = document.querySelector('.hero-gator');
-  if (gatorEl) gatorEl.textContent = h.mascot;
 
   // Holiday content card — only show if there's extra content (Gatorfest link, music)
   var hcard = document.getElementById('holiday-card');
