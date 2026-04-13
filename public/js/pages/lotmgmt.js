@@ -26,7 +26,7 @@ async function loadLotMgmt() {
     <div class="card">
       <div class="table-container">
         <table>
-          <thead><tr><th>Lot ID</th><th>Row</th><th>#</th><th>Type</th><th>Size</th><th>Amenities</th><th>Default Rate</th><th>Status</th><th>Tenant</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Lot ID</th><th>Row</th><th>#</th><th>Type</th><th>Size</th><th>Amenities</th><th>Default Rate</th><th>Short Term</th><th>Status</th><th>Tenant</th><th>Actions</th></tr></thead>
           <tbody>
             ${lots.map(l => {
               const typeColor = { standard:'#2563eb', premium:'#7c3aed', 'pull-through':'#f59e0b', owner_reserved:'#9ca3af' }[l.lot_type || 'standard'] || '#2563eb';
@@ -43,6 +43,7 @@ async function loadLotMgmt() {
                 + '<td>' + l.width + 'x' + l.length + (l.size_restriction ? ' <small>(' + escapeHtml(l.size_restriction) + ')</small>' : '') + '</td>'
                 + '<td>' + (amenities || '<span style="color:#999">—</span>') + '</td>'
                 + '<td>' + formatMoney(l.default_rate || 295) + '</td>'
+                + '<td style="text-align:center"><button class="btn btn-sm ' + (l.short_term_only ? 'btn-primary' : 'btn-outline') + '" style="font-size:0.65rem;padding:2px 8px" onclick="toggleShortTerm(\'' + escapeHtml(l.id) + '\')">' + (l.short_term_only ? '⏱️ YES' : '—') + '</button></td>'
                 + '<td><span class="badge badge-' + statusBadge + '">' + l.status + '</span></td>'
                 + '<td>' + (l.tenant_id ? escapeHtml(l.first_name + ' ' + l.last_name) : '—') + '</td>'
                 + '<td class="btn-group">' + actions + '</td>'
@@ -278,4 +279,11 @@ async function executeRenameLot(oldId) {
   } catch (err) {
     if (errEl) { errEl.textContent = err.message || 'Rename failed'; errEl.style.display = ''; }
   }
+}
+
+async function toggleShortTerm(lotId) {
+  try {
+    await API.put('/lots/' + lotId + '/short-term', {});
+    loadLotMgmt();
+  } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
 }

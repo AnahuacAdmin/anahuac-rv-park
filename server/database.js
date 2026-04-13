@@ -157,6 +157,13 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN flat_rate INTEGER DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN flat_rate_amount REAL DEFAULT 0");
 
+  // Short term lot flag
+  addCol("ALTER TABLE lots ADD COLUMN short_term_only INTEGER DEFAULT 0");
+  // Seed defaults: C1, C2, D1, D2 as short term
+  try {
+    db.prepare("UPDATE lots SET short_term_only = 1 WHERE id IN ('C1','C2','D1','D2') AND short_term_only = 0").run();
+  } catch {}
+
   // Vendor directory
   db.run(`CREATE TABLE IF NOT EXISTS vendors (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

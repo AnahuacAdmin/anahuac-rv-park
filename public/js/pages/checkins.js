@@ -86,14 +86,14 @@ async function showCheckIn() {
         <div class="form-row">
           <div class="form-group">
             <label>Assign to Lot</label>
-            <select name="lot_id" required>
+            <select name="lot_id" id="checkin-lot-select" required>
               <option value="">Select lot...</option>
-              ${vacantLots.map(l => `<option value="${l.id}">${l.id}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}</option>`).join('')}
+              ${vacantLots.map(l => `<option value="${l.id}" data-short="${l.short_term_only || 0}">${l.id}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}${l.short_term_only ? ' ⏱️' : ''}</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
             <label>Rate Type</label>
-            <select name="rent_type" onchange="updateRateLabel(this)">
+            <select name="rent_type" id="checkin-rent-type" onchange="updateRateLabel(this)">
               <option value="monthly" selected>Monthly</option>
               <option value="weekly">Weekly</option>
               <option value="daily">Daily</option>
@@ -116,6 +116,15 @@ async function showCheckIn() {
           <div id="checkin-flat-rate-group" style="display:none;margin-top:0.5rem">
             <div class="form-group" style="margin-bottom:0"><label>Flat Rate Amount ($/month)</label><input name="flat_rate_amount" type="number" step="0.01" value="${_checkinDefaultFlatRate || 0}" placeholder="e.g. 450"></div>
           </div>
+        </div>
+        <div id="short-term-info" style="display:none;background:#e0f2fe;border:1px solid #7dd3fc;border-radius:8px;padding:0.65rem 0.75rem;margin-bottom:0.5rem;font-size:0.82rem;color:#0c4a6e">
+          <strong>⏱️ Short Term / Overflow Lot</strong><br>
+          Daily ($30) and Weekly ($150) — no approval needed<br>
+          Monthly rate — requires manager approval<br>
+          Max recommended stay: 30 days
+        </div>
+        <div id="short-term-monthly-warn" style="display:none;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.5rem;font-size:0.82rem;color:#92400e">
+          ⚠️ Monthly rate on a short-term lot requires manager approval
         </div>
         <div id="proration-info" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.5rem">
           <strong style="color:#1e40af">Prorated First Month</strong>
@@ -149,6 +158,22 @@ async function showCheckIn() {
       <p id="checkin-error" class="error-text" style="display:none"></p>
     </form>
   `);
+  // Wire lot select to show short-term info
+  setTimeout(function() {
+    var lotSel = document.getElementById('checkin-lot-select');
+    var rentSel = document.getElementById('checkin-rent-type');
+    function checkShortTerm() {
+      var opt = lotSel && lotSel.selectedOptions[0];
+      var isShort = opt && opt.dataset.short === '1';
+      var isMonthly = rentSel && rentSel.value === 'monthly';
+      var infoEl = document.getElementById('short-term-info');
+      var warnEl = document.getElementById('short-term-monthly-warn');
+      if (infoEl) infoEl.style.display = isShort ? '' : 'none';
+      if (warnEl) warnEl.style.display = (isShort && isMonthly) ? '' : 'none';
+    }
+    if (lotSel) lotSel.addEventListener('change', checkShortTerm);
+    if (rentSel) rentSel.addEventListener('change', checkShortTerm);
+  }, 50);
 }
 
 function updateRateLabel(sel) {

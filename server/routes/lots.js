@@ -154,6 +154,15 @@ router.post('/', (req, res) => {
   }
 });
 
+router.put('/:id/short-term', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  var lot = db.prepare('SELECT id, short_term_only FROM lots WHERE id = ?').get(req.params.id);
+  if (!lot) return res.status(404).json({ error: 'Lot not found' });
+  var newVal = req.body.short_term_only !== undefined ? (req.body.short_term_only ? 1 : 0) : (lot.short_term_only ? 0 : 1);
+  db.prepare('UPDATE lots SET short_term_only = ? WHERE id = ?').run(newVal, req.params.id);
+  res.json({ success: true, short_term_only: newVal });
+});
+
 router.post('/:id/deactivate', (req, res) => {
   try {
     const lot = db.prepare('SELECT id, status FROM lots WHERE id = ?').get(req.params.id);
