@@ -19,20 +19,7 @@ app.set('trust proxy', 1);
 
 // Security headers
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
-      scriptSrcAttr: ["'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://api.open-meteo.com", "https://beta.ourmanna.com", "https://www.themealdb.com", "https://official-joke-api.appspot.com"],
-      workerSrc: ["'self'", "blob:"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-    },
-  },
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
   xFrameOptions: { action: 'deny' },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
