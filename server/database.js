@@ -177,6 +177,18 @@ async function initializeDatabase() {
 
   addCol("ALTER TABLE tenants ADD COLUMN deposit_waived INTEGER DEFAULT 0");
 
+  // Tenant documents
+  db.run(`CREATE TABLE IF NOT EXISTS tenant_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    lot_id TEXT,
+    doc_type TEXT DEFAULT 'other',
+    doc_name TEXT NOT NULL,
+    file_data TEXT,
+    file_type TEXT,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   // Short term lot flag
   addCol("ALTER TABLE lots ADD COLUMN short_term_only INTEGER DEFAULT 0");
   // Seed defaults: C1, C2, D1, D2 as short term

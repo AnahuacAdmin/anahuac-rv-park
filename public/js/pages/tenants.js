@@ -303,12 +303,14 @@ async function resetTenantPin(id) {
 }
 
 async function showTenantHistory(tenantId, name) {
-  const [checkins, payments] = await Promise.all([
+  const [checkins, payments, docs] = await Promise.all([
     API.get('/checkins'),
-    API.get(`/payments/tenant/${tenantId}`)
+    API.get(`/payments/tenant/${tenantId}`),
+    API.get('/documents/tenant/' + tenantId).catch(function() { return []; }),
   ]);
   const tenantCheckins = (checkins || []).filter(c => c.tenant_id === tenantId);
   const tenantPayments = payments || [];
+  const tenantDocs = docs || [];
   showModal(`History — ${name}`, `
     <h4>Check-In/Out History</h4>
     ${tenantCheckins.length ? `<table><thead><tr><th>Lot</th><th>Check-In</th><th>Check-Out</th><th>Status</th><th>Notes</th></tr></thead><tbody>
@@ -318,6 +320,10 @@ async function showTenantHistory(tenantId, name) {
     ${tenantPayments.length ? `<table><thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Invoice</th></tr></thead><tbody>
       ${tenantPayments.map(p => `<tr><td>${formatDate(p.payment_date)}</td><td>${formatMoney(p.amount)}</td><td>${p.payment_method || '—'}</td><td>${p.invoice_number || '—'}</td></tr>`).join('')}
     </tbody></table>` : '<p>No payments recorded.</p>'}
+    <h4 class="mt-2">📄 Documents</h4>
+    ${tenantDocs.length ? `<table><thead><tr><th>Type</th><th>Name</th><th>Date</th><th></th></tr></thead><tbody>
+      ${tenantDocs.map(d => `<tr><td style="font-size:0.78rem">${escapeHtml(d.doc_type || 'other')}</td><td>${escapeHtml(d.doc_name)}</td><td style="font-size:0.75rem">${d.uploaded_at || '—'}</td><td><a href="/api/documents/${d.id}/download" target="_blank" class="btn btn-sm btn-outline" style="font-size:0.7rem">👁️</a></td></tr>`).join('')}
+    </tbody></table>` : '<p style="color:#78716c">No documents on file. <a href="#" onclick="event.preventDefault();closeModal();navigateTo(\'documents\')">Upload one →</a></p>'}
   `);
 }
 

@@ -460,6 +460,14 @@ const HELP_CONTENT = {
     <li><strong>Export All Data:</strong> full Excel export of all tables.</li>
     <li><strong>🖨️ Emergency Forms:</strong> printable check-in, meter reading, and payment forms for when internet is down.</li>
   </ul>`,
+  documents: `<p><strong>📄 Document Management</strong></p><ul>
+    <li>Upload and manage tenant documents: lease agreements, IDs, vehicle registration, insurance, etc.</li>
+    <li><strong>Upload:</strong> Click <em>📤 Upload Document</em>, select the tenant, document type, name the file, and attach.</li>
+    <li><strong>Search:</strong> Find documents by tenant name, lot number, or filename.</li>
+    <li><strong>Filter:</strong> Use the type dropdown to show only specific document types.</li>
+    <li><strong>Missing Docs:</strong> Click <em>⚠️ Missing Docs</em> to see tenants with no documents on file.</li>
+    <li>Documents are linked to both tenant ID and lot ID so they're findable even after a lot move.</li>
+  </ul>`,
   lotmgmt: `<p><strong>🏕️ What is Lot Management?</strong></p>
   <p>Lot Management allows you to add, edit, and organize all the lots in your RV park. Changes made here automatically update everywhere — Site Map, Meter Readings, Check-In, and all dropdowns.</p>
   <p><strong>➕ Adding a New Lot:</strong></p><ol>
@@ -713,7 +721,7 @@ function navigateTo(page, skipHistory) {
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, electric: loadElectric, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
-    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors };
+    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors, documents: loadDocuments };
   // Contextual first-visit tips
   const _tips = {
     dashboard: ['💡', 'Bookmark this page for quick access! Use the Quick Action buttons to jump to any section.'],
@@ -875,7 +883,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isAdmin = API.user?.role === 'admin';
     const isStaff = API.user?.role === 'staff';
     // Admin-only nav items
-    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
+    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
     const adminDiv = document.getElementById('nav-admin-divider');
     if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
     // Financial nav items — hidden for staff

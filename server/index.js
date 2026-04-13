@@ -120,6 +120,7 @@ app.use('/api/electric', require('./routes/electric'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/health', require('./routes/health'));
 app.use('/api/vendors', require('./routes/vendors'));
+app.use('/api/documents', require('./routes/documents'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/reservations', require('./routes/reservations'));
 app.use('/api/settings', require('./routes/settings'));
