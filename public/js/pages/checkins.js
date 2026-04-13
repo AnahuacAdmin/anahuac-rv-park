@@ -160,14 +160,14 @@ async function showCheckIn() {
 
       <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
         <legend><strong>📄 Documents (optional)</strong></legend>
-        <p style="font-size:0.78rem;color:var(--gray-500);margin-bottom:0.5rem">Capture tenant documents now for your records. Tap any button to open your camera. Documents are stored securely and viewable from Administration → Documents. You can add more later.</p>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-          <label class="btn btn-sm btn-outline" style="cursor:pointer"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_id_file"> 📷 Photo ID</label>
-          <label class="btn btn-sm btn-outline" style="cursor:pointer"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_vehicle_file"> 📷 Vehicle Reg</label>
-          <label class="btn btn-sm btn-outline" style="cursor:pointer"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_insurance_file"> 📷 Insurance</label>
-          <label class="btn btn-sm btn-outline" style="cursor:pointer"><input type="file" accept="image/*,.pdf" style="display:none" name="doc_other_file"> 📁 Upload File</label>
+        <p style="font-size:0.82rem;color:var(--gray-500);margin-bottom:0.75rem">Tap to open your camera and scan. Documents stored securely. Add more anytime from Documents page.</p>
+        <div class="doc-scan-grid">
+          <label class="doc-scan-btn" id="scan-id"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_id_file"><span class="doc-scan-icon">🪪</span><span class="doc-scan-label">Scan Photo ID</span><span class="doc-scan-status"></span></label>
+          <label class="doc-scan-btn" id="scan-vehicle"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_vehicle_file"><span class="doc-scan-icon">🚗</span><span class="doc-scan-label">Scan Vehicle Reg</span><span class="doc-scan-status"></span></label>
+          <label class="doc-scan-btn" id="scan-insurance"><input type="file" accept="image/*" capture="environment" style="display:none" name="doc_insurance_file"><span class="doc-scan-icon">🛡️</span><span class="doc-scan-label">Scan Insurance</span><span class="doc-scan-status"></span></label>
+          <label class="doc-scan-btn" id="scan-other"><input type="file" accept="image/*,.pdf" style="display:none" name="doc_other_file"><span class="doc-scan-icon">📁</span><span class="doc-scan-label">Upload File</span><span class="doc-scan-status"></span></label>
         </div>
-        <div id="checkin-doc-previews" style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap"></div>
+        <div id="checkin-doc-previews" class="doc-preview-grid"></div>
       </fieldset>
 
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
@@ -199,16 +199,63 @@ async function showCheckIn() {
         if (this.checked) depAmt.value = '0';
       });
     }
-    // Document scan previews
-    var previewsEl = document.getElementById('checkin-doc-previews');
-    document.querySelectorAll('[name^="doc_"][type="file"]').forEach(function(input) {
+    // Document scan: compress + preview
+    document.querySelectorAll('.doc-scan-btn input[type="file"]').forEach(function(input) {
       input.addEventListener('change', function() {
-        if (!this.files[0] || !previewsEl) return;
-        var label = this.name.replace('doc_', '').replace('_file', '');
-        var div = document.createElement('div');
-        div.style.cssText = 'text-align:center;font-size:0.7rem;color:#16a34a';
-        div.innerHTML = '✅ ' + label;
-        previewsEl.appendChild(div);
+        var file = this.files && this.files[0];
+        var btn = this.closest('.doc-scan-btn');
+        var statusEl = btn && btn.querySelector('.doc-scan-status');
+        var previewsEl = document.getElementById('checkin-doc-previews');
+        if (!file || !btn) return;
+
+        // Show scanning state
+        if (statusEl) statusEl.textContent = '📸 Processing...';
+        btn.style.borderColor = '#f59e0b';
+
+        // Compress image via canvas
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          if (file.type === 'application/pdf') {
+            // PDFs: no compression, just mark done
+            if (statusEl) statusEl.innerHTML = '✅ Saved';
+            btn.style.borderColor = '#16a34a';
+            btn.style.background = '#f0fdf4';
+            return;
+          }
+          var img = new Image();
+          img.onload = function() {
+            var canvas = document.createElement('canvas');
+            var maxW = 1200;
+            var scale = Math.min(1, maxW / img.width);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            var sizeKB = Math.round(dataUrl.length * 0.75 / 1024);
+
+            // Replace file input's data with compressed version
+            input._compressedBase64 = dataUrl.split(',')[1];
+
+            // Update button state
+            if (statusEl) statusEl.innerHTML = '✅ ' + sizeKB + 'KB';
+            btn.style.borderColor = '#16a34a';
+            btn.style.background = '#f0fdf4';
+
+            // Show thumbnail preview
+            if (previewsEl) {
+              var div = document.createElement('div');
+              div.className = 'doc-preview-item';
+              div.innerHTML = '<img src="' + dataUrl + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #16a34a"><div style="font-size:0.65rem;color:#16a34a;text-align:center">✅</div>';
+              previewsEl.appendChild(div);
+            }
+          };
+          img.onerror = function() {
+            if (statusEl) statusEl.innerHTML = '❌ Failed';
+            btn.style.borderColor = '#dc2626';
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
       });
     });
   }, 50);
@@ -222,19 +269,25 @@ async function uploadCheckinDocs(tenantId, lotId) {
     var input = document.querySelector('[name="' + name + '"]');
     if (!input || !input.files || !input.files[0]) continue;
     try {
-      var file = input.files[0];
-      var base64 = await new Promise(function(resolve) {
-        var reader = new FileReader();
-        reader.onload = function() { resolve(reader.result.split(',')[1]); };
-        reader.readAsDataURL(file);
-      });
+      // Use pre-compressed data if available, otherwise read raw
+      var base64 = input._compressedBase64;
+      var fileType = 'image/jpeg';
+      if (!base64) {
+        var file = input.files[0];
+        fileType = file.type;
+        base64 = await new Promise(function(resolve) {
+          var reader = new FileReader();
+          reader.onload = function() { resolve(reader.result.split(',')[1]); };
+          reader.readAsDataURL(file);
+        });
+      }
       await API.post('/documents', {
         tenant_id: tenantId,
         lot_id: lotId,
         doc_type: docTypes[name],
         doc_name: docNames[docTypes[name]] + ' - ' + new Date().toISOString().split('T')[0],
         file_data: base64,
-        file_type: file.type,
+        file_type: fileType,
       });
     } catch (e) { console.error('Doc upload failed:', name, e); }
   }

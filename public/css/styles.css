@@ -1412,6 +1412,27 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
   box-shadow: 0 0 0 3px rgba(26, 92, 50, 0.1);
 }
 
+/* === DOCUMENT SCANNER === */
+.doc-scan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.doc-scan-btn {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem;
+  background: #fff; border: 2px solid var(--gray-200, #e7e5e4); border-radius: 12px;
+  cursor: pointer; transition: all 0.15s; min-height: 56px;
+}
+.doc-scan-btn:hover { border-color: var(--brand-primary, #1a5c32); background: #f0fdf4; }
+.doc-scan-btn:active { transform: scale(0.97); }
+.doc-scan-icon { font-size: 1.5rem; flex-shrink: 0; }
+.doc-scan-label { font-size: 0.85rem; font-weight: 600; color: var(--gray-700, #44403c); flex: 1; }
+.doc-scan-status { font-size: 0.72rem; flex-shrink: 0; }
+.doc-preview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-top: 0.5rem; }
+.doc-preview-item { text-align: center; }
+@media (max-width: 768px) {
+  .doc-scan-grid { grid-template-columns: 1fr; }
+  .doc-scan-btn { min-height: 60px; font-size: 1rem; }
+  .doc-scan-label { font-size: 1rem; }
+  .doc-preview-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* === METER PHOTO THUMBNAILS === */
 .meter-thumb {
   width: 48px;
