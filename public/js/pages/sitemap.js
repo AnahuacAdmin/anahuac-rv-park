@@ -60,7 +60,7 @@ async function loadSiteMap() {
             ${lot.size_restriction ? `<div style="font-size:0.65rem;color:var(--warning);margin-top:2px">${lot.size_restriction}</div>` : ''}
             ${lot.flat_rate ? '<div style="font-size:0.65rem;color:#16a34a;margin-top:2px;font-weight:600">FLAT RATE</div>' : ''}
             ${lot.short_term_only ? '<div style="font-size:0.6rem;color:#0284c7;margin-top:1px;font-weight:600">⏱️ SHORT TERM</div>' : ''}
-            ${lot.deposit_waived ? '<div style="font-size:0.6rem;color:#9ca3af;margin-top:1px">DEPOSIT WAIVED</div>' : ''}
+            ${_isAdmin && lot.deposit_waived ? '<div style="font-size:0.6rem;color:#9ca3af;margin-top:1px">🚫 DEP WAIVED</div>' : _isAdmin && lot.deposit_amount > 0 ? '<div style="font-size:0.6rem;color:#16a34a;margin-top:1px">💰 DEP PAID</div>' : ''}
           </div>
         `;}).join('')}
       </div>

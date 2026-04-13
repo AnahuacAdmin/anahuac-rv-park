@@ -105,7 +105,12 @@ async function showCheckIn() {
           <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${new Date().toISOString().split('T')[0]}" required onchange="calcProration(this.form)"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" type="number" step="0.01" value="0"></div>
+          <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" id="checkin-deposit-amt" type="number" step="0.01" value="0"></div>
+          <div class="form-group" style="display:flex;align-items:flex-end">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem">
+              <input type="checkbox" name="deposit_waived" id="checkin-deposit-waived" value="1"> Waive Deposit
+            </label>
+          </div>
           <div class="form-group"></div>
         </div>
         <div style="border:1px solid #16a34a;border-radius:8px;padding:0.6rem 0.75rem;margin-bottom:0.75rem">
@@ -173,6 +178,15 @@ async function showCheckIn() {
     }
     if (lotSel) lotSel.addEventListener('change', checkShortTerm);
     if (rentSel) rentSel.addEventListener('change', checkShortTerm);
+    // Waive deposit toggle
+    var waiveCb = document.getElementById('checkin-deposit-waived');
+    var depAmt = document.getElementById('checkin-deposit-amt');
+    if (waiveCb && depAmt) {
+      waiveCb.addEventListener('change', function() {
+        depAmt.disabled = this.checked;
+        if (this.checked) depAmt.value = '0';
+      });
+    }
   }, 50);
 }
 
@@ -242,6 +256,7 @@ async function processCheckIn(e) {
       emergency_contact: data.emergency_contact, emergency_phone: data.emergency_phone,
       id_number: data.id_number, date_of_birth: data.date_of_birth,
       deposit_amount: parseFloat(data.deposit_amount) || 0,
+      deposit_waived: data.deposit_waived === '1' ? 1 : 0,
       flat_rate: data.flat_rate === '1' ? 1 : 0,
       flat_rate_amount: parseFloat(data.flat_rate_amount) || 0,
     });

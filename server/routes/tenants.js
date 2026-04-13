@@ -56,7 +56,7 @@ router.post('/', (req, res) => {
       INSERT INTO tenants (lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
         rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
         recurring_late_fee, recurring_mailbox_fee, recurring_misc_fee, recurring_misc_description,
-        recurring_credit, recurring_credit_description, id_number, date_of_birth, deposit_amount, deposit_waived,
+        recurring_credit, recurring_credit_description, id_number, date_of_birth, deposit_amount,
         flat_rate, flat_rate_amount, deposit_waived)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(

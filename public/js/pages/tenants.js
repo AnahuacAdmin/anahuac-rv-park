@@ -129,7 +129,14 @@ function tenantForm(lots, tenant = {}) {
         <div class="form-group"><label>ID / Driver's License #</label><input name="id_number" value="${tenant.id_number || ''}"></div>
         <div class="form-group"><label>Date of Birth</label><input name="date_of_birth" type="date" value="${tenant.date_of_birth || ''}"></div>
       </div>
-      <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" type="number" step="0.01" value="${tenant.deposit_amount || 0}"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" type="number" step="0.01" value="${tenant.deposit_amount || 0}" ${tenant.deposit_waived ? 'disabled' : ''}></div>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem">
+            <input type="checkbox" name="deposit_waived" value="1" ${tenant.deposit_waived ? 'checked' : ''} onchange="var d=this.form.deposit_amount;d.disabled=this.checked;if(this.checked)d.value='0'"> Waive Deposit
+          </label>
+        </div>
+      </div>
       ${tenant.id ? `
         <div class="form-group">
           <button type="button" class="btn btn-warning" onclick="showMoveTenant(${tenant.id}, '${tenant.lot_id}', \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Move to Different Lot</button>
@@ -210,6 +217,7 @@ async function saveTenant(e, id) {
   data.email_opt_in = data.email_opt_in === '1' ? 1 : 0;
   data.invoice_delivery = data.invoice_delivery || 'both';
   data.deposit_amount = parseFloat(data.deposit_amount) || 0;
+  data.deposit_waived = data.deposit_waived === '1' ? 1 : 0;
   data.flat_rate = data.flat_rate === '1' ? 1 : 0;
   data.flat_rate_amount = parseFloat(data.flat_rate_amount) || 0;
 

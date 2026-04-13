@@ -216,7 +216,13 @@ async function loadDashboard() {
       <div id="dash-vendors" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
     </div>` : ''}
 
+    ${isAdmin() ? `
     <div class="card dash-fade-in" style="animation-delay:0.8s">
+      <h3>💰 Deposit Summary</h3>
+      <div id="dash-deposits" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+    </div>` : ''}
+
+    <div class="card dash-fade-in" style="animation-delay:0.85s">
       <button id="calc-toggle-btn" style="width:100%;background:none;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:0">
         <h3 style="margin:0">🧮 Quick Calculator</h3>
         <span id="calc-toggle-icon" style="color:var(--gray-400);font-size:0.8rem">tap to expand ▼</span>
@@ -285,12 +291,29 @@ async function loadDashboard() {
     refreshHealth();
     clearInterval(window._healthInterval);
     window._healthInterval = setInterval(refreshHealth, 5 * 60 * 1000);
-    // Load quick contacts
+    // Load quick contacts and deposit summary
     loadDashVendors();
+    loadDashDeposits();
   }
 
   // Init calculator
   initCalc();
+}
+
+async function loadDashDeposits() {
+  var el = document.getElementById('dash-deposits');
+  if (!el) return;
+  try {
+    var tenants = await API.get('/tenants');
+    var paid = (tenants || []).filter(function(t) { return Number(t.deposit_amount) > 0; }).length;
+    var waived = (tenants || []).filter(function(t) { return t.deposit_waived; }).length;
+    var none = (tenants || []).length - paid - waived;
+    el.innerHTML = '<div style="display:flex;gap:1rem;flex-wrap:wrap">' +
+      '<span>💰 <strong>' + paid + '</strong> paid</span>' +
+      '<span>🚫 <strong>' + waived + '</strong> waived</span>' +
+      '<span style="color:#d97706">⚠️ <strong>' + none + '</strong> not recorded</span>' +
+    '</div>';
+  } catch { el.innerHTML = ''; }
 }
 
 async function loadDashVendors() {
