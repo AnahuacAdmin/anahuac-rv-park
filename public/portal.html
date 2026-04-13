@@ -40,7 +40,7 @@
     .card {
       background: rgba(255,253,240,0.95); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
       border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.08);
-      width:100%; max-width:480px; padding:1.5rem; margin-bottom:0.75rem;
+      width:100%; max-width:800px; padding:1.25rem; margin-bottom:0.75rem;
       animation: fadeIn 0.4s ease-out;
     }
     .login-overlay .card { box-shadow:0 25px 50px rgba(0,0,0,0.5);padding:2rem 1.75rem }
@@ -79,7 +79,7 @@
     .link a { color:#fff;text-decoration:underline }
 
     /* Portal header */
-    .portal-hero { background:linear-gradient(135deg,#0f3d22,#1a5c32,#2d8a52);color:#fff;border-radius:16px;padding:1.25rem 1.5rem;margin-bottom:0.75rem;width:100%;max-width:480px;text-align:center;position:relative;overflow:hidden }
+    .portal-hero { background:linear-gradient(135deg,#0f3d22,#1a5c32,#2d8a52);color:#fff;border-radius:16px;padding:1.25rem 1.5rem;margin-bottom:0.75rem;width:100%;max-width:800px;text-align:center;position:relative;overflow:hidden }
     .portal-hero::after { content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M20 20c0-11.046-8.954-20-20-20v20h20z'/%3E%3C/g%3E%3C/svg%3E");pointer-events:none }
     .portal-hero > * { position:relative;z-index:1 }
     .hero-gator { font-size:2.5rem;display:inline-block;animation:gatorWave 2s ease-in-out infinite }
@@ -128,7 +128,7 @@
     .game-play { font-size:0.65rem;font-weight:600;opacity:0.8;letter-spacing:0.05em }
 
     /* Holiday banner */
-    .holiday-banner { width:100%;max-width:480px;border-radius:14px;padding:0.75rem 1rem;margin-bottom:0.75rem;text-align:center;position:relative;overflow:hidden }
+    .holiday-banner { width:100%;max-width:800px;border-radius:14px;padding:0.75rem 1rem;margin-bottom:0.75rem;text-align:center;position:relative;overflow:hidden }
     .holiday-banner-text { font-size:1rem;font-weight:700;position:relative;z-index:1 }
     .holiday-banner-emoji { font-size:1.5rem;display:inline-block;animation:holidayFloat 3s ease-in-out infinite alternate }
     @keyframes holidayFloat { 0%{transform:translateY(0)} 100%{transform:translateY(-6px)} }
@@ -145,8 +145,20 @@
     /* Countdown */
     .countdown-timer { font-size:1.1rem;font-weight:800;letter-spacing:0.5px }
 
-    .portal-footer { text-align:center;color:#a8a29e;font-size:0.75rem;margin:1rem 0 0.5rem;max-width:480px;line-height:1.5 }
+    .portal-footer { text-align:center;color:#a8a29e;font-size:0.75rem;margin:1rem 0 0.5rem;max-width:800px;line-height:1.5 }
     .hidden { display:none !important }
+    /* Desktop: two-column layout */
+    @media (min-width:601px) {
+      .portal-two-col { display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;width:100%;max-width:800px }
+      .portal-two-col > .card { margin-bottom:0 }
+      .link-grid { grid-template-columns:repeat(3,1fr) !important }
+      .card { padding:1rem }
+    }
+    @media (max-width:768px) and (min-width:601px) {
+      .card { max-width:750px }
+      .link-grid { grid-template-columns:repeat(2,1fr) !important }
+    }
+    @media (max-width:600px) { .portal-two-col { display:block } }
     @media (max-width:480px) { .card{padding:1.25rem 1rem} .balance-amount{font-size:2rem} .link-grid{gap:0.4rem} .link-btn{padding:0.55rem 0.6rem;font-size:0.78rem} }
   </style>
 </head>
@@ -221,36 +233,39 @@
     <div class="hero-date" id="p-date"></div>
   </div>
 
-  <!-- Balance & Pay -->
-  <div class="card">
-    <div class="tenant-header">
-      <div class="tenant-name" id="p-name"></div>
-      <div class="tenant-lot" id="p-lot"></div>
+  <!-- Two-column layout on desktop -->
+  <div class="portal-two-col">
+    <!-- Left: Balance & Pay -->
+    <div class="card">
+      <div class="tenant-header">
+        <div class="tenant-name" id="p-name"></div>
+        <div class="tenant-lot" id="p-lot"></div>
+      </div>
+      <div class="balance-box">
+        <div class="balance-label">Current Balance</div>
+        <div class="balance-amount" id="p-balance">...</div>
+      </div>
+      <div id="pay-section"></div>
+      <div style="margin-top:0.75rem">
+        <div class="card-title">Recent Invoices</div>
+        <div id="p-invoices"></div>
+      </div>
     </div>
-    <div class="balance-box">
-      <div class="balance-label">Current Balance</div>
-      <div class="balance-amount" id="p-balance">...</div>
-    </div>
-    <div id="pay-section"></div>
-    <div style="margin-top:0.75rem">
-      <div class="card-title">Recent Invoices</div>
-      <div id="p-invoices"></div>
-    </div>
-  </div>
 
-  <!-- Weather -->
-  <div class="card" id="weather-card">
-    <div class="card-title">🌤️ Weather in Anahuac</div>
-    <div class="weather-bar" id="weather-content">
-      <span class="wx-detail">Loading...</span>
+    <!-- Right: Weather + Bible Verse -->
+    <div>
+      <div class="card" id="weather-card" style="margin-bottom:0.75rem">
+        <div class="card-title">🌤️ Weather in Anahuac</div>
+        <div class="weather-bar" id="weather-content">
+          <span class="wx-detail">Loading...</span>
+        </div>
+      </div>
+      <div class="card verse-card" id="verse-card" style="display:none">
+        <div class="card-title" style="color:#92400e">✝️ Verse of the Day</div>
+        <div class="verse-text" id="verse-text"></div>
+        <div class="verse-ref" id="verse-ref"></div>
+      </div>
     </div>
-  </div>
-
-  <!-- Bible Verse -->
-  <div class="card verse-card" id="verse-card" style="display:none">
-    <div class="card-title" style="color:#92400e">✝️ Verse of the Day</div>
-    <div class="verse-text" id="verse-text"></div>
-    <div class="verse-ref" id="verse-ref"></div>
   </div>
 
   <!-- Holiday Corner -->
@@ -342,7 +357,7 @@
   </div>
 
   <!-- Logout -->
-  <button onclick="portalLogout()" class="btn btn-outline" style="max-width:480px;margin-top:0.25rem">🚪 Log Out</button>
+  <button onclick="portalLogout()" class="btn btn-outline" style="max-width:800px;margin-top:0.25rem">🚪 Log Out</button>
 
   <div class="portal-footer">
     <p style="font-style:italic;margin-bottom:0.4rem">"The earth is the Lord's, and everything in it." — Psalm 24:1</p>
