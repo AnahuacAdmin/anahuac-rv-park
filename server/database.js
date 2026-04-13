@@ -177,6 +177,37 @@ async function initializeDatabase() {
 
   addCol("ALTER TABLE tenants ADD COLUMN deposit_waived INTEGER DEFAULT 0");
 
+  // Electric alerts
+  db.run(`CREATE TABLE IF NOT EXISTS electric_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id TEXT, tenant_id INTEGER, alert_type TEXT,
+    message TEXT, is_dismissed INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP, dismissed_at DATETIME
+  )`);
+
+  // SMS templates
+  db.run(`CREATE TABLE IF NOT EXISTS sms_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL, message TEXT NOT NULL,
+    category TEXT DEFAULT 'general', created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  var tmplCount = 0;
+  try { tmplCount = db.prepare('SELECT COUNT(*) as c FROM sms_templates').get().c; } catch {}
+  if (tmplCount === 0) {
+    var ins = db.prepare('INSERT INTO sms_templates (name, message, category) VALUES (?,?,?)');
+    ins.run('Maintenance Notice', 'Maintenance scheduled at your lot tomorrow between [time] and [time]. Thank you for your patience!', 'maintenance');
+    ins.run('Water Shutoff', 'Water will be temporarily shut off [date] from [time] to [time] for maintenance. We apologize for the inconvenience.', 'utility');
+    ins.run('Holiday Greeting', 'Happy [Holiday] from the Anahuac RV Park family! We are blessed to have you as our neighbor. 🐊', 'greeting');
+    ins.run('Park Rule Reminder', 'Friendly reminder: [Park Rule]. Thank you for your cooperation! - Anahuac RV Park', 'reminder');
+    ins.run('Weather Advisory', 'Weather advisory for Anahuac: [Description]. Please take precautions and secure your property.', 'weather');
+    ins.run('Payment Received', 'Your payment of $[amount] has been received. Thank you! Balance: $[balance]. - Anahuac RV Park', 'payment');
+    ins.run('Lease Renewal', 'Your lease renewal is coming up. Please contact us at 409-267-6603 to discuss. We appreciate your tenancy!', 'admin');
+  }
+
+  // Referral tracking
+  addCol("ALTER TABLE tenants ADD COLUMN referred_by INTEGER");
+  addCol("ALTER TABLE tenants ADD COLUMN referral_credit REAL DEFAULT 0");
+
   // Tenant loyalty and document expiry
   addCol("ALTER TABLE tenants ADD COLUMN loyalty_exclude INTEGER DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN insurance_expiry DATE");

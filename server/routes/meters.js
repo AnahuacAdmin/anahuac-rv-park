@@ -9,6 +9,8 @@ const path = require('path');
 const fs = require('fs');
 const { db, DB_PATH } = require('../database');
 const { authenticate } = require('../middleware');
+var checkElectricAnomalies;
+try { checkElectricAnomalies = require('./electric-alerts').checkElectricAnomalies; } catch(e) { checkElectricAnomalies = function() {}; }
 
 // Photos directory: next to the database on the Railway volume.
 const PHOTOS_DIR = path.join(path.dirname(DB_PATH), 'uploads', 'meter-photos');
@@ -138,6 +140,8 @@ router.post('/', (req, res) => {
     photoFile = savePhoto(result.lastInsertRowid, photo);
     db.prepare('UPDATE meter_readings SET photo = ? WHERE id = ?').run(photoFile, result.lastInsertRowid);
   }
+  // Check for electric anomalies
+  try { checkElectricAnomalies(req.body.lot_id, req.body.tenant_id, kwh); } catch(e) {}
   res.json({ id: result.lastInsertRowid, kwh_used: kwh, electric_charge: charge, photo: photoFile });
 });
 

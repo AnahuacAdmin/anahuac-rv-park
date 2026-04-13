@@ -89,4 +89,27 @@ router.get('/', (req, res) => {
   }
 });
 
+// Vacancy cost tracker
+router.get('/vacancy-cost', (req, res) => {
+  try {
+    var vacantLots = db.prepare("SELECT id, default_rate FROM lots WHERE status='vacant'").all();
+    var totalCost = 0;
+    var details = vacantLots.map(function(lot) {
+      // Find last checkout date for this lot
+      var lastCheckout = db.prepare("SELECT check_out_date FROM checkins WHERE lot_id=? AND check_out_date IS NOT NULL ORDER BY check_out_date DESC LIMIT 1").get(lot.id);
+      var daysVacant = 0;
+      if (lastCheckout && lastCheckout.check_out_date) {
+        daysVacant = Math.max(0, Math.floor((Date.now() - new Date(lastCheckout.check_out_date + 'T00:00:00').getTime()) / 86400000));
+      }
+      var dailyRate = (lot.default_rate || 295) / 30;
+      var cost = Math.round(daysVacant * dailyRate);
+      totalCost += cost;
+      return { lot_id: lot.id, daysVacant: daysVacant, lostRevenue: cost };
+    }).filter(function(v) { return v.daysVacant > 0; }).sort(function(a, b) { return b.lostRevenue - a.lostRevenue; });
+    res.json({ totalCost: totalCost, vacantLots: details });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -237,6 +237,16 @@ async function loadDashboard() {
     <div class="card dash-fade-in" style="animation-delay:0.86s">
       <h3>🏥 Park Health Score</h3>
       <div id="dash-health-score" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+    </div>
+
+    <div class="card dash-fade-in" style="animation-delay:0.87s">
+      <h3>⚡ Electric Alerts</h3>
+      <div id="dash-electric-alerts" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+    </div>
+
+    <div class="card dash-fade-in" style="animation-delay:0.88s">
+      <h3>🏠 Vacancy Cost</h3>
+      <div id="dash-vacancy-cost" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
     </div>` : ''}
 
     <div class="card dash-fade-in" style="animation-delay:0.88s">
@@ -314,6 +324,8 @@ async function loadDashboard() {
     loadDashMaintenance();
     loadDashExpenses();
     loadDashHealthScore();
+    loadDashElectricAlerts();
+    loadDashVacancyCost();
   }
 
   // Init calculator
@@ -349,6 +361,35 @@ async function loadDashHealthScore() {
       '<span>' + emoji + ' Average</span>' +
       (atRisk > 0 ? '<span style="color:#dc2626">🔴 ' + atRisk + ' at risk</span>' : '') +
     '</div>';
+  } catch { el.innerHTML = ''; }
+}
+
+async function loadDashElectricAlerts() {
+  var el = document.getElementById('dash-electric-alerts');
+  if (!el) return;
+  try {
+    var alerts = await API.get('/electric-alerts');
+    if (!alerts || !alerts.length) { el.innerHTML = '✅ No alerts'; return; }
+    el.innerHTML = alerts.slice(0, 3).map(function(a) {
+      return '<div style="padding:0.25rem 0;border-bottom:1px solid var(--gray-100);font-size:0.82rem">' +
+        '<span style="color:#d97706">⚠️</span> ' + escapeHtml(a.message).slice(0, 80) +
+        ' <button class="btn btn-sm btn-outline" style="font-size:0.65rem;padding:1px 6px" onclick="dismissElectricAlert(' + a.id + ')">Dismiss</button></div>';
+    }).join('') + (alerts.length > 3 ? '<div style="font-size:0.75rem;color:#78716c;margin-top:0.25rem">+' + (alerts.length - 3) + ' more</div>' : '');
+  } catch { el.innerHTML = ''; }
+}
+
+async function dismissElectricAlert(id) {
+  await API.put('/electric-alerts/' + id + '/dismiss', {});
+  loadDashElectricAlerts();
+}
+
+async function loadDashVacancyCost() {
+  var el = document.getElementById('dash-vacancy-cost');
+  if (!el) return;
+  try {
+    var data = await API.get('/dashboard/vacancy-cost');
+    el.innerHTML = '<span>This month: <strong style="color:#dc2626">' + formatMoney(data?.totalCost || 0) + '</strong> lost</span>' +
+      (data?.vacantLots?.length ? '<div style="font-size:0.75rem;color:#78716c;margin-top:0.25rem">' + data.vacantLots.slice(0, 3).map(function(v) { return v.lot_id + ': ' + v.daysVacant + ' days'; }).join(', ') + '</div>' : '');
   } catch { el.innerHTML = ''; }
 }
 
