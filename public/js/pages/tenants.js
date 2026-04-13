@@ -137,6 +137,14 @@ function tenantForm(lots, tenant = {}) {
           </label>
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group"><label>Insurance Expiry</label><input name="insurance_expiry" type="date" value="${tenant.insurance_expiry || ''}"></div>
+        <div class="form-group"><label>Registration Expiry</label><input name="registration_expiry" type="date" value="${tenant.registration_expiry || ''}"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;font-size:0.85rem;cursor:pointer">
+        <input type="checkbox" name="loyalty_exclude" value="1" ${tenant.loyalty_exclude ? 'checked' : ''}> Exclude from loyalty discount program
+      </label>
+
       ${tenant.id ? `
         <div class="form-group">
           <button type="button" class="btn btn-warning" onclick="showMoveTenant(${tenant.id}, '${tenant.lot_id}', \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Move to Different Lot</button>
@@ -218,6 +226,7 @@ async function saveTenant(e, id) {
   data.invoice_delivery = data.invoice_delivery || 'both';
   data.deposit_amount = parseFloat(data.deposit_amount) || 0;
   data.deposit_waived = data.deposit_waived === '1' ? 1 : 0;
+  data.loyalty_exclude = data.loyalty_exclude === '1' ? 1 : 0;
   data.flat_rate = data.flat_rate === '1' ? 1 : 0;
   data.flat_rate_amount = parseFloat(data.flat_rate_amount) || 0;
 

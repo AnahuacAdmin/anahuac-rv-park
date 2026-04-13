@@ -90,7 +90,8 @@ router.put('/:id', (req, res) => {
       recurring_credit=?, recurring_credit_description=?,
       sms_opt_in=?, email_opt_in=?, invoice_delivery=?,
       id_number=?, date_of_birth=?, deposit_amount=?, deposit_waived=?,
-      flat_rate=?, flat_rate_amount=?
+      flat_rate=?, flat_rate_amount=?,
+      insurance_expiry=?, registration_expiry=?, loyalty_exclude=?, grace_period_override=?
     WHERE id = ?
   `).run(
     str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
@@ -105,6 +106,7 @@ router.put('/:id', (req, res) => {
     b.invoice_delivery || 'both',
     str(b.id_number), str(b.date_of_birth), Number(b.deposit_amount) || 0, b.deposit_waived ? 1 : 0,
     b.flat_rate ? 1 : 0, Number(b.flat_rate_amount) || 0,
+    str(b.insurance_expiry), str(b.registration_expiry), b.loyalty_exclude ? 1 : 0, b.grace_period_override !== undefined ? (Number(b.grace_period_override) || null) : null,
     req.params.id
   );
   res.json({ success: true });
