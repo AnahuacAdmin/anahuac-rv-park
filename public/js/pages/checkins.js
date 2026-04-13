@@ -18,8 +18,8 @@ async function loadCheckins() {
     <div class="page-header">
       <h2>Check-In / Check-Out</h2>
       <div class="btn-group">
-        <button class="btn btn-success" onclick="showCheckIn()">Check-In</button>
-        <button class="btn btn-warning" onclick="showCheckOut()">Check-Out</button>
+        <button class="btn btn-success" id="btn-checkin">Check-In</button>
+        <button class="btn btn-warning" id="btn-checkout">Check-Out</button>
       </div>
     </div>
     <div class="stats-grid">
@@ -46,6 +46,9 @@ async function loadCheckins() {
       </div>
     </div>
   `;
+  // Wire buttons via addEventListener (CSP-safe)
+  document.getElementById('btn-checkin').addEventListener('click', showCheckIn);
+  document.getElementById('btn-checkout').addEventListener('click', showCheckOut);
 }
 
 let _checkinDefaultFlatRate = 0;
