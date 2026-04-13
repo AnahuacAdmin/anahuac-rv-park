@@ -613,32 +613,32 @@ async function showPortal() {
 // --- Holiday System ---
 const HOLIDAYS = {
   christmas:    { s:[12,1],  e:[12,31], name:'Merry Christmas! 🎄',        mascot:'🎅', emoji:'❄️', bg:'linear-gradient(135deg,#165b33,#c41e3a)', accent:'#ffd700',
-                  verse:{t:'Today in the town of David a Savior has been born to you; he is the Messiah, the Lord.',r:'Luke 2:11'}, recipe:'christmas+pudding', music:'https://www.youtube.com/results?search_query=christmas+music+playlist' },
+                  verse:{t:'Today in the town of David a Savior has been born to you; he is the Messiah, the Lord.',r:'Luke 2:11'}, music:'https://www.youtube.com/results?search_query=christmas+music+playlist' },
   thanksgiving: { s:[11,1],  e:[11,30], name:'Happy Thanksgiving! 🦃',     mascot:'🦃', emoji:'🍂', bg:'linear-gradient(135deg,#3d1f00,#b85c00)', accent:'#f4a460',
-                  verse:{t:'Give thanks to the Lord, for he is good; his love endures forever.',r:'Psalm 107:1'}, recipe:'turkey' },
+                  verse:{t:'Give thanks to the Lord, for he is good; his love endures forever.',r:'Psalm 107:1'} },
   newYear:      { s:[1,1],   e:[1,7],   name:'Happy New Year! 🎆',         mascot:'🥂', emoji:'🎊', bg:'linear-gradient(135deg,#0a0a2e,#1a1a6e)', accent:'#ffd700',
-                  verse:{t:'For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you.',r:'Jeremiah 29:11'}, recipe:'champagne' },
+                  verse:{t:'For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you.',r:'Jeremiah 29:11'} },
   valentines:   { s:[2,1],   e:[2,14],  name:"Happy Valentine's Day! ❤️",  mascot:'💕', emoji:'❤️', bg:'linear-gradient(135deg,#6e0a1e,#c41e3a)', accent:'#ff69b4',
-                  verse:{t:'Love is patient, love is kind. It does not envy, it does not boast.',r:'1 Corinthians 13:4'}, recipe:'chocolate' },
-  stPatricks:   { s:[3,10],  e:[3,17],  name:"St. Patrick's Day! ☘️",      mascot:'☘️', emoji:'🍀', bg:'linear-gradient(135deg,#0a3d0a,#1a7a1a)', accent:'#ffd700',
-                  verse:{t:'The Lord bless you and keep you; the Lord make his face shine on you.',r:'Numbers 6:24-25'}, recipe:'irish+stew' },
-  easter:       { s:[3,20],  e:[4,20],  name:'Happy Easter! 🐣',           mascot:'🐰', emoji:'🌸', bg:'linear-gradient(135deg,#4a235a,#9b59b6)', accent:'#f39c12',
-                  verse:{t:'He is not here; he has risen, just as he said.',r:'Matthew 28:6'}, recipe:'lamb' },
-  mothersDay:   { s:[5,8],   e:[5,12],  name:"Happy Mother's Day! 🌸",     mascot:'💐', emoji:'🌺', bg:'linear-gradient(135deg,#6e0a3d,#ff69b4)', accent:'#ffd700',
-                  verse:{t:'She is clothed with strength and dignity; she can laugh at the days to come.',r:'Proverbs 31:25'}, recipe:'cake' },
-  memorialDay:  { s:[5,24],  e:[5,27],  name:'Memorial Day 🎖️',            mascot:'🎖️', emoji:'🇺🇸', bg:'linear-gradient(135deg,#3c3b6e,#b22234)', accent:'#fff',
-                  verse:{t:'Greater love has no one than this: to lay down one\'s life for one\'s friends.',r:'John 15:13'}, recipe:'bbq' },
-  fathersDay:   { s:[6,14],  e:[6,18],  name:"Happy Father's Day! 👨‍👧",     mascot:'🏆', emoji:'⛳', bg:'linear-gradient(135deg,#0a1a3d,#1a3a6e)', accent:'#ffd700',
-                  verse:{t:'As a father has compassion on his children, so the Lord has compassion on those who fear him.',r:'Psalm 103:13'}, recipe:'steak' },
-  independence: { s:[6,28],  e:[7,4],   name:'Happy 4th of July! 🇺🇸',     mascot:'🦅', emoji:'✨', bg:'linear-gradient(135deg,#3c3b6e,#b22234)', accent:'#fff',
-                  verse:{t:'It is for freedom that Christ has set us free.',r:'Galatians 5:1'}, recipe:'bbq+ribs' },
-  laborDay:     { s:[8,30],  e:[9,2],   name:'Happy Labor Day! 🇺🇸',       mascot:'🌞', emoji:'🎉', bg:'linear-gradient(135deg,#3c3b6e,#b22234)', accent:'#fff',
-                  verse:{t:'Whatever you do, work at it with all your heart, as working for the Lord.',r:'Colossians 3:23'}, recipe:'burger' },
+                  verse:{t:'Love is patient, love is kind. It does not envy, it does not boast.',r:'1 Corinthians 13:4'} },
+  stPatricks:   { s:[3,13],  e:[3,17],  name:"St. Patrick's Day! ☘️",      mascot:'☘️', emoji:'🍀', bg:'linear-gradient(135deg,#0a3d0a,#1a7a1a)', accent:'#ffd700',
+                  verse:{t:'The Lord bless you and keep you; the Lord make his face shine on you.',r:'Numbers 6:24-25'} },
+  easter:       { s:[4,13],  e:[4,20],  name:'Happy Easter! 🐣',           mascot:'🐰', emoji:'🌸', bg:'linear-gradient(135deg,#4a235a,#9b59b6)', accent:'#f39c12',
+                  verse:{t:'He is not here; he has risen, just as he said.',r:'Matthew 28:6'} },
+  mothersDay:   { s:[5,10],  e:[5,12],  name:"Happy Mother's Day! 🌸",     mascot:'💐', emoji:'🌺', bg:'linear-gradient(135deg,#6e0a3d,#ff69b4)', accent:'#ffd700',
+                  verse:{t:'She is clothed with strength and dignity; she can laugh at the days to come.',r:'Proverbs 31:25'} },
+  memorialDay:  { s:[5,25],  e:[5,27],  name:'Memorial Day 🎖️',            mascot:'🎖️', emoji:'🇺🇸', bg:'linear-gradient(135deg,#3c3b6e,#b22234)', accent:'#fff',
+                  verse:{t:'Greater love has no one than this: to lay down one\'s life for one\'s friends.',r:'John 15:13'} },
+  fathersDay:   { s:[6,14],  e:[6,16],  name:"Happy Father's Day! 👨‍👧",     mascot:'🏆', emoji:'⛳', bg:'linear-gradient(135deg,#0a1a3d,#1a3a6e)', accent:'#ffd700',
+                  verse:{t:'As a father has compassion on his children, so the Lord has compassion on those who fear him.',r:'Psalm 103:13'} },
+  independence: { s:[7,1],   e:[7,4],   name:'Happy 4th of July! 🇺🇸',     mascot:'🦅', emoji:'✨', bg:'linear-gradient(135deg,#3c3b6e,#b22234)', accent:'#fff',
+                  verse:{t:'It is for freedom that Christ has set us free.',r:'Galatians 5:1'} },
+  laborDay:     { s:[8,30],  e:[9,1],   name:'Happy Labor Day! 🇺🇸',       mascot:'🌞', emoji:'🎉', bg:'linear-gradient(135deg,#3c3b6e,#b22234)', accent:'#fff',
+                  verse:{t:'Whatever you do, work at it with all your heart, as working for the Lord.',r:'Colossians 3:23'} },
   gatorfest:    { s:[9,12],  e:[9,22],  name:'Gatorfest Time! 🐊',         mascot:'🐊', emoji:'🎪', bg:'linear-gradient(135deg,#0a2e1a,#1a5c32)', accent:'#f59e0b',
-                  verse:{t:'This is the day the Lord has made; let us rejoice and be glad in it.',r:'Psalm 118:24'}, recipe:'cajun',
+                  verse:{t:'This is the day the Lord has made; let us rejoice and be glad in it.',r:'Psalm 118:24'},
                   extra:'<p style="margin-top:0.5rem"><a href="https://www.gatorfest.com" target="_blank" style="color:#f59e0b;font-weight:700;text-decoration:underline">🐊 See the Gatorfest schedule →</a></p><p style="font-size:0.8rem;color:#78716c;margin-top:0.25rem">Less than a mile from the park!</p>' },
-  halloween:    { s:[10,1],  e:[10,31], name:'Happy Halloween! 🎃',        mascot:'👻', emoji:'🦇', bg:'linear-gradient(135deg,#1a0a00,#ff6600)', accent:'#9b59b6',
-                  verse:{t:'Even though I walk through the darkest valley, I will fear no evil, for you are with me.',r:'Psalm 23:4'}, recipe:'pumpkin' },
+  halloween:    { s:[10,25], e:[10,31], name:'Happy Halloween! 🎃',        mascot:'👻', emoji:'🦇', bg:'linear-gradient(135deg,#1a0a00,#ff6600)', accent:'#9b59b6',
+                  verse:{t:'Even though I walk through the darkest valley, I will fear no evil, for you are with me.',r:'Psalm 23:4'} },
 };
 
 function getActiveHoliday() {
@@ -678,15 +678,15 @@ function applyHolidayTheme() {
   const gatorEl = document.querySelector('.hero-gator');
   if (gatorEl) gatorEl.textContent = h.mascot;
 
-  // Holiday content card
-  const hcard = document.getElementById('holiday-card');
-  if (hcard) {
+  // Holiday content card — only show if there's extra content (Gatorfest link, music)
+  var hcard = document.getElementById('holiday-card');
+  if (hcard && (h.extra || h.music)) {
     hcard.style.display = '';
-    hcard.style.borderLeft = `4px solid ${h.accent}`;
-    document.getElementById('holiday-card-title').innerHTML = `${h.mascot} ${h.name.replace(/!.*/, '')}`;
-    let content = `<p style="font-size:0.88rem">${h.name}</p>`;
+    hcard.style.borderLeft = '4px solid ' + h.accent;
+    document.getElementById('holiday-card-title').innerHTML = h.mascot + ' ' + h.name.replace(/!.*/, '');
+    var content = '';
     if (h.extra) content += h.extra;
-    if (h.music) content += `<p style="margin-top:0.5rem"><a href="${h.music}" target="_blank" style="color:${h.accent};font-weight:600;text-decoration:underline">🎵 Holiday Music Playlist →</a></p>`;
+    if (h.music) content += '<p style="margin-top:0.5rem"><a href="' + h.music + '" target="_blank" style="color:' + h.accent + ';font-weight:600;text-decoration:underline">🎵 Holiday Music Playlist →</a></p>';
     document.getElementById('holiday-card-content').innerHTML = content;
   }
 
