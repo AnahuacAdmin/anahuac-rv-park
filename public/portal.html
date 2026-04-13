@@ -286,9 +286,26 @@
     <div id="announcements-list"></div>
   </div>
 
+  <!-- Community Board -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+      <div class="card-title" style="margin:0">📋 Community Board</div>
+      <button class="btn btn-sm btn-green" id="portal-new-post-btn" style="font-size:0.78rem;padding:0.3rem 0.75rem">+ New Post</button>
+    </div>
+    <div id="portal-new-post-form" style="display:none;margin-bottom:1rem;padding:0.75rem;background:var(--gray-50,#fafaf9);border-radius:8px">
+      <form id="portal-post-form">
+        <div class="form-group" style="margin-bottom:0.5rem"><select name="post_type" style="font-size:0.9rem"><option value="community">📢 Community</option><option value="fishing">🎣 Fishing Story</option><option value="event">🎪 Event</option></select></div>
+        <div class="form-group" style="margin-bottom:0.5rem"><input name="title" placeholder="Title" required style="font-size:0.9rem"></div>
+        <div class="form-group" style="margin-bottom:0.5rem"><textarea name="message" rows="3" placeholder="Share with the community..." style="font-size:0.9rem"></textarea></div>
+        <button type="submit" class="btn btn-green" style="font-size:0.88rem">Submit for Review</button>
+      </form>
+    </div>
+    <div id="portal-community-feed" style="font-size:0.88rem;color:#78716c">Loading...</div>
+  </div>
+
   <!-- Gator Facts -->
   <div class="card" style="border-left:4px solid #1a5c32">
-    <div class="card-title">🐊 Did You Know?</div>
+    <div class="card-title" style="margin:0">🐊 Did You Know?</div>
     <div id="gator-fact" style="font-size:0.92rem;line-height:1.5"></div>
   </div>
 
@@ -575,7 +592,26 @@ async function showPortal() {
     getActiveHoliday() ? Promise.resolve() : loadBibleVerse(),
     loadAnnouncements(),
     loadPortalRestaurants(),
+    loadCommunityFeed(),
   ]);
+  // Wire community post form
+  setTimeout(function() {
+    var postBtn = document.getElementById('portal-new-post-btn');
+    var postForm = document.getElementById('portal-new-post-form');
+    if (postBtn && postForm) postBtn.addEventListener('click', function() { postForm.style.display = postForm.style.display === 'none' ? '' : 'none'; });
+    var form = document.getElementById('portal-post-form');
+    if (form) form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var fd = new FormData(e.target);
+      await fetch('/api/community/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: _portalTenant?.id, lot_id: _portalTenant?.lot_id, post_type: fd.get('post_type'), title: fd.get('title'), message: fd.get('message'), author_name: (_portalTenant?.first_name || '') + ' ' + (_portalTenant?.last_name || '') })
+      });
+      e.target.reset();
+      postForm.style.display = 'none';
+      loadCommunityFeed();
+      alert('✅ Your post has been submitted for review! Management will review within 24 hours.');
+    });
+  }, 100);
 
   if (data) {
     const bal = data.balance || 0;
@@ -873,6 +909,31 @@ async function loadBibleVerse() {
     document.getElementById('verse-ref').textContent = '— ' + v.r;
     card.style.display = '';
   }
+}
+
+async function loadCommunityFeed() {
+  var el = document.getElementById('portal-community-feed');
+  if (!el) return;
+  try {
+    var r = await fetch('/api/community/public');
+    var posts = await r.json();
+    if (!posts || !posts.length) { el.innerHTML = '<p style="color:#a8a29e">No community posts yet. Be the first!</p>'; return; }
+    el.innerHTML = posts.map(function(p) {
+      var types = { recognition: '🏆', fishing: '🎣', community: '📢', event: '🎪', announcement: '📋' };
+      return '<div style="padding:0.5rem 0;border-bottom:1px solid #e7e5e4">' +
+        (p.is_pinned ? '<span style="font-size:0.65rem;color:#f59e0b">📌 Pinned</span> ' : '') +
+        '<span style="font-size:0.7rem;color:#a8a29e">' + (types[p.post_type] || '📢') + ' ' + (p.author || '') + '</span>' +
+        (p.title ? '<div style="font-weight:600">' + p.title + '</div>' : '') +
+        '<div style="font-size:0.85rem">' + (p.message || '') + '</div>' +
+        (p.has_photo ? '<img src="/api/community/' + p.id + '/photo" style="max-width:100%;border-radius:6px;margin:0.4rem 0" onerror="this.style.display=\'none\'">' : '') +
+        '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#a8a29e;margin-top:0.25rem"><span>' + (p.submitted_at || '') + '</span>' +
+        '<button style="background:none;border:none;cursor:pointer;font-size:0.8rem" onclick="likeCommunityPost(' + p.id + ',this)">❤️ ' + (p.likes_count || 0) + '</button></div></div>';
+    }).join('');
+  } catch { el.innerHTML = '<p style="color:#a8a29e">Could not load community board</p>'; }
+}
+
+async function likeCommunityPost(id, btn) {
+  try { await fetch('/api/community/' + id + '/like', { method: 'POST' }); if (btn) btn.textContent = '❤️ Liked!'; } catch {}
 }
 
 async function loadPortalRestaurants() {

@@ -177,6 +177,24 @@ async function initializeDatabase() {
 
   addCol("ALTER TABLE tenants ADD COLUMN deposit_waived INTEGER DEFAULT 0");
 
+  // Community board
+  db.run(`CREATE TABLE IF NOT EXISTS community_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    lot_id TEXT,
+    post_type TEXT DEFAULT 'community',
+    title TEXT,
+    message TEXT,
+    photo_data TEXT,
+    status TEXT DEFAULT 'pending',
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    approved_at DATETIME,
+    approved_by TEXT,
+    rejection_reason TEXT,
+    is_pinned INTEGER DEFAULT 0,
+    likes_count INTEGER DEFAULT 0
+  )`);
+
   // Electric alerts
   db.run(`CREATE TABLE IF NOT EXISTS electric_alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

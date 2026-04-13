@@ -326,6 +326,7 @@ async function loadDashboard() {
     loadDashHealthScore();
     loadDashElectricAlerts();
     loadDashVacancyCost();
+    loadDashCommunity();
   }
 
   // Init calculator
@@ -362,6 +363,21 @@ async function loadDashHealthScore() {
       (atRisk > 0 ? '<span style="color:#dc2626">🔴 ' + atRisk + ' at risk</span>' : '') +
     '</div>';
   } catch { el.innerHTML = ''; }
+}
+
+async function loadDashCommunity() {
+  try {
+    var posts = await API.get('/community');
+    var pending = (posts || []).filter(function(p) { return p.status === 'pending'; }).length;
+    if (pending > 0) {
+      var widget = document.createElement('div');
+      widget.className = 'card';
+      widget.style.cssText = 'border-left:4px solid #f59e0b;padding:0.6rem 1rem;margin-bottom:0.75rem';
+      widget.innerHTML = '<strong style="color:#d97706">📋 ' + pending + ' community post' + (pending > 1 ? 's' : '') + ' pending approval</strong> <a href="#" onclick="event.preventDefault();navigateTo(\'community\')" style="margin-left:0.5rem;font-size:0.82rem;color:var(--brand-primary)">Review →</a>';
+      var content = document.getElementById('page-content');
+      if (content && content.firstChild) content.insertBefore(widget, content.firstChild.nextSibling);
+    }
+  } catch {}
 }
 
 async function loadDashElectricAlerts() {

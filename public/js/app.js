@@ -460,6 +460,14 @@ const HELP_CONTENT = {
     <li><strong>Export All Data:</strong> full Excel export of all tables.</li>
     <li><strong>🖨️ Emergency Forms:</strong> printable check-in, meter reading, and payment forms for when internet is down.</li>
   </ul>`,
+  community: `<p><strong>📋 Community Board</strong></p><ul>
+    <li>Review and approve tenant-submitted posts.</li>
+    <li><strong>Pending</strong>: posts waiting for your approval. Approve or reject with a reason.</li>
+    <li><strong>Create Post</strong>: publish announcements or community updates (auto-approved).</li>
+    <li><strong>🏆 Recognize Tenant</strong>: give a public shoutout — tenant gets an SMS notification!</li>
+    <li><strong>📌 Pin</strong>: pinned posts show at the top of the community board.</li>
+    <li>Tenants submit posts from the portal. They get SMS when approved or rejected.</li>
+  </ul>`,
   maintenance: `<p><strong>🔧 Maintenance Requests</strong></p>
   <p>This page shows all repair and maintenance requests submitted by tenants from their portal.</p>
   <p><strong>Viewing Requests:</strong></p><ul>
@@ -747,7 +755,7 @@ function navigateTo(page, skipHistory) {
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, electric: loadElectric, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
-    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors, documents: loadDocuments, maintenance: loadMaintenance, expenses: loadExpenses };
+    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors, documents: loadDocuments, maintenance: loadMaintenance, expenses: loadExpenses, community: loadCommunity };
   // Contextual first-visit tips
   const _tips = {
     dashboard: ['💡', 'Bookmark this page for quick access! Use the Quick Action buttons to jump to any section.'],
@@ -909,7 +917,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isAdmin = API.user?.role === 'admin';
     const isStaff = API.user?.role === 'staff';
     // Admin-only nav items
-    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
+    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses, #nav-community').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
     const adminDiv = document.getElementById('nav-admin-divider');
     if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
     // Financial nav items — hidden for staff
