@@ -145,7 +145,15 @@
     /* Countdown */
     .countdown-timer { font-size:1.1rem;font-weight:800;letter-spacing:0.5px }
 
-    .portal-footer { text-align:center;color:#a8a29e;font-size:0.75rem;margin:1rem 0 0.5rem;max-width:800px;line-height:1.5 }
+    .portal-footer { text-align:center;color:#a8a29e;font-size:0.75rem;margin:1rem 0 4rem;max-width:800px;line-height:1.5 }
+    /* Bottom navigation */
+    .portal-nav { position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e7e5e4;display:flex;z-index:100;box-shadow:0 -2px 8px rgba(0,0,0,0.08) }
+    .portal-nav-btn { flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;cursor:pointer;border:none;background:none;font-size:0.65rem;color:#78716c;transition:color 0.15s }
+    .portal-nav-btn.active { color:#1a5c32;font-weight:700 }
+    .portal-nav-btn .pnav-icon { font-size:1.2rem }
+    /* Portal sections */
+    .portal-section { display:none }
+    .portal-section.active { display:block }
     .hidden { display:none !important }
     /* Desktop: two-column layout */
     @media (min-width:601px) {
@@ -296,7 +304,13 @@
       <form id="portal-post-form">
         <div class="form-group" style="margin-bottom:0.5rem"><select name="post_type" style="font-size:0.9rem"><option value="community">📢 Community</option><option value="fishing">🎣 Fishing Story</option><option value="event">🎪 Event</option></select></div>
         <div class="form-group" style="margin-bottom:0.5rem"><input name="title" placeholder="Title" required style="font-size:0.9rem"></div>
-        <div class="form-group" style="margin-bottom:0.5rem"><textarea name="message" rows="3" placeholder="Share with the community..." style="font-size:0.9rem"></textarea></div>
+        <div class="form-group" style="margin-bottom:0.5rem"><textarea name="message" rows="3" placeholder="Share with the community..." style="font-size:0.9rem" spellcheck="true"></textarea></div>
+        <div class="form-group" style="margin-bottom:0.5rem">
+          <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem"><input type="file" accept="image/*" capture="environment" style="display:none" id="post-photo-input"> 📷 Add Photo</label>
+          <span id="post-photo-status" style="font-size:0.78rem;color:#78716c;margin-left:0.5rem"></span>
+          <div id="post-photo-preview" style="margin-top:0.5rem"></div>
+          <input type="hidden" id="post-photo-data" name="photo_data">
+        </div>
         <button type="submit" class="btn btn-green" style="font-size:0.88rem">Submit for Review</button>
       </form>
     </div>
@@ -394,6 +408,14 @@
     <p style="font-style:italic;margin-bottom:0.4rem">"The earth is the Lord's, and everything in it." — Psalm 24:1</p>
     <p>Anahuac RV Park, LLC · 1003 Davis Ave, Anahuac TX 77514 · 409-267-6603</p>
     <p>&copy; 2026 Anahuac RV Park LLC</p>
+  </div>
+
+  <!-- Bottom navigation -->
+  <div class="portal-nav" id="portal-nav">
+    <button class="portal-nav-btn active" data-tab="home"><span class="pnav-icon">🏠</span>Home</button>
+    <button class="portal-nav-btn" data-tab="community"><span class="pnav-icon">🏘️</span>Community</button>
+    <button class="portal-nav-btn" data-tab="maint-tab"><span class="pnav-icon">🔧</span>Repairs</button>
+    <button class="portal-nav-btn" data-tab="contact"><span class="pnav-icon">📞</span>Contact</button>
   </div>
 </div>
 
@@ -594,22 +616,69 @@ async function showPortal() {
     loadPortalRestaurants(),
     loadCommunityFeed(),
   ]);
-  // Wire community post form
+  // Wire community post form + photo upload + bottom nav
   setTimeout(function() {
     var postBtn = document.getElementById('portal-new-post-btn');
     var postForm = document.getElementById('portal-new-post-form');
     if (postBtn && postForm) postBtn.addEventListener('click', function() { postForm.style.display = postForm.style.display === 'none' ? '' : 'none'; });
+
+    // Photo upload with compression
+    var photoInput = document.getElementById('post-photo-input');
+    var photoStatus = document.getElementById('post-photo-status');
+    var photoPreview = document.getElementById('post-photo-preview');
+    var photoData = document.getElementById('post-photo-data');
+    if (photoInput) photoInput.addEventListener('change', function() {
+      var file = this.files && this.files[0];
+      if (!file) return;
+      if (photoStatus) photoStatus.textContent = '📸 Processing...';
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+          var canvas = document.createElement('canvas');
+          var scale = Math.min(1, 1200 / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          var sizeKB = Math.round(dataUrl.length * 0.75 / 1024);
+          if (photoData) photoData.value = dataUrl.split(',')[1];
+          if (photoStatus) photoStatus.textContent = '✅ Photo ready (' + sizeKB + 'KB)';
+          if (photoPreview) photoPreview.innerHTML = '<div style="position:relative;display:inline-block"><img src="' + dataUrl + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid #16a34a"><button type="button" style="position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer" onclick="this.parentElement.remove();document.getElementById(\'post-photo-data\').value=\'\';document.getElementById(\'post-photo-status\').textContent=\'\'">✕</button></div>';
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Post form submission with photo
     var form = document.getElementById('portal-post-form');
     if (form) form.addEventListener('submit', async function(e) {
       e.preventDefault();
       var fd = new FormData(e.target);
+      var photoB64 = document.getElementById('post-photo-data')?.value || null;
       await fetch('/api/community/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenant_id: _portalTenant?.id, lot_id: _portalTenant?.lot_id, post_type: fd.get('post_type'), title: fd.get('title'), message: fd.get('message'), author_name: (_portalTenant?.first_name || '') + ' ' + (_portalTenant?.last_name || '') })
+        body: JSON.stringify({ tenant_id: _portalTenant?.id, lot_id: _portalTenant?.lot_id, post_type: fd.get('post_type'), title: fd.get('title'), message: fd.get('message'), photo_data: photoB64, author_name: (_portalTenant?.first_name || '') + ' ' + (_portalTenant?.last_name || '') })
       });
       e.target.reset();
+      if (photoPreview) photoPreview.innerHTML = '';
+      if (photoStatus) photoStatus.textContent = '';
+      if (photoData) photoData.value = '';
       postForm.style.display = 'none';
       loadCommunityFeed();
       alert('✅ Your post has been submitted for review! Management will review within 24 hours.');
+    });
+
+    // Bottom navigation tabs
+    var navBtns = document.querySelectorAll('.portal-nav-btn');
+    navBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var tab = this.dataset.tab;
+        navBtns.forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
     });
   }, 100);
 
