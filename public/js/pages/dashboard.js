@@ -258,10 +258,7 @@ async function loadDashboard() {
       <div id="dash-electric-alerts" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
     </div>
 
-    <div class="card dash-fade-in" style="animation-delay:0.88s">
-      <h3>🏠 Vacancy Cost</h3>
-      <div id="dash-vacancy-cost" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
-    </div>` : ''}
+` : ''}
 
     <div class="card dash-fade-in" style="animation-delay:0.88s">
       <button id="calc-toggle-btn" style="width:100%;background:none;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:0">
@@ -341,7 +338,7 @@ async function loadDashboard() {
     loadDashExpenses();
     loadDashHealthScore();
     loadDashElectricAlerts();
-    loadDashVacancyCost();
+
     loadDashCommunity();
   }
 
@@ -413,16 +410,6 @@ async function loadDashElectricAlerts() {
 async function dismissElectricAlert(id) {
   await API.put('/electric-alerts/' + id + '/dismiss', {});
   loadDashElectricAlerts();
-}
-
-async function loadDashVacancyCost() {
-  var el = document.getElementById('dash-vacancy-cost');
-  if (!el) return;
-  try {
-    var data = await API.get('/dashboard/vacancy-cost');
-    el.innerHTML = '<span>This month: <strong style="color:#dc2626">' + formatMoney(data?.totalCost || 0) + '</strong> lost</span>' +
-      (data?.vacantLots?.length ? '<div style="font-size:0.75rem;color:#78716c;margin-top:0.25rem">' + data.vacantLots.slice(0, 3).map(function(v) { return v.lot_id + ': ' + v.daysVacant + ' days'; }).join(', ') + '</div>' : '');
-  } catch { el.innerHTML = ''; }
 }
 
 async function loadDashMaintenance() {
