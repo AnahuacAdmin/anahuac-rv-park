@@ -78,6 +78,18 @@ async function loadDashboard() {
 
     <div id="dash-weather-alert-banner"></div>
 
+    <!-- Weekly Arrivals/Departures -->
+    ${isAdmin() ? `
+    <div class="card dash-fade-in" id="weekly-widget" style="animation-delay:0.08s;padding:0">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem 0.5rem">
+        <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:#1c1917">📅 This Week at the Park</h3>
+        <button id="weekly-toggle-btn" style="background:none;border:none;font-size:0.75rem;color:#78716c;cursor:pointer;font-weight:600" onclick="toggleWeeklyWidget()">▲ Hide</button>
+      </div>
+      <div id="weekly-calendar" style="padding:0 1rem 0.75rem">
+        <div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.85rem">Loading...</div>
+      </div>
+    </div>` : ''}
+
     <!-- Stats -->
     <div class="dash-top-bar">
       ${isAdmin() ? `
@@ -288,6 +300,7 @@ async function loadDashboard() {
 
   waitForChartAndRender(data);
   loadDashWeatherBanner();
+  if (isAdmin()) loadWeeklySchedule();
 
   // Count-up animation for stat values
   setTimeout(() => {
@@ -880,4 +893,201 @@ async function loadDashWeatherBanner() {
         '<div style="font-size:0.82rem;opacity:0.9">' + (a.headline || '') + '</div></div></div>';
     }).join('');
   } catch { el.innerHTML = ''; }
+}
+
+// --- Weekly Arrivals/Departures Widget ---
+var _weeklyExpanded = null; // track which day index is expanded
+var _weeklyCollapsed = false;
+
+function toggleWeeklyWidget() {
+  var cal = document.getElementById('weekly-calendar');
+  var btn = document.getElementById('weekly-toggle-btn');
+  if (!cal) return;
+  _weeklyCollapsed = !_weeklyCollapsed;
+  cal.style.display = _weeklyCollapsed ? 'none' : '';
+  if (btn) btn.textContent = _weeklyCollapsed ? '▼ Show' : '▲ Hide';
+}
+
+var _dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+var _dayNamesFull = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function _formatWeekDate(dateStr) {
+  var d = new Date(dateStr + 'T12:00:00');
+  return { dayName: _dayNames[d.getDay()], dayNum: d.getDate(), full: _dayNamesFull[d.getDay()],
+    month: d.toLocaleString('default', { month: 'short' }), date: d };
+}
+
+function _isToday(dateStr) {
+  return dateStr === new Date().toISOString().split('T')[0];
+}
+
+function _isTomorrow(dateStr) {
+  var t = new Date(); t.setDate(t.getDate() + 1);
+  return dateStr === t.toISOString().split('T')[0];
+}
+
+async function loadWeeklySchedule() {
+  var container = document.getElementById('weekly-calendar');
+  if (!container) return;
+  try {
+    var data = await API.get('/dashboard/weekly-schedule');
+    if (!data || !data.days) { container.innerHTML = ''; return; }
+
+    var isMobile = window.innerWidth < 601;
+    if (isMobile) {
+      _renderWeeklyMobile(container, data);
+    } else {
+      _renderWeeklyDesktop(container, data);
+    }
+  } catch (err) {
+    container.innerHTML = '<div style="text-align:center;padding:0.75rem;color:#a8a29e;font-size:0.82rem">Could not load schedule</div>';
+  }
+}
+
+function _renderWeeklyDesktop(container, data) {
+  var days = data.days;
+  var arrByDay = {};
+  var depByDay = {};
+  (data.arrivals || []).forEach(function(a) { (arrByDay[a.date] = arrByDay[a.date] || []).push(a); });
+  (data.departures || []).forEach(function(d) { (depByDay[d.date] = depByDay[d.date] || []).push(d); });
+
+  var totalEvents = (data.arrivals || []).length + (data.departures || []).length;
+  if (!totalEvents) {
+    container.innerHTML = '<div style="text-align:center;padding:1rem;color:#16a34a;font-size:0.88rem">✅ No arrivals or departures this week</div>';
+    return;
+  }
+
+  var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">';
+  days.forEach(function(dateStr, i) {
+    var info = _formatWeekDate(dateStr);
+    var today = _isToday(dateStr);
+    var arr = arrByDay[dateStr] || [];
+    var dep = depByDay[dateStr] || [];
+    var hasEvents = arr.length || dep.length;
+
+    var bg = today ? '#f0fdf4' : '#fff';
+    var border = today ? '2px solid #1a5c32' : '1px solid #e7e5e4';
+    var shadow = today ? 'box-shadow:0 2px 12px rgba(26,92,50,0.15);' : '';
+    var cursor = hasEvents ? 'cursor:pointer;' : '';
+
+    html += '<div class="weekly-day-col" data-day-idx="' + i + '" style="background:' + bg + ';border:' + border + ';border-radius:10px;padding:0.5rem;min-height:110px;text-align:center;transition:all 0.15s;' + shadow + cursor + '">';
+    html += '<div style="font-size:0.7rem;font-weight:600;color:' + (today ? '#1a5c32' : '#78716c') + ';text-transform:uppercase;letter-spacing:0.04em">' + info.dayName + '</div>';
+    html += '<div style="font-size:1.3rem;font-weight:800;color:' + (today ? '#1a5c32' : '#1c1917') + ';margin:0.15rem 0">' + info.dayNum + '</div>';
+    if (today) html += '<div style="font-size:0.6rem;font-weight:700;color:#1a5c32;margin-bottom:0.3rem">TODAY</div>';
+
+    if (arr.length) {
+      html += '<div style="background:#dcfce7;color:#166534;font-size:0.68rem;font-weight:700;border-radius:6px;padding:2px 6px;margin:3px auto;display:inline-block">▲ ' + arr.length + ' arriving</div>';
+    }
+    if (dep.length) {
+      html += '<div style="background:#fff7ed;color:#92400e;font-size:0.68rem;font-weight:700;border-radius:6px;padding:2px 6px;margin:3px auto;display:inline-block">▼ ' + dep.length + ' departing</div>';
+    }
+    if (!hasEvents) {
+      html += '<div style="font-size:0.72rem;color:#d6d3d1;margin-top:0.5rem">—</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Detail expansion area
+  html += '<div id="weekly-detail" style="margin-top:0.5rem"></div>';
+
+  container.innerHTML = html;
+
+  // Wire click handlers on day columns
+  container.querySelectorAll('.weekly-day-col').forEach(function(col) {
+    col.addEventListener('click', function() {
+      var idx = parseInt(this.dataset.dayIdx);
+      var dateStr = days[idx];
+      var arr = arrByDay[dateStr] || [];
+      var dep = depByDay[dateStr] || [];
+      if (!arr.length && !dep.length) return;
+      _toggleWeeklyDetail(idx, dateStr, arr, dep);
+    });
+    // Hover effect
+    col.addEventListener('mouseenter', function() { if (!_isToday(days[parseInt(this.dataset.dayIdx)])) this.style.background = '#fafaf9'; });
+    col.addEventListener('mouseleave', function() { if (!_isToday(days[parseInt(this.dataset.dayIdx)])) this.style.background = '#fff'; });
+  });
+}
+
+function _toggleWeeklyDetail(idx, dateStr, arrivals, departures) {
+  var detail = document.getElementById('weekly-detail');
+  if (!detail) return;
+  if (_weeklyExpanded === idx) { detail.innerHTML = ''; _weeklyExpanded = null; return; }
+  _weeklyExpanded = idx;
+
+  var info = _formatWeekDate(dateStr);
+  var html = '<div style="background:#fafaf9;border-radius:8px;padding:0.6rem 0.75rem;animation:fadeIn 0.2s ease-out">';
+  html += '<div style="font-size:0.78rem;font-weight:700;color:#44403c;margin-bottom:0.4rem">' + info.full + ', ' + info.month + ' ' + info.dayNum + '</div>';
+
+  if (arrivals.length) {
+    arrivals.forEach(function(a) {
+      html += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.5rem;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:6px;margin-bottom:4px">';
+      html += '<span style="font-size:0.8rem">▲</span>';
+      html += '<div style="flex:1"><strong style="font-size:0.82rem">' + escapeHtml(a.name || '') + '</strong>';
+      html += ' <span style="font-size:0.75rem;color:#78716c">Lot ' + (a.lot_id || '?') + '</span></div>';
+      if (a.phone) html += '<a href="tel:' + escapeHtml(a.phone) + '" style="font-size:0.72rem;background:#1a5c32;color:#fff;padding:2px 8px;border-radius:6px;text-decoration:none;font-weight:600;white-space:nowrap">📞 Call</a>';
+      html += '</div>';
+    });
+  }
+  if (departures.length) {
+    departures.forEach(function(d) {
+      html += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.5rem;background:#fff7ed;border-left:3px solid #f59e0b;border-radius:6px;margin-bottom:4px">';
+      html += '<span style="font-size:0.8rem">▼</span>';
+      html += '<div style="flex:1"><strong style="font-size:0.82rem">' + escapeHtml(d.name || '') + '</strong>';
+      html += ' <span style="font-size:0.75rem;color:#78716c">Lot ' + (d.lot_id || '?') + '</span></div>';
+      if (d.phone) html += '<a href="tel:' + escapeHtml(d.phone) + '" style="font-size:0.72rem;background:#d97706;color:#fff;padding:2px 8px;border-radius:6px;text-decoration:none;font-weight:600;white-space:nowrap">📞 Call</a>';
+      html += '</div>';
+    });
+  }
+  html += '</div>';
+  detail.innerHTML = html;
+}
+
+function _renderWeeklyMobile(container, data) {
+  var days = data.days;
+  var arrByDay = {};
+  var depByDay = {};
+  (data.arrivals || []).forEach(function(a) { (arrByDay[a.date] = arrByDay[a.date] || []).push(a); });
+  (data.departures || []).forEach(function(d) { (depByDay[d.date] = depByDay[d.date] || []).push(d); });
+
+  var totalEvents = (data.arrivals || []).length + (data.departures || []).length;
+  if (!totalEvents) {
+    container.innerHTML = '<div style="text-align:center;padding:1rem;color:#16a34a;font-size:0.88rem">✅ No arrivals or departures this week</div>';
+    return;
+  }
+
+  var html = '';
+  days.forEach(function(dateStr) {
+    var arr = arrByDay[dateStr] || [];
+    var dep = depByDay[dateStr] || [];
+    if (!arr.length && !dep.length) return;
+
+    var today = _isToday(dateStr);
+    var tomorrow = _isTomorrow(dateStr);
+    var info = _formatWeekDate(dateStr);
+    var dayLabel = today ? 'Today' : tomorrow ? 'Tomorrow' : info.full + ' ' + info.month + ' ' + info.dayNum;
+
+    html += '<div style="margin-bottom:0.6rem">';
+    html += '<div style="font-size:0.75rem;font-weight:700;color:' + (today ? '#1a5c32' : '#44403c') + ';margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.03em">' + dayLabel + '</div>';
+
+    arr.forEach(function(a) {
+      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.6rem;background:#fff;border-left:3px solid #16a34a;border-radius:8px;margin-bottom:4px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">';
+      html += '<div style="flex:1"><strong style="font-size:0.88rem;color:#1c1917">' + escapeHtml(a.name || '') + '</strong>';
+      html += '<div style="font-size:0.75rem;color:#78716c">▲ Arriving · Lot ' + (a.lot_id || '?') + (a.phone ? ' · ' + a.phone : '') + '</div></div>';
+      if (a.phone) html += '<a href="tel:' + escapeHtml(a.phone) + '" style="font-size:0.75rem;background:#1a5c32;color:#fff;padding:4px 10px;border-radius:8px;text-decoration:none;font-weight:700">📞</a>';
+      html += '</div>';
+    });
+
+    dep.forEach(function(d) {
+      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.6rem;background:#fff;border-left:3px solid #f59e0b;border-radius:8px;margin-bottom:4px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">';
+      html += '<div style="flex:1"><strong style="font-size:0.88rem;color:#1c1917">' + escapeHtml(d.name || '') + '</strong>';
+      html += '<div style="font-size:0.75rem;color:#78716c">▼ Departing · Lot ' + (d.lot_id || '?') + (d.phone ? ' · ' + d.phone : '') + '</div></div>';
+      if (d.phone) html += '<a href="tel:' + escapeHtml(d.phone) + '" style="font-size:0.75rem;background:#d97706;color:#fff;padding:4px 10px;border-radius:8px;text-decoration:none;font-weight:700">📞</a>';
+      html += '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
 }

@@ -91,6 +91,24 @@ async function loadAdmin() {
       <button class="btn btn-danger mt-1" onclick="saveEvictionSettings()">Save Eviction Settings</button>
     </div>
 
+    <div class="card" style="border-left:4px solid #16a34a">
+      <h3>📅 Daily Arrival Reminder</h3>
+      <p><small>When enabled, you'll receive a morning SMS listing today's arrivals and departures. Only sends when there's activity — no empty texts.</small></p>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem">
+            <input type="checkbox" id="daily-reminder-enabled" ${settings?.daily_reminder_enabled !== '0' ? 'checked' : ''}> Enable daily 8:00 AM reminder
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Send to</label>
+          <input type="text" id="daily-reminder-phone" value="${mgrPhone}" readonly style="background:#f5f5f4;color:#78716c;font-size:0.85rem">
+          <small style="color:#78716c">Uses manager phone from Eviction Settings above</small>
+        </div>
+      </div>
+      <button class="btn btn-primary mt-1" onclick="saveDailyReminderSettings()">Save Reminder Settings</button>
+    </div>
+
     <div class="card" style="border-left:4px solid #0284c7">
       <h3>📱 Downtime Alert Recipients</h3>
       <p><small>When enabled, managers receive SMS alerts when services go down and recover. Checks run every 5 minutes. Max 1 alert per service per hour.</small></p>
@@ -691,4 +709,13 @@ async function sendWeatherSmsToTenants(event, headline, nwsId) {
     toast.hide(0);
     alert('Send failed: ' + (err.message || 'unknown'));
   }
+}
+
+async function saveDailyReminderSettings() {
+  try {
+    await API.put('/settings', {
+      daily_reminder_enabled: document.getElementById('daily-reminder-enabled')?.checked ? '1' : '0',
+    });
+    showStatusToast('✅', 'Daily reminder settings saved!');
+  } catch (err) { alert('Failed to save: ' + (err.message || 'unknown')); }
 }

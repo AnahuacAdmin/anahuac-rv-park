@@ -165,6 +165,7 @@ initializeDatabase()
       // Start background health monitor for downtime alerts
       try { require('./routes/health').startHealthMonitor(); } catch (e) { console.error('[health-monitor] failed to start:', e.message); }
       try { require('./jobs/weatherJob').start(); } catch (e) { console.error('[weather-job] failed to start:', e.message); }
+      try { require('./jobs/reminderJob').start(); } catch (e) { console.error('[reminder-job] failed to start:', e.message); }
     });
   })
   .catch((err) => {

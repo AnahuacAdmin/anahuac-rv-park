@@ -89,6 +89,66 @@ router.get('/', (req, res) => {
   }
 });
 
+// Weekly arrivals & departures for the calendar widget
+router.get('/weekly-schedule', (req, res) => {
+  try {
+    // Get Monday of current week
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun
+    const diff = day === 0 ? -6 : 1 - day; // Monday
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diff);
+    monday.setHours(0, 0, 0, 0);
+
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push(d.toISOString().split('T')[0]);
+    }
+
+    const weekStart = days[0];
+    const weekEnd = days[6];
+
+    // Reservations arriving or departing this week
+    const arrivals = db.prepare(`
+      SELECT guest_name as name, lot_id, phone, arrival_date as date, 'reservation' as source
+      FROM reservations WHERE arrival_date >= ? AND arrival_date <= ? AND status IN ('pending','confirmed')
+    `).all(weekStart, weekEnd);
+
+    const departures = db.prepare(`
+      SELECT guest_name as name, lot_id, phone, departure_date as date, 'reservation' as source
+      FROM reservations WHERE departure_date >= ? AND departure_date <= ? AND status IN ('confirmed','checked-in')
+    `).all(weekStart, weekEnd);
+
+    // Tenants with move_in_date or move_out_date this week
+    const tenantArrivals = db.prepare(`
+      SELECT first_name || ' ' || last_name as name, lot_id, phone, move_in_date as date, 'tenant' as source
+      FROM tenants WHERE move_in_date >= ? AND move_in_date <= ? AND is_active = 1
+    `).all(weekStart, weekEnd);
+
+    const tenantDepartures = db.prepare(`
+      SELECT first_name || ' ' || last_name as name, lot_id, phone, move_out_date as date, 'tenant' as source
+      FROM tenants WHERE move_out_date >= ? AND move_out_date <= ?
+    `).all(weekStart, weekEnd);
+
+    // Merge (avoid duplicates by lot)
+    const allArrivals = [...arrivals];
+    tenantArrivals.forEach(t => {
+      if (!allArrivals.some(a => a.lot_id === t.lot_id && a.date === t.date)) allArrivals.push(t);
+    });
+    const allDepartures = [...departures];
+    tenantDepartures.forEach(t => {
+      if (!allDepartures.some(d => d.lot_id === t.lot_id && d.date === t.date)) allDepartures.push(t);
+    });
+
+    res.json({ days, arrivals: allArrivals, departures: allDepartures });
+  } catch (err) {
+    console.error('[dashboard] weekly-schedule failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Vacancy cost tracker
 router.get('/vacancy-cost', (req, res) => {
   try {

@@ -26,6 +26,7 @@ const ALLOWED_SETTINGS = new Set([
   'default_flat_rate', 'loyalty_6mo', 'loyalty_12mo', 'loyalty_24mo',
   'referral_credit', 'auto_reminder_25', 'auto_reminder_1', 'auto_reminder_6',
   'alert_phone_numbers', 'downtime_alerts_enabled', 'weather_alerts_enabled',
+  'daily_reminder_enabled',
 ]);
 
 router.put('/', (req, res) => {
