@@ -445,37 +445,66 @@ var _emergencyTemplates = [
   { icon: '🌊', label: 'Flood Warning', msg: 'FLOOD WARNING: Please move vehicles to higher ground immediately. Contact 409-267-6603.', weather: true },
 ];
 
-function _emergencyDeliveryHtml(mode) {
-  if (mode === 'portal') return '<div id="emergency-warning-box" style="background:#eff6ff;border:2px solid #3b82f6;border-radius:8px;padding:0.75rem;margin-bottom:1rem;color:#1e40af;font-weight:600">📋 This will post to all tenant portal inboxes.</div>';
-  if (mode === 'sms') return '<div id="emergency-warning-box" style="background:#fee2e2;border:2px solid #dc2626;border-radius:8px;padding:0.75rem;margin-bottom:1rem;color:#991b1b;font-weight:600">⚠️ This will send SMS to ALL tenants. Cannot be undone.</div>';
-  return '<div id="emergency-warning-box" style="background:#fff7ed;border:2px solid #f59e0b;border-radius:8px;padding:0.75rem;margin-bottom:1rem;color:#92400e;font-weight:600">⚠️ This will send SMS AND post to all portals. Cannot be undone.</div>';
+var _emergencyWarnings = {
+  portal: { bg: '#eff6ff', border: '#93c5fd', color: '#1e40af', text: 'This will post to all tenant portal inboxes.' },
+  sms:    { bg: '#fee2e2', border: '#fca5a5', color: '#991b1b', text: 'This will send SMS to all tenants. Cannot be undone.' },
+  both:   { bg: '#fff7ed', border: '#fdba74', color: '#92400e', text: 'This will send SMS and post to all portals. Cannot be undone.' },
+};
+
+function _emergencyWarningHtml(mode) {
+  var w = _emergencyWarnings[mode] || _emergencyWarnings.portal;
+  return '<div id="emergency-warning-box" style="background:' + w.bg + ';border:1px solid ' + w.border + ';border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem;color:' + w.color + ';font-size:0.82rem;font-weight:600">' + w.text + '</div>';
 }
 
-function _emergencyBtnLabel(mode) {
-  if (mode === 'portal') return '📋 SEND TO ALL PORTALS NOW';
-  if (mode === 'sms') return '📱 SEND SMS TO ALL TENANTS NOW';
-  return '📋📱 SEND TO ALL TENANTS NOW';
+var _emergencyBtnStyles = {
+  portal: { bg: 'linear-gradient(135deg,#1a5c32,#2d8a52)', label: '📋 Send to all portals' },
+  sms:    { bg: 'linear-gradient(135deg,#dc2626,#b91c1c)', label: '📱 Send SMS to all tenants' },
+  both:   { bg: 'linear-gradient(135deg,#d97706,#b45309)', label: '📋📱 Send to all tenants' },
+};
+
+function _updateEmergencyBtn(btn, mode) {
+  var s = _emergencyBtnStyles[mode] || _emergencyBtnStyles.portal;
+  btn.textContent = s.label;
+  btn.style.background = s.bg;
+}
+
+function _deliveryOptionHtml(value, emoji, label, desc, checked) {
+  return '<label class="em-delivery-opt' + (checked ? ' em-selected' : '') + '" style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.85rem;border:1.5px solid ' + (checked ? '#1a5c32' : '#e0e0e0') + ';border-radius:8px;background:' + (checked ? '#f0fdf4' : '#fff') + ';cursor:pointer;transition:all 0.15s ease;font-weight:400">' +
+    '<input type="radio" name="emergency-delivery" value="' + value + '"' + (checked ? ' checked' : '') + ' style="accent-color:#1a5c32;width:16px;height:16px;flex-shrink:0">' +
+    '<span style="font-size:1.1rem;flex-shrink:0">' + emoji + '</span>' +
+    '<span style="flex:1"><strong style="font-size:0.88rem;color:#1c1917">' + label + '</strong>' +
+    '<span style="display:block;font-size:0.76rem;color:#78716c;margin-top:1px">' + desc + '</span></span></label>';
 }
 
 function showEmergencyBroadcast() {
   var templates = _emergencyTemplates;
   showModal('🚨 Emergency Alert',
-    _emergencyDeliveryHtml('portal') +
-    '<div class="form-group"><label>Delivery Method</label>' +
-      '<div style="display:flex;flex-direction:column;gap:0.4rem;margin-top:0.3rem">' +
-        '<label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;font-size:0.88rem"><input type="radio" name="emergency-delivery" value="portal" checked> 📋 Portal Only — Send to tenant portal inboxes only (no SMS)</label>' +
-        '<label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;font-size:0.88rem"><input type="radio" name="emergency-delivery" value="sms"> 📱 SMS Only — Send text message to all tenants with phones</label>' +
-        '<label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;font-size:0.88rem"><input type="radio" name="emergency-delivery" value="both"> 📋📱 Both — Send to portal AND SMS</label>' +
-      '</div></div>' +
-    '<div class="form-group"><label>Select Template</label><select id="emergency-template" style="font-size:1rem">' +
-      templates.map(function(t, i) { return '<option value="' + i + '">' + t.icon + ' ' + t.label + '</option>'; }).join('') +
-      '<option value="custom">✏️ Custom Message</option></select></div>' +
-    '<div id="emergency-nws-section" style="display:none;margin-bottom:1rem">' +
-      '<label style="font-weight:600;font-size:0.8rem;color:#44403c;text-transform:uppercase;letter-spacing:0.03em">📰 NWS Alert Headline (auto-fetched)</label>' +
-      '<input type="text" id="emergency-nws-headline" readonly style="width:100%;padding:0.5rem;border:1.5px solid #d6d3d1;border-radius:8px;font-size:0.85rem;background:#f5f5f4;margin-top:0.3rem" placeholder="Fetching NWS alerts...">' +
+    _emergencyWarningHtml('portal') +
+    '<div style="margin-bottom:1rem">' +
+      '<div style="font-size:0.72rem;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.4rem">Delivery method</div>' +
+      '<div style="display:flex;flex-direction:column;gap:0.35rem">' +
+        _deliveryOptionHtml('portal', '📋', 'Portal only', 'Posts to tenant portal inboxes (no SMS)', true) +
+        _deliveryOptionHtml('sms', '📱', 'SMS only', 'Texts all tenants with phone numbers', false) +
+        _deliveryOptionHtml('both', '📋📱', 'Both', 'Portal message + SMS text', false) +
+      '</div>' +
     '</div>' +
-    '<div class="form-group"><label>Message</label><textarea id="emergency-msg" rows="4" style="font-size:1rem">' + escapeHtml(templates[0].msg) + '</textarea></div>' +
-    '<button class="btn btn-danger btn-full" id="btn-send-emergency" style="font-size:1.1rem;padding:1rem">' + _emergencyBtnLabel('portal') + '</button>');
+    '<div style="margin-bottom:1rem">' +
+      '<div style="font-size:0.72rem;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.35rem">Template</div>' +
+      '<select id="emergency-template" style="width:100%;padding:0.55rem 0.75rem;border:1.5px solid #d6d3d1;border-radius:8px;font-size:0.92rem;background:#fff">' +
+        templates.map(function(t, i) { return '<option value="' + i + '">' + t.icon + ' ' + t.label + '</option>'; }).join('') +
+        '<option value="custom">✏️ Custom Message</option>' +
+      '</select>' +
+    '</div>' +
+    '<div id="emergency-nws-section" style="display:none;margin-bottom:1rem">' +
+      '<div style="font-size:0.72rem;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.35rem">📰 NWS weather headline (auto-fetched)</div>' +
+      '<input type="text" id="emergency-nws-headline" readonly style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #d6d3d1;border-radius:8px;font-size:0.85rem;background:#fafaf9" placeholder="Fetching NWS alerts...">' +
+    '</div>' +
+    '<div style="margin-bottom:1rem">' +
+      '<div style="font-size:0.72rem;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.35rem">Message</div>' +
+      '<textarea id="emergency-msg" rows="4" style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #d6d3d1;border-radius:8px;font-size:0.92rem;font-family:inherit;resize:vertical">' + escapeHtml(templates[0].msg) + '</textarea>' +
+    '</div>' +
+    '<button id="btn-send-emergency" style="width:100%;padding:0.85rem;border:none;border-radius:10px;font-size:1rem;font-weight:700;color:#fff;background:linear-gradient(135deg,#1a5c32,#2d8a52);cursor:pointer;transition:filter 0.15s">📋 Send to all portals</button>');
+
   setTimeout(function() {
     var sel = document.getElementById('emergency-template');
     var msg = document.getElementById('emergency-msg');
@@ -484,17 +513,23 @@ function showEmergencyBroadcast() {
     var btn = document.getElementById('btn-send-emergency');
     var warningBox = document.getElementById('emergency-warning-box');
 
-    // Delivery radio change
+    // Delivery radio card selection styling + warning/button update
+    var allOpts = document.querySelectorAll('.em-delivery-opt');
     document.querySelectorAll('input[name="emergency-delivery"]').forEach(function(radio) {
       radio.addEventListener('change', function() {
         var mode = this.value;
+        allOpts.forEach(function(opt) {
+          var isSelected = opt.querySelector('input').value === mode;
+          opt.style.borderColor = isSelected ? '#1a5c32' : '#e0e0e0';
+          opt.style.background = isSelected ? '#f0fdf4' : '#fff';
+        });
         if (warningBox && warningBox.parentNode) {
-          var newBox = document.createElement('div');
-          newBox.innerHTML = _emergencyDeliveryHtml(mode);
-          warningBox.parentNode.replaceChild(newBox.firstChild, warningBox);
+          var tmp = document.createElement('div');
+          tmp.innerHTML = _emergencyWarningHtml(mode);
+          warningBox.parentNode.replaceChild(tmp.firstChild, warningBox);
           warningBox = document.getElementById('emergency-warning-box');
         }
-        if (btn) btn.textContent = _emergencyBtnLabel(mode);
+        _updateEmergencyBtn(btn, mode);
       });
     });
 
@@ -503,7 +538,6 @@ function showEmergencyBroadcast() {
       var idx = parseInt(this.value);
       if (!isNaN(idx) && templates[idx]) {
         msg.value = templates[idx].msg;
-        // Show NWS section for weather templates
         if (templates[idx].weather && nwsSection) {
           nwsSection.style.display = '';
           _fetchNWSForEmergency(nwsInput);
@@ -516,7 +550,7 @@ function showEmergencyBroadcast() {
       }
     });
 
-    // Initial template is weather — show NWS section
+    // Initial weather template — show NWS section
     if (templates[0].weather && nwsSection) {
       nwsSection.style.display = '';
       _fetchNWSForEmergency(nwsInput);
@@ -530,9 +564,9 @@ function showEmergencyBroadcast() {
         'CONFIRM: Send emergency alert via SMS AND portal to ALL tenants? This cannot be undone.';
       if (!confirm(confirmMsg)) return;
       btn.disabled = true;
+      btn.style.opacity = '0.6';
       btn.textContent = 'Sending...';
 
-      // Append NWS headline if visible and has content
       var finalMsg = msg.value;
       if (nwsSection && nwsSection.style.display !== 'none' && nwsInput && nwsInput.value) {
         finalMsg += '\n\nLatest NWS Update: ' + nwsInput.value;
@@ -545,11 +579,16 @@ function showEmergencyBroadcast() {
           message: finalMsg,
         });
         closeModal();
-        var statusParts = [];
-        if (r.messagesPosted) statusParts.push(r.messagesPosted + ' portal messages');
-        if (r.smsSent) statusParts.push(r.smsSent + ' SMS sent');
-        showStatusToast('🚨', 'Emergency alert: ' + statusParts.join(', '));
-      } catch (err) { alert('Failed: ' + (err.message || 'unknown')); btn.disabled = false; btn.textContent = _emergencyBtnLabel(delivery); }
+        var parts = [];
+        if (r.messagesPosted) parts.push(r.messagesPosted + ' portal messages');
+        if (r.smsSent) parts.push(r.smsSent + ' SMS sent');
+        showStatusToast('🚨', 'Emergency alert: ' + parts.join(', '));
+      } catch (err) {
+        alert('Failed: ' + (err.message || 'unknown'));
+        btn.disabled = false;
+        btn.style.opacity = '';
+        _updateEmergencyBtn(btn, delivery);
+      }
     });
   }, 50);
 }
