@@ -44,13 +44,13 @@
 
     /* ===== CARDS ===== */
     .card {
-      background:#fff; border-radius:16px;
-      box-shadow:0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
-      width:100%; max-width:800px; padding:1rem; margin-bottom:0.75rem;
+      background:#ffffff; border:1.5px solid #d1d5db; border-radius:14px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.08);
+      width:100%; max-width:800px; padding:1rem; margin-bottom:1rem;
       animation:fadeInUp 0.4s ease-out both;
     }
-    .login-overlay .card { background:rgba(255,253,240,0.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 25px 50px rgba(0,0,0,0.5);padding:2rem 1.75rem }
-    .card-title { font-size:0.78rem;font-weight:700;color:#1a5c32;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.4rem }
+    .login-overlay .card { background:rgba(255,253,240,0.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 25px 50px rgba(0,0,0,0.5);padding:2rem 1.75rem;border:none }
+    .card-title { font-size:0.85rem;font-weight:800;color:#1a5c32;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.4rem }
 
     /* ===== FORMS ===== */
     .logo { display:block;margin:0 auto 0.5rem;height:70px }
@@ -92,12 +92,12 @@
     .tenant-header { text-align:center;margin-bottom:0.75rem }
     .tenant-name { font-size:1.1rem;font-weight:700;color:#1a5c32 }
     .tenant-lot { font-size:0.85rem;color:#78716c }
-    .invoice-row { display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #f5f5f4;font-size:0.85rem }
+    .invoice-row { display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #e5e7eb;font-size:0.85rem }
     .invoice-row:last-child { border-bottom:none }
 
     /* ===== QUICK ACTIONS ===== */
-    .quick-actions { display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;width:100%;max-width:800px;margin-bottom:0.75rem }
-    .qa-btn { background:#fff;border:1.5px solid #e7e5e4;border-radius:14px;padding:1rem 0.75rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.35rem;min-height:90px;cursor:pointer;transition:all 0.2s;text-decoration:none;color:#1c1917 }
+    .quick-actions { display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;width:100%;max-width:800px;margin-bottom:1rem }
+    .qa-btn { background:#fff;border:1.5px solid #1a5c32;border-radius:14px;padding:1rem 0.75rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.35rem;min-height:90px;cursor:pointer;transition:all 0.2s;text-decoration:none;color:#1c1917;box-shadow:0 2px 8px rgba(0,0,0,0.06) }
     .qa-btn:hover { border-color:#1a5c32;background:#f0fdf4;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.06) }
     .qa-btn:active { transform:scale(0.97);border-color:#1a5c32 }
     .qa-icon { font-size:1.6rem }
@@ -127,7 +127,7 @@
     .announcement-date { font-size:0.7rem;color:#a8a29e;margin-top:0.15rem }
 
     /* ===== COMMUNITY ===== */
-    .community-post { padding:0.75rem 0;border-bottom:1px solid #f5f5f4 }
+    .community-post { padding:0.75rem 0;border-bottom:1.5px solid #d1d5db }
     .community-post:last-child { border-bottom:none }
 
     /* ===== COLLAPSIBLE ===== */
@@ -286,7 +286,7 @@
   <div id="latest-community-banner" style="display:none;width:100%;max-width:800px;background:#f0fdf4;border-radius:12px;padding:0.45rem 1rem;font-size:0.8rem;color:#1a5c32;cursor:pointer;margin-bottom:0.75rem;font-weight:500" onclick="document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth',block:'start'})"></div>
 
   <!-- ===== SECTION 1: PAYMENT HUB ===== -->
-  <div class="card payment-hub" style="animation-delay:0.05s">
+  <div class="card payment-hub" style="animation-delay:0.05s;border-top:4px solid #1a5c32">
     <div style="font-size:0.72rem;color:#78716c;font-weight:600;margin-bottom:0.5rem">🐊 Anahuac RV Park</div>
     <div class="tenant-header">
       <div class="tenant-name" id="p-name"></div>
@@ -1300,18 +1300,25 @@ if (_isAdminPreview) {
 async function loadPreviewTenantList() {
   var sel = document.getElementById('admin-tenant-switcher');
   if (!sel) return;
-  try {
-    var r = await fetch('/api/portal/admin-preview-tenants', {
-      method: 'GET',
-      headers: { 'Authorization': 'Bearer ' + _portalToken },
-    });
-    if (!r.ok) { sel.innerHTML = '<option>Tenant list unavailable</option>'; return; }
-    var tenants = await r.json();
-    sel.innerHTML = tenants.map(function(t) {
-      var selected = t.id === _portalTenant.id ? ' selected' : '';
-      return '<option value="' + t.id + '"' + selected + '>' + t.first_name + ' ' + t.last_name + ' — Lot ' + t.lot_id + '</option>';
-    }).join('');
-  } catch { sel.innerHTML = '<option>Error loading tenants</option>'; }
+  // Try portal token first, then admin token, then localStorage admin token
+  var tokens = [_portalToken, sessionStorage.getItem('_adminToken'), localStorage.getItem('rv_token')].filter(Boolean);
+  for (var ti = 0; ti < tokens.length; ti++) {
+    try {
+      var r = await fetch('/api/portal/admin-preview-tenants', {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + tokens[ti] },
+      });
+      if (!r.ok) continue;
+      var tenants = await r.json();
+      if (!Array.isArray(tenants) || !tenants.length) continue;
+      sel.innerHTML = tenants.map(function(t) {
+        var selected = t.id === _portalTenant.id ? ' selected' : '';
+        return '<option value="' + t.id + '"' + selected + '>' + t.first_name + ' ' + t.last_name + ' — Lot ' + t.lot_id + '</option>';
+      }).join('');
+      return; // success
+    } catch {}
+  }
+  sel.innerHTML = '<option>Tenant list unavailable</option>';
 }
 
 async function switchPreviewTenant(tenantId) {
