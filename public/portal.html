@@ -14,13 +14,15 @@
   <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
   <title>Tenant Portal - Anahuac RV Park</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { scroll-behavior:smooth; -webkit-tap-highlight-color:transparent; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 100%);
-      min-height: 100vh; color: #1c1917;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background:#f5f5f4; min-height:100vh; color:#1c1917;
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
     }
-    /* Splash */
+
+    /* ===== SPLASH ===== */
     .splash { position:fixed;inset:0;z-index:9999;background:linear-gradient(160deg,#0f3d22 0%,#1a5c32 40%,#0f3d22 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.6s ease,visibility 0.6s ease }
     .splash.fade-out { opacity:0;visibility:hidden }
     .splash-logo { height:100px;width:auto;margin-bottom:1.25rem;filter:drop-shadow(0 4px 20px rgba(0,0,0,0.3));animation:splashLogoIn 0.8s ease-out }
@@ -31,69 +33,83 @@
     .splash-spinner { width:36px;height:36px;border:3px solid rgba(245,158,11,0.25);border-top-color:#f59e0b;border-radius:50%;animation:splashSpin 0.8s linear infinite,splashTextIn 0.6s ease-out 0.5s both }
     @keyframes splashSpin { to{transform:rotate(360deg)} }
 
-    /* Login overlay */
+    /* ===== LOGIN ===== */
     .login-overlay { min-height:100vh;background-image:url('https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=1920&q=80');background-size:cover;background-position:center;display:flex;flex-direction:column;align-items:center;padding:1.5rem }
     .login-overlay::before { content:'';position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:0 }
     .login-overlay > * { position:relative;z-index:1 }
 
-    /* Cards */
-    .card {
-      background: rgba(255,253,240,0.95); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-      border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.08);
-      width:100%; max-width:800px; padding:1.25rem; margin-bottom:0.75rem;
-      animation: fadeIn 0.4s ease-out;
-    }
-    .login-overlay .card { box-shadow:0 25px 50px rgba(0,0,0,0.5);padding:2rem 1.75rem }
-    @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-    .card-title { font-size:0.85rem;font-weight:700;color:#1a5c32;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.6rem;display:flex;align-items:center;gap:0.4rem }
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
 
-    /* Forms */
+    /* ===== CARDS ===== */
+    .card {
+      background:#fff; border-radius:16px;
+      box-shadow:0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+      width:100%; max-width:800px; padding:1rem; margin-bottom:0.75rem;
+      animation:fadeInUp 0.4s ease-out both;
+    }
+    .login-overlay .card { background:rgba(255,253,240,0.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 25px 50px rgba(0,0,0,0.5);padding:2rem 1.75rem }
+    .card-title { font-size:0.78rem;font-weight:700;color:#1a5c32;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.4rem }
+
+    /* ===== FORMS ===== */
     .logo { display:block;margin:0 auto 0.5rem;height:70px }
     h1 { text-align:center;color:#1a5c32;font-size:1.4rem;margin-bottom:0.25rem }
     .subtitle { text-align:center;color:#92400e;font-size:0.9rem;margin-bottom:1.5rem }
     .form-group { margin-bottom:1rem }
-    .form-group label { display:block;font-weight:600;font-size:0.8rem;color:#44403c;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.03em }
-    .form-group input,.form-group textarea { width:100%;padding:0.7rem;border:1.5px solid #d6d3d1;border-radius:10px;font-size:1rem;background:#fff }
-    .form-group input:focus,.form-group textarea:focus { outline:none;border-color:#1a5c32;box-shadow:0 0 0 3px rgba(26,92,50,0.15) }
+    .form-group label { display:block;font-weight:600;font-size:0.78rem;color:#57534e;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.04em }
+    .form-group input, .form-group textarea, .form-group select {
+      width:100%; padding:0.75rem 0.85rem; border:1.5px solid #d6d3d1; border-radius:12px;
+      font-size:16px; background:#fff; font-family:inherit; color:#1c1917;
+      transition:border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline:none;border-color:#1a5c32;box-shadow:0 0 0 3px rgba(26,92,50,0.12) }
     .form-group textarea { resize:vertical;min-height:80px }
-    .btn { display:block;width:100%;padding:0.85rem;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;transition:all 0.2s }
-    .btn-green { background:linear-gradient(135deg,#1a5c32,#2d8a52);color:#fff;box-shadow:0 2px 8px rgba(26,92,50,0.3) }
-    .btn-green:hover { filter:brightness(1.08);transform:translateY(-1px) }
-    .btn-green:active { transform:translateY(0) }
-    .btn-outline { background:#fff;border:1.5px solid #d6d3d1;color:#44403c;border-radius:12px }
-    .btn-outline:hover { border-color:#1a5c32;color:#1a5c32 }
 
-    /* Balance */
-    .balance-box { text-align:center;padding:1.25rem;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:14px;margin-bottom:1rem }
-    .balance-amount { font-size:2.5rem;font-weight:800;color:#1a5c32 }
-    .balance-label { font-size:0.8rem;color:#78716c;margin-top:0.25rem;text-transform:uppercase;letter-spacing:0.05em }
-    .balance-paid { color:#16a34a }
-    .balance-owed { color:#dc2626 }
-    .tenant-header { text-align:center;margin-bottom:1rem }
-    .tenant-name { font-size:1.2rem;font-weight:700;color:#1a5c32 }
-    .tenant-lot { font-size:0.9rem;color:#78716c }
-    .invoice-row { display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #e7e5e4;font-size:0.85rem }
-    .msg-success { background:#dcfce7;color:#166534;padding:0.75rem;border-radius:10px;text-align:center;margin-bottom:1rem }
-    .msg-error { background:#fee2e2;color:#991b1b;padding:0.75rem;border-radius:10px;text-align:center;margin-bottom:1rem }
-    .link { text-align:center;margin-top:0.75rem;font-size:0.85rem }
-    .link a { color:#fff;text-decoration:underline }
+    /* ===== BUTTONS ===== */
+    .btn { display:block;width:100%;padding:0.85rem;border:none;border-radius:14px;font-size:1rem;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;transition:all 0.2s;min-height:56px;display:flex;align-items:center;justify-content:center }
+    .btn-green { background:linear-gradient(135deg,#1a5c32,#2d8a52);color:#fff;box-shadow:0 2px 8px rgba(26,92,50,0.25) }
+    .btn-green:hover { filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 4px 14px rgba(26,92,50,0.3) }
+    .btn-green:active { transform:scale(0.98);box-shadow:0 1px 4px rgba(26,92,50,0.2) }
+    .btn-outline { background:#fff;border:1.5px solid #d6d3d1;color:#44403c;border-radius:14px }
+    .btn-outline:hover { border-color:#1a5c32;color:#1a5c32;background:#f0fdf4 }
+    .btn-sm { min-height:auto;padding:0.4rem 0.85rem;font-size:0.82rem;display:inline-flex;width:auto;border-radius:10px }
 
-    /* Portal header */
-    .portal-hero { background:linear-gradient(135deg,#0f3d22,#1a5c32,#2d8a52);color:#fff;border-radius:14px;padding:0.75rem 1.25rem;margin-bottom:0.75rem;width:100%;max-width:800px;position:relative;overflow:hidden }
+    /* ===== PORTAL HERO ===== */
+    .portal-hero { background:linear-gradient(135deg,#0f3d22,#1a5c32,#2d8a52);color:#fff;border-radius:16px;padding:0.85rem 1.25rem;margin-bottom:0.75rem;width:100%;max-width:800px;position:relative;overflow:hidden }
     .portal-hero::after { content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M20 20c0-11.046-8.954-20-20-20v20h20z'/%3E%3C/g%3E%3C/svg%3E");pointer-events:none }
     .portal-hero > * { position:relative;z-index:1 }
     .hero-welcome { font-size:1rem;font-weight:700;color:#f59e0b;margin:0 }
     .hero-date { font-size:0.72rem;color:rgba(255,255,255,0.7) }
 
-    /* Weather */
+    /* ===== PAYMENT HUB ===== */
+    .payment-hub { padding:1.25rem }
+    .balance-box { text-align:center;padding:1.25rem;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:14px;margin-bottom:0.75rem }
+    .balance-label { font-size:0.72rem;color:#78716c;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:0.15rem }
+    .balance-amount { font-size:2.5rem;font-weight:800;color:#1a5c32;line-height:1.1 }
+    .balance-paid { color:#16a34a }
+    .balance-owed { color:#dc2626 }
+    .tenant-header { text-align:center;margin-bottom:0.75rem }
+    .tenant-name { font-size:1.1rem;font-weight:700;color:#1a5c32 }
+    .tenant-lot { font-size:0.85rem;color:#78716c }
+    .invoice-row { display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #f5f5f4;font-size:0.85rem }
+    .invoice-row:last-child { border-bottom:none }
+
+    /* ===== QUICK ACTIONS ===== */
+    .quick-actions { display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;width:100%;max-width:800px;margin-bottom:0.75rem }
+    .qa-btn { background:#fff;border:1.5px solid #e7e5e4;border-radius:14px;padding:1rem 0.75rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.35rem;min-height:90px;cursor:pointer;transition:all 0.2s;text-decoration:none;color:#1c1917 }
+    .qa-btn:hover { border-color:#1a5c32;background:#f0fdf4;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.06) }
+    .qa-btn:active { transform:scale(0.97);border-color:#1a5c32 }
+    .qa-icon { font-size:1.6rem }
+    .qa-label { font-size:0.82rem;font-weight:700;color:#1c1917 }
+
+    /* ===== WEATHER BAR ===== */
     .weather-bar { display:flex;align-items:center;justify-content:center;gap:0.5rem;font-size:0.82rem;padding:0.35rem 0;flex-wrap:wrap }
     .weather-bar .wx-icon { font-size:1.2rem }
     .weather-bar .wx-temp { font-size:1rem;font-weight:800;color:#1a5c32 }
     .weather-bar .wx-detail { color:#78716c;font-size:0.75rem }
 
-    /* Bible verse (unused - verse now inline in hero) */
-
-    /* Link grid */
+    /* ===== LINK GRID ===== */
     .link-grid { display:grid;grid-template-columns:1fr 1fr;gap:0.5rem }
     .link-btn { display:flex;align-items:center;gap:0.5rem;padding:0.65rem 0.75rem;background:#fff;border:1.5px solid #e7e5e4;border-radius:12px;text-decoration:none;color:#1c1917;font-size:0.82rem;font-weight:600;transition:all 0.15s }
     .link-btn:hover { border-color:#1a5c32;background:#f0fdf4;transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,0.06) }
@@ -101,68 +117,86 @@
     .link-btn .lb-icon { font-size:1.3rem;flex-shrink:0 }
     .link-grid-full { grid-template-columns:1fr }
 
-    /* Emergency */
-    .emergency-btn { display:flex;align-items:center;gap:0.5rem;padding:0.6rem 0.75rem;background:#fee2e2;border:1.5px solid #fecaca;border-radius:12px;text-decoration:none;color:#991b1b;font-size:0.82rem;font-weight:600;transition:all 0.15s }
+    /* ===== EMERGENCY ===== */
+    .emergency-btn { display:flex;align-items:center;gap:0.5rem;padding:0.7rem 0.85rem;background:#fee2e2;border:1.5px solid #fecaca;border-radius:12px;text-decoration:none;color:#991b1b;font-size:0.85rem;font-weight:600;transition:all 0.15s;min-height:48px }
     .emergency-btn:hover { background:#dc2626;color:#fff;border-color:#dc2626 }
 
-    /* Announcements */
-    .announcement { padding:0.5rem 0;border-bottom:1px solid #e7e5e4;font-size:0.85rem }
+    /* ===== ANNOUNCEMENTS ===== */
+    .announcement { padding:0.6rem 0;border-bottom:1px solid #f5f5f4;font-size:0.88rem }
     .announcement:last-child { border-bottom:none }
-    .announcement-date { font-size:0.7rem;color:#a8a29e }
+    .announcement-date { font-size:0.7rem;color:#a8a29e;margin-top:0.15rem }
 
-    /* Collapsible */
+    /* ===== COMMUNITY ===== */
+    .community-post { padding:0.75rem 0;border-bottom:1px solid #f5f5f4 }
+    .community-post:last-child { border-bottom:none }
+
+    /* ===== COLLAPSIBLE ===== */
     .collapse-toggle { width:100%;background:none;border:none;padding:0;font:inherit;cursor:pointer;display:flex;align-items:center;justify-content:space-between }
     .collapse-body { max-height:0;overflow:hidden;transition:max-height 0.3s ease }
-    .collapse-body.open { max-height:1000px }
+    .collapse-body.open { max-height:2000px }
 
-    /* Game cards */
+    /* ===== MESSAGES ===== */
+    .msg-success { background:#dcfce7;color:#166534;padding:0.85rem;border-radius:12px;text-align:center;margin-bottom:1rem;font-size:0.9rem;font-weight:600 }
+    .msg-error { background:#fee2e2;color:#991b1b;padding:0.85rem;border-radius:12px;text-align:center;margin-bottom:1rem;font-size:0.9rem }
+    .link { text-align:center;margin-top:0.75rem;font-size:0.85rem }
+    .link a { color:#fff;text-decoration:underline }
+
+    /* ===== HOLIDAY ===== */
+    .holiday-banner { width:100%;max-width:800px;border-radius:14px;padding:0.75rem 1rem;margin-bottom:0.75rem;text-align:center;position:relative;overflow:hidden }
+    .holiday-banner-text { font-size:1rem;font-weight:700;position:relative;z-index:1 }
+    .holiday-banner-emoji { font-size:1.5rem;display:inline-block;animation:holidayFloat 3s ease-in-out infinite alternate }
+    @keyframes holidayFloat { 0%{transform:translateY(0)} 100%{transform:translateY(-6px)} }
+    .falling-particles { position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden }
+    .falling-particle { position:absolute;top:-30px;animation:particleFall linear forwards;opacity:0.7 }
+    @keyframes particleFall { 0%{transform:translateY(0) rotate(0deg);opacity:0.7} 100%{transform:translateY(105vh) rotate(360deg);opacity:0} }
+    .recipe-card { display:flex;gap:0.75rem;align-items:flex-start }
+    .recipe-card img { width:80px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0 }
+    .recipe-card-info { flex:1;min-width:0 }
+    .recipe-card-title { font-weight:700;font-size:0.9rem;color:#1c1917;margin-bottom:0.25rem }
+    .recipe-card-desc { font-size:0.78rem;color:#78716c;line-height:1.4 }
+    .countdown-timer { font-size:1.1rem;font-weight:800;letter-spacing:0.5px }
     .game-card { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.25rem;padding:0.75rem 0.5rem;border-radius:14px;text-decoration:none;color:#fff;min-height:110px;transition:transform 0.15s,box-shadow 0.15s;text-align:center }
     .game-card:hover { transform:scale(1.04);box-shadow:0 6px 20px rgba(0,0,0,0.25) }
     .game-card:active { transform:scale(0.97) }
     .game-name { font-size:0.88rem;font-weight:700;line-height:1.2 }
     .game-play { font-size:0.65rem;font-weight:600;opacity:0.8;letter-spacing:0.05em }
 
-    /* Holiday banner */
-    .holiday-banner { width:100%;max-width:800px;border-radius:14px;padding:0.75rem 1rem;margin-bottom:0.75rem;text-align:center;position:relative;overflow:hidden }
-    .holiday-banner-text { font-size:1rem;font-weight:700;position:relative;z-index:1 }
-    .holiday-banner-emoji { font-size:1.5rem;display:inline-block;animation:holidayFloat 3s ease-in-out infinite alternate }
-    @keyframes holidayFloat { 0%{transform:translateY(0)} 100%{transform:translateY(-6px)} }
-    /* Falling particles container */
-    .falling-particles { position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden }
-    .falling-particle { position:absolute;top:-30px;animation:particleFall linear forwards;opacity:0.7 }
-    @keyframes particleFall { 0%{transform:translateY(0) rotate(0deg);opacity:0.7} 100%{transform:translateY(105vh) rotate(360deg);opacity:0} }
-    /* Holiday recipe card */
-    .recipe-card { display:flex;gap:0.75rem;align-items:flex-start }
-    .recipe-card img { width:80px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0 }
-    .recipe-card-info { flex:1;min-width:0 }
-    .recipe-card-title { font-weight:700;font-size:0.9rem;color:var(--gray-900,#1c1917);margin-bottom:0.25rem }
-    .recipe-card-desc { font-size:0.78rem;color:#78716c;line-height:1.4 }
-    /* Countdown */
-    .countdown-timer { font-size:1.1rem;font-weight:800;letter-spacing:0.5px }
-
-    .portal-footer { text-align:center;color:#a8a29e;font-size:0.75rem;margin:1rem 0 4rem;max-width:800px;line-height:1.5 }
-    /* Bottom navigation */
-    .portal-nav { position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e7e5e4;display:flex;z-index:100;box-shadow:0 -2px 8px rgba(0,0,0,0.08) }
-    .portal-nav-btn { flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;cursor:pointer;border:none;background:none;font-size:0.65rem;color:#78716c;transition:color 0.15s }
+    /* ===== BOTTOM NAV ===== */
+    .portal-nav { position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:2px solid #1a5c32;display:flex;z-index:100;box-shadow:0 -4px 16px rgba(0,0,0,0.06);padding-bottom:env(safe-area-inset-bottom, 0px) }
+    .portal-nav-btn { flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;cursor:pointer;border:none;background:none;font-size:0.65rem;color:#a8a29e;transition:all 0.2s;position:relative }
     .portal-nav-btn.active { color:#1a5c32;font-weight:700 }
-    .portal-nav-btn .pnav-icon { font-size:1.2rem }
-    /* Portal sections */
+    .portal-nav-btn.active::before { content:'';position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:20px;height:3px;background:#1a5c32;border-radius:0 0 3px 3px }
+    .portal-nav-btn .pnav-icon { font-size:1.3rem }
+
+    /* ===== MISC ===== */
     .portal-section { display:none }
     .portal-section.active { display:block }
     .hidden { display:none !important }
-    /* Desktop: two-column layout */
+    .portal-footer { text-align:center;color:#a8a29e;font-size:0.75rem;margin:1rem 0 5rem;max-width:800px;line-height:1.6 }
+
+    /* ===== DESKTOP ===== */
     @media (min-width:601px) {
       .portal-two-col { display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;width:100%;max-width:800px }
       .portal-two-col > .card { margin-bottom:0 }
       .link-grid { grid-template-columns:repeat(3,1fr) !important }
-      .card { padding:1rem }
+      .card { padding:1.25rem }
+      .payment-hub { padding:1.5rem }
+      .quick-actions { gap:0.75rem }
+      .park-info-collapse .collapse-body { max-height:2000px !important }
+      .park-info-collapse .caret { display:none }
     }
-    @media (max-width:768px) and (min-width:601px) {
-      .card { max-width:750px }
-      .link-grid { grid-template-columns:repeat(2,1fr) !important }
+    @media (max-width:600px) {
+      .portal-two-col { display:block }
+      .quick-actions { gap:0.5rem }
+      .qa-btn { min-height:80px }
     }
-    @media (max-width:600px) { .portal-two-col { display:block } }
-    @media (max-width:480px) { .card{padding:1.25rem 1rem} .balance-amount{font-size:2rem} .link-grid{gap:0.4rem} .link-btn{padding:0.55rem 0.6rem;font-size:0.78rem} }
+    @media (max-width:480px) {
+      .card { padding:1rem 0.85rem }
+      .balance-amount { font-size:2.2rem }
+      .link-grid { gap:0.4rem }
+      .link-btn { padding:0.55rem 0.6rem;font-size:0.78rem }
+      .payment-hub { padding:1rem 0.85rem }
+    }
   </style>
 </head>
 <body>
@@ -173,7 +207,7 @@
   <div class="splash-spinner"></div>
 </div>
 
-<!-- LOGIN (background image overlay) -->
+<!-- LOGIN -->
 <div id="login-wrapper" class="login-overlay" style="opacity:0;transition:opacity 0.4s ease 0.1s">
   <div id="login-screen" class="card">
     <img src="/park_Logo.png" alt="Anahuac RV Park" class="logo">
@@ -219,14 +253,14 @@
   <p style="text-align:center;color:rgba(255,255,255,0.6);font-size:0.8rem;margin-top:1rem">Anahuac RV Park · 409-267-6603</p>
 </div>
 
-<!-- PORTAL DASHBOARD (clean background, no photo) -->
-<div id="portal-wrapper" class="hidden" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0.75rem 1rem 2rem">
+<!-- ==================== PORTAL DASHBOARD ==================== -->
+<div id="portal-wrapper" class="hidden" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0.75rem 0.75rem 2rem">
 
   <!-- Falling particles (holiday) -->
   <div class="falling-particles" id="falling-particles"></div>
 
-  <!-- Hero header (compact) -->
-  <div class="portal-hero" style="padding:0.75rem 1.25rem">
+  <!-- Hero header -->
+  <div class="portal-hero">
     <div class="hero-welcome" id="p-welcome" style="font-size:1rem;margin:0">Welcome home! 🐊</div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap">
       <div id="p-name-hero" style="font-size:0.82rem;font-weight:600;opacity:0.9"></div>
@@ -238,46 +272,62 @@
   <!-- Weather alert banner -->
   <div id="portal-weather-banner" style="width:100%;max-width:800px;display:none"></div>
 
-  <!-- Local road conditions -->
-  <div class="card" style="width:100%;max-width:800px">
+  <!-- Traffic bar (slim) -->
+  <div class="card" style="width:100%;max-width:800px;padding:0.65rem 1rem">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <div class="card-title" style="margin:0">🚗 Local Road Conditions</div>
-      <button onclick="loadTrafficData()" style="background:none;border:none;font-size:0.72rem;color:#1a5c32;cursor:pointer;font-weight:600">↻ Refresh</button>
+      <div class="card-title" style="margin:0;font-size:0.72rem">🚗 Local Road Conditions</div>
+      <button onclick="loadTrafficData()" style="background:none;border:none;font-size:0.7rem;color:#1a5c32;cursor:pointer;font-weight:600">↻ Refresh</button>
     </div>
-    <div id="portal-traffic" style="font-size:0.85rem;margin-top:0.4rem"></div>
-    <div id="portal-traffic-time" style="font-size:0.65rem;color:#a8a29e;margin-top:0.3rem;text-align:right"></div>
+    <div id="portal-traffic" style="font-size:0.85rem;margin-top:0.3rem"></div>
+    <div id="portal-traffic-time" style="font-size:0.62rem;color:#a8a29e;margin-top:0.2rem;text-align:right"></div>
   </div>
 
   <!-- Latest community post banner -->
-  <div id="latest-community-banner" style="display:none;width:100%;max-width:800px;background:#f0fdf4;border-radius:10px;padding:0.35rem 1rem;font-size:0.8rem;color:#1a5c32;cursor:pointer;margin-bottom:0.75rem" onclick="document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth',block:'start'})"></div>
+  <div id="latest-community-banner" style="display:none;width:100%;max-width:800px;background:#f0fdf4;border-radius:12px;padding:0.45rem 1rem;font-size:0.8rem;color:#1a5c32;cursor:pointer;margin-bottom:0.75rem;font-weight:500" onclick="document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth',block:'start'})"></div>
 
-  <!-- Two-column layout on desktop -->
-  <div class="portal-two-col">
-    <!-- Left: Balance & Pay -->
-    <div class="card">
-      <div class="tenant-header">
-        <div class="tenant-name" id="p-name"></div>
-        <div class="tenant-lot" id="p-lot"></div>
-      </div>
-      <div class="balance-box">
-        <div class="balance-label">Current Balance</div>
-        <div class="balance-amount" id="p-balance">...</div>
-      </div>
-      <div id="pay-section"></div>
-      <div style="margin-top:0.75rem">
-        <div class="card-title">Recent Invoices</div>
-        <div id="p-invoices"></div>
-      </div>
+  <!-- ===== SECTION 1: PAYMENT HUB ===== -->
+  <div class="card payment-hub" style="animation-delay:0.05s">
+    <div style="font-size:0.72rem;color:#78716c;font-weight:600;margin-bottom:0.5rem">🐊 Anahuac RV Park</div>
+    <div class="tenant-header">
+      <div class="tenant-name" id="p-name"></div>
+      <div class="tenant-lot" id="p-lot"></div>
     </div>
+    <div class="balance-box">
+      <div class="balance-label">Current Balance</div>
+      <div class="balance-amount" id="p-balance">...</div>
+    </div>
+    <div id="pay-section"></div>
+    <div style="margin-top:0.75rem">
+      <div class="card-title" style="font-size:0.72rem">Recent Invoices</div>
+      <div id="p-invoices"></div>
+    </div>
+  </div>
 
-    <!-- Right: Weather -->
-    <div>
-      <div class="card" id="weather-card" style="padding:0.75rem 1rem">
-        <div class="card-title" style="margin-bottom:0.2rem">🌤️ Weather in Anahuac</div>
-        <div class="weather-bar" id="weather-content">
-          <span class="wx-detail">Loading...</span>
-        </div>
-      </div>
+  <!-- ===== SECTION 2: QUICK ACTIONS ===== -->
+  <div class="quick-actions" style="animation-delay:0.1s">
+    <a class="qa-btn" href="#maint-form" onclick="event.preventDefault();document.getElementById('maint-form')?.scrollIntoView({behavior:'smooth'})">
+      <span class="qa-icon">🔧</span><span class="qa-label">Report Problem</span>
+    </a>
+    <a class="qa-btn" href="#msg-form" onclick="event.preventDefault();document.getElementById('msg-form')?.scrollIntoView({behavior:'smooth'})">
+      <span class="qa-icon">💬</span><span class="qa-label">Message Us</span>
+    </a>
+    <a class="qa-btn" href="#portal-community-feed" onclick="event.preventDefault();document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth'})">
+      <span class="qa-icon">🏘️</span><span class="qa-label">Community</span>
+    </a>
+    <a class="qa-btn" href="tel:4092676603">
+      <span class="qa-icon">📞</span><span class="qa-label">Call Us</span>
+    </a>
+  </div>
+
+  <!-- Weather (compact) -->
+  <div class="portal-two-col" style="animation-delay:0.12s">
+    <div class="card" id="weather-card" style="padding:0.65rem 1rem">
+      <div class="card-title" style="margin-bottom:0.15rem;font-size:0.72rem">🌤️ Weather in Anahuac</div>
+      <div class="weather-bar" id="weather-content"><span class="wx-detail">Loading...</span></div>
+    </div>
+    <div class="card" style="border-left:3px solid #1a5c32;padding:0.65rem 1rem">
+      <div class="card-title" style="margin:0;font-size:0.72rem">🐊 Did You Know?</div>
+      <div id="gator-fact" style="font-size:0.85rem;line-height:1.5;color:#44403c;margin-top:0.2rem"></div>
     </div>
   </div>
 
@@ -293,55 +343,49 @@
     <div class="countdown-timer" id="countdown-timer"></div>
   </div>
 
-  <!-- Announcements -->
-  <div class="card" id="announcements-card" style="display:none">
-    <div class="card-title">📢 Park Announcements</div>
+  <!-- ===== SECTION 3: ANNOUNCEMENTS ===== -->
+  <div class="card" id="announcements-card" style="display:none;border-left:3px solid #1a5c32">
+    <div class="card-title">📢 From Management</div>
     <div id="announcements-list"></div>
   </div>
 
-  <!-- Community Board -->
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-      <div class="card-title" style="margin:0">📋 Community Board</div>
-      <button class="btn btn-sm btn-green" id="portal-new-post-btn" style="font-size:0.78rem;padding:0.3rem 0.75rem">+ New Post</button>
+  <!-- ===== SECTION 4: COMMUNITY BOARD ===== -->
+  <div class="card" style="animation-delay:0.15s">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div class="card-title" style="margin:0;font-size:0.85rem">🏘️ Community</div>
+      <button class="btn btn-sm btn-green" id="portal-new-post-btn" style="font-size:0.78rem;padding:0.35rem 0.85rem;border-radius:10px">+ Share</button>
     </div>
-    <div id="portal-new-post-form" style="display:none;margin-bottom:1rem;padding:0.75rem;background:var(--gray-50,#fafaf9);border-radius:8px">
+    <div id="portal-new-post-form" style="display:none;margin-bottom:1rem;padding:0.85rem;background:#fafaf9;border-radius:12px;border:1px solid #e7e5e4">
       <form id="portal-post-form">
-        <div class="form-group" style="margin-bottom:0.5rem"><select name="post_type" style="font-size:0.9rem"><option value="community">📢 Community</option><option value="fishing">🎣 Fishing Story</option><option value="event">🎪 Event</option></select></div>
-        <div class="form-group" style="margin-bottom:0.5rem"><input name="title" placeholder="Title" required style="font-size:0.9rem"></div>
-        <div class="form-group" style="margin-bottom:0.5rem"><textarea name="message" rows="3" placeholder="Share with the community..." style="font-size:0.9rem" spellcheck="true"></textarea></div>
-        <div class="form-group" style="margin-bottom:0.5rem">
-          <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem"><input type="file" accept="image/*" capture="environment" style="display:none" id="post-photo-input"> 📷 Add Photo</label>
+        <div class="form-group" style="margin-bottom:0.6rem"><select name="post_type"><option value="community">📢 Community</option><option value="fishing">🎣 Fishing Story</option><option value="event">🎪 Event</option></select></div>
+        <div class="form-group" style="margin-bottom:0.6rem"><input name="title" placeholder="Title" required></div>
+        <div class="form-group" style="margin-bottom:0.6rem"><textarea name="message" rows="3" placeholder="Share with the community..." spellcheck="true"></textarea></div>
+        <div class="form-group" style="margin-bottom:0.6rem">
+          <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;min-height:auto"><input type="file" accept="image/*" capture="environment" style="display:none" id="post-photo-input"> 📷 Add Photo</label>
           <span id="post-photo-status" style="font-size:0.78rem;color:#78716c;margin-left:0.5rem"></span>
           <div id="post-photo-preview" style="margin-top:0.5rem"></div>
           <input type="hidden" id="post-photo-data" name="photo_data">
         </div>
-        <button type="submit" class="btn btn-green" style="font-size:0.88rem">Submit for Review</button>
+        <button type="submit" class="btn btn-green">Submit for Review</button>
       </form>
     </div>
     <div id="portal-community-feed" style="font-size:0.88rem;color:#78716c">Loading...</div>
   </div>
 
-  <!-- Gator Facts -->
-  <div class="card" style="border-left:4px solid #1a5c32">
-    <div class="card-title" style="margin:0">🐊 Did You Know?</div>
-    <div id="gator-fact" style="font-size:0.92rem;line-height:1.5"></div>
-  </div>
-
-  <!-- Report a Problem -->
-  <div class="card">
-    <div class="card-title">🔧 Report a Problem</div>
-    <p style="font-size:0.82rem;color:#78716c;margin-bottom:0.75rem">We want to keep your space comfortable! Submit a request and we'll get right on it. You'll receive a text when we acknowledge it and when it's resolved. For emergencies call <a href="tel:4092676603" style="color:#1a5c32;font-weight:600">409-267-6603</a>.</p>
+  <!-- ===== SECTION 5: MAINTENANCE (Report a Problem) ===== -->
+  <div class="card" style="animation-delay:0.18s">
+    <div class="card-title" style="font-size:0.85rem">🔧 Report a Problem</div>
+    <p style="font-size:0.82rem;color:#78716c;margin-bottom:0.75rem;line-height:1.5">Submit a request and we'll get right on it. For emergencies call <a href="tel:4092676603" style="color:#1a5c32;font-weight:700">409-267-6603</a>.</p>
     <div id="maint-status"></div>
     <form id="maint-form">
       <div class="form-group"><label>Category</label>
-        <select name="category" style="font-size:1rem"><option>Electrical</option><option>Plumbing</option><option>Water</option><option>Sewer</option><option>Pest</option><option>Parking</option><option>Other</option></select>
+        <select name="category"><option>Electrical</option><option>Plumbing</option><option>Water</option><option>Sewer</option><option>Pest</option><option>Parking</option><option>Other</option></select>
       </div>
-      <div class="form-group"><label>Describe the Problem</label><textarea name="description" required placeholder="Tell us what's wrong..." style="min-height:60px" spellcheck="true"></textarea></div>
+      <div class="form-group"><label>Describe the Problem</label><textarea name="description" required placeholder="Tell us what's wrong..." style="min-height:70px" spellcheck="true"></textarea></div>
       <div class="form-group">
-        <label style="font-size:0.88rem">Photo of the Problem (Recommended)</label>
-        <label style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;min-height:56px;margin-top:0.25rem;border:2px dashed #1a5c32;border-radius:12px;background:#f0fdf4;color:#1a5c32;font-weight:600;font-size:0.92rem;transition:all 0.15s">
-          <input type="file" accept="image/*" capture="environment" style="display:none" id="maint-photo-input"> &#128247; TAP TO TAKE PHOTO
+        <label>Photo (Recommended)</label>
+        <label style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;min-height:56px;margin-top:0.25rem;border:2px dashed #1a5c32;border-radius:14px;background:#f0fdf4;color:#1a5c32;font-weight:700;font-size:0.9rem;transition:all 0.15s">
+          <input type="file" accept="image/*" capture="environment" style="display:none" id="maint-photo-input"> &#128247; Tap to Take Photo
         </label>
         <span id="maint-photo-status" style="font-size:0.78rem;color:#78716c"></span>
         <div id="maint-photo-preview" style="margin-top:0.5rem"></div>
@@ -351,65 +395,72 @@
     </form>
   </div>
 
-  <!-- Contact Management -->
-  <div class="card">
-    <div class="card-title">💬 Message Management</div>
+  <!-- ===== CONTACT / MESSAGE ===== -->
+  <div class="card" style="animation-delay:0.2s">
+    <div class="card-title" style="font-size:0.85rem">💬 Message Management</div>
     <div id="msg-status"></div>
     <form id="msg-form">
       <div class="form-group">
         <label>Your Message</label>
-        <textarea id="msg-text" placeholder="Type your message to park management..." required style="min-height:60px"></textarea>
+        <textarea id="msg-text" placeholder="Type your message to park management..." required style="min-height:80px"></textarea>
       </div>
       <button type="submit" class="btn btn-green">Send Message</button>
     </form>
   </div>
 
-  <!-- ========== LOCAL INFO ========== -->
-  <div class="card">
-    <div class="card-title">🍽️ Nearby Restaurants</div>
-    <div class="link-grid" id="portal-restaurants">Loading...</div>
-  </div>
-
-  <div class="card" id="local-attractions-card">
-    <div class="card-title">🗺️ Local Attractions & Outdoors</div>
-    <div class="link-grid" id="portal-local-links">Loading...</div>
-  </div>
-
-  <!-- Emergency -->
-  <div class="card">
-    <div class="card-title">🚨 Emergency & Important</div>
-    <div style="display:grid;gap:0.4rem">
-      <a class="emergency-btn" href="tel:911"><span>🚑</span> 911 Emergency</a>
-      <a class="emergency-btn" href="tel:4092672444"><span>🏥</span> Chambers County EMS — 409-267-2444</a>
-      <a class="emergency-btn" href="tel:4092673534"><span>👮</span> Anahuac Police — 409-267-3534</a>
-      <a class="link-btn" href="https://www.google.com/maps/dir/Anahuac+TX/Houston+Methodist+Baytown+Hospital" target="_blank" rel="noopener noreferrer" style="width:100%"><span class="lb-icon">🏥</span> Baytown Medical — Directions</a>
-    </div>
-  </div>
-
-  <!-- Park Rules -->
-  <div class="card">
-    <button class="collapse-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.caret').textContent=this.nextElementSibling.classList.contains('open')?'▲':'▼'">
-      <span class="card-title" style="margin:0">📋 Park Rules & Info</span>
-      <span class="caret" style="color:#a8a29e">▼</span>
+  <!-- ===== SECTION 5: PARK & LOCAL INFO (collapsible) ===== -->
+  <div class="card park-info-collapse" style="animation-delay:0.22s">
+    <button class="collapse-toggle" onclick="var b=this.nextElementSibling;b.classList.toggle('open');this.querySelector('.caret').textContent=b.classList.contains('open')?'▲':'▼'">
+      <span class="card-title" style="margin:0;font-size:0.85rem">🏕️ Park & Local Info</span>
+      <span class="caret" style="color:#a8a29e;font-size:0.8rem">▼</span>
     </button>
     <div class="collapse-body">
-      <ul style="padding:0.75rem 0 0 1.25rem;font-size:0.92rem;line-height:1.8;color:#44403c">
-        <li>Speed limit <strong>5 MPH</strong> — children & ducks in park!</li>
-        <li>Quiet hours <strong>10pm – 7am</strong></li>
-        <li>Pets welcome on leash — clean up after them</li>
-        <li>Max 2 people per space ($25/extra person)</li>
-        <li>No open fires except fire pits/rings. No fireworks.</li>
-        <li>Keep your site clean at all times</li>
-        <li>Rent due the <strong>1st</strong> — late fees after 3 days</li>
-        <li>No subleasing. No sharing WiFi password.</li>
-        <li>Max 2 visitors at a time</li>
-        <li>Management reserves the right to remove guests who violate rules</li>
-      </ul>
+      <div style="padding-top:0.75rem">
+        <!-- Restaurants -->
+        <div style="margin-bottom:1rem">
+          <div class="card-title" style="font-size:0.72rem">🍽️ Nearby Restaurants</div>
+          <div class="link-grid" id="portal-restaurants">Loading...</div>
+        </div>
+
+        <!-- Local Attractions -->
+        <div id="local-attractions-card" style="margin-bottom:1rem">
+          <div class="card-title" style="font-size:0.72rem">🗺️ Local Attractions & Outdoors</div>
+          <div class="link-grid" id="portal-local-links">Loading...</div>
+        </div>
+
+        <!-- Emergency -->
+        <div style="margin-bottom:1rem">
+          <div class="card-title" style="font-size:0.72rem">🚨 Emergency & Important</div>
+          <div style="display:grid;gap:0.4rem">
+            <a class="emergency-btn" href="tel:911"><span>🚑</span> 911 Emergency</a>
+            <a class="emergency-btn" href="tel:4092672444"><span>🏥</span> Chambers County EMS — 409-267-2444</a>
+            <a class="emergency-btn" href="tel:4092673534"><span>👮</span> Anahuac Police — 409-267-3534</a>
+            <a class="link-btn" href="https://www.google.com/maps/dir/Anahuac+TX/Houston+Methodist+Baytown+Hospital" target="_blank" rel="noopener noreferrer" style="width:100%"><span class="lb-icon">🏥</span> Baytown Medical — Directions</a>
+          </div>
+        </div>
+
+        <!-- Park Rules -->
+        <div>
+          <div class="card-title" style="font-size:0.72rem">📋 Park Rules</div>
+          <ul style="padding:0 0 0 1.25rem;font-size:0.88rem;line-height:1.8;color:#44403c">
+            <li>Speed limit <strong>5 MPH</strong> — children & ducks in park!</li>
+            <li>Quiet hours <strong>10pm – 7am</strong></li>
+            <li>Pets welcome on leash — clean up after them</li>
+            <li>Max 2 people per space ($25/extra person)</li>
+            <li>No open fires except fire pits/rings. No fireworks.</li>
+            <li>Keep your site clean at all times</li>
+            <li>Rent due the <strong>1st</strong> — late fees after 3 days</li>
+            <li>No subleasing. No sharing WiFi password.</li>
+            <li>Max 2 visitors at a time</li>
+            <li>Management reserves the right to remove guests who violate rules</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- Logout -->
-  <button onclick="portalLogout()" class="btn btn-outline" style="max-width:800px;margin-top:0.25rem">🚪 Log Out</button>
+  <button onclick="portalLogout()" class="btn btn-outline" style="max-width:800px;margin-top:0.25rem;color:#78716c;font-size:0.88rem">🚪 Log Out</button>
 
   <div class="portal-footer">
     <p style="font-style:italic;margin-bottom:0.4rem">"The earth is the Lord's, and everything in it." — Psalm 24:1</p>
@@ -755,9 +806,9 @@ async function showPortal() {
     const payEl = document.getElementById('pay-section');
     if (bal > 0) {
       const withFee = (bal * 1.03).toFixed(2);
-      payEl.innerHTML = `<button class="btn btn-green" onclick="portalPay()" style="margin-bottom:0.5rem;font-size:1.1rem">💳 Pay Now — $${withFee}</button><p style="text-align:center;font-size:0.72rem;color:#78716c">Includes 3% card processing fee</p>`;
+      payEl.innerHTML = `<button class="btn btn-green" onclick="portalPay()" style="margin-bottom:0.5rem;font-size:1.1rem">💳 Pay Now — $${withFee}</button><p style="text-align:center;font-size:0.7rem;color:#78716c">🔒 Secure payment via Stripe · Includes 3% processing fee</p>`;
     } else {
-      payEl.innerHTML = '<p style="text-align:center;color:#16a34a;font-weight:700;margin-bottom:0.5rem">✅ All paid up!</p>';
+      payEl.innerHTML = '<p style="text-align:center;color:#16a34a;font-weight:700;margin-bottom:0.5rem;font-size:1.05rem">✅ All paid up!</p>';
     }
     if (sessionStorage.getItem('portal_paid')) {
       sessionStorage.removeItem('portal_paid');
@@ -1027,17 +1078,20 @@ async function loadCommunityFeed() {
   try {
     var r = await fetch('/api/community/public');
     var posts = await r.json();
-    if (!posts || !posts.length) { el.innerHTML = '<p style="color:#a8a29e">No community posts yet. Be the first!</p>'; return; }
+    if (!posts || !posts.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem 0;color:#a8a29e;font-size:0.9rem">No posts yet! Be the first to share. 🎣</div>'; return; }
     el.innerHTML = posts.map(function(p) {
-      var types = { recognition: '🏆', fishing: '🎣', community: '📢', event: '🎪', announcement: '📋' };
-      return '<div style="padding:0.5rem 0;border-bottom:1px solid #e7e5e4">' +
-        (p.is_pinned ? '<span style="font-size:0.65rem;color:#f59e0b">📌 Pinned</span> ' : '') +
-        '<span style="font-size:0.7rem;color:#a8a29e">' + (types[p.post_type] || '📢') + ' ' + (p.author || '') + '</span>' +
-        (p.title ? '<div style="font-weight:600">' + p.title + '</div>' : '') +
-        '<div style="font-size:0.85rem">' + (p.message || '') + '</div>' +
-        (p.has_photo ? '<img src="/api/community/' + p.id + '/photo" style="max-width:100%;border-radius:6px;margin:0.4rem 0" onerror="this.style.display=\'none\'">' : '') +
-        '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#a8a29e;margin-top:0.25rem"><span>' + (p.submitted_at || '') + '</span>' +
-        '<button style="background:none;border:none;cursor:pointer;font-size:0.8rem" onclick="likeCommunityPost(' + p.id + ',this)">❤️ ' + (p.likes_count || 0) + '</button></div></div>';
+      var types = { recognition: {e:'🏆',c:'#f59e0b',bg:'#fff7ed'}, fishing: {e:'🎣',c:'#0284c7',bg:'#eff6ff'}, community: {e:'📢',c:'#1a5c32',bg:'#f0fdf4'}, event: {e:'🎪',c:'#7c3aed',bg:'#f5f3ff'}, announcement: {e:'📋',c:'#44403c',bg:'#fafaf9'} };
+      var typeInfo = types[p.post_type] || types.community;
+      var pinStyle = p.is_pinned ? 'border-left:3px solid #f59e0b;padding-left:0.6rem;' : '';
+      return '<div class="community-post" style="' + pinStyle + '">' +
+        (p.is_pinned ? '<span style="font-size:0.65rem;color:#f59e0b;font-weight:700">📌 PINNED</span> ' : '') +
+        '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.25rem"><span style="display:inline-block;font-size:0.65rem;font-weight:700;color:' + typeInfo.c + ';background:' + typeInfo.bg + ';padding:1px 6px;border-radius:6px">' + typeInfo.e + ' ' + (p.post_type || 'community') + '</span>' +
+        '<span style="font-size:0.72rem;color:#a8a29e">' + (p.author || '') + '</span></div>' +
+        (p.title ? '<div style="font-weight:700;font-size:0.92rem;color:#1c1917;margin-bottom:0.2rem">' + p.title + '</div>' : '') +
+        '<div style="font-size:0.88rem;color:#44403c;line-height:1.5">' + (p.message || '') + '</div>' +
+        (p.has_photo ? '<img src="/api/community/' + p.id + '/photo" style="max-width:100%;border-radius:10px;margin:0.5rem 0" onerror="this.style.display=\'none\'">' : '') +
+        '<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;color:#a8a29e;margin-top:0.3rem"><span>' + (p.submitted_at || '') + '</span>' +
+        '<button style="background:none;border:none;cursor:pointer;font-size:0.85rem;padding:4px 8px;border-radius:8px;transition:background 0.15s" onclick="likeCommunityPost(' + p.id + ',this)">❤️ ' + (p.likes_count || 0) + '</button></div></div>';
     }).join('');
   } catch { el.innerHTML = '<p style="color:#a8a29e">Could not load community board</p>'; }
 }
@@ -1095,19 +1149,14 @@ async function loadTrafficData() {
   if (!el) return;
 
   try {
-    // Use TxDOT DriveTexas RSS feed (CORS-friendly via proxy or direct)
     var incidents = [];
     try {
       var r = await fetch('https://api.weather.gov/alerts/active?zone=TXC071', { signal: AbortSignal.timeout(8000) });
-      // TXC071 = Chambers County (county zone) — we already use TXZ204 for weather
-      // This is a fallback approach — we'll parse road conditions from NWS if they include them
     } catch {}
 
-    // Primary: fetch from our own backend proxy (avoids CORS issues with TxDOT)
     try {
       var r2 = await fetch('/api/weather-alerts', { signal: AbortSignal.timeout(8000) });
       var nwsAlerts = await r2.json();
-      // Check for any NWS alerts that mention road conditions
       (nwsAlerts || []).forEach(function(a) {
         var desc = (a.description || '') + ' ' + (a.headline || '') + ' ' + (a.event || '');
         if (_matchesLocalRoad(desc) || a.event.indexOf('Flood') !== -1 || a.event.indexOf('Winter') !== -1) {
@@ -1121,7 +1170,6 @@ async function loadTrafficData() {
       });
     } catch {}
 
-    // Filter to max 5 most recent
     incidents = incidents.slice(0, 5);
 
     if (!incidents.length) {
@@ -1129,7 +1177,7 @@ async function loadTrafficData() {
     } else {
       el.innerHTML = incidents.map(function(inc) {
         var c = _incidentColor(inc.type);
-        return '<div style="padding:0.5rem 0;border-bottom:1px solid #e7e5e4;display:flex;gap:0.5rem;align-items:flex-start">' +
+        return '<div style="padding:0.5rem 0;border-bottom:1px solid #f5f5f4;display:flex;gap:0.5rem;align-items:flex-start">' +
           '<span style="color:' + c + ';font-size:1.1rem">' + (c === '#dc2626' ? '🔴' : c === '#f59e0b' ? '🟡' : '⚪') + '</span>' +
           '<div style="flex:1"><strong style="font-size:0.85rem">' + (inc.road || 'Local Road') + '</strong>' +
           ' <span style="font-size:0.72rem;color:' + c + ';font-weight:600">' + (inc.type || '').toUpperCase() + '</span>' +
@@ -1151,7 +1199,6 @@ async function loadPortalWeatherAlerts() {
   try {
     var r = await fetch('/api/weather-alerts');
     var alerts = await r.json();
-    // Only show warnings (not watches) on the portal
     var warnings = (alerts || []).filter(function(a) {
       return a.event && a.event.indexOf('Warning') !== -1;
     });
@@ -1195,16 +1242,15 @@ async function loadPortalRestaurants() {
 
 async function loadAnnouncements() {
   try {
-    // Fetch from announcements API (public endpoint)
     var r = await fetch('/api/announcements/public');
     var announcements = await r.json();
     if (!announcements || !announcements.length) return;
     var card = document.getElementById('announcements-card');
     card.style.display = '';
     document.getElementById('announcements-list').innerHTML = announcements.map(function(a) {
-      return '<div class="announcement">' + (a.is_pinned ? '<span style="color:#f59e0b;font-size:0.7rem">📌 PINNED</span> ' : '') +
+      return '<div class="announcement">' + (a.is_pinned ? '<span style="color:#f59e0b;font-size:0.7rem;font-weight:700">📌 PINNED</span> ' : '') +
         '<div><strong>' + (a.title || '') + '</strong></div>' +
-        '<div style="font-size:0.85rem">' + (a.message || '') + '</div>' +
+        '<div style="font-size:0.88rem;color:#44403c;line-height:1.5">' + (a.message || '') + '</div>' +
         '<div class="announcement-date">' + (a.created_at || '') + '</div></div>';
     }).join('');
   } catch {}
@@ -1243,12 +1289,9 @@ if (_isAdminPreview) {
     banner.style.cssText = 'width:100%;max-width:480px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:2px solid #d97706;border-radius:12px;padding:0.6rem 1rem;margin-bottom:0.75rem;text-align:center;font-size:0.85rem;font-weight:600;color:#92400e;display:flex;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:wrap';
     banner.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:wrap">👁️ Admin Preview <select id="admin-tenant-switcher" style="padding:4px 8px;border-radius:8px;border:1px solid #d97706;font-size:0.78rem;font-weight:600;max-width:200px"></select> <button id="admin-back-btn" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">← Back to Admin</button></div>';
     wrapper.insertBefore(banner, wrapper.firstChild);
-    // Wire event listeners via JS (not inline handlers — CSP safe)
     document.getElementById('admin-back-btn').addEventListener('click', function() { window.location.href = '/'; });
     document.getElementById('admin-tenant-switcher').addEventListener('change', function() { switchPreviewTenant(this.value); });
-    // Load tenant list for switcher (must be after banner is in DOM)
     loadPreviewTenantList();
-    // Disable payment in preview
     setTimeout(function() {
       var payBtn = document.querySelector('#pay-section .btn-green');
       if (payBtn) { payBtn.onclick = function(e) { e.preventDefault(); alert('Payment disabled in preview mode.'); }; payBtn.style.opacity = '0.6'; }
@@ -1275,7 +1318,6 @@ async function loadPreviewTenantList() {
 
 async function switchPreviewTenant(tenantId) {
   if (!tenantId) return;
-  // Try admin token from localStorage, then from sessionStorage backup
   var adminToken = localStorage.getItem('rv_token') || sessionStorage.getItem('_adminToken') || _portalToken;
   console.log('[portal] switching tenant, token type:', adminToken === localStorage.getItem('rv_token') ? 'admin' : 'preview');
   try {
@@ -1286,7 +1328,6 @@ async function switchPreviewTenant(tenantId) {
     });
     var data = await r.json();
     if (!r.ok || !data.token) { alert('Failed to switch tenant: ' + (data.error || 'unknown')); return; }
-    // Hard reload with new token — most reliable way to refresh all content
     sessionStorage.removeItem('portal_token');
     sessionStorage.removeItem('portal_tenant');
     window.location.replace('/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant)));
