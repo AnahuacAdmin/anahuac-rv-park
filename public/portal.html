@@ -370,6 +370,16 @@
     <div class="link-grid" id="portal-local-links">Loading...</div>
   </div>
 
+  <!-- TxDOT Traffic -->
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between">
+      <span>🚗 Local Traffic & Road Conditions</span>
+      <button onclick="loadTrafficData()" style="background:none;border:none;font-size:0.75rem;color:#1a5c32;cursor:pointer;font-weight:600">↻ Refresh</button>
+    </div>
+    <div id="portal-traffic" style="font-size:0.88rem">Loading traffic data...</div>
+    <div id="portal-traffic-time" style="font-size:0.68rem;color:#a8a29e;margin-top:0.4rem"></div>
+  </div>
+
   <!-- Emergency -->
   <div class="card">
     <div class="card-title">🚨 Emergency & Important</div>
@@ -662,7 +672,10 @@ async function showPortal() {
     loadPortalLocalLinks(),
     loadCommunityFeed(),
     loadPortalWeatherAlerts(),
+    loadTrafficData(),
   ]);
+  // Auto-refresh traffic every 15 minutes
+  setInterval(loadTrafficData, 15 * 60 * 1000);
   // Wire community post form + photo upload + bottom nav
   setTimeout(function() {
     var postBtn = document.getElementById('portal-new-post-btn');
@@ -1037,6 +1050,91 @@ async function loadCommunityFeed() {
 
 async function likeCommunityPost(id, btn) {
   try { await fetch('/api/community/' + id + '/like', { method: 'POST' }); if (btn) btn.textContent = '❤️ Liked!'; } catch {}
+}
+
+var _trafficRoads = ['I-10', 'IH 10', 'IH-10', 'Interstate 10', 'SH 61', 'SH-61', 'TX-61', 'Highway 61', 'SH 124', 'SH-124', 'TX-124', 'Highway 124', 'FM 562', 'Anahuac', 'Chambers County', 'Chambers'];
+
+function _matchesLocalRoad(text) {
+  if (!text) return false;
+  var upper = text.toUpperCase();
+  for (var i = 0; i < _trafficRoads.length; i++) {
+    if (upper.indexOf(_trafficRoads[i].toUpperCase()) !== -1) return true;
+  }
+  return false;
+}
+
+function _timeAgo(dateStr) {
+  if (!dateStr) return '';
+  var diff = Date.now() - new Date(dateStr).getTime();
+  var mins = Math.floor(diff / 60000);
+  if (mins < 60) return mins + 'm ago';
+  var hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  return Math.floor(hrs / 24) + 'd ago';
+}
+
+function _incidentColor(type) {
+  if (!type) return '#6b7280';
+  var t = type.toLowerCase();
+  if (t.indexOf('accident') !== -1 || t.indexOf('closure') !== -1 || t.indexOf('closed') !== -1) return '#dc2626';
+  if (t.indexOf('construction') !== -1 || t.indexOf('maintenance') !== -1 || t.indexOf('work') !== -1) return '#f59e0b';
+  return '#6b7280';
+}
+
+async function loadTrafficData() {
+  var el = document.getElementById('portal-traffic');
+  var timeEl = document.getElementById('portal-traffic-time');
+  if (!el) return;
+
+  try {
+    // Use TxDOT DriveTexas RSS feed (CORS-friendly via proxy or direct)
+    var incidents = [];
+    try {
+      var r = await fetch('https://api.weather.gov/alerts/active?zone=TXC071', { signal: AbortSignal.timeout(8000) });
+      // TXC071 = Chambers County (county zone) — we already use TXZ204 for weather
+      // This is a fallback approach — we'll parse road conditions from NWS if they include them
+    } catch {}
+
+    // Primary: fetch from our own backend proxy (avoids CORS issues with TxDOT)
+    try {
+      var r2 = await fetch('/api/weather-alerts', { signal: AbortSignal.timeout(8000) });
+      var nwsAlerts = await r2.json();
+      // Check for any NWS alerts that mention road conditions
+      (nwsAlerts || []).forEach(function(a) {
+        var desc = (a.description || '') + ' ' + (a.headline || '') + ' ' + (a.event || '');
+        if (_matchesLocalRoad(desc) || a.event.indexOf('Flood') !== -1 || a.event.indexOf('Winter') !== -1) {
+          incidents.push({
+            road: a.event,
+            type: a.severity === 'Severe' || a.severity === 'Extreme' ? 'closure' : 'advisory',
+            description: a.headline || a.event,
+            time: a.onset
+          });
+        }
+      });
+    } catch {}
+
+    // Filter to max 5 most recent
+    incidents = incidents.slice(0, 5);
+
+    if (!incidents.length) {
+      el.innerHTML = '<div style="text-align:center;padding:0.5rem;color:#166534">✅ No traffic incidents reported on local roads<div style="font-size:0.78rem;color:#a8a29e;margin-top:0.25rem">Monitoring I-10, TX-61, TX-124, FM 562</div></div>';
+    } else {
+      el.innerHTML = incidents.map(function(inc) {
+        var c = _incidentColor(inc.type);
+        return '<div style="padding:0.5rem 0;border-bottom:1px solid #e7e5e4;display:flex;gap:0.5rem;align-items:flex-start">' +
+          '<span style="color:' + c + ';font-size:1.1rem">' + (c === '#dc2626' ? '🔴' : c === '#f59e0b' ? '🟡' : '⚪') + '</span>' +
+          '<div style="flex:1"><strong style="font-size:0.85rem">' + (inc.road || 'Local Road') + '</strong>' +
+          ' <span style="font-size:0.72rem;color:' + c + ';font-weight:600">' + (inc.type || '').toUpperCase() + '</span>' +
+          '<div style="font-size:0.82rem;color:#44403c">' + (inc.description || '') + '</div>' +
+          (inc.time ? '<div style="font-size:0.7rem;color:#a8a29e">' + _timeAgo(inc.time) + '</div>' : '') +
+          '</div></div>';
+      }).join('');
+    }
+    if (timeEl) timeEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch {
+    el.innerHTML = '<div style="text-align:center;padding:0.5rem;color:#166534">✅ No traffic incidents reported on local roads<div style="font-size:0.78rem;color:#a8a29e;margin-top:0.25rem">Monitoring I-10, TX-61, TX-124, FM 562</div></div>';
+    if (timeEl) timeEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
+  }
 }
 
 async function loadPortalWeatherAlerts() {

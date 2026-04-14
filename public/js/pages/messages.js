@@ -20,6 +20,7 @@ async function loadMessages() {
         <button class="btn btn-warning" onclick="showBroadcast()">Broadcast to All</button>
         <button class="btn btn-danger" onclick="showAdvancedBroadcast()">Send Notification</button>
         <button class="btn btn-success" onclick="showSharePortal()">📲 Share Tenant Portal</button>
+        <button class="btn btn-danger" onclick="showEmergencyBroadcast()">🚨 Emergency Alert</button>
       </div>
     </div>
     <div class="card">

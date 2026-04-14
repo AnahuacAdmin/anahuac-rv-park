@@ -86,6 +86,44 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Emergency alert with portal/SMS/both delivery
+router.post('/emergency-alert', async (req, res) => {
+  try {
+    const { delivery_type, subject, message } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    const tenants = db.prepare('SELECT id, first_name, last_name, lot_id, phone FROM tenants WHERE is_active = 1').all();
+    const wantPortal = delivery_type === 'portal' || delivery_type === 'both';
+    const wantSms = delivery_type === 'sms' || delivery_type === 'both';
+    let messagesPosted = 0, smsSent = 0, smsFailed = 0;
+    const errors = [];
+
+    for (const t of tenants) {
+      // Portal: insert in-app message
+      if (wantPortal) {
+        try {
+          db.prepare('INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast) VALUES (?, ?, ?, ?, 1)')
+            .run(t.id, subject || 'Emergency Alert', message, 'emergency_alert');
+          messagesPosted++;
+        } catch (e) { errors.push(`msg ${t.lot_id}: ${e.message}`); }
+      }
+
+      // SMS: send via Twilio
+      if (wantSms && t.phone) {
+        try {
+          await sendSms(t.phone, `${PARK_PREFIX}🚨 ${subject || 'Emergency Alert'} — ${message}`);
+          smsSent++;
+        } catch (e) { smsFailed++; errors.push(`sms ${t.lot_id}: ${e.message}`); }
+      }
+    }
+
+    res.json({ messagesPosted, smsSent, smsFailed, totalTenants: tenants.length, errors: errors.slice(0, 10) });
+  } catch (err) {
+    console.error('[messages] emergency-alert failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM messages WHERE id = ?').run(req.params.id);
   res.json({ success: true });

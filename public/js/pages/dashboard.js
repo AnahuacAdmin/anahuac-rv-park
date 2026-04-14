@@ -433,46 +433,146 @@ async function loadDashExpenses() {
   } catch { el.innerHTML = ''; }
 }
 
+var _emergencyTemplates = [
+  { icon: '🌀', label: 'Hurricane Warning', msg: 'HURRICANE WARNING: Please secure your RV immediately and move inside. Contact management at 409-267-6603.', weather: true },
+  { icon: '🌪️', label: 'Tornado Warning', msg: 'TORNADO WARNING: Seek shelter immediately. Stay away from windows. Contact 409-267-6603 after the all-clear.', weather: true },
+  { icon: '🌊', label: 'Flash Flood Warning', msg: 'FLASH FLOOD WARNING: Move to higher ground immediately. Do not drive through standing water. Call 409-267-6603.', weather: true },
+  { icon: '⛈️', label: 'Severe Thunderstorm Warning', msg: 'SEVERE THUNDERSTORM WARNING: Stay indoors. Secure outdoor items. Large hail and damaging winds possible.', weather: true },
+  { icon: '❄️', label: 'Winter Storm Warning', msg: 'WINTER STORM WARNING: Prepare for freezing temperatures. Protect pipes. Contact management at 409-267-6603.', weather: true },
+  { icon: '🔥', label: 'Fire Alert', msg: 'FIRE ALERT: Please evacuate immediately. Call 911. Meet at the front office.', weather: false },
+  { icon: '💧', label: 'Water Shutoff', msg: 'WATER SHUTOFF: Water will be off today for maintenance. We apologize for the inconvenience.', weather: false },
+  { icon: '⚡', label: 'Power Outage', msg: 'POWER OUTAGE: We are aware of the outage and working to restore power. Updates coming.', weather: false },
+  { icon: '🌊', label: 'Flood Warning', msg: 'FLOOD WARNING: Please move vehicles to higher ground immediately. Contact 409-267-6603.', weather: true },
+];
+
+function _emergencyDeliveryHtml(mode) {
+  if (mode === 'portal') return '<div id="emergency-warning-box" style="background:#eff6ff;border:2px solid #3b82f6;border-radius:8px;padding:0.75rem;margin-bottom:1rem;color:#1e40af;font-weight:600">📋 This will post to all tenant portal inboxes.</div>';
+  if (mode === 'sms') return '<div id="emergency-warning-box" style="background:#fee2e2;border:2px solid #dc2626;border-radius:8px;padding:0.75rem;margin-bottom:1rem;color:#991b1b;font-weight:600">⚠️ This will send SMS to ALL tenants. Cannot be undone.</div>';
+  return '<div id="emergency-warning-box" style="background:#fff7ed;border:2px solid #f59e0b;border-radius:8px;padding:0.75rem;margin-bottom:1rem;color:#92400e;font-weight:600">⚠️ This will send SMS AND post to all portals. Cannot be undone.</div>';
+}
+
+function _emergencyBtnLabel(mode) {
+  if (mode === 'portal') return '📋 SEND TO ALL PORTALS NOW';
+  if (mode === 'sms') return '📱 SEND SMS TO ALL TENANTS NOW';
+  return '📋📱 SEND TO ALL TENANTS NOW';
+}
+
 function showEmergencyBroadcast() {
-  var templates = [
-    { icon: '🌀', label: 'Hurricane Warning', msg: 'HURRICANE WARNING: Please secure your RV immediately and move inside. Contact management at 409-267-6603.' },
-    { icon: '🔥', label: 'Fire Alert', msg: 'FIRE ALERT: Please evacuate immediately. Call 911. Meet at the front office.' },
-    { icon: '💧', label: 'Water Shutoff', msg: 'WATER SHUTOFF: Water will be off today for maintenance. We apologize for the inconvenience.' },
-    { icon: '⚡', label: 'Power Outage', msg: 'POWER OUTAGE: We are aware of the outage and working to restore power. Updates coming.' },
-    { icon: '🌊', label: 'Flood Warning', msg: 'FLOOD WARNING: Please move vehicles to higher ground immediately. Contact 409-267-6603.' },
-  ];
-  showModal('🚨 Emergency Alert', '<div style="background:#fee2e2;border:2px solid #dc2626;border-radius:8px;padding:0.75rem;margin-bottom:1rem;color:#991b1b;font-weight:600">⚠️ This will send an SMS to ALL tenants with phone numbers. This cannot be undone.</div>' +
+  var templates = _emergencyTemplates;
+  showModal('🚨 Emergency Alert',
+    _emergencyDeliveryHtml('portal') +
+    '<div class="form-group"><label>Delivery Method</label>' +
+      '<div style="display:flex;flex-direction:column;gap:0.4rem;margin-top:0.3rem">' +
+        '<label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;font-size:0.88rem"><input type="radio" name="emergency-delivery" value="portal" checked> 📋 Portal Only — Send to tenant portal inboxes only (no SMS)</label>' +
+        '<label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;font-size:0.88rem"><input type="radio" name="emergency-delivery" value="sms"> 📱 SMS Only — Send text message to all tenants with phones</label>' +
+        '<label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;font-size:0.88rem"><input type="radio" name="emergency-delivery" value="both"> 📋📱 Both — Send to portal AND SMS</label>' +
+      '</div></div>' +
     '<div class="form-group"><label>Select Template</label><select id="emergency-template" style="font-size:1rem">' +
       templates.map(function(t, i) { return '<option value="' + i + '">' + t.icon + ' ' + t.label + '</option>'; }).join('') +
       '<option value="custom">✏️ Custom Message</option></select></div>' +
+    '<div id="emergency-nws-section" style="display:none;margin-bottom:1rem">' +
+      '<label style="font-weight:600;font-size:0.8rem;color:#44403c;text-transform:uppercase;letter-spacing:0.03em">📰 NWS Alert Headline (auto-fetched)</label>' +
+      '<input type="text" id="emergency-nws-headline" readonly style="width:100%;padding:0.5rem;border:1.5px solid #d6d3d1;border-radius:8px;font-size:0.85rem;background:#f5f5f4;margin-top:0.3rem" placeholder="Fetching NWS alerts...">' +
+    '</div>' +
     '<div class="form-group"><label>Message</label><textarea id="emergency-msg" rows="4" style="font-size:1rem">' + escapeHtml(templates[0].msg) + '</textarea></div>' +
-    '<button class="btn btn-danger btn-full" id="btn-send-emergency" style="font-size:1.1rem;padding:1rem">🚨 SEND TO ALL TENANTS NOW</button>');
+    '<button class="btn btn-danger btn-full" id="btn-send-emergency" style="font-size:1.1rem;padding:1rem">' + _emergencyBtnLabel('portal') + '</button>');
   setTimeout(function() {
     var sel = document.getElementById('emergency-template');
     var msg = document.getElementById('emergency-msg');
+    var nwsSection = document.getElementById('emergency-nws-section');
+    var nwsInput = document.getElementById('emergency-nws-headline');
+    var btn = document.getElementById('btn-send-emergency');
+    var warningBox = document.getElementById('emergency-warning-box');
+
+    // Delivery radio change
+    document.querySelectorAll('input[name="emergency-delivery"]').forEach(function(radio) {
+      radio.addEventListener('change', function() {
+        var mode = this.value;
+        if (warningBox && warningBox.parentNode) {
+          var newBox = document.createElement('div');
+          newBox.innerHTML = _emergencyDeliveryHtml(mode);
+          warningBox.parentNode.replaceChild(newBox.firstChild, warningBox);
+          warningBox = document.getElementById('emergency-warning-box');
+        }
+        if (btn) btn.textContent = _emergencyBtnLabel(mode);
+      });
+    });
+
+    // Template change
     if (sel) sel.addEventListener('change', function() {
       var idx = parseInt(this.value);
-      if (!isNaN(idx) && templates[idx]) msg.value = templates[idx].msg;
-      else msg.value = '';
+      if (!isNaN(idx) && templates[idx]) {
+        msg.value = templates[idx].msg;
+        // Show NWS section for weather templates
+        if (templates[idx].weather && nwsSection) {
+          nwsSection.style.display = '';
+          _fetchNWSForEmergency(nwsInput);
+        } else if (nwsSection) {
+          nwsSection.style.display = 'none';
+        }
+      } else {
+        msg.value = '';
+        if (nwsSection) nwsSection.style.display = 'none';
+      }
     });
-    var btn = document.getElementById('btn-send-emergency');
+
+    // Initial template is weather — show NWS section
+    if (templates[0].weather && nwsSection) {
+      nwsSection.style.display = '';
+      _fetchNWSForEmergency(nwsInput);
+    }
+
+    // Send button
     if (btn) btn.addEventListener('click', async function() {
-      if (!confirm('CONFIRM: Send this emergency alert to ALL tenants?')) return;
+      var delivery = document.querySelector('input[name="emergency-delivery"]:checked')?.value || 'portal';
+      var confirmMsg = delivery === 'portal' ? 'Post this emergency alert to all tenant portal inboxes?' :
+        delivery === 'sms' ? 'CONFIRM: Send emergency SMS to ALL tenants? This cannot be undone.' :
+        'CONFIRM: Send emergency alert via SMS AND portal to ALL tenants? This cannot be undone.';
+      if (!confirm(confirmMsg)) return;
       btn.disabled = true;
       btn.textContent = 'Sending...';
+
+      // Append NWS headline if visible and has content
+      var finalMsg = msg.value;
+      if (nwsSection && nwsSection.style.display !== 'none' && nwsInput && nwsInput.value) {
+        finalMsg += '\n\nLatest NWS Update: ' + nwsInput.value;
+      }
+
       try {
-        var r = await API.post('/messages/broadcast-advanced', {
-          message_type: 'Emergency',
-          recipients: 'all',
-          delivery: 'sms',
+        var r = await API.post('/messages/emergency-alert', {
+          delivery_type: delivery,
           subject: 'Emergency Alert',
-          message: msg.value,
+          message: finalMsg,
         });
         closeModal();
-        showStatusToast('🚨', 'Emergency alert sent to ' + (r.smsSent || 0) + ' tenants');
-      } catch (err) { alert('Failed: ' + (err.message || 'unknown')); btn.disabled = false; btn.textContent = '🚨 SEND TO ALL TENANTS NOW'; }
+        var statusParts = [];
+        if (r.messagesPosted) statusParts.push(r.messagesPosted + ' portal messages');
+        if (r.smsSent) statusParts.push(r.smsSent + ' SMS sent');
+        showStatusToast('🚨', 'Emergency alert: ' + statusParts.join(', '));
+      } catch (err) { alert('Failed: ' + (err.message || 'unknown')); btn.disabled = false; btn.textContent = _emergencyBtnLabel(delivery); }
     });
   }, 50);
+}
+
+async function _fetchNWSForEmergency(inputEl) {
+  if (!inputEl) return;
+  inputEl.value = '';
+  inputEl.placeholder = 'Fetching NWS alerts...';
+  try {
+    var alerts = await fetch('/api/weather-alerts').then(function(r) { return r.json(); });
+    if (alerts && alerts.length) {
+      inputEl.value = alerts[0].headline || alerts[0].event || '';
+      inputEl.readOnly = false;
+    } else {
+      inputEl.value = '';
+      inputEl.placeholder = 'No active NWS alerts. Paste headline here (optional)';
+      inputEl.readOnly = false;
+    }
+  } catch {
+    inputEl.value = '';
+    inputEl.placeholder = 'Paste news article URL or headline here (optional)';
+    inputEl.readOnly = false;
+  }
 }
 
 async function loadDashVendors() {
