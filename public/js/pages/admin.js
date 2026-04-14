@@ -97,7 +97,7 @@ async function loadAdmin() {
       <div class="form-row mt-1">
         <div class="form-group">
           <label>Alert Phone Numbers (comma-separated)</label>
-          <input type="text" id="alert-phones-input" value="${settings?.alert_phone_numbers || ''}" placeholder="+14092676603, +18325551234">
+          <input type="text" id="alert-phones-input" value="${settings?.alert_phone_numbers || ''}" placeholder="+14092676603">
         </div>
         <div class="form-group">
           <label style="display:flex;align-items:center;gap:0.5rem;margin-top:1.5rem">
