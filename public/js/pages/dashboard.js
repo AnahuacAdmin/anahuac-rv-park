@@ -258,6 +258,8 @@ async function loadDashboard() {
       <div id="dash-electric-alerts" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
     </div>
 
+    <div id="dash-inspections-widget" style="display:none"></div>
+
 ` : ''}
 
     <div class="card dash-fade-in" style="animation-delay:0.88s">
@@ -338,6 +340,7 @@ async function loadDashboard() {
     loadDashExpenses();
     loadDashHealthScore();
     loadDashElectricAlerts();
+    loadDashInspections();
 
     loadDashCommunity();
   }
@@ -431,6 +434,24 @@ async function loadDashExpenses() {
     el.innerHTML = '<span>This month: <strong>' + formatMoney(summary?.total || 0) + '</strong></span>' +
       ' <a href="#" onclick="event.preventDefault();navigateTo(\'expenses\')" style="font-size:0.78rem;color:var(--brand-primary)">View →</a>';
   } catch { el.innerHTML = ''; }
+}
+
+async function loadDashInspections() {
+  var el = document.getElementById('dash-inspections-widget');
+  if (!el) return;
+  try {
+    var inspections = await API.get('/inspections');
+    var drafts = (inspections || []).filter(function(i) { return i.status === 'draft'; });
+    if (!drafts.length) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    el.innerHTML = '<div class="card dash-fade-in" style="border-left:4px solid #f59e0b;animation-delay:0.88s">' +
+      '<div style="display:flex;align-items:center;gap:0.5rem">' +
+      '<span style="font-size:1.2rem">📸</span>' +
+      '<div style="flex:1"><strong style="color:#d97706">' + drafts.length + ' lot inspection' + (drafts.length > 1 ? 's' : '') + ' pending</strong>' +
+      '<div style="font-size:0.78rem;color:#78716c">Review and send to tenants</div></div>' +
+      '<a href="#" onclick="event.preventDefault();navigateTo(\'inspections\')" class="btn btn-sm btn-warning" style="white-space:nowrap">Review →</a>' +
+      '</div></div>';
+  } catch { el.style.display = 'none'; }
 }
 
 var _emergencyTemplates = [

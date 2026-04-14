@@ -127,6 +127,7 @@ app.use('/api/announcements', require('./routes/announcements'));
 app.use('/api/electric-alerts', require('./routes/electric-alerts'));
 app.use('/api/sms-templates', require('./routes/sms-templates'));
 app.use('/api/community', require('./routes/community'));
+app.use('/api/inspections', require('./routes/inspections'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/reservations', require('./routes/reservations'));
 app.use('/api/settings', require('./routes/settings'));

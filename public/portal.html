@@ -395,6 +395,12 @@
     </form>
   </div>
 
+  <!-- ===== INSPECTION HISTORY ===== -->
+  <div class="card" id="portal-inspections-card" style="display:none;animation-delay:0.19s;border-left:3px solid #f59e0b">
+    <div class="card-title" style="font-size:0.85rem">📋 Lot Inspection History</div>
+    <div id="portal-inspections-list"></div>
+  </div>
+
   <!-- ===== CONTACT / MESSAGE ===== -->
   <div class="card" style="animation-delay:0.2s">
     <div class="card-title" style="font-size:0.85rem">💬 Message Management</div>
@@ -720,6 +726,7 @@ async function showPortal() {
     loadPortalWeatherAlerts(),
     loadTrafficData(),
     loadLatestCommunityBanner(),
+    loadPortalInspections(),
   ]);
   // Auto-refresh traffic every 15 minutes
   setInterval(loadTrafficData, 15 * 60 * 1000);
@@ -1096,6 +1103,31 @@ async function loadCommunityFeed() {
 
 async function likeCommunityPost(id, btn) {
   try { await fetch('/api/community/' + id + '/like', { method: 'POST' }); if (btn) btn.textContent = '❤️ Liked!'; } catch {}
+}
+
+async function loadPortalInspections() {
+  var card = document.getElementById('portal-inspections-card');
+  var list = document.getElementById('portal-inspections-list');
+  if (!card || !list) return;
+  try {
+    var r = await fetch('/api/inspections/my-history', { headers: { 'Authorization': 'Bearer ' + _portalToken } });
+    if (!r.ok) return;
+    var inspections = await r.json();
+    if (!inspections || !inspections.length) return;
+    card.style.display = '';
+    var sevLabels = { record: '📋 Record', reminder: '💬 Reminder', warning: '⚠️ Warning', fine: '💰 Fine' };
+    var sevColors = { record: '#6b7280', reminder: '#0284c7', warning: '#d97706', fine: '#dc2626' };
+    list.innerHTML = inspections.map(function(i) {
+      return '<div style="padding:0.5rem 0;border-bottom:1px solid #e5e7eb;font-size:0.85rem">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<span style="font-size:0.68rem;font-weight:700;color:' + (sevColors[i.severity] || '#6b7280') + '">' + (sevLabels[i.severity] || i.severity) + '</span>' +
+          '<span style="font-size:0.7rem;color:#a8a29e">' + (i.sent_at ? new Date(i.sent_at).toLocaleDateString() : '') + '</span>' +
+        '</div>' +
+        (i.notes ? '<div style="color:#44403c;margin-top:0.15rem">' + i.notes + '</div>' : '') +
+        (i.fine_amount > 0 ? '<div style="font-size:0.78rem;color:#dc2626;font-weight:700;margin-top:0.1rem">$' + Number(i.fine_amount).toFixed(2) + ' fine applied</div>' : '') +
+      '</div>';
+    }).join('');
+  } catch {}
 }
 
 async function loadLatestCommunityBanner() {

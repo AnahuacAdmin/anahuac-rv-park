@@ -341,6 +341,22 @@ async function initializeDatabase() {
     seedVendors.run('Anahuac Hardware', 'Supplies/Hardware', '409-267-3218', 'Local hardware store', 0);
   }
 
+  // Lot inspections
+  db.run(`CREATE TABLE IF NOT EXISTS lot_inspections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    lot_id TEXT,
+    photo TEXT,
+    notes TEXT,
+    severity TEXT DEFAULT 'record',
+    status TEXT DEFAULT 'draft',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    sent_at DATETIME,
+    resolved_at DATETIME,
+    fine_amount REAL DEFAULT 0,
+    fine_added INTEGER DEFAULT 0
+  )`);
+
   // Health alert tracking
   db.run(`CREATE TABLE IF NOT EXISTS health_alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

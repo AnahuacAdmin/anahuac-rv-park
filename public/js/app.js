@@ -755,7 +755,7 @@ function navigateTo(page, skipHistory) {
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, electric: loadElectric, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
-    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors, documents: loadDocuments, maintenance: loadMaintenance, expenses: loadExpenses, community: loadCommunity };
+    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors, documents: loadDocuments, maintenance: loadMaintenance, expenses: loadExpenses, community: loadCommunity, inspections: loadInspections };
   // Contextual first-visit tips
   const _tips = {
     dashboard: ['💡', 'Bookmark this page for quick access! Use the Quick Action buttons to jump to any section.'],
@@ -917,7 +917,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isAdmin = API.user?.role === 'admin';
     const isStaff = API.user?.role === 'staff';
     // Admin-only nav items
-    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses, #nav-community').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
+    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses, #nav-community, #nav-inspections').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
     const adminDiv = document.getElementById('nav-admin-divider');
     if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
     // Financial nav items — hidden for staff
