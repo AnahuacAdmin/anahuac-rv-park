@@ -91,10 +91,7 @@
     .weather-bar .wx-temp { font-size:1.1rem;font-weight:800;color:#1a5c32 }
     .weather-bar .wx-detail { color:#78716c;font-size:0.78rem }
 
-    /* Bible verse */
-    .verse-card { background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;border-radius:14px;padding:1rem 1.25rem }
-    .verse-text { font-style:italic;font-size:0.88rem;color:#78350f;line-height:1.5;margin-bottom:0.3rem }
-    .verse-ref { font-weight:700;font-size:0.8rem;color:#92400e }
+    /* Bible verse (unused - verse now inline in hero) */
 
     /* Link grid */
     .link-grid { display:grid;grid-template-columns:1fr 1fr;gap:0.5rem }
@@ -235,11 +232,21 @@
       <div id="p-name-hero" style="font-size:0.82rem;font-weight:600;opacity:0.9"></div>
       <div class="hero-date" id="p-date" style="font-size:0.72rem"></div>
     </div>
-    <div id="hero-verse" style="font-size:0.78rem;color:rgba(255,255,255,0.7);margin-top:0.4rem;font-style:italic;display:none"></div>
+    <div id="hero-verse" style="font-size:0.85rem;color:rgba(255,255,255,0.9);margin-top:0.5rem;font-style:italic;display:none;border-left:2px solid rgba(255,255,255,0.4);padding-left:8px"></div>
   </div>
 
   <!-- Weather alert banner -->
   <div id="portal-weather-banner" style="width:100%;max-width:800px;display:none"></div>
+
+  <!-- Local road conditions -->
+  <div class="card" style="width:100%;max-width:800px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="card-title" style="margin:0">🚗 Local Road Conditions</div>
+      <button onclick="loadTrafficData()" style="background:none;border:none;font-size:0.72rem;color:#1a5c32;cursor:pointer;font-weight:600">↻ Refresh</button>
+    </div>
+    <div id="portal-traffic" style="font-size:0.85rem;margin-top:0.4rem"></div>
+    <div id="portal-traffic-time" style="font-size:0.65rem;color:#a8a29e;margin-top:0.3rem;text-align:right"></div>
+  </div>
 
   <!-- Two-column layout on desktop -->
   <div class="portal-two-col">
@@ -260,18 +267,13 @@
       </div>
     </div>
 
-    <!-- Right: Weather + Bible Verse -->
+    <!-- Right: Weather -->
     <div>
-      <div class="card" id="weather-card" style="margin-bottom:0.75rem">
+      <div class="card" id="weather-card">
         <div class="card-title">🌤️ Weather in Anahuac</div>
         <div class="weather-bar" id="weather-content">
           <span class="wx-detail">Loading...</span>
         </div>
-      </div>
-      <div class="card verse-card" id="verse-card" style="display:none">
-        <div class="card-title" style="color:#92400e">✝️ Verse of the Day</div>
-        <div class="verse-text" id="verse-text"></div>
-        <div class="verse-ref" id="verse-ref"></div>
       </div>
     </div>
   </div>
@@ -368,16 +370,6 @@
   <div class="card" id="local-attractions-card">
     <div class="card-title">🗺️ Local Attractions & Outdoors</div>
     <div class="link-grid" id="portal-local-links">Loading...</div>
-  </div>
-
-  <!-- TxDOT Traffic -->
-  <div class="card">
-    <div class="card-title" style="justify-content:space-between">
-      <span>🚗 Local Traffic & Road Conditions</span>
-      <button onclick="loadTrafficData()" style="background:none;border:none;font-size:0.75rem;color:#1a5c32;cursor:pointer;font-weight:600">↻ Refresh</button>
-    </div>
-    <div id="portal-traffic" style="font-size:0.88rem">Loading traffic data...</div>
-    <div id="portal-traffic-time" style="font-size:0.68rem;color:#a8a29e;margin-top:0.4rem"></div>
   </div>
 
   <!-- Emergency -->
@@ -823,11 +815,10 @@ function applyHolidayTheme() {
   var hero = document.querySelector('.portal-hero');
   if (hero) hero.style.background = h.bg;
 
-  // Holiday verse override for the verse card (in case it's still visible)
+  // Holiday verse shown inline in hero header
   if (h.verse) {
-    document.getElementById('verse-text').textContent = '"' + h.verse.t + '"';
-    document.getElementById('verse-ref').textContent = '— ' + h.verse.r;
-    document.getElementById('verse-card').style.display = '';
+    var hv = document.getElementById('hero-verse');
+    if (hv) { hv.textContent = '✝️ "' + h.verse.t + '" — ' + h.verse.r; hv.style.display = ''; }
   }
 
   // Holiday content card — only show if there's extra content (Gatorfest link, music)
@@ -1005,25 +996,24 @@ async function loadWeather() {
 }
 
 async function loadBibleVerse() {
-  const card = document.getElementById('verse-card');
+  var heroVerse = document.getElementById('hero-verse');
+  if (!heroVerse) return;
   try {
-    const r = await fetch('https://beta.ourmanna.com/api/v1/get?format=json&order=daily');
-    const d = await r.json();
-    document.getElementById('verse-text').textContent = '"' + d.verse.details.text + '"';
-    document.getElementById('verse-ref').textContent = '— ' + d.verse.details.reference;
-    card.style.display = '';
+    var r = await fetch('https://beta.ourmanna.com/api/v1/get?format=json&order=daily');
+    var d = await r.json();
+    heroVerse.textContent = '✝️ "' + d.verse.details.text + '" — ' + d.verse.details.reference;
+    heroVerse.style.display = '';
   } catch {
-    const fallback = [
+    var fallback = [
       { t: 'I can do all things through Christ who strengthens me.', r: 'Philippians 4:13' },
       { t: 'The Lord is my shepherd; I shall not want.', r: 'Psalm 23:1' },
       { t: 'Trust in the Lord with all your heart.', r: 'Proverbs 3:5' },
       { t: 'For God so loved the world that he gave his one and only Son.', r: 'John 3:16' },
       { t: 'Be strong and courageous. Do not be afraid.', r: 'Joshua 1:9' },
     ];
-    const v = fallback[new Date().getDay() % fallback.length];
-    document.getElementById('verse-text').textContent = '"' + v.t + '"';
-    document.getElementById('verse-ref').textContent = '— ' + v.r;
-    card.style.display = '';
+    var v = fallback[new Date().getDay() % fallback.length];
+    heroVerse.textContent = '✝️ "' + v.t + '" — ' + v.r;
+    heroVerse.style.display = '';
   }
 }
 
@@ -1117,7 +1107,7 @@ async function loadTrafficData() {
     incidents = incidents.slice(0, 5);
 
     if (!incidents.length) {
-      el.innerHTML = '<div style="text-align:center;padding:0.5rem;color:#166534">✅ No traffic incidents reported on local roads<div style="font-size:0.78rem;color:#a8a29e;margin-top:0.25rem">Monitoring I-10, TX-61, TX-124, FM 562</div></div>';
+      el.innerHTML = '<div style="text-align:center;padding:0.4rem;color:#166534;font-size:0.88rem">✅ All clear on local roads<div style="font-size:0.72rem;color:#a8a29e;margin-top:0.2rem">I-10 &middot; TX-61 &middot; TX-124 &middot; FM 562</div></div>';
     } else {
       el.innerHTML = incidents.map(function(inc) {
         var c = _incidentColor(inc.type);
@@ -1132,7 +1122,7 @@ async function loadTrafficData() {
     }
     if (timeEl) timeEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch {
-    el.innerHTML = '<div style="text-align:center;padding:0.5rem;color:#166534">✅ No traffic incidents reported on local roads<div style="font-size:0.78rem;color:#a8a29e;margin-top:0.25rem">Monitoring I-10, TX-61, TX-124, FM 562</div></div>';
+    el.innerHTML = '<div style="text-align:center;padding:0.4rem;color:#166534;font-size:0.88rem">✅ All clear on local roads<div style="font-size:0.72rem;color:#a8a29e;margin-top:0.2rem">I-10 &middot; TX-61 &middot; TX-124 &middot; FM 562</div></div>';
     if (timeEl) timeEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
   }
 }
