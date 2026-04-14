@@ -794,14 +794,6 @@ async function showPortal() {
     const balEl = document.getElementById('p-balance');
     balEl.textContent = '$' + bal.toFixed(2);
     balEl.className = 'balance-amount ' + (bal > 0 ? 'balance-owed' : 'balance-paid');
-  } else if (_isAdminPreview) {
-    // Preview mode with no API data — show placeholder
-    document.getElementById('p-balance').textContent = '$0.00';
-    document.getElementById('p-balance').className = 'balance-amount balance-paid';
-    document.getElementById('pay-section').innerHTML = '<p style="text-align:center;color:#78716c;font-size:0.85rem">Payment preview not available</p>';
-    document.getElementById('p-invoices').innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">Invoice data preview not available</p>';
-  }
-  if (data) {
 
     const payEl = document.getElementById('pay-section');
     if (bal > 0) {
@@ -819,6 +811,12 @@ async function showPortal() {
     invEl.innerHTML = (data.invoices || []).map(i =>
       `<div class="invoice-row"><span>${i.invoice_number} — ${i.invoice_date}</span><span style="font-weight:700;color:${i.status === 'paid' ? '#16a34a' : '#dc2626'}">$${Number(i.balance_due).toFixed(2)}</span></div>`
     ).join('') || '<p style="color:#a8a29e;font-size:0.85rem">No invoices yet</p>';
+  } else if (_isAdminPreview) {
+    // Preview mode with no API data — show placeholder
+    document.getElementById('p-balance').textContent = '$0.00';
+    document.getElementById('p-balance').className = 'balance-amount balance-paid';
+    document.getElementById('pay-section').innerHTML = '<p style="text-align:center;color:#78716c;font-size:0.85rem">Payment preview not available</p>';
+    document.getElementById('p-invoices').innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">Invoice data preview not available</p>';
   }
 }
 
