@@ -351,6 +351,18 @@ async function initializeDatabase() {
     resolved_at DATETIME
   )`);
 
+  // Weather alert tracking
+  db.run(`CREATE TABLE IF NOT EXISTS weather_alerts_sent (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nws_alert_id TEXT UNIQUE NOT NULL,
+    alert_type TEXT,
+    headline TEXT,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    sms_sent INTEGER DEFAULT 0,
+    tenant_count INTEGER DEFAULT 0,
+    message_count INTEGER DEFAULT 0
+  )`);
+
   addCol("ALTER TABLE lots ADD COLUMN lot_type TEXT DEFAULT 'standard'");
   addCol("ALTER TABLE lots ADD COLUMN amenities TEXT");
   addCol("ALTER TABLE lots ADD COLUMN default_rate REAL DEFAULT 295");

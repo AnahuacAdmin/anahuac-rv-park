@@ -130,6 +130,7 @@ app.use('/api/community', require('./routes/community'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/reservations', require('./routes/reservations'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/weather-alerts', require('./routes/weather-alerts'));
 
 // SPA fallback
 app.get('*', (req, res) => {
@@ -163,6 +164,7 @@ initializeDatabase()
       scheduleDailyLateFeeCheck();
       // Start background health monitor for downtime alerts
       try { require('./routes/health').startHealthMonitor(); } catch (e) { console.error('[health-monitor] failed to start:', e.message); }
+      try { require('./jobs/weatherJob').start(); } catch (e) { console.error('[weather-job] failed to start:', e.message); }
     });
   })
   .catch((err) => {

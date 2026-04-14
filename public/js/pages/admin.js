@@ -112,6 +112,26 @@ async function loadAdmin() {
       <div id="alert-history" style="margin-top:1rem"></div>
     </div>
 
+    <div class="card" style="border-left:4px solid #7c3aed">
+      <h3>🌩️ Weather Alerts (NWS — Chambers County)</h3>
+      <p><small>Monitors National Weather Service alerts for Zone TXZ204 (Chambers County TX) every 30 minutes. In-app messages are posted automatically. SMS to tenants is <strong>only sent when you click the button</strong>.</small></p>
+      <div id="nws-current-alerts" style="margin:0.75rem 0;font-size:0.85rem;color:var(--gray-500)">Loading NWS alerts...</div>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem">
+            <input type="checkbox" id="weather-alerts-enabled" ${settings?.weather_alerts_enabled === '1' ? 'checked' : ''}> Auto-post in-app messages to tenants
+          </label>
+          <p style="font-size:0.72rem;color:#78716c;margin-top:0.25rem">When enabled, new severe alerts auto-post to tenant message threads and SMS manager only.</p>
+        </div>
+      </div>
+      <div class="btn-group mt-1">
+        <button class="btn btn-primary" onclick="saveWeatherAlertSettings()">Save Settings</button>
+        <button class="btn btn-outline" onclick="sendWeatherTestAlert()">📤 Send Test SMS (manager only)</button>
+        <button class="btn btn-warning" onclick="triggerWeatherCheck()">🌩️ Check NWS Now</button>
+      </div>
+      <div id="weather-alert-history" style="margin-top:1rem"></div>
+    </div>
+
     <div class="card">
       <h3>📡 Offline Mode</h3>
       <p><small>When internet is lost, check-ins, meter readings, and cash payments are saved locally on your device and auto-sync when reconnected.</small></p>
@@ -161,6 +181,8 @@ async function loadAdmin() {
   // Load dynamic sections
   loadFlatRateTenants();
   loadAlertHistory();
+  loadNWSCurrentAlerts();
+  loadWeatherAlertHistory();
   loadOfflineAdminStatus();
   loadAdminRestaurants();
   loadAdminLocalLinks();
@@ -572,4 +594,101 @@ async function deleteLocalLink(id, name) {
   if (!confirm('Delete "' + name + '"?')) return;
   await API.del('/settings/local-links/' + id);
   loadAdminLocalLinks();
+}
+
+// --- Weather Alerts (NWS) ---
+async function loadNWSCurrentAlerts() {
+  var el = document.getElementById('nws-current-alerts');
+  if (!el) return;
+  try {
+    var alerts = await fetch('/api/weather-alerts').then(function(r) { return r.json(); });
+    if (!alerts || !alerts.length) {
+      el.innerHTML = '<div style="background:#dcfce7;padding:0.6rem 0.8rem;border-radius:8px;color:#166534;font-size:0.85rem">✅ No active NWS alerts for Chambers County. All clear!</div>';
+      return;
+    }
+    el.innerHTML = alerts.map(function(a) {
+      var isSevere = a.severity === 'Extreme' || a.severity === 'Severe';
+      var color = isSevere ? '#dc2626' : '#f59e0b';
+      var escapedEvent = escapeHtml(a.event).replace(/'/g, "\\'");
+      var escapedHeadline = escapeHtml(a.headline || '').replace(/'/g, "\\'");
+      var escapedId = escapeHtml(a.id || '').replace(/'/g, "\\'");
+      return '<div style="background:' + (isSevere ? '#fee2e2' : '#fef3c7') + ';padding:0.6rem 0.8rem;border-radius:8px;margin-bottom:0.4rem;border-left:4px solid ' + color + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem">' +
+          '<div style="font-weight:700;font-size:0.85rem;color:' + color + '">⚠️ ' + escapeHtml(a.event) + '</div>' +
+          (isSevere ? '<button class="btn btn-sm btn-danger" style="padding:0.25rem 0.6rem;font-size:0.72rem;width:auto" onclick="sendWeatherSmsToTenants(\'' + escapedEvent + '\',\'' + escapedHeadline + '\',\'' + escapedId + '\')">📨 Send SMS to All Tenants</button>' : '') +
+        '</div>' +
+        '<div style="font-size:0.8rem;color:#44403c">' + escapeHtml(a.headline || '') + '</div>' +
+        '<div style="font-size:0.7rem;color:#78716c;margin-top:0.2rem">Severity: ' + (a.severity || '—') + ' | Expires: ' + (a.expires ? new Date(a.expires).toLocaleString() : '—') + '</div>' +
+      '</div>';
+    }).join('');
+  } catch { el.innerHTML = '<div style="font-size:0.82rem;color:#dc2626">Failed to fetch NWS alerts</div>'; }
+}
+
+async function loadWeatherAlertHistory() {
+  var el = document.getElementById('weather-alert-history');
+  if (!el) return;
+  try {
+    var history = await API.get('/weather-alerts/history');
+    if (!history || !history.length) {
+      el.innerHTML = '<p style="font-size:0.82rem;color:#78716c">No weather alerts detected yet.</p>';
+      return;
+    }
+    el.innerHTML = '<div style="font-size:0.8rem;font-weight:600;color:#44403c;margin-bottom:0.4rem">Weather Alert History</div>' +
+      history.slice(0, 10).map(function(h) {
+        var smsLabel = h.sms_sent ? '<span class="badge badge-danger" style="font-size:0.65rem">SMS sent: ' + h.tenant_count + '</span>' : '<span class="badge badge-gray" style="font-size:0.65rem">No SMS</span>';
+        var msgLabel = h.message_count > 0 ? '<span class="badge badge-info" style="font-size:0.65rem">In-app: ' + h.message_count + '</span>' : '';
+        return '<div style="display:flex;gap:0.5rem;align-items:flex-start;padding:0.35rem 0;border-bottom:1px solid var(--gray-200);font-size:0.82rem">' +
+          '<span>🌩️</span><div style="flex:1">' +
+            '<strong>' + escapeHtml(h.alert_type) + '</strong> ' + smsLabel + ' ' + msgLabel +
+            '<div style="font-size:0.7rem;color:#a8a29e">' + (h.sent_at || '') + '</div>' +
+            '<div style="font-size:0.72rem;color:#78716c">' + escapeHtml(h.headline || '') + '</div>' +
+          '</div></div>';
+      }).join('');
+  } catch { el.innerHTML = ''; }
+}
+
+async function saveWeatherAlertSettings() {
+  try {
+    await API.put('/settings', {
+      weather_alerts_enabled: document.getElementById('weather-alerts-enabled')?.checked ? '1' : '0',
+    });
+    showStatusToast('✅', 'Weather alert settings saved!');
+  } catch (err) { alert('Failed to save: ' + (err.message || 'unknown')); }
+}
+
+async function sendWeatherTestAlert() {
+  try {
+    var r = await API.post('/weather-alerts/test', {});
+    showStatusToast('✅', r.message || 'Test alert sent!');
+  } catch (err) { alert('Test failed: ' + (err.message || 'unknown')); }
+}
+
+async function triggerWeatherCheck() {
+  var toast = showStatusToast('🌩️', 'Checking NWS for severe weather...', -1);
+  try {
+    var r = await API.post('/weather-alerts/check', {});
+    toast.update('✅', 'Check complete: ' + r.checked + ' alerts, ' + r.newAlerts + ' new, ' + r.messagesPosted + ' in-app messages posted');
+    toast.hide(5000);
+    loadNWSCurrentAlerts();
+    loadWeatherAlertHistory();
+  } catch (err) {
+    toast.hide(0);
+    alert('Check failed: ' + (err.message || 'unknown'));
+  }
+}
+
+async function sendWeatherSmsToTenants(event, headline, nwsId) {
+  var tenants = await API.get('/tenants');
+  var withPhone = (tenants || []).filter(function(t) { return t.phone && t.is_active; });
+  if (!confirm('Send weather alert SMS to ' + withPhone.length + ' active tenants with phone numbers?\n\nAlert: ' + event + '\n' + headline)) return;
+  var toast = showStatusToast('📨', 'Sending weather SMS to tenants...', -1);
+  try {
+    var r = await API.post('/weather-alerts/send', { alert_event: event, alert_headline: headline, nws_alert_id: nwsId });
+    toast.update('✅', 'Weather SMS sent to ' + r.sent + ' tenants' + (r.failed ? ' (' + r.failed + ' failed)' : ''));
+    toast.hide(5000);
+    loadWeatherAlertHistory();
+  } catch (err) {
+    toast.hide(0);
+    alert('Send failed: ' + (err.message || 'unknown'));
+  }
 }

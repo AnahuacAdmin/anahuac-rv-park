@@ -76,6 +76,8 @@ async function loadDashboard() {
       ${isAdmin() ? '<button class="btn btn-danger" style="font-size:0.85rem" onclick="showEmergencyBroadcast()" title="Send emergency SMS to ALL tenants immediately. Use only for real emergencies.">🚨 Emergency Alert</button>' : ''}
     </div>
 
+    <div id="dash-weather-alert-banner"></div>
+
     <!-- Stats -->
     <div class="dash-top-bar">
       ${isAdmin() ? `
@@ -285,6 +287,7 @@ async function loadDashboard() {
   `;
 
   waitForChartAndRender(data);
+  loadDashWeatherBanner();
 
   // Count-up animation for stat values
   setTimeout(() => {
@@ -719,4 +722,23 @@ function calcEval(a, b, op) {
   if (op === '*') return +(a * b).toFixed(10);
   if (op === '/') return b !== 0 ? +(a / b).toFixed(10) : 0;
   return b;
+}
+
+// Weather alert banner on dashboard
+async function loadDashWeatherBanner() {
+  var el = document.getElementById('dash-weather-alert-banner');
+  if (!el) return;
+  try {
+    var alerts = await fetch('/api/weather-alerts').then(function(r) { return r.json(); });
+    var severe = (alerts || []).filter(function(a) {
+      return ['Extreme','Severe'].indexOf(a.severity) !== -1;
+    });
+    if (!severe.length) { el.innerHTML = ''; return; }
+    el.innerHTML = severe.map(function(a) {
+      return '<div style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;padding:0.75rem 1rem;border-radius:10px;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;animation:fadeIn 0.4s ease-out">' +
+        '<span style="font-size:1.3rem">⚠️</span>' +
+        '<div style="flex:1"><strong>ACTIVE WEATHER ALERT: ' + a.event + '</strong>' +
+        '<div style="font-size:0.82rem;opacity:0.9">' + (a.headline || '') + '</div></div></div>';
+    }).join('');
+  } catch { el.innerHTML = ''; }
 }

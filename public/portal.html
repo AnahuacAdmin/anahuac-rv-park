@@ -238,6 +238,9 @@
     <div id="hero-verse" style="font-size:0.78rem;color:rgba(255,255,255,0.7);margin-top:0.4rem;font-style:italic;display:none"></div>
   </div>
 
+  <!-- Weather alert banner -->
+  <div id="portal-weather-banner" style="width:100%;max-width:800px;display:none"></div>
+
   <!-- Two-column layout on desktop -->
   <div class="portal-two-col">
     <!-- Left: Balance & Pay -->
@@ -331,9 +334,9 @@
       </div>
       <div class="form-group"><label>Describe the Problem</label><textarea name="description" required placeholder="Tell us what's wrong..." style="min-height:60px" spellcheck="true"></textarea></div>
       <div class="form-group">
-        <label>📷 Photo of the Problem (Recommended)</label>
-        <label class="btn btn-outline" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;min-height:50px;margin-top:0.25rem">
-          <input type="file" accept="image/*" capture="environment" style="display:none" id="maint-photo-input"> 📷 Tap to photograph the problem
+        <label style="font-size:0.88rem">Photo of the Problem (Recommended)</label>
+        <label style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;min-height:56px;margin-top:0.25rem;border:2px dashed #1a5c32;border-radius:12px;background:#f0fdf4;color:#1a5c32;font-weight:600;font-size:0.92rem;transition:all 0.15s">
+          <input type="file" accept="image/*" capture="environment" style="display:none" id="maint-photo-input"> &#128247; TAP TO TAKE PHOTO
         </label>
         <span id="maint-photo-status" style="font-size:0.78rem;color:#78716c"></span>
         <div id="maint-photo-preview" style="margin-top:0.5rem"></div>
@@ -658,6 +661,7 @@ async function showPortal() {
     loadPortalRestaurants(),
     loadPortalLocalLinks(),
     loadCommunityFeed(),
+    loadPortalWeatherAlerts(),
   ]);
   // Wire community post form + photo upload + bottom nav
   setTimeout(function() {
@@ -1033,6 +1037,28 @@ async function loadCommunityFeed() {
 
 async function likeCommunityPost(id, btn) {
   try { await fetch('/api/community/' + id + '/like', { method: 'POST' }); if (btn) btn.textContent = '❤️ Liked!'; } catch {}
+}
+
+async function loadPortalWeatherAlerts() {
+  var el = document.getElementById('portal-weather-banner');
+  if (!el) return;
+  try {
+    var r = await fetch('/api/weather-alerts');
+    var alerts = await r.json();
+    // Only show warnings (not watches) on the portal
+    var warnings = (alerts || []).filter(function(a) {
+      return a.event && a.event.indexOf('Warning') !== -1;
+    });
+    if (!warnings.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = '';
+    el.innerHTML = warnings.map(function(a) {
+      var bg = a.severity === 'Extreme' ? 'linear-gradient(135deg,#dc2626,#991b1b)' : 'linear-gradient(135deg,#dc2626,#b91c1c)';
+      return '<div style="background:' + bg + ';color:#fff;padding:0.7rem 1rem;border-radius:12px;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;animation:fadeIn 0.4s ease-out">' +
+        '<span style="font-size:1.2rem">⚠️</span>' +
+        '<div style="flex:1"><strong>' + a.event + '</strong>' +
+        '<div style="font-size:0.8rem;opacity:0.9">' + (a.headline || '') + ' | Stay safe!</div></div></div>';
+    }).join('');
+  } catch { el.style.display = 'none'; }
 }
 
 async function loadPortalLocalLinks() {
