@@ -89,9 +89,9 @@
     .balance-amount { font-size:2.5rem;font-weight:800;color:#1a5c32;line-height:1.1 }
     .balance-paid { color:#16a34a }
     .balance-owed { color:#dc2626 }
-    .tenant-header { text-align:center;margin-bottom:0.75rem }
-    .tenant-name { font-size:1.1rem;font-weight:700;color:#1a5c32 }
-    .tenant-lot { font-size:0.85rem;color:#78716c }
+    .tenant-header { text-align:center;margin-bottom:0.4rem }
+    .tenant-name { font-size:0.95rem;font-weight:700;color:#1a5c32 }
+    .tenant-lot { font-size:0.78rem;color:#78716c }
     .invoice-row { display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #e5e7eb;font-size:0.85rem }
     .invoice-row:last-child { border-bottom:none }
 
@@ -272,6 +272,31 @@
   <!-- Weather alert banner -->
   <div id="portal-weather-banner" style="width:100%;max-width:800px;display:none"></div>
 
+  <!-- ===== COMMUNITY BOARD (top section) ===== -->
+  <div class="card" style="animation-delay:0.05s">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div class="card-title" style="margin:0;font-size:0.85rem">🏘️ Community</div>
+      <button class="btn btn-sm btn-green" id="portal-new-post-btn" style="font-size:0.78rem;padding:0.35rem 0.85rem;border-radius:10px">+ Share</button>
+    </div>
+    <div id="portal-new-post-form" style="display:none;margin-bottom:1rem;padding:0.85rem;background:#fafaf9;border-radius:12px;border:1px solid #e7e5e4;position:relative">
+      <button onclick="document.getElementById('portal-new-post-form').style.display='none'" style="position:absolute;top:8px;right:10px;background:none;border:none;font-size:1rem;color:#a8a29e;cursor:pointer;line-height:1">✕</button>
+      <form id="portal-post-form">
+        <div class="form-group" style="margin-bottom:0.6rem"><select name="post_type"><option value="community">📢 Community</option><option value="fishing">🎣 Fishing Story</option><option value="event">🎪 Event</option></select></div>
+        <div class="form-group" style="margin-bottom:0.6rem"><input name="title" placeholder="Title" required></div>
+        <div class="form-group" style="margin-bottom:0.6rem"><textarea name="message" rows="3" placeholder="Share with the community..." spellcheck="true"></textarea></div>
+        <div class="form-group" style="margin-bottom:0.6rem">
+          <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;min-height:auto"><input type="file" accept="image/*" capture="environment" style="display:none" id="post-photo-input"> 📷 Add Photo</label>
+          <span id="post-photo-status" style="font-size:0.78rem;color:#78716c;margin-left:0.5rem"></span>
+          <div id="post-photo-preview" style="margin-top:0.5rem"></div>
+          <input type="hidden" id="post-photo-data" name="photo_data">
+        </div>
+        <button type="submit" class="btn btn-green">Submit for Review</button>
+        <div style="text-align:center;margin-top:0.5rem"><a href="#" onclick="event.preventDefault();document.getElementById('portal-new-post-form').style.display='none'" style="font-size:0.8rem;color:#a8a29e;text-decoration:none">Cancel</a></div>
+      </form>
+    </div>
+    <div id="portal-community-feed" style="font-size:0.88rem;color:#78716c">Loading...</div>
+  </div>
+
   <!-- Latest community post banner -->
   <div id="latest-community-banner" style="display:none;width:100%;max-width:800px;background:#f0fdf4;border-radius:12px;padding:0.45rem 1rem;font-size:0.8rem;color:#1a5c32;cursor:pointer;margin-bottom:0.75rem;font-weight:500" onclick="document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth',block:'start'})"></div>
 
@@ -344,29 +369,6 @@
   <div class="card" id="announcements-card" style="display:none;border-left:3px solid #1a5c32">
     <div class="card-title">📢 From Management</div>
     <div id="announcements-list"></div>
-  </div>
-
-  <!-- ===== SECTION 4: COMMUNITY BOARD ===== -->
-  <div class="card" style="animation-delay:0.15s">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div class="card-title" style="margin:0;font-size:0.85rem">🏘️ Community</div>
-      <button class="btn btn-sm btn-green" id="portal-new-post-btn" style="font-size:0.78rem;padding:0.35rem 0.85rem;border-radius:10px">+ Share</button>
-    </div>
-    <div id="portal-new-post-form" style="display:none;margin-bottom:1rem;padding:0.85rem;background:#fafaf9;border-radius:12px;border:1px solid #e7e5e4">
-      <form id="portal-post-form">
-        <div class="form-group" style="margin-bottom:0.6rem"><select name="post_type"><option value="community">📢 Community</option><option value="fishing">🎣 Fishing Story</option><option value="event">🎪 Event</option></select></div>
-        <div class="form-group" style="margin-bottom:0.6rem"><input name="title" placeholder="Title" required></div>
-        <div class="form-group" style="margin-bottom:0.6rem"><textarea name="message" rows="3" placeholder="Share with the community..." spellcheck="true"></textarea></div>
-        <div class="form-group" style="margin-bottom:0.6rem">
-          <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;min-height:auto"><input type="file" accept="image/*" capture="environment" style="display:none" id="post-photo-input"> 📷 Add Photo</label>
-          <span id="post-photo-status" style="font-size:0.78rem;color:#78716c;margin-left:0.5rem"></span>
-          <div id="post-photo-preview" style="margin-top:0.5rem"></div>
-          <input type="hidden" id="post-photo-data" name="photo_data">
-        </div>
-        <button type="submit" class="btn btn-green">Submit for Review</button>
-      </form>
-    </div>
-    <div id="portal-community-feed" style="font-size:0.88rem;color:#78716c">Loading...</div>
   </div>
 
   <!-- Traffic bar -->
