@@ -685,6 +685,7 @@ document.getElementById('msg-form').addEventListener('submit', async (e) => {
     statusEl.innerHTML = '<div class="msg-success">Message sent! We\'ll get back to you soon. 🐊</div>';
     document.getElementById('msg-text').value = '';
     setTimeout(() => statusEl.innerHTML = '', 5000);
+    try { celebrateMessage(); } catch(e) {}
   } catch (err) { statusEl.innerHTML = '<div class="msg-error">' + (err.message || 'Failed to send') + '</div>'; }
 });
 
@@ -789,6 +790,7 @@ async function showPortal() {
       if (photoData) photoData.value = '';
       postForm.style.display = 'none';
       loadCommunityFeed();
+      try { hideTypingGator(); } catch(e) {}
       alert('✅ Your post has been submitted for review! Management will review within 24 hours.');
     });
 
@@ -821,6 +823,7 @@ async function showPortal() {
     if (sessionStorage.getItem('portal_paid')) {
       sessionStorage.removeItem('portal_paid');
       payEl.innerHTML = '<div class="msg-success">🎉 Payment received! Thank you!</div>' + payEl.innerHTML;
+      try { celebratePayment(); } catch(e) {}
     }
 
     const invEl = document.getElementById('p-invoices');
@@ -1394,6 +1397,322 @@ async function switchPreviewTenant(tenantId) {
     window.location.replace('/portal.html?adminPreview=' + encodeURIComponent(data.token) + '&tenant=' + encodeURIComponent(JSON.stringify(data.tenant)));
   } catch (err) { alert('Switch failed: ' + (err.message || 'unknown')); }
 }
+
+// ═══════════════════════════════════════════════════
+// ANIMATION 1: PAYMENT CELEBRATION
+// ═══════════════════════════════════════════════════
+function celebratePayment() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;pointer-events:none;overflow:hidden';
+  document.body.appendChild(overlay);
+
+  // Cha-ching sound
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    function ping(freq, time, dur) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq; o.type = 'sine';
+      g.gain.setValueAtTime(0.3, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time + dur);
+      o.start(time); o.stop(time + dur);
+    }
+    var t = ctx.currentTime;
+    ping(800, t, 0.1); ping(1200, t + 0.1, 0.15); ping(1600, t + 0.2, 0.2); ping(2000, t + 0.25, 0.3);
+  } catch(e) {}
+
+  // Rainbow particles
+  var colors = ['#ff0000','#ff7700','#ffff00','#00ff00','#0000ff','#8b00ff','#ff69b4','#ffd700','#00ffff','#ff4500'];
+  var shapes = ['●','✦','♥','✨','★','●','♥','✦'];
+  var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+  for (var i = 0; i < 120; i++) {
+    var p = document.createElement('div');
+    var angle = Math.random() * Math.PI * 2;
+    var dist = 100 + Math.random() * 400;
+    var dx = Math.cos(angle) * dist, dy = Math.sin(angle) * dist - 200;
+    var sz = 6 + Math.random() * 10;
+    var delay = Math.random() * 0.3;
+    p.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+    p.style.cssText = 'position:absolute;left:' + cx + 'px;top:' + cy + 'px;font-size:' + sz + 'px;color:' + colors[Math.floor(Math.random() * colors.length)] + ';pointer-events:none;opacity:1;transition:none;';
+    overlay.appendChild(p);
+    p.animate([
+      { transform: 'translate(0,0) scale(0)', opacity: 1 },
+      { transform: 'translate(' + dx + 'px,' + (dy * 0.5) + 'px) scale(1.5)', opacity: 1, offset: 0.3 },
+      { transform: 'translate(' + dx + 'px,' + (dy + 600) + 'px) scale(0.5)', opacity: 0 }
+    ], { duration: 2500 + Math.random() * 1500, delay: delay * 1000, easing: 'cubic-bezier(0.25,0.46,0.45,0.94)', fill: 'forwards' });
+  }
+
+  // Gold coins falling
+  for (var c = 0; c < 20; c++) {
+    var coin = document.createElement('div');
+    coin.textContent = '🪙';
+    coin.style.cssText = 'position:absolute;top:-40px;left:' + (Math.random() * 100) + '%;font-size:' + (20 + Math.random() * 16) + 'px;pointer-events:none;';
+    overlay.appendChild(coin);
+    coin.animate([
+      { transform: 'translateY(0) rotate(0deg)', opacity: 0.9 },
+      { transform: 'translateY(' + (window.innerHeight + 80) + 'px) rotate(' + (360 + Math.random() * 720) + 'deg)', opacity: 0.3 }
+    ], { duration: 2000 + Math.random() * 2000, delay: Math.random() * 1500, easing: 'ease-in', fill: 'forwards' });
+  }
+
+  // Thank you message
+  var msg = document.createElement('div');
+  msg.innerHTML = '<div style="font-size:2.5rem;font-weight:800;margin-bottom:0.3rem">🎉 THANK YOU! 🎉</div><div style="font-size:1rem;opacity:0.9">Your payment has been received!</div>';
+  msg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);background:rgba(0,0,0,0.75);color:#fff;padding:1.5rem 2rem;border-radius:20px;text-align:center;text-shadow:0 0 20px rgba(255,215,0,0.5);pointer-events:none;';
+  overlay.appendChild(msg);
+  msg.animate([
+    { transform: 'translate(-50%,-50%) scale(0)' },
+    { transform: 'translate(-50%,-50%) scale(1.1)', offset: 0.6 },
+    { transform: 'translate(-50%,-50%) scale(1)' }
+  ], { duration: 600, delay: 300, easing: 'ease-out', fill: 'forwards' });
+
+  setTimeout(function() { if (overlay.parentNode) overlay.remove(); }, 4500);
+}
+
+// ═══════════════════════════════════════════════════
+// ANIMATION 2: GATOR DANCE (Message Sent)
+// ═══════════════════════════════════════════════════
+function celebrateMessage() {
+  var container = document.createElement('div');
+  container.style.cssText = 'position:fixed;bottom:20px;right:-200px;z-index:99999;pointer-events:none;transition:right 0.6s cubic-bezier(0.34,1.56,0.64,1);';
+  container.innerHTML = '<svg viewBox="0 0 180 130" width="160" height="115" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.2))">' +
+    // party hat
+    '<polygon points="42,15 55,15 48,0" fill="#dc2626" stroke="#f59e0b" stroke-width="1.5"/>' +
+    '<circle cx="48" cy="0" r="3" fill="#ffd700"/>' +
+    // body
+    '<ellipse cx="80" cy="80" rx="55" ry="28" fill="#2d6a2d"/>' +
+    '<ellipse cx="80" cy="88" rx="45" ry="16" fill="#4a9e4a"/>' +
+    // head
+    '<ellipse cx="30" cy="55" rx="30" ry="22" fill="#2d6a2d"/>' +
+    '<ellipse cx="30" cy="62" rx="24" ry="12" fill="#4a9e4a"/>' +
+    // eyes
+    '<circle cx="22" cy="42" r="8" fill="#fff"/><circle cx="38" cy="42" r="8" fill="#fff"/>' +
+    '<circle cx="22" cy="42" r="4" fill="#111" id="gator-eye-l"><animate attributeName="ry" values="4;0.5;4" dur="2.5s" repeatCount="indefinite"/></circle>' +
+    '<circle cx="38" cy="42" r="4" fill="#111" id="gator-eye-r"><animate attributeName="ry" values="4;0.5;4" dur="2.5s" repeatCount="indefinite"/></circle>' +
+    // smile
+    '<path d="M12 60 Q30 75 48 60" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>' +
+    '<line x1="18" y1="62" x2="24" y2="62" stroke="#fff" stroke-width="1.5"/>' +
+    '<line x1="30" y1="64" x2="36" y2="64" stroke="#fff" stroke-width="1.5"/>' +
+    '<line x1="40" y1="62" x2="44" y2="62" stroke="#fff" stroke-width="1.5"/>' +
+    // nostrils
+    '<circle cx="12" cy="48" r="2" fill="#1a4a1a"/><circle cx="20" cy="47" r="2" fill="#1a4a1a"/>' +
+    // tail
+    '<polygon points="135,72 175,60 170,85 135,88" fill="#2d6a2d"/>' +
+    // legs with animation
+    '<rect x="50" y="100" width="12" height="18" rx="4" fill="#2d6a2d"><animate attributeName="height" values="18;12;18" dur="0.4s" repeatCount="indefinite"/></rect>' +
+    '<rect x="70" y="100" width="12" height="18" rx="4" fill="#2d6a2d"><animate attributeName="height" values="12;18;12" dur="0.4s" repeatCount="indefinite"/></rect>' +
+    '<rect x="95" y="100" width="12" height="18" rx="4" fill="#2d6a2d"><animate attributeName="height" values="18;12;18" dur="0.4s" repeatCount="indefinite"/></rect>' +
+    '<rect x="115" y="100" width="12" height="18" rx="4" fill="#2d6a2d"><animate attributeName="height" values="12;18;12" dur="0.4s" repeatCount="indefinite"/></rect>' +
+    '</svg>';
+  document.body.appendChild(container);
+
+  // Music notes floating
+  var noteContainer = document.createElement('div');
+  noteContainer.style.cssText = 'position:fixed;bottom:120px;right:40px;z-index:99999;pointer-events:none;';
+  document.body.appendChild(noteContainer);
+  var noteChars = ['♪','♫','🎵','♪'];
+  var noteIdx = 0;
+  var noteInterval = setInterval(function() {
+    var n = document.createElement('span');
+    n.textContent = noteChars[noteIdx++ % noteChars.length];
+    n.style.cssText = 'position:absolute;bottom:0;left:' + (Math.random() * 60) + 'px;font-size:' + (16 + Math.random() * 10) + 'px;color:#1a5c32;';
+    noteContainer.appendChild(n);
+    n.animate([
+      { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
+      { transform: 'translateY(-80px) rotate(' + (Math.random() > 0.5 ? 20 : -20) + 'deg)', opacity: 0 }
+    ], { duration: 1200, fill: 'forwards' });
+    setTimeout(function() { n.remove(); }, 1300);
+  }, 500);
+
+  // Bounce dance animation on whole container
+  container.animate([
+    { transform: 'translateY(0) rotate(-3deg)' },
+    { transform: 'translateY(-10px) rotate(3deg)' },
+    { transform: 'translateY(0) rotate(-3deg)' }
+  ], { duration: 500, iterations: Infinity });
+
+  // Slide in
+  requestAnimationFrame(function() { container.style.right = '20px'; });
+
+  // Swamp tune
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var notes = [[523,0,0.15],[659,0.15,0.15],[784,0.3,0.15],[880,0.45,0.2],[784,0.65,0.15],[659,0.8,0.15],[523,0.95,0.2],[392,1.15,0.15],[523,1.3,0.15],[659,1.45,0.15],[784,1.6,0.3],[880,1.9,0.15],[1047,2.05,0.3],[880,2.35,0.15],[784,2.5,0.15],[659,2.65,0.4]];
+    notes.forEach(function(n) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = n[0]; o.type = 'square';
+      g.gain.setValueAtTime(0.08, ctx.currentTime + n[1]);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + n[1] + n[2]);
+      o.start(ctx.currentTime + n[1]); o.stop(ctx.currentTime + n[1] + n[2] + 0.1);
+    });
+  } catch(e) {}
+
+  // Slide out and cleanup
+  setTimeout(function() {
+    container.style.right = '-200px';
+    clearInterval(noteInterval);
+    setTimeout(function() { container.remove(); noteContainer.remove(); }, 700);
+  }, 4000);
+}
+
+// ═══════════════════════════════════════════════════
+// ANIMATION 3: TYPING GATOR (Community Post)
+// ═══════════════════════════════════════════════════
+var _typingGatorEl = null;
+var _typingGatorVisible = false;
+var _typeClickThrottle = 0;
+var _typingIdleTimer = null;
+var _typingGatorState = 'idle'; // 'typing' or 'idle'
+
+function showTypingGator() {
+  if (_typingGatorVisible || window.innerWidth < 400) return;
+  _typingGatorVisible = true;
+  var isMob = window.innerWidth < 600;
+  var w = isMob ? 90 : 130;
+
+  var el = document.createElement('div');
+  el.id = 'typing-gator';
+  el.style.cssText = 'position:fixed;bottom:80px;right:10px;width:' + w + 'px;z-index:9999;pointer-events:none;opacity:0;transition:opacity 0.4s ease;';
+  el.innerHTML = '<svg viewBox="0 0 130 120" width="' + w + '">' +
+    // typewriter body
+    '<rect x="10" y="70" width="110" height="35" rx="6" fill="#78716c"/>' +
+    '<rect x="20" y="76" width="90" height="14" rx="3" fill="#57534e"/>' +
+    // keyboard dots
+    '<circle cx="35" cy="83" r="2" fill="#a8a29e"/><circle cx="45" cy="83" r="2" fill="#a8a29e"/><circle cx="55" cy="83" r="2" fill="#a8a29e"/><circle cx="65" cy="83" r="2" fill="#a8a29e"/><circle cx="75" cy="83" r="2" fill="#a8a29e"/><circle cx="85" cy="83" r="2" fill="#a8a29e"/><circle cx="95" cy="83" r="2" fill="#a8a29e"/>' +
+    // paper
+    '<rect x="40" y="38" width="50" height="36" rx="2" fill="#fff" stroke="#d1d5db" stroke-width="0.8"/>' +
+    '<line x1="48" y1="46" x2="82" y2="46" stroke="#e5e7eb" stroke-width="0.6"/>' +
+    '<line x1="48" y1="52" x2="78" y2="52" stroke="#e5e7eb" stroke-width="0.6"/>' +
+    '<line x1="48" y1="58" x2="80" y2="58" stroke="#e5e7eb" stroke-width="0.6"/>' +
+    '<line x1="48" y1="64" x2="70" y2="64" stroke="#e5e7eb" stroke-width="0.6" id="gator-type-line"/>' +
+    // gator body (seated)
+    '<ellipse cx="65" cy="42" rx="22" ry="18" fill="#2d6a2d"/>' +
+    '<ellipse cx="65" cy="48" rx="16" ry="10" fill="#4a9e4a"/>' +
+    // head
+    '<ellipse cx="65" cy="18" rx="18" ry="14" fill="#2d6a2d"/>' +
+    '<ellipse cx="65" cy="22" rx="13" ry="7" fill="#4a9e4a"/>' +
+    // visor
+    '<path d="M48 12 L82 12 L78 8 L52 8 Z" fill="#1a5c32"/>' +
+    '<rect x="52" y="8" width="26" height="4" rx="1" fill="#16a34a"/>' +
+    // glasses
+    '<circle cx="58" cy="15" r="5" fill="none" stroke="#44403c" stroke-width="1.2"/>' +
+    '<circle cx="72" cy="15" r="5" fill="none" stroke="#44403c" stroke-width="1.2"/>' +
+    '<line x1="63" y1="15" x2="67" y2="15" stroke="#44403c" stroke-width="1"/>' +
+    // eyes behind glasses
+    '<circle cx="58" cy="15" r="2.5" fill="#fff"/><circle cx="72" cy="15" r="2.5" fill="#fff"/>' +
+    '<circle cx="58" cy="15" r="1.2" fill="#111"/><circle cx="72" cy="15" r="1.2" fill="#111"/>' +
+    // smile
+    '<path d="M58 25 Q65 30 72 25" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>' +
+    // arms (typing position)
+    '<rect x="35" y="60" width="14" height="6" rx="3" fill="#2d6a2d" id="gator-arm-l">' +
+      '<animate attributeName="y" values="60;56;60" dur="0.15s" repeatCount="indefinite" begin="indefinite" id="gator-type-anim-l"/>' +
+    '</rect>' +
+    '<rect x="81" y="60" width="14" height="6" rx="3" fill="#2d6a2d" id="gator-arm-r">' +
+      '<animate attributeName="y" values="56;60;56" dur="0.15s" repeatCount="indefinite" begin="indefinite" id="gator-type-anim-r"/>' +
+    '</rect>' +
+    // thought bubble (hidden by default)
+    '<g id="gator-thought" style="opacity:0">' +
+      '<circle cx="90" cy="10" r="2" fill="#e5e7eb"/>' +
+      '<circle cx="95" cy="4" r="3" fill="#e5e7eb"/>' +
+      '<ellipse cx="108" cy="-4" rx="14" ry="10" fill="#fff" stroke="#d1d5db" stroke-width="0.8"/>' +
+      '<text x="108" y="0" text-anchor="middle" font-size="10">🐟</text>' +
+    '</g>' +
+  '</svg>';
+  document.body.appendChild(el);
+  _typingGatorEl = el;
+  requestAnimationFrame(function() { el.style.opacity = '1'; });
+
+  // Start idle state
+  _typingGatorState = 'idle';
+  _startGatorIdle();
+}
+
+function hideTypingGator() {
+  if (!_typingGatorEl) return;
+  _typingGatorEl.style.opacity = '0';
+  var el = _typingGatorEl;
+  _typingGatorEl = null;
+  _typingGatorVisible = false;
+  clearTimeout(_typingIdleTimer);
+  setTimeout(function() { if (el.parentNode) el.remove(); }, 500);
+}
+
+function _startGatorTyping() {
+  if (_typingGatorState === 'typing') return;
+  _typingGatorState = 'typing';
+  clearTimeout(_typingIdleTimer);
+  var thought = document.getElementById('gator-thought');
+  if (thought) thought.style.opacity = '0';
+  // Start arm animations
+  try {
+    document.getElementById('gator-type-anim-l')?.beginElement();
+    document.getElementById('gator-type-anim-r')?.beginElement();
+  } catch(e) {}
+}
+
+function _startGatorIdle() {
+  _typingGatorState = 'idle';
+  // Stop arm animations by ending them
+  try {
+    document.getElementById('gator-type-anim-l')?.endElement();
+    document.getElementById('gator-type-anim-r')?.endElement();
+  } catch(e) {}
+  // Show thought bubble after 3 seconds idle
+  _typingIdleTimer = setTimeout(function() {
+    var thought = document.getElementById('gator-thought');
+    if (thought && _typingGatorState === 'idle') {
+      thought.style.transition = 'opacity 0.5s';
+      thought.style.opacity = '1';
+      // Hide after 2s
+      setTimeout(function() { if (thought) thought.style.opacity = '0'; }, 2500);
+    }
+  }, 3000);
+}
+
+function _onCommunityType() {
+  _startGatorTyping();
+  // Typewriter click sound (throttled)
+  var now = Date.now();
+  if (now - _typeClickThrottle > 100) {
+    _typeClickThrottle = now;
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var buf = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate);
+      var data = buf.getChannelData(0);
+      for (var i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.008));
+      var src = ctx.createBufferSource();
+      src.buffer = buf;
+      var gain = ctx.createGain();
+      gain.gain.value = 0.1;
+      src.connect(gain); gain.connect(ctx.destination);
+      src.start();
+    } catch(e) {}
+  }
+  // Return to idle after 400ms of no typing
+  clearTimeout(_typingIdleTimer);
+  _typingIdleTimer = setTimeout(_startGatorIdle, 400);
+}
+
+// Wire up typing gator to community post textarea
+document.addEventListener('focusin', function(e) {
+  if (e.target && e.target.name === 'message' && e.target.closest('#portal-post-form')) {
+    showTypingGator();
+  }
+});
+document.addEventListener('input', function(e) {
+  if (e.target && e.target.name === 'message' && e.target.closest('#portal-post-form')) {
+    if (!_typingGatorVisible) showTypingGator();
+    _onCommunityType();
+  }
+});
+document.addEventListener('focusout', function(e) {
+  if (e.target && e.target.name === 'message' && e.target.closest('#portal-post-form')) {
+    setTimeout(function() {
+      var active = document.activeElement;
+      if (!active || !active.closest('#portal-post-form')) hideTypingGator();
+    }, 200);
+  }
+});
 </script>
 </body>
 </html>
