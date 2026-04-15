@@ -275,16 +275,6 @@
   <!-- Latest community post banner -->
   <div id="latest-community-banner" style="display:none;width:100%;max-width:800px;background:#f0fdf4;border-radius:12px;padding:0.45rem 1rem;font-size:0.8rem;color:#1a5c32;cursor:pointer;margin-bottom:0.75rem;font-weight:500" onclick="document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth',block:'start'})"></div>
 
-  <!-- Traffic bar (slim) -->
-  <div class="card" style="width:100%;max-width:800px;padding:0.65rem 1rem">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div class="card-title" style="margin:0;font-size:0.72rem">🚗 Local Road Conditions</div>
-      <button onclick="loadTrafficData()" style="background:none;border:none;font-size:0.7rem;color:#1a5c32;cursor:pointer;font-weight:600">↻ Refresh</button>
-    </div>
-    <div id="portal-traffic" style="font-size:0.85rem;margin-top:0.3rem"></div>
-    <div id="portal-traffic-time" style="font-size:0.62rem;color:#a8a29e;margin-top:0.2rem;text-align:right"></div>
-  </div>
-
   <!-- ===== SECTION 1: PAYMENT HUB ===== -->
   <div class="card payment-hub" style="animation-delay:0.05s;border-top:4px solid #1a5c32">
     <div style="font-size:0.72rem;color:#78716c;font-weight:600;margin-bottom:0.5rem">🐊 Anahuac RV Park</div>
@@ -370,6 +360,16 @@
       </form>
     </div>
     <div id="portal-community-feed" style="font-size:0.88rem;color:#78716c">Loading...</div>
+  </div>
+
+  <!-- Traffic bar -->
+  <div class="card" style="width:100%;max-width:800px;padding:0.65rem 1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="card-title" style="margin:0;font-size:0.72rem">🚗 Local Road Conditions</div>
+      <button onclick="loadTrafficData()" style="background:none;border:none;font-size:0.7rem;color:#1a5c32;cursor:pointer;font-weight:600">↻ Refresh</button>
+    </div>
+    <div id="portal-traffic" style="font-size:0.85rem;margin-top:0.3rem"></div>
+    <div id="portal-traffic-time" style="font-size:0.62rem;color:#a8a29e;margin-top:0.2rem;text-align:right"></div>
   </div>
 
   <!-- ===== SECTION 5: MAINTENANCE (Report a Problem) ===== -->
