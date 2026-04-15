@@ -304,8 +304,15 @@
     <a class="qa-btn" href="#portal-community-feed" onclick="event.preventDefault();document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth'})">
       <span class="qa-icon">🏘️</span><span class="qa-label">Community</span>
     </a>
-    <a class="qa-btn" href="tel:4092676603">
+    <a class="qa-btn" id="qa-call-btn" href="tel:4092676603" onclick="return handleCallBtn(event)" style="position:relative">
       <span class="qa-icon">📞</span><span class="qa-label">Call Us</span>
+      <div id="call-tooltip" style="display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;background:#fff;border:1.5px solid #1a5c32;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);padding:0.85rem 1rem;width:220px;z-index:50;text-align:center">
+        <div style="font-size:0.78rem;color:#78716c;margin-bottom:0.3rem">📞 Call us at:</div>
+        <div style="font-size:1.2rem;font-weight:800;color:#1a5c32;margin-bottom:0.6rem">(409) 267-6603</div>
+        <button onclick="event.stopPropagation();navigator.clipboard?.writeText('4092676603').then(function(){var b=event.target;b.textContent='✅ Copied!';setTimeout(function(){b.textContent='📋 Copy Number'},1500)})" style="display:block;width:100%;padding:0.5rem;border:1.5px solid #1a5c32;border-radius:10px;background:#f0fdf4;color:#1a5c32;font-weight:700;font-size:0.82rem;cursor:pointer;margin-bottom:0.4rem">📋 Copy Number</button>
+        <a href="skype:14092676603?call" onclick="event.stopPropagation()" style="display:block;width:100%;padding:0.5rem;border:1.5px solid #d1d5db;border-radius:10px;background:#fff;color:#44403c;font-weight:600;font-size:0.82rem;text-decoration:none;text-align:center">💻 Open Skype</a>
+        <button onclick="event.stopPropagation();document.getElementById('call-tooltip').style.display='none'" style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:0.75rem;color:#a8a29e;cursor:pointer">✕</button>
+      </div>
     </a>
   </div>
 
@@ -1293,6 +1300,21 @@ async function portalPay() {
     else alert('Could not start payment. Please call 409-267-6603.');
   } catch (err) { alert('Payment error: ' + (err.message || 'unknown')); }
 }
+
+function handleCallBtn(e) {
+  var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) return true; // allow default tel: link
+  e.preventDefault();
+  var tip = document.getElementById('call-tooltip');
+  if (tip) tip.style.display = tip.style.display === 'none' ? '' : 'none';
+  return false;
+}
+// Close tooltip when clicking outside
+document.addEventListener('click', function(e) {
+  var tip = document.getElementById('call-tooltip');
+  var btn = document.getElementById('qa-call-btn');
+  if (tip && btn && !btn.contains(e.target)) tip.style.display = 'none';
+});
 
 function portalLogout() {
   _portalToken = null; _portalTenant = null; _setupTenant = null;
