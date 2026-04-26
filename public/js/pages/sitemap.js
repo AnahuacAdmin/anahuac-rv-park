@@ -77,6 +77,7 @@ async function showLotDetail(lotId) {
     let content = `
       <p><strong>Lot:</strong> ${lot.id} (${lot.width}x${lot.length} ft)</p>
       <p><strong>Status:</strong> <span class="badge badge-${lot.status === 'vacant' ? 'success' : 'gray'}">${lot.status}</span></p>
+      ${lot.amenities ? `<p><strong>Amenities:</strong> ${lot.amenities.split(',').map(a => '<span class="badge badge-gray" style="font-size:0.7rem">' + escapeHtml(a.trim()) + '</span>').join(' ')}</p>` : ''}
       ${lot.size_restriction ? `<p><strong>Restriction:</strong> ${lot.size_restriction}</p>` : ''}
       ${lot.notes ? `<p><strong>Notes:</strong> ${lot.notes}</p>` : ''}
       <hr style="margin:1rem 0">
@@ -106,6 +107,7 @@ async function showLotDetail(lotId) {
       <p><strong>Phone:</strong> ${escapeHtml(tenant.phone || '—')}</p>
       <p><strong>Email:</strong> ${escapeHtml(tenant.email || '—')}</p>
       <p><strong>Move-in date:</strong> ${formatDate(tenant.move_in_date)}</p>
+      ${lot.amenities ? `<p><strong>Amenities:</strong> ${lot.amenities.split(',').map(a => '<span class="badge badge-gray" style="font-size:0.7rem">' + escapeHtml(a.trim()) + '</span>').join(' ')}</p>` : ''}
       <hr>
       <h4>RV Details</h4>
       <p><strong>Make/Model:</strong> ${(tenant.rv_make || '—')} ${(tenant.rv_model || '')}</p>

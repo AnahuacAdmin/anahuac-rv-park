@@ -104,10 +104,19 @@ function lotForm(lot = {}) {
       <fieldset style="border:1px solid #ddd;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
         <legend><strong>Amenities</strong></legend>
         <div style="display:flex;flex-wrap:wrap;gap:0.75rem">
-          ${['30amp','50amp','Water','Sewer','WiFi','Cable'].map(a => {
+          ${['30amp','50amp','Water','Sewer','WiFi','Cable','Cement Pad','Pond View'].map(a => {
             const checked = (lot.amenities || '').split(',').map(s=>s.trim()).includes(a);
             return `<label style="display:flex;align-items:center;gap:0.4rem"><input type="checkbox" name="amenity" value="${a}" ${checked ? 'checked' : ''}> ${a}</label>`;
           }).join('')}
+          ${(() => {
+            const parts = (lot.amenities || '').split(',').map(s=>s.trim());
+            const known = ['30amp','50amp','Water','Sewer','WiFi','Cable','Cement Pad','Pond View'];
+            const other = parts.find(p => p.startsWith('Other:'));
+            const otherText = other ? other.replace('Other:','').trim() : '';
+            const hasOther = !!other;
+            return '<label style="display:flex;align-items:center;gap:0.4rem"><input type="checkbox" id="amenity-other-cb" ' + (hasOther ? 'checked' : '') + ' onchange="document.getElementById(\'amenity-other-text\').disabled=!this.checked;if(!this.checked)document.getElementById(\'amenity-other-text\').value=\'\'"> Other:</label>'
+              + '<input type="text" id="amenity-other-text" value="' + escapeHtml(otherText) + '" placeholder="e.g. Extra parking" style="flex:1;min-width:120px;padding:0.3rem 0.5rem;font-size:0.85rem;border:1px solid #ddd;border-radius:4px" ' + (hasOther ? '' : 'disabled') + '>';
+          })()}
         </div>
       </fieldset>
       ${isEdit ? `
@@ -148,7 +157,10 @@ async function createLot(e) {
   const errEl = document.getElementById('lot-form-error');
   if (errEl) errEl.style.display = 'none';
   const form = new FormData(e.target);
-  const amenities = form.getAll('amenity').join(',');
+  let amenities = form.getAll('amenity').join(',');
+  const otherCb = document.getElementById('amenity-other-cb');
+  const otherText = (document.getElementById('amenity-other-text')?.value || '').trim();
+  if (otherCb?.checked && otherText) amenities += (amenities ? ',' : '') + 'Other: ' + otherText;
   const data = {
     id: form.get('id'),
     row_letter: form.get('row_letter'),
@@ -176,7 +188,10 @@ async function updateLot(e, id) {
   const errEl = document.getElementById('lot-form-error');
   if (errEl) errEl.style.display = 'none';
   const form = new FormData(e.target);
-  const amenities = form.getAll('amenity').join(',');
+  let amenities = form.getAll('amenity').join(',');
+  const otherCb = document.getElementById('amenity-other-cb');
+  const otherText = (document.getElementById('amenity-other-text')?.value || '').trim();
+  if (otherCb?.checked && otherText) amenities += (amenities ? ',' : '') + 'Other: ' + otherText;
   const data = {
     row_letter: form.get('row_letter'),
     lot_number: parseInt(form.get('lot_number')),
