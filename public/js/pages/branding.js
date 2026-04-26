@@ -90,6 +90,17 @@ async function loadBranding() {
           </div>
         </div>
 
+        <!-- Google Reviews -->
+        <div class="card" style="margin-bottom:1rem">
+          <h3 style="margin-bottom:0.75rem">⭐ Google Review Requests</h3>
+          <p style="font-size:0.82rem;color:var(--gray-500);margin-bottom:0.75rem">Automatically ask guests for a Google review at checkout. SMS and email are sent with a direct review link.</p>
+          <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;font-weight:600;cursor:pointer">
+            <input type="checkbox" id="brand-review-enabled" ${(settings.review_request_enabled || '1') === '1' ? 'checked' : ''}> Enable review requests at checkout
+          </label>
+          <div class="form-group"><label>Google Review URL</label><input id="brand-review-url" value="${_esc(settings.google_review_url || 'https://search.google.com/local/writereview?placeid=ChIJgTxw3Pk-P4YRs2t_UMVRVa4')}" placeholder="https://search.google.com/local/writereview?placeid=..."></div>
+          <div class="form-group"><label>Cooldown (days before asking same tenant again)</label><input id="brand-review-cooldown" type="number" value="${settings.review_request_cooldown_days || '90'}" min="1" max="365" style="width:100px"></div>
+        </div>
+
         <!-- Save -->
         <button class="btn btn-primary btn-full" id="brand-save-btn" onclick="saveBranding()" style="font-size:1rem;padding:0.75rem">Save All Changes</button>
         <div id="brand-save-status" style="text-align:center;margin-top:0.5rem;font-size:0.82rem;display:none"></div>
@@ -322,6 +333,9 @@ async function saveBranding() {
       park_email: document.getElementById('brand-park-email')?.value || '',
       park_website: document.getElementById('brand-park-website')?.value || '',
       brand_accent_color: color,
+      review_request_enabled: document.getElementById('brand-review-enabled')?.checked ? '1' : '0',
+      google_review_url: document.getElementById('brand-review-url')?.value || '',
+      review_request_cooldown_days: document.getElementById('brand-review-cooldown')?.value || '90',
     });
 
     // 2. Upload/remove logo

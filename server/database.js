@@ -488,6 +488,17 @@ async function initializeDatabase() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Review requests tracking
+  db.run(`CREATE TABLE IF NOT EXISTS review_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    tenant_name TEXT,
+    lot_number TEXT,
+    method TEXT,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'sent'
+  )`);
+
   addCol("ALTER TABLE lots ADD COLUMN lot_type TEXT DEFAULT 'standard'");
   addCol("ALTER TABLE lots ADD COLUMN amenities TEXT");
   addCol("ALTER TABLE lots ADD COLUMN default_rate REAL DEFAULT 295");
@@ -704,6 +715,9 @@ async function initializeDatabase() {
   ensureSetting.run('auto_birthday_enabled', '0');
   ensureSetting.run('daily_reminder_enabled', '0');
   ensureSetting.run('weather_alerts_enabled', '0');
+  ensureSetting.run('review_request_enabled', '1');
+  ensureSetting.run('google_review_url', 'https://search.google.com/local/writereview?placeid=ChIJgTxw3Pk-P4YRs2t_UMVRVa4');
+  ensureSetting.run('review_request_cooldown_days', '90');
 
   // Seed lots
   const existingLots = dbWrapper.prepare('SELECT COUNT(*) as count FROM lots').get();

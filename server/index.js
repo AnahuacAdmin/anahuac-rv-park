@@ -136,6 +136,7 @@ app.use('/api/water-meters', require('./routes/water-meters'));
 app.use('/api/lost-found', require('./routes/lost-found'));
 app.use('/api/birding', require('./routes/birding'));
 app.use('/api/hunting-fishing', require('./routes/hunting-fishing'));
+app.use('/api/reviews', require('./routes/reviews'));
 
 // Public pages — serve without .html extension so /privacy and /terms work
 app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'privacy.html')));

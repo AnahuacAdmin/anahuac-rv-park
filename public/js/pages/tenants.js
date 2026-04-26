@@ -152,6 +152,7 @@ function tenantForm(lots, tenant = {}) {
         <div class="form-group">
           <button type="button" class="btn btn-warning" onclick="showMoveTenant(${tenant.id}, '${tenant.lot_id}', \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Move to Different Lot</button>
           <button type="button" class="btn btn-outline" onclick="resetTenantPin(${tenant.id})">Reset Portal PIN</button>
+          <button type="button" class="btn btn-outline" style="color:#f59e0b;border-color:#f59e0b" onclick="promptTenantReview(${tenant.id}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">⭐ Request Review</button>
         </div>
       ` : ''}
 
@@ -834,4 +835,43 @@ function downloadImportErrorReport() {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+async function promptTenantReview(tenantId, tenantName) {
+  try {
+    const check = await API.get('/reviews/can-send/' + tenantId);
+    if (!check.enabled) { showStatusToast('ℹ️', 'Review requests are disabled in settings'); return; }
+    if (check.alreadySent) { showStatusToast('ℹ️', 'Review request already sent to ' + tenantName + ' recently'); return; }
+  } catch { /* proceed anyway */ }
+
+  showModal('Send a Review Request?', `
+    <div style="text-align:center;padding:0.5rem">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem">⭐</div>
+      <p style="font-size:1rem;margin-bottom:0.5rem">Send a review request to <strong>${escapeHtml(tenantName)}</strong>?</p>
+      <p style="font-size:0.85rem;color:var(--gray-500);margin-bottom:1.5rem">A friendly SMS and email will be sent asking them to leave a Google review. This helps us attract new guests!</p>
+      <div class="btn-group" style="justify-content:center">
+        <button class="btn btn-primary" id="send-review-btn">Send Review Request</button>
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  `);
+  setTimeout(function() {
+    var btn = document.getElementById('send-review-btn');
+    if (btn) btn.addEventListener('click', async function() {
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      try {
+        const result = await API.post('/reviews/send', { tenant_id: tenantId });
+        closeModal();
+        if (result.skipped) {
+          showStatusToast('ℹ️', 'Review request already sent recently');
+        } else {
+          showStatusToast('⭐', 'Review request sent via ' + (result.method || 'message') + '!');
+        }
+      } catch (err) {
+        closeModal();
+        showStatusToast('⚠️', 'Failed: ' + (err.message || 'unknown error'));
+      }
+    });
+  }, 100);
 }

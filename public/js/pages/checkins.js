@@ -712,12 +712,13 @@ async function processCheckOut(e) {
           ${s.remaining_balance > 0 ? `<div style="background:#fee2e2;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.85rem;color:#991b1b;margin-bottom:1rem">Remaining balance owed: <strong>${formatMoney(s.remaining_balance)}</strong></div>` : ''}
           <div class="btn-group" style="justify-content:center">
             <button class="btn btn-outline" onclick="window.print()">🖨️ Print</button>
-            <button class="btn btn-primary" onclick="closeModal();loadCheckins()">Done</button>
+            <button class="btn btn-primary" onclick="closeModal();promptReviewRequest(${result.tenant_id},'${escapeHtml(s.tenant_name)}')">Done</button>
           </div>
         </div>
       `);
     } else {
-      loadCheckins();
+      // No deposit statement — go straight to review prompt
+      promptReviewRequest(result.tenant_id, result.tenant_name || 'this tenant');
     }
   } catch (err) {
     const msg = err.message || 'Check-out failed';
@@ -813,5 +814,40 @@ async function printWelcomeCard(tenantName, lotId, tenantId) {
 <\/script>
 </body></html>`);
   w.document.close();
+}
+
+async function promptReviewRequest(tenantId, tenantName) {
+  try {
+    const check = await API.get('/reviews/can-send/' + tenantId);
+    if (!check.canSend) { loadCheckins(); return; }
+  } catch { loadCheckins(); return; }
+
+  showModal('Send a Review Request?', `
+    <div style="text-align:center;padding:0.5rem">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem">⭐</div>
+      <p style="font-size:1rem;margin-bottom:0.5rem">Send a review request to <strong>${escapeHtml(tenantName)}</strong>?</p>
+      <p style="font-size:0.85rem;color:var(--gray-500);margin-bottom:1.5rem">A friendly SMS and email will be sent asking them to leave a Google review. This helps us attract new guests!</p>
+      <div class="btn-group" style="justify-content:center">
+        <button class="btn btn-primary" onclick="sendReviewRequest(${tenantId},'${escapeHtml(tenantName)}')">Send Review Request</button>
+        <button class="btn btn-outline" onclick="closeModal();loadCheckins()">Skip</button>
+      </div>
+    </div>
+  `);
+}
+
+async function sendReviewRequest(tenantId, tenantName) {
+  try {
+    const result = await API.post('/reviews/send', { tenant_id: tenantId });
+    closeModal();
+    if (result.skipped) {
+      showStatusToast('ℹ️', 'Review request already sent recently');
+    } else {
+      showStatusToast('⭐', 'Review request sent to ' + tenantName + ' via ' + (result.method || 'message') + '!');
+    }
+  } catch (err) {
+    closeModal();
+    showStatusToast('⚠️', 'Review request failed: ' + (err.message || 'unknown error'));
+  }
+  loadCheckins();
 }
 

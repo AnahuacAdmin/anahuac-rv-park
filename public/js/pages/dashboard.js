@@ -164,6 +164,16 @@ async function loadDashboard() {
       </div>
     </div>` : ''}
 
+    <!-- Google Reviews -->
+    ${isAdmin() ? `
+    <div class="card dash-fade-in" style="animation-delay:0.43s">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <h3 style="margin:0">⭐ Google Reviews</h3>
+        <a href="https://search.google.com/local/writereview?placeid=ChIJgTxw3Pk-P4YRs2t_UMVRVa4" target="_blank" rel="noopener" class="btn btn-sm btn-outline" style="font-size:0.75rem">View on Google</a>
+      </div>
+      <div id="dash-reviews" style="font-size:0.85rem;color:var(--gray-500)">Loading review stats...</div>
+    </div>` : ''}
+
     <!-- Quick Actions -->
     <div class="dash-actions dash-fade-in" style="animation-delay:0.45s">
       <button class="dash-action-btn" onclick="navigateTo('meters')"><span class="dash-action-icon">⚡</span>Meter Readings</button>
@@ -454,10 +464,34 @@ async function loadDashboard() {
     initDashRadar();
 
     loadDashCommunity();
+    loadDashReviews();
   }
 
   // Init calculator
   initCalc();
+}
+
+async function loadDashReviews() {
+  var el = document.getElementById('dash-reviews');
+  if (!el) return;
+  try {
+    var data = await API.get('/reviews');
+    var html = '<div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:0.5rem">';
+    html += '<span style="font-size:0.9rem"><strong>' + data.thisMonth + '</strong> review requests sent this month</span>';
+    html += '</div>';
+    if (data.requests.length) {
+      html += '<div style="max-height:180px;overflow-y:auto"><table class="data-table" style="font-size:0.8rem"><thead><tr><th>Date</th><th>Tenant</th><th>Lot</th><th>Method</th></tr></thead><tbody>';
+      data.requests.slice(0, 10).forEach(function(r) {
+        html += '<tr><td>' + (r.sent_at || '').split('T')[0] + '</td><td>' + escapeHtml(r.tenant_name || '') + '</td><td>' + escapeHtml(r.lot_number || '') + '</td><td>' + escapeHtml(r.method || '') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<p style="color:var(--gray-400);font-size:0.82rem">No review requests sent yet. Requests are sent automatically at checkout.</p>';
+    }
+    el.innerHTML = html;
+  } catch {
+    el.innerHTML = '<span style="color:var(--gray-400)">Could not load review data</span>';
+  }
 }
 
 async function loadDashDeposits() {

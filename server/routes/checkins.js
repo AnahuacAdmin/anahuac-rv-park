@@ -71,7 +71,7 @@ router.post('/checkout', (req, res) => {
   db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('vacant', lot_id);
 
   // Deposit settlement
-  const tenant = db.prepare('SELECT first_name, last_name, deposit_amount, lot_id FROM tenants WHERE id = ?').get(tenant_id);
+  const tenant = db.prepare('SELECT first_name, last_name, deposit_amount, lot_id, phone, email FROM tenants WHERE id = ?').get(tenant_id);
   const deposit = Number(tenant?.deposit_amount) || 0;
   let statement = null;
 
@@ -158,7 +158,14 @@ router.post('/checkout', (req, res) => {
     };
   }
 
-  res.json({ success: true, statement });
+  res.json({
+    success: true,
+    statement,
+    tenant_id,
+    tenant_name: tenant ? `${tenant.first_name} ${tenant.last_name}` : null,
+    tenant_phone: tenant?.phone || null,
+    tenant_email: tenant?.email || null,
+  });
 });
 
 // Send welcome SMS (two messages) to a newly checked-in tenant.
