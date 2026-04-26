@@ -17,7 +17,7 @@ const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.
 router.get('/checkout-data/:tenantId', (req, res) => {
   const tenant = db.prepare(`
     SELECT t.id, t.first_name, t.last_name, t.lot_id, t.monthly_rent, t.deposit_amount,
-      t.deposit_waived, t.credit_balance, t.flat_rate, t.flat_rate_amount,
+      t.deposit_waived, t.credit_balance, t.flat_rate, t.flat_rate_amount, t.move_in_date,
       COALESCE((SELECT SUM(i.balance_due) FROM invoices i WHERE i.tenant_id = t.id
         AND i.status IN ('pending','partial') AND COALESCE(i.deleted,0)=0), 0) AS balance_due
     FROM tenants t WHERE t.id = ?
@@ -121,7 +121,7 @@ router.post('/checkout', async (req, res) => {
     .run(check_out_date, tenant_id);
   db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('vacant', lot_id);
 
-  const tenant = db.prepare('SELECT first_name, last_name, deposit_amount, deposit_waived, monthly_rent, credit_balance, lot_id, phone, email FROM tenants WHERE id = ?').get(tenant_id);
+  const tenant = db.prepare('SELECT first_name, last_name, deposit_amount, deposit_waived, monthly_rent, credit_balance, lot_id, phone, email, move_in_date FROM tenants WHERE id = ?').get(tenant_id);
   const tenantName = tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Unknown';
   const monthlyRent = Number(tenant?.monthly_rent) || 0;
   const deposit = Number(tenant?.deposit_amount) || 0;
@@ -212,10 +212,18 @@ router.post('/checkout', async (req, res) => {
       VALUES (?, 'applied_to_invoice', ?, ?)`).run(tenant_id, -tenantCredit, 'Credit applied at move-out settlement');
   }
 
+  // Generate statement number: MO-YYYY-MM-NNN
+  const coMonth = check_out_date.slice(0, 7); // YYYY-MM
+  const moCount = db.prepare("SELECT COUNT(*) as c FROM checkins WHERE status = 'checked_out' AND check_out_date LIKE ?").get(coMonth + '%')?.c || 1;
+  const statementNumber = 'MO-' + coMonth.replace('-', '-') + '-' + String(moCount).padStart(3, '0');
+
   const statement = {
+    statement_number: statementNumber,
     tenant_name: tenantName,
     lot_id,
+    move_in_date: tenant?.move_in_date || null,
     checkout_date: check_out_date,
+    statement_date: check_out_date,
     monthly_rent: monthlyRent,
     prorate_rent: !!prorate_rent,
     days_occupied: days_occupied || null,

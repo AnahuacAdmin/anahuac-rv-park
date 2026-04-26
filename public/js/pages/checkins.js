@@ -848,16 +848,201 @@ function sLine(label, amount, positive) {
   return '<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.3rem 0">' + label + '</td><td style="padding:0.3rem 0;text-align:right;font-weight:600;color:' + color + '">' + prefix + formatMoney(Math.abs(amount)) + (amount < 0 ? ' (charge)' : '') + '</td></tr>';
 }
 
+function renderMoveOutStatementHtml(s) {
+  var fmtNum = function(v) { return Number(v || 0).toLocaleString(); };
+  var amtCell = function(amount, positive) {
+    var color = amount === 0 ? '#9ca3af' : (positive ? '#16a34a' : '#dc2626');
+    var prefix = positive && amount > 0 ? '+' : (amount < 0 ? '\u2212' : '');
+    return '<td class="text-right" style="color:' + color + '">' + prefix + formatMoney(Math.abs(amount)) + '</td>';
+  };
+  var depLabel = s.deposit_action === 'forfeit' ? 'Forfeited' : s.deposit_action === 'partial' ? 'Partial Refund' : 'Full Refund';
+
+  return '<div class="invoice-print" id="printable-moveout">' +
+    '<div class="invoice-header">' +
+      '<div style="display:flex;align-items:center;gap:1rem">' +
+        '<img src="/park_Logo.png" alt="Anahuac RV Park" style="height:70px;width:auto" crossorigin="anonymous">' +
+        '<div>' +
+          '<h2 style="color:#166534">Anahuac RV Park, LLC</h2>' +
+          '<p>1003 Davis Ave, Anahuac, TX 77514</p>' +
+          '<p>(409) 267-6603 &bull; anrvpark@gmail.com</p>' +
+        '</div>' +
+      '</div>' +
+      '<div style="text-align:right">' +
+        '<h3 style="color:#166534;font-size:1rem">MOVE-OUT<br>SETTLEMENT</h3>' +
+        '<p><strong>' + escapeHtml(s.statement_number || '') + '</strong></p>' +
+        '<p>Date: ' + formatDate(s.statement_date || s.checkout_date) + '</p>' +
+      '</div>' +
+    '</div>' +
+
+    '<div style="display:grid;grid-template-columns:auto 1fr;gap:0.15rem 1rem;font-size:0.82rem;margin-bottom:1rem">' +
+      '<strong>Tenant Name:</strong><span>' + escapeHtml(s.tenant_name) + '</span>' +
+      '<strong>Lot:</strong><span>' + escapeHtml(s.lot_id) + '</span>' +
+      (s.move_in_date ? '<strong>Move-In Date:</strong><span>' + formatDate(s.move_in_date) + '</span>' : '') +
+      '<strong>Move-Out Date:</strong><span>' + formatDate(s.checkout_date) + '</span>' +
+    '</div>' +
+
+    '<div class="line-items">' +
+      '<table>' +
+        '<thead><tr><th style="text-align:left;color:#166534">Description</th><th class="text-right" style="color:#166534">Amount</th></tr></thead>' +
+        '<tbody>' +
+          '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.4rem 0.5rem">RENT SETTLEMENT</td></tr>' +
+          '<tr><td>&nbsp;&nbsp;Monthly Rate</td><td class="text-right">' + formatMoney(s.monthly_rent) + '</td></tr>' +
+          (s.prorate_rent ?
+            '<tr><td>&nbsp;&nbsp;Days Occupied</td><td class="text-right">' + s.days_occupied + ' of ' + s.days_in_month + ' days</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Prorated Rent Owed</td><td class="text-right">' + formatMoney(s.prorated_rent) + '</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Rent Refund</td>' + amtCell(s.rent_refund, true) + '</tr>'
+          :
+            '<tr><td>&nbsp;&nbsp;Prorated Days Used</td><td class="text-right" style="color:#9ca3af">n/a</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Rent Refund</td><td class="text-right" style="color:#9ca3af">$0.00</td></tr>'
+          ) +
+
+          (s.electric_current != null ?
+            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.4rem 0.5rem">FINAL ELECTRIC USAGE</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Previous Reading</td><td class="text-right">' + fmtNum(s.electric_previous) + '</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Final Reading</td><td class="text-right">' + fmtNum(s.electric_current) + '</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;kWh Used</td><td class="text-right">' + fmtNum(s.electric_kwh) + '</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Rate per kWh</td><td class="text-right">$' + Number(s.electric_rate).toFixed(3) + '</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Electric Charge</td>' + amtCell(-s.electric_charge, false) + '</tr>'
+          : '') +
+
+          (s.deposit > 0 ?
+            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.4rem 0.5rem">DEPOSIT</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Deposit on File</td><td class="text-right">' + formatMoney(s.deposit) + '</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Disposition</td><td class="text-right">' + depLabel + (s.deposit_deduction > 0 ? ' (' + escapeHtml(s.deposit_deduction_reason || 'deductions') + ': ' + formatMoney(s.deposit_deduction) + ')' : '') + '</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Deposit Refund</td>' + amtCell(s.deposit_refund, true) + '</tr>'
+          : '') +
+
+          (s.other_total > 0 ?
+            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.4rem 0.5rem">OTHER CHARGES</td></tr>' +
+            (s.other_charges || []).map(function(c) {
+              return '<tr><td>&nbsp;&nbsp;' + escapeHtml(c.description || 'Charge') + '</td>' + amtCell(-Number(c.amount), false) + '</tr>';
+            }).join('')
+          : '') +
+
+          (s.credit_applied > 0 ?
+            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.4rem 0.5rem">ACCOUNT CREDIT</td></tr>' +
+            '<tr><td>&nbsp;&nbsp;Credit Applied</td>' + amtCell(s.credit_applied, true) + '</tr>'
+          : '') +
+
+          '<tr class="total-row"><td style="font-size:1rem;padding:0.5rem 0.5rem">' + (s.net_settlement >= 0 ? 'NET DUE TO TENANT' : 'NET DUE FROM TENANT') + '</td>' +
+            '<td class="text-right" style="font-size:1.1rem;padding:0.5rem 0.5rem;color:' + (s.net_settlement >= 0 ? '#16a34a' : '#dc2626') + '">' +
+            (s.net_settlement >= 0 ? '+' : '\u2212') + formatMoney(Math.abs(s.net_settlement)) + '</td></tr>' +
+        '</tbody>' +
+      '</table>' +
+    '</div>' +
+
+    (s.settlement_method ? '<p style="margin-top:0.5rem"><strong>Refund Method:</strong> ' + escapeHtml(s.settlement_method) + (s.settlement_reference ? ' (Ref: ' + escapeHtml(s.settlement_reference) + ')' : '') + '</p>' : '') +
+
+    '<div style="margin-top:2rem;font-size:0.82rem">' +
+      '<div style="display:flex;gap:2rem;margin-bottom:1.5rem">' +
+        '<div style="flex:1"><p style="margin-bottom:0.75rem">Tenant Signature:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
+        '<div style="width:120px"><p style="margin-bottom:0.75rem">Date:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:2rem">' +
+        '<div style="flex:1"><p style="margin-bottom:0.75rem">Admin Signature:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
+        '<div style="width:120px"><p style="margin-bottom:0.75rem">Date:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div style="margin-top:1.5rem;padding-top:0.75rem;border-top:1px solid #ccc;text-align:center;font-size:0.78rem;color:#374151;line-height:1.5">' +
+      '<p style="margin:0.2rem 0">Thank you for staying at Anahuac RV Park!</p>' +
+      '<p style="margin:0.2rem 0;font-style:italic">Welcome back anytime to the Gator Capital of Texas!</p>' +
+      '<p style="margin:0.5rem 0 0;font-size:0.72rem;color:#78716c">Anahuac RV Park, LLC &bull; 1003 Davis Ave, Anahuac, TX 77514 &bull; (409) 267-6603 &bull; anrvpark@gmail.com</p>' +
+    '</div>' +
+  '</div>';
+}
+
 function printMoveOutPreview() {
-  var summary = document.getElementById('settlement-summary');
-  if (!summary || !_checkoutData) return;
+  if (!_checkoutData) return;
   var t = _checkoutData.tenant;
-  var w = window.open('', '_blank', 'width=600,height=800');
-  w.document.write('<html><head><title>Move-Out Statement</title><style>body{font-family:sans-serif;max-width:550px;margin:2rem auto;font-size:14px} table{width:100%;border-collapse:collapse} td{padding:4px 0} @media print{button{display:none}}</style></head><body>');
-  w.document.write('<div style="text-align:center;margin-bottom:1rem"><strong style="font-size:18px">Anahuac RV Park</strong><br>Move-Out Statement</div>');
-  w.document.write('<div style="margin-bottom:1rem"><strong>Tenant:</strong> ' + escapeHtml(t.first_name + ' ' + t.last_name) + ' &nbsp; <strong>Lot:</strong> ' + escapeHtml(t.lot_id) + ' &nbsp; <strong>Date:</strong> ' + (document.getElementById('checkout-date-input').value || '') + '</div>');
-  w.document.write(summary.innerHTML);
-  w.document.write('<br><button onclick="window.print()">Print</button></body></html>');
+  var d = _checkoutData;
+  var rent = Number(t.flat_rate && t.flat_rate_amount > 0 ? t.flat_rate_amount : t.monthly_rent) || 0;
+  var deposit = Number(t.deposit_amount) || 0;
+  var credit = Number(t.credit_balance) || 0;
+  var coDate = document.getElementById('checkout-date-input').value;
+  var prorateCb = document.getElementById('prorate-checkbox');
+  var elPrev = parseFloat(document.getElementById('electric-prev')?.value) || 0;
+  var elCur = parseFloat(document.getElementById('electric-current')?.value) || 0;
+  var depAction = document.getElementById('deposit-action-select');
+
+  var daysMonth = parseInt(document.getElementById('prorate-days-month')?.value) || 30;
+  var daysOcc = parseInt(document.getElementById('prorate-days-occupied')?.value) || 0;
+  var prorateRent = prorateCb && prorateCb.checked;
+  var dailyRate = +(rent / daysMonth).toFixed(2);
+  var proratedRent = prorateRent ? +(dailyRate * daysOcc).toFixed(2) : rent;
+  var rentRefund = prorateRent ? Math.max(0, +(rent - proratedRent).toFixed(2)) : 0;
+
+  var elRate = d.electricRate || 0.15;
+  var kwh = elCur > elPrev ? elCur - elPrev : 0;
+  var electricCharge = +(kwh * elRate).toFixed(2);
+
+  var depositRefund = 0;
+  var depDed = 0;
+  if (depAction && deposit > 0) {
+    if (depAction.value === 'full_refund') depositRefund = deposit;
+    else if (depAction.value === 'partial') {
+      depDed = parseFloat(document.getElementById('deposit-deduction-input')?.value) || 0;
+      depositRefund = +(deposit - Math.min(depDed, deposit)).toFixed(2);
+    }
+  }
+
+  var otherTotal = 0;
+  var charges = [];
+  _checkoutOtherCharges.forEach(function(c) {
+    if (c && c.amount > 0) { otherTotal += Number(c.amount); charges.push(c); }
+  });
+  otherTotal = +otherTotal.toFixed(2);
+  var net = +(rentRefund + depositRefund + credit - electricCharge - otherTotal).toFixed(2);
+
+  var previewData = {
+    statement_number: 'PREVIEW',
+    tenant_name: t.first_name + ' ' + t.last_name,
+    lot_id: t.lot_id,
+    move_in_date: t.move_in_date || null,
+    checkout_date: coDate,
+    statement_date: coDate,
+    monthly_rent: rent,
+    prorate_rent: prorateRent,
+    days_occupied: daysOcc,
+    days_in_month: daysMonth,
+    prorated_rent: proratedRent,
+    rent_refund: rentRefund,
+    electric_previous: elCur > 0 ? elPrev : null,
+    electric_current: elCur > 0 ? elCur : null,
+    electric_kwh: kwh,
+    electric_rate: elRate,
+    electric_charge: electricCharge,
+    deposit: deposit,
+    deposit_action: depAction ? depAction.value : null,
+    deposit_refund: depositRefund,
+    deposit_deduction: depDed,
+    deposit_deduction_reason: document.getElementById('deposit-deduction-reason')?.value || '',
+    other_charges: charges,
+    other_total: otherTotal,
+    credit_applied: credit,
+    net_settlement: net,
+    settlement_method: document.querySelector('input[name="settlement_method"]:checked')?.value || 'Cash',
+    settlement_reference: document.querySelector('input[name="settlement_reference"]')?.value || '',
+  };
+
+  var w = window.open('', '_blank', 'width=700,height=900');
+  w.document.write('<!DOCTYPE html><html><head><title>Move-Out Statement — ' + escapeHtml(previewData.tenant_name) + '</title>');
+  w.document.write('<style>');
+  w.document.write('body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:1.5rem;color:#111827;font-size:13px;line-height:1.4}');
+  w.document.write('.invoice-print{max-width:700px;margin:0 auto;font-size:0.82rem;line-height:1.4}');
+  w.document.write('.invoice-header{display:flex;justify-content:space-between;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:2px solid #111827}');
+  w.document.write('.invoice-header img{max-height:70px;width:auto}');
+  w.document.write('h2{font-size:1.1rem;margin:0 0 0.2rem} h3{font-size:1rem;margin:0 0 0.2rem} p{margin:0.15rem 0}');
+  w.document.write('.line-items{margin:0.75rem 0} .line-items table{width:100%;border-collapse:collapse;font-size:0.82rem}');
+  w.document.write('.line-items th,.line-items td{padding:0.3rem 0.5rem;border-bottom:1px solid #e5e7eb}');
+  w.document.write('.text-right{text-align:right}');
+  w.document.write('.total-row{font-weight:700;border-top:2px solid #111827!important}');
+  w.document.write('.total-row td{border-bottom:2px solid #111827!important}');
+  w.document.write('@media print{.no-print{display:none!important} @page{margin:0.5in;size:letter portrait}}');
+  w.document.write('</style></head><body>');
+  w.document.write(renderMoveOutStatementHtml(previewData));
+  w.document.write('<div class="no-print" style="text-align:center;margin-top:1rem"><button onclick="window.print()" style="padding:0.5rem 2rem;font-size:1rem;cursor:pointer;background:#166534;color:#fff;border:none;border-radius:6px">Print Statement</button></div>');
+  w.document.write('</body></html>');
   w.document.close();
 }
 
@@ -904,35 +1089,12 @@ async function processCheckOut(e) {
     // Show Move-Out Statement
     var s = result.statement;
     if (s) {
-      showModal('Move-Out Statement', `
-        <div style="max-width:520px;margin:0 auto">
-          <div style="text-align:center;border-bottom:2px solid var(--gray-200);padding-bottom:0.75rem;margin-bottom:1rem">
-            <div style="font-size:1.1rem;font-weight:700;color:var(--brand-primary,#1a5c32)">Anahuac RV Park</div>
-            <div style="font-size:0.8rem;color:var(--gray-500)">Move-Out Statement</div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.9rem;margin-bottom:1rem">
-            <div><strong>Tenant:</strong> ${escapeHtml(s.tenant_name)}</div>
-            <div><strong>Lot:</strong> ${escapeHtml(s.lot_id)}</div>
-            <div><strong>Move-Out:</strong> ${formatDate(s.checkout_date)}</div>
-            <div><strong>Monthly Rent:</strong> ${formatMoney(s.monthly_rent)}</div>
-          </div>
-          <table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin-bottom:1rem">
-            <tbody>
-              <tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Rent refund${s.prorate_rent ? ' (' + s.days_occupied + '/' + s.days_in_month + ' days prorated)' : ' (no proration)'}</td><td style="padding:0.4rem 0;text-align:right;font-weight:600;color:#16a34a">${s.rent_refund > 0 ? '+' + formatMoney(s.rent_refund) : '$0.00'}</td></tr>
-              ${s.electric_charge > 0 ? '<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Electric (' + s.electric_kwh + ' kWh @ $' + s.electric_rate.toFixed(2) + ')</td><td style="padding:0.4rem 0;text-align:right;font-weight:600;color:#dc2626">-' + formatMoney(s.electric_charge) + '</td></tr>' : ''}
-              <tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Deposit${s.deposit_action === 'forfeit' ? ' (forfeited)' : s.deposit_action === 'partial' ? ' (partial — ' + (s.deposit_deduction_reason || 'deductions') + ')' : ' (full refund)'}</td><td style="padding:0.4rem 0;text-align:right;font-weight:600;color:${s.deposit_refund > 0 ? '#16a34a' : 'var(--gray-400)'}">+${formatMoney(s.deposit_refund)}</td></tr>
-              ${s.other_total > 0 ? '<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Other charges</td><td style="padding:0.4rem 0;text-align:right;font-weight:600;color:#dc2626">-' + formatMoney(s.other_total) + '</td></tr>' : ''}
-              ${s.credit_applied > 0 ? '<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Existing credit</td><td style="padding:0.4rem 0;text-align:right;font-weight:600;color:#16a34a">+' + formatMoney(s.credit_applied) + '</td></tr>' : ''}
-              <tr style="border-top:2px solid var(--gray-900)"><td style="padding:0.5rem 0;font-weight:700;font-size:1.05rem">${s.net_settlement >= 0 ? 'NET DUE TO TENANT' : 'NET DUE FROM TENANT'}</td><td style="padding:0.5rem 0;text-align:right;font-weight:700;font-size:1.1rem;color:${s.net_settlement >= 0 ? '#16a34a' : '#dc2626'}">${s.net_settlement >= 0 ? '+' : ''}${formatMoney(Math.abs(s.net_settlement))}</td></tr>
-            </tbody>
-          </table>
-          ${s.settlement_method ? '<div style="font-size:0.85rem;color:var(--gray-500);margin-bottom:1rem">Method: ' + escapeHtml(s.settlement_method) + (s.settlement_reference ? ' (Ref: ' + escapeHtml(s.settlement_reference) + ')' : '') + '</div>' : ''}
-          <div class="btn-group" style="justify-content:center">
-            <button class="btn btn-outline" onclick="window.print()">Print</button>
-            <button class="btn btn-primary" onclick="closeModal();promptReviewRequest(${result.tenant_id},\`${escapeHtml(s.tenant_name)}\`)">Done</button>
-          </div>
-        </div>
-      `);
+      showModal('Move-Out Statement', renderMoveOutStatementHtml(s) +
+        '<div class="btn-group no-print" style="justify-content:center;margin-top:1rem">' +
+          '<button class="btn btn-outline" onclick="printMoveOutFromModal()">Print</button>' +
+          '<button class="btn btn-primary" onclick="closeModal();promptReviewRequest(' + result.tenant_id + ',\'' + escapeHtml(s.tenant_name).replace(/'/g, "\\'") + '\')">Done</button>' +
+        '</div>'
+      );
     } else {
       promptReviewRequest(result.tenant_id, result.tenant_name || 'this tenant');
     }
@@ -941,6 +1103,30 @@ async function processCheckOut(e) {
     if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }
     else alert('Check-out failed: ' + msg);
   }
+}
+
+function printMoveOutFromModal() {
+  var el = document.getElementById('printable-moveout');
+  if (!el) { window.print(); return; }
+  var w = window.open('', '_blank', 'width=700,height=900');
+  w.document.write('<!DOCTYPE html><html><head><title>Move-Out Settlement Statement</title>');
+  w.document.write('<style>');
+  w.document.write('body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:1.5rem;color:#111827;font-size:13px;line-height:1.4}');
+  w.document.write('.invoice-print{max-width:700px;margin:0 auto;font-size:0.82rem;line-height:1.4}');
+  w.document.write('.invoice-header{display:flex;justify-content:space-between;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:2px solid #111827}');
+  w.document.write('.invoice-header img{max-height:70px;width:auto}');
+  w.document.write('h2{font-size:1.1rem;margin:0 0 0.2rem} h3{font-size:1rem;margin:0 0 0.2rem} p{margin:0.15rem 0}');
+  w.document.write('.line-items{margin:0.75rem 0} .line-items table{width:100%;border-collapse:collapse;font-size:0.82rem}');
+  w.document.write('.line-items th,.line-items td{padding:0.3rem 0.5rem;border-bottom:1px solid #e5e7eb}');
+  w.document.write('.text-right{text-align:right}');
+  w.document.write('.total-row{font-weight:700;border-top:2px solid #111827!important}');
+  w.document.write('.total-row td{border-bottom:2px solid #111827!important}');
+  w.document.write('@media print{.no-print{display:none!important} @page{margin:0.5in;size:letter portrait}}');
+  w.document.write('</style></head><body>');
+  w.document.write(el.outerHTML);
+  w.document.write('<div class="no-print" style="text-align:center;margin-top:1rem"><button onclick="window.print()" style="padding:0.5rem 2rem;font-size:1rem;cursor:pointer;background:#166534;color:#fff;border:none;border-radius:6px">Print Statement</button></div>');
+  w.document.write('</body></html>');
+  w.document.close();
 }
 
 async function printWelcomeCard(tenantName, lotId, tenantId) {
