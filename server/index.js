@@ -132,6 +132,14 @@ app.use('/api/search', require('./routes/search'));
 app.use('/api/reservations', require('./routes/reservations'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/weather-alerts', require('./routes/weather-alerts'));
+app.use('/api/water-meters', require('./routes/water-meters'));
+app.use('/api/lost-found', require('./routes/lost-found'));
+app.use('/api/birding', require('./routes/birding'));
+app.use('/api/hunting-fishing', require('./routes/hunting-fishing'));
+
+// Public pages — serve without .html extension so /privacy and /terms work
+app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'privacy.html')));
+app.get('/terms', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'terms.html')));
 
 // SPA fallback
 app.get('*', (req, res) => {
@@ -167,6 +175,7 @@ initializeDatabase()
       try { require('./routes/health').startHealthMonitor(); } catch (e) { console.error('[health-monitor] failed to start:', e.message); }
       try { require('./jobs/weatherJob').start(); } catch (e) { console.error('[weather-job] failed to start:', e.message); }
       try { require('./jobs/reminderJob').start(); } catch (e) { console.error('[reminder-job] failed to start:', e.message); }
+      try { require('./jobs/birthdayJob').start(); } catch (e) { console.error('[birthday-job] failed to start:', e.message); }
     });
   })
   .catch((err) => {
