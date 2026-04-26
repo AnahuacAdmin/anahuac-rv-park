@@ -16,12 +16,13 @@ async function loadMessages() {
     <div class="page-header">
       <h2>Messaging</h2>
       <div class="btn-group">
-        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-primary" onclick="showSendMessage()">Send Message</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">Payment · Weather · Custom</span></div>
-        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-warning" onclick="showBroadcast()">Broadcast to All</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">Announcements · Outages</span></div>
-        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-danger" onclick="showAdvancedBroadcast()">Send Notification</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">In-app alerts · No SMS cost</span></div>
-        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-success" onclick="showSharePortal()">📲 Share Tenant Portal</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">Send portal login link</span></div>
-        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-danger" onclick="showEmergencyBroadcast()">🚨 Emergency Alert</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">Weather · Power · Urgent</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-primary" onclick="showSendMessage()">Send Message</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">SMS + Email · SMS Only · Email Only</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-warning" onclick="showBroadcast()">Broadcast to All</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">SMS + Email · SMS Only · Email Only</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-danger" onclick="showAdvancedBroadcast()">Send Notification</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">In-app notification</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-success" onclick="showSharePortal()">📲 Share Tenant Portal</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">SMS + Email</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-danger" onclick="showEmergencyBroadcast()">🚨 Emergency Alert</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">SMS + Email · All tenants</span></div>
       </div>
+      <div style="text-align:center;margin-top:12px;font-size:12px;color:#666;font-style:italic">In-app notifications and email are free. SMS messages incur Twilio charges per text.</div>
     </div>
     <div class="card">
       <div class="table-container">
