@@ -6,6 +6,30 @@
  */
 let _messagesCache = [];
 
+function _msgDeliveryOption(name, value, emoji, label, desc, checked) {
+  return '<label style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.85rem;border:1.5px solid ' + (checked ? '#1a5c32' : '#e0e0e0') + ';border-radius:8px;background:' + (checked ? '#f0fdf4' : '#fff') + ';cursor:pointer;transition:all 0.15s ease;font-weight:400" data-delivery-group="' + name + '">' +
+    '<input type="radio" name="' + name + '" value="' + value + '"' + (checked ? ' checked' : '') + ' style="accent-color:#1a5c32;width:16px;height:16px;flex-shrink:0">' +
+    '<span style="font-size:1.1rem;flex-shrink:0">' + emoji + '</span>' +
+    '<span style="flex:1"><strong style="font-size:0.88rem;color:#1c1917">' + label + '</strong>' +
+    '<span style="display:block;font-size:0.76rem;color:#78716c;margin-top:1px">' + desc + '</span></span></label>';
+}
+
+function _initDeliveryRadios(groupName) {
+  setTimeout(function() {
+    var allOpts = document.querySelectorAll('[data-delivery-group="' + groupName + '"]');
+    document.querySelectorAll('input[name="' + groupName + '"]').forEach(function(radio) {
+      radio.addEventListener('change', function() {
+        var mode = this.value;
+        allOpts.forEach(function(opt) {
+          var isSelected = opt.querySelector('input').value === mode;
+          opt.style.borderColor = isSelected ? '#1a5c32' : '#e0e0e0';
+          opt.style.background = isSelected ? '#f0fdf4' : '#fff';
+        });
+      });
+    });
+  }, 50);
+}
+
 async function loadMessages() {
   const messages = await API.get('/messages');
   if (!messages) return;
@@ -15,15 +39,26 @@ async function loadMessages() {
     ${helpPanel('messages')}
     <div class="page-header">
       <h2>Messaging</h2>
-      <div class="btn-group">
-        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-primary" onclick="showSendMessage()">Send Message</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">SMS + Email · SMS Only · Email Only</span></div>
-        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-warning" onclick="showBroadcast()">Broadcast to All</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">SMS + Email · SMS Only · Email Only</span></div>
-        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-danger" onclick="showAdvancedBroadcast()">Send Notification</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">In-app notification</span></div>
-        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-success" onclick="showSharePortal()">📲 Share Tenant Portal</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">SMS + Email</span></div>
-        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-danger" onclick="showEmergencyBroadcast()">🚨 Emergency Alert</button><span style="font-size:11px;color:#555;font-weight:500;margin-top:3px">SMS + Email · All tenants</span></div>
+      <div class="messaging-buttons">
+        <div class="messaging-btn-wrap"><button class="btn btn-primary" onclick="showSendMessage()">Send Message</button><span class="messaging-btn-sub">General message to one tenant</span></div>
+        <div class="messaging-btn-wrap"><button class="btn btn-warning" onclick="showBroadcast()">Broadcast to All</button><span class="messaging-btn-sub">Notice · Reminder · Urgent · Maintenance</span></div>
+        <div class="messaging-btn-wrap"><button class="btn btn-success" onclick="showSharePortal()">Share Tenant Portal</button><span class="messaging-btn-sub">Send portal login link</span></div>
+        <div class="messaging-btn-wrap"><button class="btn btn-danger" onclick="showEmergencyBroadcast()">Emergency Alert</button><span class="messaging-btn-sub">Hurricane · Tornado · Flood · Fire · Power · Custom</span></div>
       </div>
       <div style="text-align:center;margin-top:12px;font-size:12px;color:#666;font-style:italic">In-app notifications and email are free. SMS messages incur Twilio charges per text.</div>
     </div>
+    <style>
+      .messaging-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+      .messaging-btn-wrap { display: flex; flex-direction: column; align-items: center; }
+      .messaging-btn-wrap .btn { min-width: 140px; }
+      .messaging-btn-sub { font-size: 11px; color: #555; font-weight: 500; margin-top: 3px; text-align: center; max-width: 160px; line-height: 1.3; }
+      @media (max-width: 768px) {
+        .messaging-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .messaging-btn-wrap { align-items: stretch; }
+        .messaging-btn-wrap .btn { width: 100%; min-width: 0; }
+        .messaging-btn-sub { align-self: center; }
+      }
+    </style>
     <div class="card">
       <div class="table-container">
         <table>
@@ -51,6 +86,7 @@ async function loadMessages() {
   `;
 }
 
+// --- Send Message (single tenant, all delivery methods) ---
 async function showSendMessage() {
   const tenants = await API.get('/tenants');
   showModal('Send Message', `
@@ -59,34 +95,55 @@ async function showSendMessage() {
         <label>To Tenant</label>
         <select name="tenant_id" required>
           <option value="">Select tenant...</option>
-          ${tenants.map(t => `<option value="${t.id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
+          ${tenants.map(t => '<option value="' + t.id + '">' + (t.lot_id || '?') + ' - ' + t.first_name + ' ' + t.last_name + '</option>').join('')}
         </select>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Subject</label><input name="subject" required></div>
-        <div class="form-group">
-          <label>Type</label>
-          <select name="message_type">
-            <option value="notice">Notice</option>
-            <option value="reminder">Reminder</option>
-            <option value="urgent">Urgent</option>
-            <option value="maintenance">Maintenance</option>
-          </select>
+      <div class="form-group"><label>Subject</label><input name="subject" required></div>
+      <div class="form-group"><label>Message</label><textarea name="body" rows="5" required></textarea></div>
+      <div style="margin-bottom:1rem">
+        <div style="font-size:0.72rem;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.4rem">Delivery method</div>
+        <div style="display:flex;flex-direction:column;gap:0.35rem">
+          ${_msgDeliveryOption('msg-delivery', 'portal', '📋', 'Portal Only', 'Posts to tenant inbox (free)', true)}
+          ${_msgDeliveryOption('msg-delivery', 'email', '📧', 'Email Only', 'Sends email (free)', false)}
+          ${_msgDeliveryOption('msg-delivery', 'sms', '📱', 'SMS Only', 'Sends text message (Twilio charges)', false)}
+          ${_msgDeliveryOption('msg-delivery', 'both', '📱📧', 'SMS + Email', 'Both channels (Twilio charges for SMS)', false)}
+          ${_msgDeliveryOption('msg-delivery', 'record', '📝', 'Record Only', 'Log only, no delivery', false)}
         </div>
       </div>
-      <div class="form-group"><label>Message</label><textarea name="body" rows="5" required></textarea></div>
-      <div class="form-group">
-        <label>Delivery Method</label>
-        <select name="delivery_method">
-          <option value="record">Record Only (no send)</option>
-          <option value="sms">Send via SMS (Twilio)</option>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-primary btn-full mt-2">Send</button>
+      <button type="submit" class="btn btn-primary btn-full">Send Message</button>
     </form>
   `);
+  _initDeliveryRadios('msg-delivery');
 }
 
+async function sendMessage(e) {
+  e.preventDefault();
+  const form = new FormData(e.target);
+  const delivery = document.querySelector('input[name="msg-delivery"]:checked')?.value || 'portal';
+  try {
+    const r = await API.post('/messages', {
+      tenant_id: parseInt(form.get('tenant_id')),
+      subject: form.get('subject'),
+      body: form.get('body'),
+      message_type: 'notice',
+      delivery_method: delivery === 'portal' ? 'record' : delivery,
+      is_broadcast: false
+    });
+    closeModal();
+    if (delivery === 'record') {
+      showStatusToast('OK', 'Message recorded (not sent).');
+    } else if (delivery === 'portal') {
+      showStatusToast('OK', 'Message posted to tenant portal.');
+    } else {
+      showStatusToast('OK', 'Message sent!');
+    }
+    loadMessages();
+  } catch (err) {
+    alert('Send failed: ' + (err.message || 'unknown'));
+  }
+}
+
+// --- Broadcast to All ---
 function showBroadcast() {
   showModal('Broadcast to All Tenants', `
     <form onsubmit="sendBroadcast(event)">
@@ -103,49 +160,33 @@ function showBroadcast() {
         </div>
       </div>
       <div class="form-group"><label>Message</label><textarea name="body" rows="5" required></textarea></div>
-      <div class="form-group">
-        <label>Delivery Method</label>
-        <select name="delivery_method">
-          <option value="record">Record Only (no send)</option>
-          <option value="sms">Send via SMS (Twilio) to all tenants with phone</option>
-        </select>
+      <div style="margin-bottom:1rem">
+        <div style="font-size:0.72rem;font-weight:600;color:#78716c;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.4rem">Delivery method</div>
+        <div style="display:flex;flex-direction:column;gap:0.35rem">
+          ${_msgDeliveryOption('bcast-delivery', 'portal', '📋', 'Portal Only', 'Posts to all tenant inboxes (free)', true)}
+          ${_msgDeliveryOption('bcast-delivery', 'email', '📧', 'Email Only', 'Sends email to all tenants (free)', false)}
+          ${_msgDeliveryOption('bcast-delivery', 'sms', '📱', 'SMS Only', 'Texts all tenants (Twilio charges)', false)}
+          ${_msgDeliveryOption('bcast-delivery', 'both', '📱📧', 'SMS + Email', 'Both channels (Twilio charges for SMS)', false)}
+          ${_msgDeliveryOption('bcast-delivery', 'record', '📝', 'Record Only', 'Log only, no delivery', false)}
+        </div>
       </div>
       <p style="color:var(--warning);font-size:0.9rem">This will send to all active tenants.</p>
       <button type="submit" class="btn btn-warning btn-full mt-2">Send to All</button>
     </form>
   `);
-}
-
-async function sendMessage(e) {
-  e.preventDefault();
-  const form = new FormData(e.target);
-  try {
-    const r = await API.post('/messages', {
-      tenant_id: parseInt(form.get('tenant_id')),
-      subject: form.get('subject'),
-      body: form.get('body'),
-      message_type: form.get('message_type'),
-      delivery_method: form.get('delivery_method'),
-      is_broadcast: false
-    });
-    closeModal();
-    if (r?.smsSent) alert('Message recorded and SMS sent.');
-    else if (r?.smsFailed) alert('Message recorded. SMS failed: ' + (r.errors?.join('; ') || 'unknown'));
-    loadMessages();
-  } catch (err) {
-    alert('Send failed: ' + (err.message || 'unknown'));
-  }
+  _initDeliveryRadios('bcast-delivery');
 }
 
 async function sendBroadcast(e) {
   e.preventDefault();
   const form = new FormData(e.target);
+  const delivery = document.querySelector('input[name="bcast-delivery"]:checked')?.value || 'portal';
   try {
     const result = await API.post('/messages', {
       subject: form.get('subject'),
       body: form.get('body'),
       message_type: form.get('message_type'),
-      delivery_method: form.get('delivery_method'),
+      delivery_method: delivery === 'portal' ? 'record' : delivery,
       is_broadcast: true
     });
     closeModal();
@@ -160,6 +201,7 @@ async function sendBroadcast(e) {
   }
 }
 
+// --- View / Delete messages ---
 function viewMessage(id, subject, body, tenant) {
   showModal(escapeHtml(subject || 'Message'), `
     <p><strong>To:</strong> ${escapeHtml(tenant)}</p>
@@ -181,7 +223,7 @@ async function deleteMessage(id) {
   loadMessages();
 }
 
-// --- Advanced Notification System ---
+// --- Advanced Notification System (kept for API compatibility) ---
 const MSG_TEMPLATES = {
   late_payment: { subject: 'Payment Reminder', message: 'Hi [name], your account at Anahuac RV Park has a balance due. Please pay at anrvpark.com or call 409-267-6603.' },
   weather_emergency: { subject: 'WEATHER EMERGENCY', message: 'URGENT - Anahuac RV Park: Please take necessary precautions for the incoming weather event. Secure outdoor items, stay indoors if possible. Call 409-267-6603 for assistance.' },
@@ -189,55 +231,6 @@ const MSG_TEMPLATES = {
   general: { subject: 'Park Announcement', message: 'Anahuac RV Park: ' },
   custom: { subject: '', message: '' },
 };
-
-async function showAdvancedBroadcast() {
-  const lots = await API.get('/lots');
-  showModal('Send Notification', `
-    <form onsubmit="sendAdvancedBroadcast(event)">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Message Type</label>
-          <select name="message_type" onchange="fillTemplate(this.value)">
-            <option value="late_payment">Late Payment Reminder</option>
-            <option value="weather_emergency">Weather/Climate Emergency</option>
-            <option value="power_outage">Power Outage Notice</option>
-            <option value="general">General Announcement</option>
-            <option value="custom">Custom Message</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Recipients</label>
-          <select name="recipients">
-            <option value="all">All Tenants</option>
-            <option value="unpaid">Unpaid Tenants Only</option>
-            ${(lots || []).filter(l => l.status === 'occupied').map(l => `<option value="lot:${l.id}">Lot ${l.id}${l.first_name ? ' — ' + l.first_name + ' ' + l.last_name : ''}</option>`).join('')}
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Delivery Method</label>
-        <select name="delivery">
-          <option value="both">SMS + Email</option>
-          <option value="sms">SMS Only</option>
-          <option value="email">Email Only</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Subject</label>
-        <input name="subject" id="notif-subject" value="${MSG_TEMPLATES.late_payment.subject}">
-      </div>
-      <div class="form-group">
-        <label>Message <small>(use [name] for tenant name, [lot] for lot #)</small></label>
-        <textarea name="message" id="notif-message" rows="5">${MSG_TEMPLATES.late_payment.message}</textarea>
-      </div>
-      <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem;font-size:0.8rem;color:#1e40af">
-        Respects tenant preferences: tenants who opted out of SMS/email will be skipped automatically.
-      </div>
-      <button type="submit" class="btn btn-danger btn-full">Send Notification</button>
-      <p id="notif-error" class="error-text" style="display:none"></p>
-    </form>
-  `);
-}
 
 function fillTemplate(type) {
   const t = MSG_TEMPLATES[type] || MSG_TEMPLATES.custom;
@@ -262,10 +255,10 @@ async function sendAdvancedBroadcast(e) {
   }
   if (!confirm(`Send this notification to ${data.recipients === 'all' ? 'ALL tenants' : data.recipients === 'unpaid' ? 'unpaid tenants' : data.recipients}?`)) return;
 
-  const toast = showStatusToast('📢', 'Sending notifications...', -1);
+  const toast = showStatusToast('Sending', 'Sending notifications...', -1);
   try {
     const r = await API.post('/messages/broadcast-advanced', data);
-    toast.update('✅', 'Notifications sent!');
+    toast.update('OK', 'Notifications sent!');
     toast.hide(3000);
     closeModal();
     let msg = `Notification complete!\n\n`;
@@ -288,13 +281,13 @@ const PORTAL_MSG_TEMPLATE = (name) => `Hi ${name}! Anahuac RV Park now has an on
 async function showSharePortal() {
   const tenants = await API.get('/tenants');
   if (!tenants) return;
-  showModal('📲 Share Tenant Portal', `
+  showModal('Share Tenant Portal', `
     <p style="margin-bottom:1rem;font-size:0.9rem;color:var(--gray-500)">Send the portal link to tenants via SMS so they can view their balance and pay online.</p>
     <div class="form-group">
       <label>Send To</label>
       <select id="portal-recipient" onchange="portalRecipientChanged()">
         <option value="">Select a tenant...</option>
-        <option value="ALL">📢 ALL Active Tenants</option>
+        <option value="ALL">ALL Active Tenants</option>
         ${tenants.filter(t => t.phone).map(t => `<option value="${t.id}" data-name="${t.first_name}" data-phone="${t.phone}">${t.lot_id} — ${t.first_name} ${t.last_name} (${t.phone})</option>`).join('')}
       </select>
     </div>
@@ -325,7 +318,7 @@ async function sendPortalLink() {
 
   if (sel.value === 'ALL') {
     if (!confirm('Send the portal link to ALL active tenants with phone numbers? This may send many SMS messages.')) return;
-    const toast = showStatusToast('📲', 'Sending portal links...', -1);
+    const toast = showStatusToast('Sending', 'Sending portal links...', -1);
     try {
       const r = await API.post('/messages/broadcast-advanced', {
         message_type: 'portal_invite',
@@ -334,7 +327,7 @@ async function sendPortalLink() {
         subject: 'Tenant Portal',
         message: msg.replace('[Name]', '[name]'),
       });
-      toast.update('✅', `Portal links sent!`);
+      toast.update('OK', 'Portal links sent!');
       toast.hide(3000);
       closeModal();
       setTimeout(() => alert(`Sent: ${r.smsSent}\nSkipped (no phone/opted out): ${r.smsSkipped}\nFailed: ${r.smsFailed}`), 500);
@@ -350,7 +343,7 @@ async function sendPortalLink() {
     if (!phone) { if (errEl) { errEl.textContent = 'This tenant has no phone number.'; errEl.style.display = ''; } return; }
 
     const personalMsg = msg.replace('[Name]', name).replace('[name]', name);
-    const toast = showStatusToast('📲', `Sending to ${name}...`, -1);
+    const toast = showStatusToast('Sending', `Sending to ${name}...`, -1);
     try {
       await API.post('/messages', {
         tenant_id: parseInt(sel.value),
@@ -360,7 +353,7 @@ async function sendPortalLink() {
         delivery_method: 'sms',
         is_broadcast: false,
       });
-      toast.update('✅', `Portal link sent to ${name}!`);
+      toast.update('OK', `Portal link sent to ${name}!`);
       toast.hide(3000);
       closeModal();
       loadMessages();
