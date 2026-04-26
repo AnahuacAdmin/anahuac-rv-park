@@ -33,6 +33,35 @@ function getResend() {
   return _resend;
 }
 
+// Helper: send email to a single tenant via Resend
+async function sendEmailToTenant(tenant, subject, bodyText) {
+  const resend = getResend();
+  if (!resend) {
+    console.warn('[messages] Email not configured (RESEND_API_KEY missing). Skipping email.');
+    return { sent: false, skipped: true, error: 'Email not configured' };
+  }
+  if (!tenant.email_opt_in || !tenant.email) {
+    return { sent: false, skipped: true, error: 'No email or opted out' };
+  }
+  try {
+    const emailSubject = subject
+      ? `Hi ${tenant.first_name} — ${subject}`
+      : `Hi ${tenant.first_name} — A message from Anahuac RV Park`;
+    await resend.emails.send({
+      from: FROM_ADDRESS,
+      reply_to: REPLY_TO,
+      to: tenant.email,
+      subject: emailSubject,
+      text: bodyText + EMAIL_FOOTER_TEXT,
+      html: `<p>${bodyText.replace(/\n/g, '<br>')}</p>${EMAIL_FOOTER_HTML}`,
+      headers: { 'List-Unsubscribe': '<mailto:anrvpark@gmail.com?subject=unsubscribe>' },
+    });
+    return { sent: true };
+  } catch (e) {
+    return { sent: false, error: e.message };
+  }
+}
+
 router.get('/', (req, res) => {
   const messages = db.prepare(`
     SELECT m.*, t.first_name, t.last_name, t.lot_id
@@ -43,42 +72,95 @@ router.get('/', (req, res) => {
   res.json(messages);
 });
 
+// Send message — supports all delivery methods:
+//   portal — save to tenant portal inbox (visible to tenant)
+//   email  — save to portal + send email via Resend
+//   sms    — save to portal + send SMS via Twilio
+//   both   — save to portal + send email + send SMS
+//   record — admin log only, NOT visible to tenant
 router.post('/', async (req, res) => {
   const { tenant_id, subject, body, message_type, is_broadcast, delivery_method } = req.body;
-  const wantsSms = delivery_method === 'sms';
+  const dm = delivery_method || 'portal';
+  const wantPortal = dm !== 'record';
+  const wantSms = dm === 'sms' || dm === 'both';
+  const wantEmail = dm === 'email' || dm === 'both';
   const smsBody = `${PARK_PREFIX}${subject ? subject + ' — ' : ''}${body}`;
 
-  let smsSent = 0;
-  let smsFailed = 0;
+  let smsSent = 0, smsFailed = 0, smsSkipped = 0;
+  let emailSent = 0, emailFailed = 0, emailSkipped = 0;
   const errors = [];
 
   try {
     if (is_broadcast) {
-      const tenants = db.prepare('SELECT id, phone FROM tenants WHERE is_active = 1').all();
-      const insert = db.prepare(`
-        INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast) VALUES (?, ?, ?, ?, 1)
-      `);
+      const tenants = db.prepare('SELECT id, first_name, last_name, phone, email, sms_opt_in, email_opt_in FROM tenants WHERE is_active = 1').all();
+      const insert = db.prepare(
+        'INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast) VALUES (?, ?, ?, ?, 1)'
+      );
+
       for (const t of tenants) {
-        insert.run(t.id, subject, body, message_type || 'notice');
-        if (wantsSms && t.phone) {
-          try { await sendSms(t.phone, smsBody); smsSent++; }
-          catch (e) { smsFailed++; errors.push(`tenant ${t.id}: ${e.message}`); }
+        // Portal: insert into messages table (visible to tenant)
+        if (wantPortal) {
+          insert.run(t.id, subject, body, message_type || 'notice');
+        }
+
+        // SMS
+        if (wantSms) {
+          if (!t.sms_opt_in || !t.phone) { smsSkipped++; }
+          else {
+            try { await sendSms(t.phone, smsBody); smsSent++; }
+            catch (e) { smsFailed++; errors.push(`SMS tenant ${t.id}: ${e.message}`); }
+          }
+        }
+
+        // Email
+        if (wantEmail) {
+          const r = await sendEmailToTenant(t, subject, body);
+          if (r.sent) emailSent++;
+          else if (r.skipped) emailSkipped++;
+          else { emailFailed++; errors.push(`Email tenant ${t.id}: ${r.error}`); }
         }
       }
-      res.json({ sent: tenants.length, smsSent, smsFailed, errors });
+
+      res.json({
+        sent: tenants.length, smsSent, smsFailed, smsSkipped,
+        emailSent, emailFailed, emailSkipped, errors: errors.slice(0, 10)
+      });
     } else {
-      const result = db.prepare(`
-        INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast) VALUES (?, ?, ?, ?, 0)
-      `).run(tenant_id, subject, body, message_type || 'notice');
-      if (wantsSms) {
-        const t = db.prepare('SELECT phone FROM tenants WHERE id = ?').get(tenant_id);
-        if (!t?.phone) {
-          return res.json({ id: result.lastInsertRowid, smsSent: 0, smsFailed: 1, errors: ['No phone on file'] });
-        }
-        try { await sendSms(t.phone, smsBody); smsSent = 1; }
-        catch (e) { smsFailed = 1; errors.push(e.message); }
+      // Single-tenant message
+      const t = db.prepare('SELECT id, first_name, last_name, phone, email, sms_opt_in, email_opt_in FROM tenants WHERE id = ?').get(tenant_id);
+
+      // Portal: insert into messages table (visible to tenant)
+      let insertId = null;
+      if (wantPortal) {
+        const result = db.prepare(
+          'INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast) VALUES (?, ?, ?, ?, 0)'
+        ).run(tenant_id, subject, body, message_type || 'notice');
+        insertId = result.lastInsertRowid;
       }
-      res.json({ id: result.lastInsertRowid, smsSent, smsFailed, errors });
+
+      // SMS
+      if (wantSms) {
+        if (!t?.phone) {
+          smsFailed = 1;
+          errors.push('No phone on file');
+        } else {
+          try { await sendSms(t.phone, smsBody); smsSent = 1; }
+          catch (e) { smsFailed = 1; errors.push(e.message); }
+        }
+      }
+
+      // Email
+      if (wantEmail && t) {
+        const r = await sendEmailToTenant(t, subject, body);
+        if (r.sent) emailSent = 1;
+        else if (r.skipped) emailSkipped = 1;
+        else { emailFailed = 1; errors.push(r.error); }
+      }
+
+      res.json({
+        id: insertId, smsSent, smsFailed, smsSkipped,
+        emailSent, emailFailed, emailSkipped, errors: errors.slice(0, 10)
+      });
     }
   } catch (err) {
     console.error('[messages] send failed:', err);
@@ -161,7 +243,7 @@ router.post('/broadcast-advanced', async (req, res) => {
         .replace(/\[name\]/gi, t.first_name)
         .replace(/\[lot\]/gi, t.lot_id || '');
 
-      // Record in messages table
+      // Record in messages table (always visible to tenant in portal)
       db.prepare('INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast) VALUES (?, ?, ?, ?, 1)')
         .run(t.id, subject || message_type || 'Notification', personalMsg, message_type || 'notice');
 

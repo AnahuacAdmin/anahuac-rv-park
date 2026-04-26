@@ -126,17 +126,22 @@ async function sendMessage(e) {
       subject: form.get('subject'),
       body: form.get('body'),
       message_type: 'notice',
-      delivery_method: delivery === 'portal' ? 'record' : delivery,
+      delivery_method: delivery,
       is_broadcast: false
     });
     closeModal();
-    if (delivery === 'record') {
-      showStatusToast('OK', 'Message recorded (not sent).');
-    } else if (delivery === 'portal') {
-      showStatusToast('OK', 'Message posted to tenant portal.');
-    } else {
-      showStatusToast('OK', 'Message sent!');
+    var parts = [];
+    if (delivery === 'record') parts.push('Message recorded (not sent).');
+    else if (delivery === 'portal') parts.push('Posted to tenant portal.');
+    else {
+      if (r.smsSent) parts.push('SMS sent.');
+      if (r.smsFailed) parts.push('SMS failed.');
+      if (r.emailSent) parts.push('Email sent.');
+      if (r.emailFailed) parts.push('Email failed.');
+      if (r.emailSkipped) parts.push('Email skipped (no email or opted out).');
+      if (!parts.length) parts.push('Message saved.');
     }
+    showStatusToast('OK', parts.join(' '));
     loadMessages();
   } catch (err) {
     alert('Send failed: ' + (err.message || 'unknown'));
@@ -186,14 +191,14 @@ async function sendBroadcast(e) {
       subject: form.get('subject'),
       body: form.get('body'),
       message_type: form.get('message_type'),
-      delivery_method: delivery === 'portal' ? 'record' : delivery,
+      delivery_method: delivery,
       is_broadcast: true
     });
     closeModal();
     let msg = `Broadcast recorded for ${result.sent} tenants.`;
-    if (result.smsSent || result.smsFailed) {
-      msg += `\nSMS sent: ${result.smsSent || 0}, failed: ${result.smsFailed || 0}.`;
-    }
+    if (result.smsSent || result.smsFailed) msg += `\nSMS sent: ${result.smsSent || 0}, failed: ${result.smsFailed || 0}.`;
+    if (result.emailSent || result.emailFailed) msg += `\nEmail sent: ${result.emailSent || 0}, failed: ${result.emailFailed || 0}.`;
+    if (result.emailSkipped) msg += `\nEmail skipped: ${result.emailSkipped}`;
     alert(msg);
     loadMessages();
   } catch (err) {
