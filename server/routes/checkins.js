@@ -13,6 +13,44 @@ router.use(authenticate);
 
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
+// Get all data needed for checkout settlement form
+router.get('/checkout-data/:tenantId', (req, res) => {
+  const tenant = db.prepare(`
+    SELECT t.id, t.first_name, t.last_name, t.lot_id, t.monthly_rent, t.deposit_amount,
+      t.deposit_waived, t.credit_balance, t.flat_rate, t.flat_rate_amount,
+      COALESCE((SELECT SUM(i.balance_due) FROM invoices i WHERE i.tenant_id = t.id
+        AND i.status IN ('pending','partial') AND COALESCE(i.deleted,0)=0), 0) AS balance_due
+    FROM tenants t WHERE t.id = ?
+  `).get(req.params.tenantId);
+  if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+
+  // Get latest meter reading for the lot
+  const lastReading = db.prepare(`
+    SELECT id, current_reading, reading_date, rate_per_kwh
+    FROM meter_readings WHERE lot_id = ? ORDER BY reading_date DESC LIMIT 1
+  `).get(tenant.lot_id);
+
+  // Get current month's invoice to know what's already paid
+  const now = new Date();
+  const monthStart = now.toISOString().slice(0, 7) + '-01';
+  const currentInvoice = db.prepare(`
+    SELECT id, invoice_number, rent_amount, electric_amount, total_amount, amount_paid, balance_due, status
+    FROM invoices WHERE tenant_id = ? AND invoice_date >= ? AND COALESCE(deleted,0)=0
+    ORDER BY invoice_date DESC LIMIT 1
+  `).get(tenant.id, monthStart);
+
+  // Electric rate from settings
+  const rateSetting = db.prepare("SELECT value FROM settings WHERE key = 'electric_rate'").get();
+  const electricRate = rateSetting ? parseFloat(rateSetting.value) : 0.15;
+
+  res.json({
+    tenant,
+    lastReading: lastReading || null,
+    currentInvoice: currentInvoice || null,
+    electricRate,
+  });
+});
+
 router.get('/', (req, res) => {
   const checkins = db.prepare(`
     SELECT c.*, t.first_name, t.last_name, l.id as lot_name
@@ -60,9 +98,20 @@ router.post('/checkin', (req, res) => {
 
 router.post('/checkout', async (req, res) => {
   try {
-  const { tenant_id, lot_id, check_out_date, notes, deposit_action, deduction_amount, deduction_reason,
-    payment_amount, payment_method, payment_invoice_id, payment_reference } = req.body;
+  const { tenant_id, lot_id, check_out_date, notes,
+    // Proration
+    prorate_rent, days_occupied, days_in_month,
+    // Electric
+    electric_previous, electric_current, electric_rate, electric_charge,
+    // Deposit
+    deposit_action, deposit_deduction, deposit_deduction_reason,
+    // Other charges
+    other_charges,
+    // Settlement method
+    settlement_method, settlement_reference,
+  } = req.body;
 
+  // Mark checkout
   db.prepare(`
     UPDATE checkins SET check_out_date = ?, status = 'checked_out', notes = ?
     WHERE tenant_id = ? AND lot_id = ? AND status = 'checked_in'
@@ -72,157 +121,132 @@ router.post('/checkout', async (req, res) => {
     .run(check_out_date, tenant_id);
   db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('vacant', lot_id);
 
-  // Deposit settlement
-  const tenant = db.prepare('SELECT first_name, last_name, deposit_amount, lot_id, phone, email FROM tenants WHERE id = ?').get(tenant_id);
+  const tenant = db.prepare('SELECT first_name, last_name, deposit_amount, deposit_waived, monthly_rent, credit_balance, lot_id, phone, email FROM tenants WHERE id = ?').get(tenant_id);
+  const tenantName = tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Unknown';
+  const monthlyRent = Number(tenant?.monthly_rent) || 0;
   const deposit = Number(tenant?.deposit_amount) || 0;
-  let statement = null;
+  const tenantCredit = Number(tenant?.credit_balance) || 0;
 
+  // === RENT PRORATION ===
+  let rentRefund = 0;
+  let proratedRent = monthlyRent;
+  if (prorate_rent && days_occupied != null && days_in_month > 0) {
+    const dailyRate = +(monthlyRent / days_in_month).toFixed(2);
+    proratedRent = +(dailyRate * days_occupied).toFixed(2);
+    rentRefund = +(monthlyRent - proratedRent).toFixed(2);
+    if (rentRefund < 0) rentRefund = 0;
+  }
+
+  // === ELECTRIC ===
+  let electricTotal = 0;
+  if (electric_current != null && electric_previous != null) {
+    const kwh = Math.max(0, electric_current - electric_previous);
+    const rate = electric_rate || 0.15;
+    electricTotal = +(kwh * rate).toFixed(2);
+    // Record final meter reading
+    db.prepare(`INSERT INTO meter_readings (tenant_id, lot_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(tenant_id, lot_id, check_out_date, electric_previous, electric_current, kwh, rate, electricTotal);
+  }
+
+  // === DEPOSIT ===
+  let depositRefund = 0;
+  let depositDeduction = 0;
   if (deposit > 0 && deposit_action) {
-    const balance = Number(
-      db.prepare("SELECT COALESCE(SUM(balance_due),0) as b FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0").get(tenant_id)?.b
-    ) || 0;
-
-    let refund = 0;
-    let deduction = 0;
-    let appliedToBalance = 0;
-    let actionLabel = '';
-    const ded = Math.min(Math.max(Number(deduction_amount) || 0, 0), deposit);
-    const dedReason = deduction_reason || '';
-
+    const ded = Math.min(Math.max(Number(deposit_deduction) || 0, 0), deposit);
     switch (deposit_action) {
       case 'full_refund':
-        refund = deposit;
-        actionLabel = 'Full Refund';
+        depositRefund = deposit;
         break;
-      case 'partial_refund':
-        deduction = ded;
-        refund = +(deposit - deduction).toFixed(2);
-        actionLabel = 'Partial Refund';
+      case 'partial':
+        depositDeduction = ded;
+        depositRefund = +(deposit - ded).toFixed(2);
         break;
-      case 'apply_to_balance':
-        appliedToBalance = +Math.min(deposit, balance).toFixed(2);
-        refund = +(deposit - appliedToBalance).toFixed(2);
-        actionLabel = 'Applied to Balance';
-        // Apply deposit as payment to unpaid invoices
-        if (appliedToBalance > 0) {
-          let remaining = appliedToBalance;
-          const unpaid = db.prepare("SELECT id, balance_due FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0 ORDER BY invoice_date ASC").all(tenant_id);
-          for (const inv of unpaid) {
-            if (remaining <= 0) break;
-            const apply = Math.min(remaining, Number(inv.balance_due));
-            db.prepare('UPDATE invoices SET amount_paid = amount_paid + ?, balance_due = balance_due - ?, status = CASE WHEN balance_due - ? <= 0.005 THEN \'paid\' ELSE \'partial\' END WHERE id = ?')
-              .run(apply, apply, apply, inv.id);
-            // Record as payment
-            db.prepare('INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes) VALUES (?, ?, ?, ?, ?, ?, ?)')
-              .run(tenant_id, inv.id, check_out_date, apply, 'Deposit', 'CHECKOUT', 'Deposit applied at checkout');
-            remaining = +(remaining - apply).toFixed(2);
-          }
-        }
-        break;
-      case 'no_refund':
-        deduction = deposit;
-        refund = 0;
-        actionLabel = 'No Refund (Forfeited)';
+      case 'forfeit':
+        depositDeduction = deposit;
+        depositRefund = 0;
         break;
     }
-
-    // Record the deposit settlement note on the checkin record
-    const settlementNote = `DEPOSIT SETTLEMENT: ${actionLabel}. Deposit: $${deposit.toFixed(2)}` +
-      (deduction > 0 ? `, Deductions: $${deduction.toFixed(2)}${dedReason ? ' (' + dedReason + ')' : ''}` : '') +
-      (appliedToBalance > 0 ? `, Applied to balance: $${appliedToBalance.toFixed(2)}` : '') +
-      `, Refund: $${refund.toFixed(2)}`;
-    const existingNotes = notes ? notes + '\n' + settlementNote : settlementNote;
-    db.prepare("UPDATE checkins SET notes = ? WHERE tenant_id = ? AND lot_id = ? AND status = 'checked_out'")
-      .run(existingNotes, tenant_id, lot_id);
-
-    // Clear the deposit from tenant record
     db.prepare('UPDATE tenants SET deposit_amount = 0 WHERE id = ?').run(tenant_id);
-
-    // If there's a refund due that wasn't applied to balance, record as negative payment for audit trail
-    if (refund > 0 && deposit_action !== 'apply_to_balance') {
-      db.prepare('INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes) VALUES (?, NULL, ?, ?, ?, ?, ?)')
-        .run(tenant_id, check_out_date, -refund, 'Deposit Refund', 'CHECKOUT', `Deposit refund at checkout${dedReason ? ' (deductions: ' + dedReason + ')' : ''}`);
-    }
-
-    const remainingBalance = deposit_action === 'apply_to_balance' ? Math.max(0, +(balance - appliedToBalance).toFixed(2)) : balance;
-
-    statement = {
-      tenant_name: `${tenant.first_name} ${tenant.last_name}`,
-      lot_id: lot_id,
-      checkout_date: check_out_date,
-      deposit,
-      deduction,
-      deduction_reason: dedReason,
-      applied_to_balance: appliedToBalance,
-      refund,
-      remaining_balance: remainingBalance,
-      action_label: actionLabel,
-    };
   }
 
-  // Final Payment at checkout
-  let paymentRecorded = null;
-  let smsResult = null;
-  if (payment_amount && payment_amount > 0 && payment_method) {
-    const payResult = db.prepare(
-      'INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(tenant_id, payment_invoice_id || null, check_out_date, payment_amount, payment_method, payment_reference || null, 'Payment recorded at checkout');
-
-    paymentRecorded = payment_amount;
-
-    // Update invoice if linked
-    if (payment_invoice_id) {
-      const totalPaid = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoice_id = ?').get(payment_invoice_id);
-      const invoice = db.prepare('SELECT total_amount FROM invoices WHERE id = ?').get(payment_invoice_id);
-      const invBalance = (invoice?.total_amount || 0) - totalPaid.total;
-      const invStatus = invBalance <= 0.005 ? 'paid' : 'partial';
-      db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
-        .run(totalPaid.total, Math.max(0, invBalance), invStatus, payment_invoice_id);
-
-      // Overpayment → tenant credit
-      if (invBalance < -0.005) {
-        const overpay = +Math.abs(invBalance).toFixed(2);
-        db.prepare('UPDATE tenants SET credit_balance = credit_balance + ? WHERE id = ?').run(overpay, tenant_id);
-        db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, invoice_id, notes)
-          VALUES (?, 'overpayment', ?, ?, ?)`).run(tenant_id, overpay, payment_invoice_id,
-          `Overpayment of $${overpay.toFixed(2)} at checkout`);
-      }
-
-      // Clear eviction flags if fully paid
-      if (invBalance <= 0.005) {
-        const unpaid = db.prepare(
-          "SELECT COUNT(*) as cnt FROM invoices WHERE tenant_id = ? AND balance_due > 0.005 AND status IN ('pending','partial') AND COALESCE(deleted,0) = 0"
-        ).get(tenant_id);
-        if (!unpaid || unpaid.cnt === 0) {
-          db.prepare('UPDATE tenants SET eviction_warning = 0, eviction_notified = 0, eviction_paused = 0, eviction_pause_note = NULL WHERE id = ?').run(tenant_id);
-        }
-      }
-    }
-
-    // Auto-send SMS receipt (non-blocking)
-    try {
-      if (tenant?.phone) {
-        const remBal = Math.max(0, (db.prepare('SELECT balance_due FROM invoices WHERE id = ?').get(payment_invoice_id)?.balance_due || 0));
-        const balStr = payment_invoice_id ? `$${remBal.toFixed(2)}` : 'N/A';
-        const body = `Payment Received - Anahuac RV Park\nAmount: $${Number(payment_amount).toFixed(2)}\nMethod: ${payment_method}\nDate: ${check_out_date}\nRemaining Balance: ${balStr}\nThank you! Questions? Call 409-267-6603`;
-        await sendSms(tenant.phone, body);
-        smsResult = { sent: true };
-      }
-    } catch (e) {
-      console.error('[checkout] sms receipt failed:', e);
-      smsResult = { sent: false, reason: e.message };
-    }
+  // === OTHER CHARGES ===
+  let otherTotal = 0;
+  const charges = Array.isArray(other_charges) ? other_charges : [];
+  for (const c of charges) {
+    otherTotal += +(Number(c.amount) || 0).toFixed(2);
   }
+  otherTotal = +otherTotal.toFixed(2);
+
+  // === SETTLEMENT CALCULATION ===
+  // Positive = due to tenant, Negative = due from tenant
+  const netSettlement = +(rentRefund + depositRefund + tenantCredit - electricTotal - otherTotal).toFixed(2);
+
+  // Record settlement note
+  const parts = [];
+  if (rentRefund > 0) parts.push(`Rent refund: $${rentRefund.toFixed(2)} (prorated ${days_occupied}/${days_in_month} days)`);
+  if (electricTotal > 0) parts.push(`Electric: $${electricTotal.toFixed(2)} (${electric_current - electric_previous} kWh)`);
+  if (deposit > 0) parts.push(`Deposit: $${deposit.toFixed(2)} → ${deposit_action}${depositDeduction > 0 ? ' (deducted $' + depositDeduction.toFixed(2) + (deposit_deduction_reason ? ': ' + deposit_deduction_reason : '') + ')' : ''}`);
+  if (otherTotal > 0) parts.push(`Other charges: $${otherTotal.toFixed(2)}`);
+  if (tenantCredit > 0) parts.push(`Credit applied: $${tenantCredit.toFixed(2)}`);
+  parts.push(`NET SETTLEMENT: $${Math.abs(netSettlement).toFixed(2)} ${netSettlement >= 0 ? 'to tenant' : 'from tenant'}`);
+  const settlementNote = 'MOVE-OUT SETTLEMENT: ' + parts.join(' | ');
+  const fullNotes = notes ? notes + '\n' + settlementNote : settlementNote;
+  db.prepare("UPDATE checkins SET notes = ? WHERE tenant_id = ? AND lot_id = ? AND status = 'checked_out'")
+    .run(fullNotes, tenant_id, lot_id);
+
+  // Record financial transactions
+  if (netSettlement > 0) {
+    // Park owes tenant: record as negative payment (refund)
+    db.prepare('INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes) VALUES (?, NULL, ?, ?, ?, ?, ?)')
+      .run(tenant_id, check_out_date, -netSettlement, settlement_method || 'cash', settlement_reference || 'CHECKOUT', 'Move-out settlement refund');
+  } else if (netSettlement < 0) {
+    // Tenant owes park: record as payment received
+    db.prepare('INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes) VALUES (?, NULL, ?, ?, ?, ?, ?)')
+      .run(tenant_id, check_out_date, Math.abs(netSettlement), settlement_method || 'cash', settlement_reference || 'CHECKOUT', 'Move-out settlement payment');
+  }
+
+  // Clear credit balance (used in settlement)
+  if (tenantCredit > 0) {
+    db.prepare('UPDATE tenants SET credit_balance = 0 WHERE id = ?').run(tenant_id);
+    db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, notes)
+      VALUES (?, 'applied_to_invoice', ?, ?)`).run(tenant_id, -tenantCredit, 'Credit applied at move-out settlement');
+  }
+
+  const statement = {
+    tenant_name: tenantName,
+    lot_id,
+    checkout_date: check_out_date,
+    monthly_rent: monthlyRent,
+    prorate_rent: !!prorate_rent,
+    days_occupied: days_occupied || null,
+    days_in_month: days_in_month || null,
+    prorated_rent: proratedRent,
+    rent_refund: rentRefund,
+    electric_previous: electric_previous || null,
+    electric_current: electric_current || null,
+    electric_kwh: electric_current != null && electric_previous != null ? Math.max(0, electric_current - electric_previous) : 0,
+    electric_rate: electric_rate || 0.15,
+    electric_charge: electricTotal,
+    deposit,
+    deposit_action: deposit_action || null,
+    deposit_refund: depositRefund,
+    deposit_deduction: depositDeduction,
+    deposit_deduction_reason: deposit_deduction_reason || '',
+    other_charges: charges,
+    other_total: otherTotal,
+    credit_applied: tenantCredit,
+    net_settlement: netSettlement,
+    settlement_method: settlement_method || null,
+    settlement_reference: settlement_reference || null,
+  };
 
   res.json({
     success: true,
     statement,
     tenant_id,
-    tenant_name: tenant ? `${tenant.first_name} ${tenant.last_name}` : null,
+    tenant_name: tenantName,
     tenant_phone: tenant?.phone || null,
     tenant_email: tenant?.email || null,
-    payment_recorded: paymentRecorded,
-    sms_receipt: smsResult,
   });
   } catch (err) {
     console.error('[checkins] checkout failed:', err);

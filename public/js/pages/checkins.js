@@ -542,13 +542,14 @@ async function sendWelcomeText(tenantId, tenantName) {
 }
 
 let _checkoutTenants = [];
+let _checkoutData = null;
+let _checkoutOtherCharges = [];
 
 async function showCheckOut() {
   _checkoutTenants = await API.get('/tenants');
+  _checkoutData = null;
+  _checkoutOtherCharges = [];
   showModal('Check-Out Tenant', `
-    <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.65rem 0.75rem;margin-bottom:1rem;font-size:0.82rem;color:#1e40af">
-      💡 <strong>TIP:</strong> Before checking out, make sure the tenant's deposit is recorded. Go to <em>Tenants → Edit → Deposit Paid</em>. The deposit settlement section appears here automatically.
-    </div>
     <form id="checkout-form">
       <div class="form-group">
         <label>Select Tenant</label>
@@ -559,260 +560,352 @@ async function showCheckOut() {
         <input type="hidden" name="tenant_id">
         <input type="hidden" name="lot_id">
       </div>
-      <div class="form-group"><label>Check-Out Date</label><input name="check_out_date" type="date" value="${new Date().toISOString().split('T')[0]}" required></div>
+      <div class="form-group"><label>Check-Out Date</label><input name="check_out_date" id="checkout-date-input" type="date" value="${new Date().toISOString().split('T')[0]}" required></div>
 
-      <div id="deposit-section" style="display:none"></div>
-      <div id="payment-section" style="display:none"></div>
+      <div id="checkout-settlement-body" style="display:none"></div>
 
-      <div class="form-group"><label>Notes</label><textarea name="notes" placeholder="Any additional notes about this checkout..."></textarea></div>
-      <div style="position:sticky;bottom:0;background:#fff;padding:0.5rem 0;z-index:10">
-        <button type="submit" class="btn btn-warning btn-full" style="min-height:48px;font-size:1rem">Check Out</button>
-      </div>
       <p id="checkout-error" class="error-text" style="display:none"></p>
     </form>
   `);
-  // Wire events via addEventListener (CSP-safe)
   setTimeout(function() {
     var sel = document.getElementById('checkout-tenant-select');
     if (sel) sel.addEventListener('change', function() { checkoutSelected(this); });
+    var dateInput = document.getElementById('checkout-date-input');
+    if (dateInput) dateInput.addEventListener('change', function() { if (_checkoutData) recalcSettlement(); });
     var form = document.getElementById('checkout-form');
     if (form) form.addEventListener('submit', function(e) { processCheckOut(e); });
   }, 50);
 }
 
-function checkoutSelected(sel) {
+async function checkoutSelected(sel) {
   var parts = sel.value.split('|');
   var tid = parts[0], lid = parts[1];
   sel.form.tenant_id.value = tid;
   sel.form.lot_id.value = lid;
+  _checkoutOtherCharges = [];
 
-  var tenant = _checkoutTenants.find(function(t) { return t.id === parseInt(tid); });
-  var deposit = Number(tenant && tenant.deposit_amount) || 0;
-  var balance = Number(tenant && tenant.balance_due) || 0;
-  var section = document.getElementById('deposit-section');
+  try {
+    _checkoutData = await API.get('/checkins/checkout-data/' + tid);
+  } catch (e) { console.error('[checkout] failed to load data:', e); return; }
 
-  var depositWaived = tenant && tenant.deposit_waived;
-  console.log('[checkout] tenant:', tid, 'deposit:', deposit, 'balance:', balance, 'waived:', depositWaived);
+  var d = _checkoutData;
+  var t = d.tenant;
+  var rent = Number(t.flat_rate && t.flat_rate_amount > 0 ? t.flat_rate_amount : t.monthly_rent) || 0;
+  var deposit = Number(t.deposit_amount) || 0;
+  var credit = Number(t.credit_balance) || 0;
+  var lastReading = d.lastReading;
+  var inv = d.currentInvoice;
+  var rentPaid = inv ? Number(inv.amount_paid) : 0;
+  var coDate = document.getElementById('checkout-date-input').value;
+  var coDay = parseInt(coDate.split('-')[2]) || 1;
+  var coYear = parseInt(coDate.split('-')[0]);
+  var coMonth = parseInt(coDate.split('-')[1]);
+  var daysInMonth = new Date(coYear, coMonth, 0).getDate();
 
-  if (depositWaived) {
-    section.style.display = '';
-    section.innerHTML = '<div style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:8px;padding:0.65rem 0.75rem;font-size:0.82rem;color:#57534e">' +
-      '⚠️ <strong>Deposit was WAIVED</strong> for this tenant at move-in. No deposit to settle.' +
-      '</div>';
-  } else if (deposit > 0) {
-    section.style.display = '';
-    section.innerHTML = `
-      <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
-        <legend><strong>Deposit Settlement</strong></legend>
-        <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;font-size:0.9rem">
-          <div><strong>Deposit on file:</strong> <span style="color:var(--brand-primary,#1a5c32);font-weight:700">${formatMoney(deposit)}</span></div>
-          <div><strong>Balance owed:</strong> <span style="color:${balance > 0 ? '#dc2626' : '#16a34a'};font-weight:700">${formatMoney(balance)}</span></div>
+  var body = document.getElementById('checkout-settlement-body');
+  body.style.display = '';
+  body.innerHTML = `
+    <!-- RENT -->
+    <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+      <legend><strong>Move-Out Settlement</strong></legend>
+      <div style="font-size:0.9rem;margin-bottom:0.5rem">
+        <div><strong>Monthly rate:</strong> ${formatMoney(rent)}</div>
+        <div><strong>Already paid this month:</strong> ${formatMoney(rentPaid)}</div>
+      </div>
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;padding:0.4rem 0;font-size:0.9rem">
+        <input type="checkbox" id="prorate-checkbox" name="prorate_rent" value="1"> Prorate rent for early move-out
+      </label>
+      <div id="prorate-details" style="display:none;margin-top:0.5rem;padding:0.5rem 0.75rem;background:#f8fafc;border:1px solid var(--gray-200);border-radius:6px;font-size:0.85rem">
+        <div class="form-row" style="gap:0.5rem">
+          <div class="form-group" style="flex:1">
+            <label>Days in month</label>
+            <input id="prorate-days-month" type="number" value="${daysInMonth}" readonly style="background:#f3f4f6">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>Days occupied</label>
+            <input id="prorate-days-occupied" type="number" min="0" max="${daysInMonth}" value="${Math.max(0, coDay - 1)}" inputmode="numeric">
+          </div>
         </div>
+        <div id="prorate-calc" style="margin-top:0.25rem;font-size:0.85rem"></div>
+      </div>
+      <div id="no-prorate-info" style="margin-top:0.25rem;font-size:0.82rem;color:var(--gray-500)">
+        No rent proration. Park keeps full ${formatMoney(rent)}.
+      </div>
+    </fieldset>
+
+    <!-- ELECTRIC -->
+    <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+      <legend><strong>Final Electric Reading</strong></legend>
+      <div class="form-row" style="gap:0.5rem">
+        <div class="form-group" style="flex:1">
+          <label>Previous reading</label>
+          <input id="electric-prev" type="number" value="${lastReading ? lastReading.current_reading : 0}" readonly style="background:#f3f4f6">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Current reading</label>
+          <input id="electric-current" type="number" inputmode="numeric" placeholder="Enter final reading">
+        </div>
+      </div>
+      <div id="electric-calc" style="font-size:0.85rem;margin-top:0.25rem"></div>
+    </fieldset>
+
+    <!-- DEPOSIT -->
+    <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+      <legend><strong>Deposit Settlement</strong></legend>
+      ${t.deposit_waived ? '<div style="font-size:0.85rem;color:var(--gray-500)">Deposit was waived — nothing to settle.</div>' :
+        deposit > 0 ? `
+        <div style="font-size:0.9rem;margin-bottom:0.5rem"><strong>Deposit on file:</strong> <span style="color:#16a34a;font-weight:700">${formatMoney(deposit)}</span></div>
         <div class="form-group">
-          <label>Deposit Disposition</label>
-          <p style="font-size:0.75rem;color:var(--gray-500);margin:-0.1rem 0 0.3rem">Select how to handle the security deposit collected at move-in</p>
-          <select name="deposit_action" id="deposit-action-select">
+          <label>Disposition</label>
+          <select id="deposit-action-select" name="deposit_action">
             <option value="full_refund">Full Refund — return ${formatMoney(deposit)}</option>
-            <option value="partial_refund">Partial Refund — deduct damages/cleaning</option>
-            ${balance > 0 ? `<option value="apply_to_balance">Apply to Balance — reduce ${formatMoney(balance)} owed</option>` : ''}
-            <option value="no_refund">No Refund — tenant forfeits deposit</option>
+            <option value="partial">Partial Refund — deduct damages/cleaning</option>
+            <option value="forfeit">Forfeit — tenant loses deposit</option>
           </select>
         </div>
-        <div id="deposit-partial" style="display:none">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Deduction Amount ($)</label>
-              <input name="deduction_amount" id="deduction-amount-input" type="number" step="0.01" min="0" max="${deposit}" value="0" placeholder="Enter $ amount for damages">
-            </div>
-            <div class="form-group">
-              <label>Deduction Reason</label>
-              <input name="deduction_reason" placeholder="e.g. carpet damage, cleaning fee, broken window">
-            </div>
+        <div id="deposit-partial-row" style="display:none">
+          <div class="form-row" style="gap:0.5rem">
+            <div class="form-group" style="flex:1"><label>Deduction ($)</label><input id="deposit-deduction-input" type="number" step="0.01" min="0" max="${deposit}" value="0" inputmode="decimal"></div>
+            <div class="form-group" style="flex:1"><label>Reason</label><input id="deposit-deduction-reason" placeholder="e.g. cleaning, damage"></div>
           </div>
-          <div id="deposit-refund-calc" style="background:#f0fdf4;border:1px solid #dcfce7;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.9rem;color:#1a5c32">
-            Refund amount: <strong>${formatMoney(deposit)}</strong>
-          </div>
+          <div id="deposit-refund-calc" style="font-size:0.85rem;color:#16a34a;margin-top:0.25rem">Refund: <strong>${formatMoney(deposit)}</strong></div>
         </div>
-        <div id="deposit-apply-info" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.9rem;color:#1e40af">
-          ${deposit >= balance
-            ? `Deposit covers full balance. Remaining <strong>${formatMoney(deposit - balance)}</strong> will be refunded.`
-            : `Deposit reduces balance from ${formatMoney(balance)} to <strong>${formatMoney(balance - deposit)}</strong>. No refund.`}
-        </div>
-      </fieldset>
-    `;
-    // Wire deposit event listeners (CSP-safe)
-    setTimeout(function() {
-      var actionSel = document.getElementById('deposit-action-select');
-      if (actionSel) actionSel.addEventListener('change', function() { updateDepositCalc(this, deposit, balance); });
-      var dedInput = document.getElementById('deduction-amount-input');
-      if (dedInput) dedInput.addEventListener('input', function() { calcDepositRefund(this, deposit); });
-    }, 50);
-  } else {
-    section.style.display = '';
-    var tName = tenant ? (tenant.first_name + ' ' + tenant.last_name) : 'this tenant';
-    section.innerHTML = '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.65rem 0.75rem;font-size:0.82rem;color:#92400e">' +
-      '⚠️ <strong>No deposit on file</strong> for ' + escapeHtml(tName) + '.<br>' +
-      'If a deposit was collected, go to <em>Tenants → Edit ' + escapeHtml(tName) + ' → Deposit Paid</em> first, then return here.' +
-      '</div>';
-  }
-
-  // Render Final Payment section
-  renderCheckoutPaymentSection(tid);
-}
-
-async function renderCheckoutPaymentSection(tenantId) {
-  var paySection = document.getElementById('payment-section');
-  if (!paySection) return;
-
-  // Fetch unpaid invoices for this tenant
-  var invoices = [];
-  try {
-    var allInv = await API.get('/invoices?tenant_id=' + tenantId);
-    invoices = allInv.filter(function(inv) { return inv.status !== 'paid' && !inv.deleted && Number(inv.balance_due) > 0; });
-  } catch (e) { console.error('[checkout] failed to load invoices:', e); }
-
-  if (invoices.length === 0) {
-    paySection.style.display = '';
-    paySection.innerHTML = '<div style="background:#f0fdf4;border:1px solid #dcfce7;border-radius:8px;padding:0.65rem 0.75rem;font-size:0.82rem;color:#166534;margin-bottom:0.5rem">' +
-      '✅ <strong>No outstanding balance.</strong> No payment needed at checkout.</div>';
-    return;
-  }
-
-  var totalOwed = invoices.reduce(function(sum, inv) { return sum + Number(inv.balance_due); }, 0);
-
-  paySection.style.display = '';
-  paySection.innerHTML = `
-    <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
-      <legend><strong>Final Payment</strong></legend>
-      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.85rem;color:#92400e;margin-bottom:0.75rem">
-        Outstanding balance: <strong>${formatMoney(totalOwed)}</strong>
-      </div>
-      <div class="form-group">
-        <label>Apply to Invoice</label>
-        <select name="payment_invoice_id" id="checkout-invoice-select">
-          ${invoices.length === 1
-            ? `<option value="${invoices[0].id}">${invoices[0].invoice_number || 'Invoice #' + invoices[0].id} — ${formatMoney(invoices[0].balance_due)} due</option>`
-            : `<option value="">Select invoice...</option>${invoices.map(function(inv) { return '<option value="' + inv.id + '">' + (inv.invoice_number || 'Invoice #' + inv.id) + ' — ' + formatMoney(inv.balance_due) + ' due</option>'; }).join('')}`
-          }
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Payment Amount ($)</label>
-        <input name="payment_amount" id="checkout-payment-amount" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00" style="font-size:1.1rem;font-weight:600">
-      </div>
-      <div class="form-group">
-        <label>Payment Method</label>
-        <div id="payment-method-radios" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem">
-          ${['Cash','Check','Card','Zelle','Venmo','Other'].map(function(m) {
-            return '<label style="display:flex;align-items:center;gap:0.35rem;padding:0.5rem 0.75rem;border:1px solid var(--gray-300);border-radius:8px;cursor:pointer;min-height:48px;font-size:0.9rem">' +
-              '<input type="radio" name="payment_method" value="' + m + '"> ' + m + '</label>';
-          }).join('')}
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Reference # <span style="font-weight:400;color:var(--gray-400)">(optional)</span></label>
-        <input name="payment_reference" placeholder="Check number, transaction ID, etc.">
-      </div>
-      <div id="checkout-balance-calc" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.9rem;color:#1e40af;margin-top:0.5rem"></div>
+      ` : '<div style="font-size:0.85rem;color:var(--gray-500)">No deposit on file.</div>'}
     </fieldset>
+
+    <!-- OTHER CHARGES -->
+    <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+      <legend><strong>Other Charges</strong> <span style="font-weight:400;color:var(--gray-400);font-size:0.8rem">(optional)</span></legend>
+      <div id="other-charges-list"></div>
+      <button type="button" class="btn btn-sm btn-outline" onclick="addCheckoutCharge()" style="margin-top:0.25rem">+ Add Charge</button>
+    </fieldset>
+
+    <!-- SETTLEMENT SUMMARY -->
+    <fieldset style="border:2px solid var(--gray-900);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px;background:#fafafa">
+      <legend><strong>Final Settlement</strong></legend>
+      <div id="settlement-summary" style="font-size:0.9rem"></div>
+    </fieldset>
+
+    <!-- REFUND/PAYMENT METHOD -->
+    <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+      <legend><strong>Refund / Payment Method</strong></legend>
+      <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
+        ${['Cash','Check','Mailed Check','Zelle','Other'].map(function(m) {
+          return '<label style="display:flex;align-items:center;gap:0.35rem;padding:0.5rem 0.75rem;border:1px solid var(--gray-300);border-radius:8px;cursor:pointer;min-height:48px;font-size:0.9rem">' +
+            '<input type="radio" name="settlement_method" value="' + m + '"' + (m === 'Cash' ? ' checked' : '') + '> ' + m + '</label>';
+        }).join('')}
+      </div>
+      <div class="form-group" style="margin-top:0.5rem">
+        <label>Reference # <span style="font-weight:400;color:var(--gray-400)">(optional)</span></label>
+        <input name="settlement_reference" placeholder="Check number, etc.">
+      </div>
+    </fieldset>
+
+    <div class="form-group"><label>Notes</label><textarea name="notes" placeholder="Any additional notes about this checkout..."></textarea></div>
+
+    <div style="position:sticky;bottom:0;background:#fff;padding:0.5rem 0;z-index:10">
+      <div class="btn-group" style="gap:0.5rem">
+        <button type="button" class="btn btn-outline" onclick="printMoveOutPreview()" style="min-height:48px;flex:1">Print Statement</button>
+        <button type="submit" class="btn btn-warning" style="min-height:48px;flex:2;font-size:1rem">Check Out & Settle</button>
+      </div>
+    </div>
   `;
 
-  // Wire events
+  // Wire all events
   setTimeout(function() {
-    var amtInput = document.getElementById('checkout-payment-amount');
-    var invSelect = document.getElementById('checkout-invoice-select');
-    if (amtInput) amtInput.addEventListener('input', function() { updateCheckoutBalanceCalc(invoices); });
-    if (invSelect) invSelect.addEventListener('change', function() { updateCheckoutBalanceCalc(invoices); });
-    // Auto-select single invoice and pre-fill amount
-    if (invoices.length === 1) {
-      if (amtInput) amtInput.value = Number(invoices[0].balance_due).toFixed(2);
-      updateCheckoutBalanceCalc(invoices);
-    }
+    var prorateCb = document.getElementById('prorate-checkbox');
+    if (prorateCb) prorateCb.addEventListener('change', function() {
+      document.getElementById('prorate-details').style.display = this.checked ? '' : 'none';
+      document.getElementById('no-prorate-info').style.display = this.checked ? 'none' : '';
+      recalcSettlement();
+    });
+    var daysOcc = document.getElementById('prorate-days-occupied');
+    if (daysOcc) daysOcc.addEventListener('input', recalcSettlement);
+    var elCur = document.getElementById('electric-current');
+    if (elCur) elCur.addEventListener('input', recalcSettlement);
+    var depAction = document.getElementById('deposit-action-select');
+    if (depAction) depAction.addEventListener('change', function() {
+      var partial = document.getElementById('deposit-partial-row');
+      if (partial) partial.style.display = this.value === 'partial' ? '' : 'none';
+      recalcSettlement();
+    });
+    var depDed = document.getElementById('deposit-deduction-input');
+    if (depDed) depDed.addEventListener('input', function() {
+      var dep = Number(_checkoutData.tenant.deposit_amount) || 0;
+      var ded = Math.min(Math.max(parseFloat(this.value) || 0, 0), dep);
+      var calc = document.getElementById('deposit-refund-calc');
+      if (calc) calc.innerHTML = 'Refund: <strong>' + formatMoney(dep - ded) + '</strong>';
+      recalcSettlement();
+    });
+    recalcSettlement();
   }, 50);
 }
 
-function updateCheckoutBalanceCalc(invoices) {
-  var amtInput = document.getElementById('checkout-payment-amount');
-  var invSelect = document.getElementById('checkout-invoice-select');
-  var calcEl = document.getElementById('checkout-balance-calc');
-  if (!amtInput || !calcEl) return;
+function addCheckoutCharge() {
+  var idx = _checkoutOtherCharges.length;
+  _checkoutOtherCharges.push({ description: '', amount: 0 });
+  var list = document.getElementById('other-charges-list');
+  if (!list) return;
+  var row = document.createElement('div');
+  row.className = 'form-row';
+  row.style.cssText = 'gap:0.5rem;margin-bottom:0.25rem';
+  row.id = 'other-charge-' + idx;
+  row.innerHTML = '<div class="form-group" style="flex:2"><input placeholder="Description (e.g. cleaning fee)" data-charge-idx="' + idx + '" data-field="description"></div>' +
+    '<div class="form-group" style="flex:1"><input type="number" step="0.01" min="0" inputmode="decimal" placeholder="$0.00" data-charge-idx="' + idx + '" data-field="amount"></div>' +
+    '<button type="button" style="align-self:center;background:none;border:none;color:#dc2626;cursor:pointer;font-size:1.2rem;padding:0.25rem" onclick="removeCheckoutCharge(' + idx + ')">x</button>';
+  list.appendChild(row);
+  row.querySelectorAll('input').forEach(function(inp) {
+    inp.addEventListener('input', function() {
+      var i = parseInt(this.dataset.chargeIdx);
+      var f = this.dataset.field;
+      _checkoutOtherCharges[i][f] = f === 'amount' ? (parseFloat(this.value) || 0) : this.value;
+      recalcSettlement();
+    });
+  });
+}
 
-  var amount = parseFloat(amtInput.value) || 0;
-  var invId = invSelect ? invSelect.value : '';
-  if (amount <= 0 || !invId) { calcEl.style.display = 'none'; return; }
+function removeCheckoutCharge(idx) {
+  _checkoutOtherCharges[idx] = null;
+  var el = document.getElementById('other-charge-' + idx);
+  if (el) el.remove();
+  recalcSettlement();
+}
 
-  var inv = invoices.find(function(i) { return String(i.id) === invId; });
-  if (!inv) { calcEl.style.display = 'none'; return; }
+function recalcSettlement() {
+  if (!_checkoutData) return;
+  var d = _checkoutData;
+  var t = d.tenant;
+  var rent = Number(t.flat_rate && t.flat_rate_amount > 0 ? t.flat_rate_amount : t.monthly_rent) || 0;
+  var deposit = Number(t.deposit_amount) || 0;
+  var credit = Number(t.credit_balance) || 0;
 
-  var invBalance = Number(inv.balance_due);
-  var remaining = Math.max(0, invBalance - amount);
-  calcEl.style.display = '';
-  if (remaining <= 0.005) {
-    calcEl.innerHTML = '✅ This payment <strong>fully covers</strong> the invoice balance of ' + formatMoney(invBalance);
-    if (amount > invBalance + 0.005) {
-      calcEl.innerHTML += '<br>⚠️ Overpayment of <strong>' + formatMoney(amount - invBalance) + '</strong> will be added as tenant credit.';
-    }
-  } else {
-    calcEl.innerHTML = 'After payment: <strong>' + formatMoney(remaining) + '</strong> remaining on this invoice.';
+  // Rent proration
+  var rentRefund = 0;
+  var prorateCb = document.getElementById('prorate-checkbox');
+  if (prorateCb && prorateCb.checked) {
+    var daysMonth = parseInt(document.getElementById('prorate-days-month').value) || 30;
+    var daysOcc = parseInt(document.getElementById('prorate-days-occupied').value) || 0;
+    var dailyRate = +(rent / daysMonth).toFixed(2);
+    var proratedRent = +(dailyRate * daysOcc).toFixed(2);
+    rentRefund = +(rent - proratedRent).toFixed(2);
+    if (rentRefund < 0) rentRefund = 0;
+    var pCalc = document.getElementById('prorate-calc');
+    if (pCalc) pCalc.innerHTML = 'Daily rate: <strong>' + formatMoney(dailyRate) + '</strong> x ' + daysOcc + ' days = <strong>' + formatMoney(proratedRent) + '</strong><br>Rent refund: <strong style="color:#16a34a">' + formatMoney(rentRefund) + '</strong>';
   }
+
+  // Electric
+  var electricCharge = 0;
+  var elPrev = parseFloat(document.getElementById('electric-prev').value) || 0;
+  var elCur = parseFloat(document.getElementById('electric-current').value) || 0;
+  var elRate = d.electricRate || 0.15;
+  if (elCur > 0 && elCur >= elPrev) {
+    var kwh = elCur - elPrev;
+    electricCharge = +(kwh * elRate).toFixed(2);
+    var eCalc = document.getElementById('electric-calc');
+    if (eCalc) eCalc.innerHTML = 'kWh used: <strong>' + kwh + '</strong> x $' + elRate.toFixed(2) + '/kWh = <strong style="color:#dc2626">' + formatMoney(electricCharge) + '</strong>';
+  } else {
+    var eCalc = document.getElementById('electric-calc');
+    if (eCalc) eCalc.innerHTML = elCur > 0 && elCur < elPrev ? '<span style="color:#dc2626">Current reading must be >= previous</span>' : '';
+  }
+
+  // Deposit
+  var depositRefund = 0;
+  var depAction = document.getElementById('deposit-action-select');
+  if (depAction && deposit > 0) {
+    if (depAction.value === 'full_refund') depositRefund = deposit;
+    else if (depAction.value === 'partial') {
+      var ded = parseFloat(document.getElementById('deposit-deduction-input').value) || 0;
+      depositRefund = +(deposit - Math.min(ded, deposit)).toFixed(2);
+    } else depositRefund = 0;
+  }
+
+  // Other charges
+  var otherTotal = 0;
+  _checkoutOtherCharges.forEach(function(c) { if (c) otherTotal += Number(c.amount) || 0; });
+  otherTotal = +otherTotal.toFixed(2);
+
+  // NET
+  var net = +(rentRefund + depositRefund + credit - electricCharge - otherTotal).toFixed(2);
+
+  var summary = document.getElementById('settlement-summary');
+  if (!summary) return;
+  var lines = [];
+  lines.push(sLine('Rent refund', rentRefund, rentRefund > 0));
+  lines.push(sLine('Electric charge', -electricCharge, false));
+  lines.push(sLine('Deposit refund', depositRefund, depositRefund > 0));
+  if (otherTotal > 0) lines.push(sLine('Other charges', -otherTotal, false));
+  if (credit > 0) lines.push(sLine('Existing credit', credit, true));
+  lines.push('<tr style="border-top:2px solid var(--gray-900)"><td style="padding:0.5rem 0;font-weight:700;font-size:1.05rem">' +
+    (net >= 0 ? 'NET DUE TO TENANT' : 'NET DUE FROM TENANT') +
+    '</td><td style="padding:0.5rem 0;text-align:right;font-weight:700;font-size:1.1rem;color:' + (net >= 0 ? '#16a34a' : '#dc2626') + '">' +
+    (net >= 0 ? '+' : '') + formatMoney(Math.abs(net)) + '</td></tr>');
+  summary.innerHTML = '<table style="width:100%;border-collapse:collapse">' + lines.join('') + '</table>';
 }
 
-function updateDepositCalc(sel, deposit, balance) {
-  const partial = document.getElementById('deposit-partial');
-  const applyInfo = document.getElementById('deposit-apply-info');
-  if (partial) partial.style.display = sel.value === 'partial_refund' ? '' : 'none';
-  if (applyInfo) applyInfo.style.display = sel.value === 'apply_to_balance' ? '' : 'none';
+function sLine(label, amount, positive) {
+  var color = amount === 0 ? 'var(--gray-400)' : (positive ? '#16a34a' : '#dc2626');
+  var prefix = amount > 0 ? '+' : amount < 0 ? '' : '';
+  return '<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.3rem 0">' + label + '</td><td style="padding:0.3rem 0;text-align:right;font-weight:600;color:' + color + '">' + prefix + formatMoney(Math.abs(amount)) + (amount < 0 ? ' (charge)' : '') + '</td></tr>';
 }
 
-function calcDepositRefund(input, deposit) {
-  const deduction = Math.min(Math.max(parseFloat(input.value) || 0, 0), deposit);
-  const refund = deposit - deduction;
-  const el = document.getElementById('deposit-refund-calc');
-  if (el) el.innerHTML = `Refund amount: <strong>${formatMoney(refund)}</strong>`;
+function printMoveOutPreview() {
+  var summary = document.getElementById('settlement-summary');
+  if (!summary || !_checkoutData) return;
+  var t = _checkoutData.tenant;
+  var w = window.open('', '_blank', 'width=600,height=800');
+  w.document.write('<html><head><title>Move-Out Statement</title><style>body{font-family:sans-serif;max-width:550px;margin:2rem auto;font-size:14px} table{width:100%;border-collapse:collapse} td{padding:4px 0} @media print{button{display:none}}</style></head><body>');
+  w.document.write('<div style="text-align:center;margin-bottom:1rem"><strong style="font-size:18px">Anahuac RV Park</strong><br>Move-Out Statement</div>');
+  w.document.write('<div style="margin-bottom:1rem"><strong>Tenant:</strong> ' + escapeHtml(t.first_name + ' ' + t.last_name) + ' &nbsp; <strong>Lot:</strong> ' + escapeHtml(t.lot_id) + ' &nbsp; <strong>Date:</strong> ' + (document.getElementById('checkout-date-input').value || '') + '</div>');
+  w.document.write(summary.innerHTML);
+  w.document.write('<br><button onclick="window.print()">Print</button></body></html>');
+  w.document.close();
 }
 
 async function processCheckOut(e) {
   e.preventDefault();
-  const form = new FormData(e.target);
-  const errEl = document.getElementById('checkout-error');
+  var form = new FormData(e.target);
+  var errEl = document.getElementById('checkout-error');
   if (errEl) errEl.style.display = 'none';
+
   try {
-    var paymentAmount = parseFloat(form.get('payment_amount')) || 0;
-    var paymentMethod = form.get('payment_method') || null;
-    var paymentInvoiceId = form.get('payment_invoice_id') ? parseInt(form.get('payment_invoice_id')) : null;
-    var paymentReference = form.get('payment_reference') || null;
+    var d = _checkoutData;
+    var t = d ? d.tenant : null;
+    var deposit = t ? Number(t.deposit_amount) || 0 : 0;
+    var prorateCb = document.getElementById('prorate-checkbox');
+    var elPrev = parseFloat(document.getElementById('electric-prev')?.value) || 0;
+    var elCur = parseFloat(document.getElementById('electric-current')?.value) || 0;
+    var depAction = document.getElementById('deposit-action-select');
 
-    // Validate: if amount entered, method is required
-    if (paymentAmount > 0 && !paymentMethod) {
-      var errEl2 = document.getElementById('checkout-error');
-      if (errEl2) { errEl2.textContent = 'Please select a payment method.'; errEl2.style.display = ''; }
-      return;
-    }
+    var charges = _checkoutOtherCharges.filter(function(c) { return c && c.amount > 0; });
 
-    const result = await API.post('/checkins/checkout', {
+    var body = {
       tenant_id: parseInt(form.get('tenant_id')),
       lot_id: form.get('lot_id'),
       check_out_date: form.get('check_out_date'),
-      notes: form.get('notes'),
-      deposit_action: form.get('deposit_action') || null,
-      deduction_amount: parseFloat(form.get('deduction_amount')) || 0,
-      deduction_reason: form.get('deduction_reason') || null,
-      payment_amount: paymentAmount > 0 ? paymentAmount : null,
-      payment_method: paymentMethod,
-      payment_invoice_id: paymentInvoiceId,
-      payment_reference: paymentReference,
-    });
-    closeModal();
-    var toastMsg = "Tenant checked out!";
-    if (result.payment_recorded) toastMsg += " Payment of " + formatMoney(result.payment_recorded) + " recorded.";
-    toastMsg += " Don't forget to collect keys/access cards.";
-    showStatusToast('✅', toastMsg);
+      notes: form.get('notes') || '',
+      prorate_rent: prorateCb && prorateCb.checked,
+      days_occupied: prorateCb && prorateCb.checked ? parseInt(document.getElementById('prorate-days-occupied').value) || 0 : null,
+      days_in_month: prorateCb && prorateCb.checked ? parseInt(document.getElementById('prorate-days-month').value) || 30 : null,
+      electric_previous: elCur > 0 ? elPrev : null,
+      electric_current: elCur > 0 ? elCur : null,
+      electric_rate: d ? d.electricRate : 0.15,
+      deposit_action: depAction && deposit > 0 ? depAction.value : null,
+      deposit_deduction: depAction && depAction.value === 'partial' ? (parseFloat(document.getElementById('deposit-deduction-input')?.value) || 0) : 0,
+      deposit_deduction_reason: document.getElementById('deposit-deduction-reason')?.value || '',
+      other_charges: charges,
+      settlement_method: form.get('settlement_method') || 'Cash',
+      settlement_reference: form.get('settlement_reference') || '',
+    };
 
-    // Show Move-Out Statement if deposit was settled
-    if (result.statement) {
-      const s = result.statement;
+    var result = await API.post('/checkins/checkout', body);
+    closeModal();
+    showStatusToast('✅', 'Tenant checked out! Settlement recorded.');
+
+    // Show Move-Out Statement
+    var s = result.statement;
+    if (s) {
       showModal('Move-Out Statement', `
-        <div style="max-width:500px;margin:0 auto">
+        <div style="max-width:520px;margin:0 auto">
           <div style="text-align:center;border-bottom:2px solid var(--gray-200);padding-bottom:0.75rem;margin-bottom:1rem">
             <div style="font-size:1.1rem;font-weight:700;color:var(--brand-primary,#1a5c32)">Anahuac RV Park</div>
             <div style="font-size:0.8rem;color:var(--gray-500)">Move-Out Statement</div>
@@ -821,29 +914,30 @@ async function processCheckOut(e) {
             <div><strong>Tenant:</strong> ${escapeHtml(s.tenant_name)}</div>
             <div><strong>Lot:</strong> ${escapeHtml(s.lot_id)}</div>
             <div><strong>Move-Out:</strong> ${formatDate(s.checkout_date)}</div>
-            <div><strong>Action:</strong> ${escapeHtml(s.action_label)}</div>
+            <div><strong>Monthly Rent:</strong> ${formatMoney(s.monthly_rent)}</div>
           </div>
           <table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin-bottom:1rem">
             <tbody>
-              <tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Deposit on File</td><td style="padding:0.4rem 0;text-align:right;font-weight:600">${formatMoney(s.deposit)}</td></tr>
-              ${s.deduction > 0 ? `<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0;color:#dc2626">Deductions${s.deduction_reason ? ' (' + escapeHtml(s.deduction_reason) + ')' : ''}</td><td style="padding:0.4rem 0;text-align:right;color:#dc2626">-${formatMoney(s.deduction)}</td></tr>` : ''}
-              ${s.applied_to_balance > 0 ? `<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0;color:#0284c7">Applied to Balance</td><td style="padding:0.4rem 0;text-align:right;color:#0284c7">-${formatMoney(s.applied_to_balance)}</td></tr>` : ''}
-              <tr style="border-top:2px solid var(--gray-900)"><td style="padding:0.5rem 0;font-weight:700;font-size:1rem">${s.refund > 0 ? 'Refund Due to Tenant' : 'Net Refund'}</td><td style="padding:0.5rem 0;text-align:right;font-weight:700;font-size:1rem;color:${s.refund > 0 ? '#16a34a' : 'var(--gray-700)'}">${formatMoney(s.refund)}</td></tr>
+              <tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Rent refund${s.prorate_rent ? ' (' + s.days_occupied + '/' + s.days_in_month + ' days prorated)' : ' (no proration)'}</td><td style="padding:0.4rem 0;text-align:right;font-weight:600;color:#16a34a">${s.rent_refund > 0 ? '+' + formatMoney(s.rent_refund) : '$0.00'}</td></tr>
+              ${s.electric_charge > 0 ? '<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Electric (' + s.electric_kwh + ' kWh @ $' + s.electric_rate.toFixed(2) + ')</td><td style="padding:0.4rem 0;text-align:right;font-weight:600;color:#dc2626">-' + formatMoney(s.electric_charge) + '</td></tr>' : ''}
+              <tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Deposit${s.deposit_action === 'forfeit' ? ' (forfeited)' : s.deposit_action === 'partial' ? ' (partial — ' + (s.deposit_deduction_reason || 'deductions') + ')' : ' (full refund)'}</td><td style="padding:0.4rem 0;text-align:right;font-weight:600;color:${s.deposit_refund > 0 ? '#16a34a' : 'var(--gray-400)'}">+${formatMoney(s.deposit_refund)}</td></tr>
+              ${s.other_total > 0 ? '<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Other charges</td><td style="padding:0.4rem 0;text-align:right;font-weight:600;color:#dc2626">-' + formatMoney(s.other_total) + '</td></tr>' : ''}
+              ${s.credit_applied > 0 ? '<tr style="border-bottom:1px solid var(--gray-200)"><td style="padding:0.4rem 0">Existing credit</td><td style="padding:0.4rem 0;text-align:right;font-weight:600;color:#16a34a">+' + formatMoney(s.credit_applied) + '</td></tr>' : ''}
+              <tr style="border-top:2px solid var(--gray-900)"><td style="padding:0.5rem 0;font-weight:700;font-size:1.05rem">${s.net_settlement >= 0 ? 'NET DUE TO TENANT' : 'NET DUE FROM TENANT'}</td><td style="padding:0.5rem 0;text-align:right;font-weight:700;font-size:1.1rem;color:${s.net_settlement >= 0 ? '#16a34a' : '#dc2626'}">${s.net_settlement >= 0 ? '+' : ''}${formatMoney(Math.abs(s.net_settlement))}</td></tr>
             </tbody>
           </table>
-          ${s.remaining_balance > 0 ? `<div style="background:#fee2e2;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.85rem;color:#991b1b;margin-bottom:1rem">Remaining balance owed: <strong>${formatMoney(s.remaining_balance)}</strong></div>` : ''}
+          ${s.settlement_method ? '<div style="font-size:0.85rem;color:var(--gray-500);margin-bottom:1rem">Method: ' + escapeHtml(s.settlement_method) + (s.settlement_reference ? ' (Ref: ' + escapeHtml(s.settlement_reference) + ')' : '') + '</div>' : ''}
           <div class="btn-group" style="justify-content:center">
-            <button class="btn btn-outline" onclick="window.print()">🖨️ Print</button>
-            <button class="btn btn-primary" onclick="closeModal();promptReviewRequest(${result.tenant_id},'${escapeHtml(s.tenant_name)}')">Done</button>
+            <button class="btn btn-outline" onclick="window.print()">Print</button>
+            <button class="btn btn-primary" onclick="closeModal();promptReviewRequest(${result.tenant_id},\`${escapeHtml(s.tenant_name)}\`)">Done</button>
           </div>
         </div>
       `);
     } else {
-      // No deposit statement — go straight to review prompt
       promptReviewRequest(result.tenant_id, result.tenant_name || 'this tenant');
     }
   } catch (err) {
-    const msg = err.message || 'Check-out failed';
+    var msg = err.message || 'Check-out failed';
     if (errEl) { errEl.textContent = msg; errEl.style.display = ''; }
     else alert('Check-out failed: ' + msg);
   }
