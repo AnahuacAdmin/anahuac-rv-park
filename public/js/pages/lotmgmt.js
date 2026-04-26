@@ -90,7 +90,7 @@ function lotForm(lot = {}) {
           <select name="lot_type" onchange="lotTypeChanged(this)">
             <option value="standard" ${(lot.lot_type||'standard')==='standard'?'selected':''}>Standard — Gravel/Grass ($295)</option>
             <option value="premium" ${lot.lot_type==='premium'?'selected':''}>Concrete Pad ($350)</option>
-            <option value="pull-through" ${lot.lot_type==='pull-through'?'selected':''}>Premium/Special ($375)</option>
+            <option value="electric_only" ${lot.lot_type==='electric_only'?'selected':''}>Electric Only ($0)</option>
             <option value="owner_reserved" ${lot.lot_type==='owner_reserved'?'selected':''}>Owner Reserved</option>
           </select>
         </div>
@@ -104,7 +104,7 @@ function lotForm(lot = {}) {
       <fieldset style="border:1px solid #ddd;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
         <legend><strong>Amenities</strong></legend>
         <div style="display:flex;flex-wrap:wrap;gap:0.75rem">
-          ${['30amp','50amp','Water','Sewer','WiFi','Cable','Cement Pad','Pond View'].map(a => {
+          ${['30amp','50amp','Water','Sewer','WiFi','Cable','Cement Pad','Pond View','Pull-Through'].map(a => {
             const checked = (lot.amenities || '').split(',').map(s=>s.trim()).includes(a);
             return `<label style="display:flex;align-items:center;gap:0.4rem"><input type="checkbox" name="amenity" value="${a}" ${checked ? 'checked' : ''}> ${a}</label>`;
           }).join('')}
@@ -234,7 +234,7 @@ async function activateLot(id) {
 function lotTypeChanged(sel) {
   const rateInput = document.getElementById('lot-default-rate');
   if (!rateInput) return;
-  const rates = { standard: '295', premium: '350', 'pull-through': '375', owner_reserved: '0' };
+  const rates = { standard: '295', premium: '350', electric_only: '0', owner_reserved: '0' };
   rateInput.value = rates[sel.value] || '295';
 }
 

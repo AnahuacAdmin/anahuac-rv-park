@@ -3,8 +3,8 @@ const { execSync } = require('child_process');
 const path = require('path');
 
 try {
-  console.log('[start] Running lot fix script...');
-  execSync('node ' + path.join(__dirname, 'scripts', 'fix-lots.js'), {
+  console.log('[start] Running lot type fix script...');
+  execSync('node ' + path.join(__dirname, 'scripts', 'fix-lot-types.js'), {
     stdio: 'inherit',
     cwd: __dirname
   });
