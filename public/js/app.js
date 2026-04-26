@@ -624,6 +624,217 @@ function toggleHelp(id) {
 
 const APP_URL = window.location.origin;
 
+// =====================================================================
+// Global Branding — loads accent color, logo, park name from settings
+// and applies them live (CSS vars, sidebar, header). Called on login,
+// auto-login, and after the branding settings page saves.
+// =====================================================================
+async function applyBranding() {
+  try {
+    if (!API.token) return;
+    var s = await API.get('/settings');
+    if (!s) return;
+
+    // --- Accent color ---
+    var color = s.brand_accent_color;
+    if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
+      document.documentElement.style.setProperty('--brand-primary', color);
+      document.documentElement.style.setProperty('--brand-secondary', _lightenHex(color, 20));
+      document.documentElement.style.setProperty('--primary', color);
+      document.documentElement.style.setProperty('--primary-dark', _darkenHex(color, 15));
+    } else {
+      // Reset to defaults
+      document.documentElement.style.removeProperty('--brand-primary');
+      document.documentElement.style.removeProperty('--brand-secondary');
+      document.documentElement.style.removeProperty('--primary');
+      document.documentElement.style.removeProperty('--primary-dark');
+    }
+
+    // --- Park name ---
+    var name = s.park_name || 'Anahuac RV Park';
+    var sidebarName = document.querySelector('.sidebar-header h2');
+    if (sidebarName) sidebarName.textContent = '🐊 ' + name;
+    var mobileH2 = document.querySelector('.mobile-header h2');
+    if (mobileH2) mobileH2.textContent = '🐊 ' + name;
+
+    // --- Logo in sidebar ---
+    var sidebarHeader = document.querySelector('.sidebar-header');
+    if (sidebarHeader) {
+      var existingLogo = document.getElementById('sidebar-brand-logo');
+      try {
+        var logoRes = await fetch('/api/settings/branding/image/logo');
+        if (logoRes.ok) {
+          var blob = await logoRes.blob();
+          var url = URL.createObjectURL(blob);
+          if (!existingLogo) {
+            existingLogo = document.createElement('img');
+            existingLogo.id = 'sidebar-brand-logo';
+            existingLogo.style.cssText = 'height:32px;width:32px;object-fit:contain;border-radius:4px;flex-shrink:0;margin-right:4px';
+            sidebarHeader.insertBefore(existingLogo, sidebarHeader.firstChild);
+          }
+          existingLogo.src = url;
+        } else if (existingLogo) {
+          existingLogo.remove();
+        }
+      } catch {
+        if (existingLogo) existingLogo.remove();
+      }
+    }
+  } catch {}
+}
+
+function _lightenHex(hex, amt) {
+  hex = hex.replace('#', '');
+  var r = Math.min(255, parseInt(hex.slice(0, 2), 16) + amt);
+  var g = Math.min(255, parseInt(hex.slice(2, 4), 16) + amt);
+  var b = Math.min(255, parseInt(hex.slice(4, 6), 16) + amt);
+  return '#' + [r, g, b].map(function(v) { return v.toString(16).padStart(2, '0'); }).join('');
+}
+function _darkenHex(hex, amt) {
+  hex = hex.replace('#', '');
+  var r = Math.max(0, parseInt(hex.slice(0, 2), 16) - amt);
+  var g = Math.max(0, parseInt(hex.slice(2, 4), 16) - amt);
+  var b = Math.max(0, parseInt(hex.slice(4, 6), 16) - amt);
+  return '#' + [r, g, b].map(function(v) { return v.toString(16).padStart(2, '0'); }).join('');
+}
+
+// =====================================================================
+// Share App / Add to Home Screen
+// =====================================================================
+function showShareApp() {
+  var appUrl = window.location.origin;
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  var isAndroid = /Android/.test(navigator.userAgent);
+
+  showModal('📱 Share & Install App', `
+    <div style="max-width:520px">
+      <!-- App Link -->
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:0.75rem;margin-bottom:1rem">
+        <div style="font-size:0.78rem;color:var(--gray-500);margin-bottom:0.3rem">App URL:</div>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <code style="flex:1;font-size:0.85rem;background:#fff;padding:0.4rem 0.6rem;border-radius:6px;border:1px solid #e5e7eb;word-break:break-all">${escapeHtml(appUrl)}</code>
+          <button class="btn btn-sm btn-primary" onclick="navigator.clipboard?.writeText('${appUrl}').then(function(){showStatusToast('✅','Link copied!')})">Copy</button>
+        </div>
+      </div>
+
+      <!-- Share buttons -->
+      <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <a class="btn btn-outline" style="flex:1;text-align:center;text-decoration:none;min-width:120px" href="mailto:?subject=${encodeURIComponent('Anahuac RV Park Management App')}&body=${encodeURIComponent('Here is your link to the Anahuac RV Park management app:\\n\\n' + appUrl + '\\n\\nTo add it to your phone home screen:\\niPhone: Tap Share → Add to Home Screen\\nAndroid: Tap menu → Add to Home Screen')}">
+          📧 Send via Email
+        </a>
+        <a class="btn btn-outline" style="flex:1;text-align:center;text-decoration:none;min-width:120px" href="sms:?body=${encodeURIComponent('Anahuac RV Park app: ' + appUrl + ' — Add to home screen for quick access!')}">
+          📱 Send via SMS
+        </a>
+      </div>
+
+      <!-- Add to Home Screen Instructions -->
+      <h4 style="color:var(--gray-900);margin-bottom:0.75rem">📲 Add to Home Screen</h4>
+      <p style="font-size:0.85rem;color:var(--gray-600);margin-bottom:1rem">Install this app on your phone so it works like a real app — no browser bars, instant launch from your home screen!</p>
+
+      ${isIOS ? '<div style="background:#f0f9ff;border:1px solid #7dd3fc;border-radius:8px;padding:1rem;margin-bottom:0.75rem">' +
+        '<strong style="color:#0369a1">iPhone / iPad</strong>' +
+        '<div style="margin-top:0.5rem;font-size:0.88rem;line-height:1.7;color:#1c1917">' +
+          '<strong>1.</strong> Tap the <strong>Share</strong> button <span style="display:inline-block;background:#e5e7eb;padding:1px 6px;border-radius:4px;font-size:0.8rem">⬆️</span> at the bottom of Safari<br>' +
+          '<strong>2.</strong> Scroll down and tap <strong>"Add to Home Screen"</strong><br>' +
+          '<strong>3.</strong> Tap <strong>"Add"</strong> in the top right<br>' +
+          '<strong>4.</strong> The app icon appears on your home screen! 🎉' +
+        '</div></div>'
+      : ''}
+
+      ${isAndroid ? '<div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:1rem;margin-bottom:0.75rem">' +
+        '<strong style="color:#065f46">Android</strong>' +
+        '<div style="margin-top:0.5rem;font-size:0.88rem;line-height:1.7;color:#1c1917">' +
+          '<strong>1.</strong> Tap the <strong>⋮ three dots</strong> menu (top right of Chrome)<br>' +
+          '<strong>2.</strong> Tap <strong>"Add to Home Screen"</strong><br>' +
+          '<strong>3.</strong> Tap <strong>"Add"</strong><br>' +
+          '<strong>4.</strong> The app icon appears on your home screen! 🎉' +
+        '</div></div>'
+      : ''}
+
+      ${!isIOS && !isAndroid ? `
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:8px;padding:0.85rem">
+          <strong style="color:#0369a1;font-size:0.88rem">iPhone / iPad</strong>
+          <ol style="margin:0.4rem 0 0;padding-left:1.25rem;font-size:0.82rem;line-height:1.6;color:#1c1917">
+            <li>Open link in Safari</li>
+            <li>Tap Share button <span style="background:#e5e7eb;padding:0 4px;border-radius:3px;font-size:0.75rem">⬆️</span></li>
+            <li>Tap "Add to Home Screen"</li>
+            <li>Tap "Add"</li>
+          </ol>
+        </div>
+        <div style="flex:1;min-width:200px;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:0.85rem">
+          <strong style="color:#065f46;font-size:0.88rem">Android</strong>
+          <ol style="margin:0.4rem 0 0;padding-left:1.25rem;font-size:0.82rem;line-height:1.6;color:#1c1917">
+            <li>Open link in Chrome</li>
+            <li>Tap ⋮ menu (top right)</li>
+            <li>Tap "Add to Home Screen"</li>
+            <li>Tap "Add"</li>
+          </ol>
+        </div>
+      </div>` : ''}
+
+      <p style="font-size:0.78rem;color:var(--gray-400);margin-top:1rem;text-align:center">The app works offline and looks like a native app when installed!</p>
+    </div>
+  `);
+}
+
+// =====================================================================
+// Emergency Data Backup Export
+// =====================================================================
+async function downloadEmergencyBackup() {
+  try {
+    if (typeof showStatusToast === 'function') showStatusToast('💾', 'Preparing backup...');
+    var data = await API.get('/admin/emergency-export');
+    if (!data || !data.files) throw new Error('No data returned');
+
+    // Create individual file downloads (ZIP requires a library, so we create a combined text file)
+    var combined = '=== ANAHUAC RV PARK — EMERGENCY DATA BACKUP ===\n';
+    combined += '=== Generated: ' + data.timestamp + ' ===\n\n';
+    Object.keys(data.files).forEach(function(filename) {
+      combined += '========== ' + filename.toUpperCase() + ' ==========\n';
+      combined += data.files[filename] + '\n\n';
+    });
+
+    var blob = new Blob([combined], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'AnahuacRVPark_Backup_' + new Date().toISOString().split('T')[0] + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    if (typeof showStatusToast === 'function') showStatusToast('✅', 'Backup downloaded!');
+
+    // Update backup reminder
+    var el = document.getElementById('dash-backup-reminder');
+    if (el) el.innerHTML = '💾 Last backup: just now';
+  } catch (err) {
+    alert('Backup failed: ' + (err.message || 'unknown error'));
+  }
+}
+
+// Check backup age and show reminder on dashboard
+async function checkBackupReminder() {
+  var el = document.getElementById('dash-backup-reminder');
+  if (!el) return;
+  try {
+    var settings = await API.get('/settings');
+    var lastBackup = settings?.last_backup_at;
+    if (!lastBackup) {
+      el.innerHTML = '<span style="color:#dc2626;font-weight:600">⚠️ No backup yet!</span>';
+      return;
+    }
+    var days = Math.round((Date.now() - new Date(lastBackup).getTime()) / 86400000);
+    if (days > 30) {
+      el.innerHTML = '<span style="color:#dc2626;font-weight:600">⚠️ Backup ' + days + 'd old</span>';
+    } else {
+      el.textContent = '💾 ' + days + 'd ago';
+    }
+  } catch {}
+}
+
 function openPortalPreview() {
   var win = window.open('/portal.html', '_blank');
   if (!win) window.location.href = '/portal.html';
@@ -634,6 +845,9 @@ function wirePortalButton() {
   if (!pb || pb._wired) return;
   pb.style.display = 'flex';
   pb._wired = true;
+  // Show the support button too
+  var sb = document.getElementById('supportBtn');
+  if (sb) sb.style.display = 'flex';
   pb.addEventListener('click', function() {
     var adminToken = localStorage.getItem('rv_token');
     if (adminToken) {
@@ -725,7 +939,7 @@ function closeModal() { document.getElementById('modal-overlay').style.display =
 function navigateTo(page, skipHistory) {
   if (!page) return; // guard against group-toggle clicks with no data-page
   // Block staff from financial pages
-  if (API.user?.role === 'staff' && ['billing', 'payments', 'users', 'admin', 'waitlist', 'reports', 'lotmgmt'].includes(page)) {
+  if (API.user?.role === 'staff' && ['billing', 'payments', 'users', 'admin', 'waitlist', 'reports', 'lotmgmt', 'branding'].includes(page)) {
     alert('Access restricted. Contact your administrator.');
     return;
   }
@@ -755,7 +969,8 @@ function navigateTo(page, skipHistory) {
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, electric: loadElectric, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
-    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors, documents: loadDocuments, maintenance: loadMaintenance, expenses: loadExpenses, community: loadCommunity, inspections: loadInspections };
+    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors, documents: loadDocuments, maintenance: loadMaintenance, expenses: loadExpenses, community: loadCommunity, inspections: loadInspections, branding: loadBranding,
+    'water-meters': loadWaterMeters, 'water-analytics': loadWaterAnalytics, 'lost-found': loadLostFound, birding: loadBirding, 'hunting-fishing': loadHuntingFishing, 'message-log': loadMessageLog };
   // Contextual first-visit tips
   const _tips = {
     dashboard: ['💡', 'Bookmark this page for quick access! Use the Quick Action buttons to jump to any section.'],
@@ -811,12 +1026,18 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       await API.login(document.getElementById('username').value, document.getElementById('password').value);
       document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('main-app').style.display = '';
       document.body.classList.remove('login-page');
       // Force-show refresh button and portal button
       var rb = document.getElementById('refreshBtn');
       if (rb) { rb.style.display = 'flex'; rb.onclick = function() { location.reload(); }; }
       wirePortalButton();
+      applyBranding();
+      // Check if first-time setup wizard should show
+      if (typeof shouldShowSetupWizard === 'function') {
+        var needsWizard = await shouldShowSetupWizard();
+        if (needsWizard) { showSetupWizard(); return; }
+      }
+      document.getElementById('main-app').style.display = '';
       navigateTo('dashboard');
     } catch (err) {
       errEl.textContent = err.message;
@@ -917,7 +1138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isAdmin = API.user?.role === 'admin';
     const isStaff = API.user?.role === 'staff';
     // Admin-only nav items
-    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses, #nav-community, #nav-inspections').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
+    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses, #nav-community, #nav-inspections, #nav-branding, #nav-lost-found, #nav-birding, #nav-hunting-fishing, #nav-message-log').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
     const adminDiv = document.getElementById('nav-admin-divider');
     if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
     // Financial nav items — hidden for staff
@@ -978,11 +1199,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auto-login if token exists
   if (API.token) {
     document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('main-app').style.display = '';
     document.body.classList.remove('login-page');
     var rb2 = document.getElementById('refreshBtn');
     if (rb2) { rb2.style.display = 'flex'; rb2.onclick = function() { location.reload(); }; }
     wirePortalButton();
-    navigateTo('dashboard');
+    applyBranding();
+    // Check if first-time setup wizard should show
+    (async function() {
+      if (typeof shouldShowSetupWizard === 'function') {
+        var needsWizard = await shouldShowSetupWizard();
+        if (needsWizard) { showSetupWizard(); return; }
+      }
+      document.getElementById('main-app').style.display = '';
+      navigateTo('dashboard');
+    })();
   }
 });

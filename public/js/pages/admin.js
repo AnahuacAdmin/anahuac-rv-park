@@ -20,6 +20,7 @@ async function loadAdmin() {
   const mgrEmail = settings?.manager_email || '';
   const autoEvictSms = settings?.auto_eviction_sms === '1';
   const autoEvictEmail = settings?.auto_eviction_email === '1';
+  const autoBirthdayEnabled = settings?.auto_birthday_enabled === '1';
 
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('admin')}
@@ -97,7 +98,7 @@ async function loadAdmin() {
       <div class="form-row mt-1">
         <div class="form-group">
           <label style="display:flex;align-items:center;gap:0.5rem">
-            <input type="checkbox" id="daily-reminder-enabled" ${settings?.daily_reminder_enabled !== '0' ? 'checked' : ''}> Enable daily 8:00 AM reminder
+            <input type="checkbox" id="daily-reminder-enabled" ${settings?.daily_reminder_enabled === '1' ? 'checked' : ''}> Enable daily 8:00 AM reminder
           </label>
         </div>
         <div class="form-group">
@@ -107,6 +108,19 @@ async function loadAdmin() {
         </div>
       </div>
       <button class="btn btn-primary mt-1" onclick="saveDailyReminderSettings()">Save Reminder Settings</button>
+    </div>
+
+    <div class="card" style="border-left:4px solid #e879f9">
+      <h3>Birthday Messages</h3>
+      <p><small>When enabled, tenants receive an automatic birthday greeting (in-app + SMS) at midnight on their birthday. Duplicate messages are blocked automatically.</small></p>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem">
+            <input type="checkbox" id="auto-birthday-enabled" ${autoBirthdayEnabled ? 'checked' : ''}> Enable automatic birthday messages
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-primary mt-1" onclick="saveBirthdaySettings()">Save Birthday Settings</button>
     </div>
 
     <div class="card" style="border-left:4px solid #0284c7">
@@ -709,6 +723,15 @@ async function sendWeatherSmsToTenants(event, headline, nwsId) {
     toast.hide(0);
     alert('Send failed: ' + (err.message || 'unknown'));
   }
+}
+
+async function saveBirthdaySettings() {
+  try {
+    await API.put('/settings', {
+      auto_birthday_enabled: document.getElementById('auto-birthday-enabled')?.checked ? '1' : '0',
+    });
+    showStatusToast('OK', 'Birthday message settings saved!');
+  } catch (err) { alert('Failed to save: ' + (err.message || 'unknown')); }
 }
 
 async function saveDailyReminderSettings() {

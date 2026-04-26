@@ -65,6 +65,7 @@
           <p id="login-error" class="error-text" style="display:none"></p>
         </form>
         <p class="forgot-link"><a href="#" id="forgot-password-link">Forgot Password?</a></p>
+        <p style="text-align:center;font-size:0.75rem;color:#9ca3af;margin-top:0.5rem">Need help? Contact support at <a href="mailto:anrvpark@gmail.com" style="color:var(--primary)">anrvpark@gmail.com</a></p>
 
         <form id="recover-form" style="display:none">
           <h3 class="recover-title">Password Recovery</h3>
@@ -93,6 +94,16 @@
         <p style="text-align:center;font-size:0.75rem;color:#9ca3af;font-style:italic;margin-top:0.75rem">"The earth is the Lord's, and everything in it." — Psalm 24:1</p>
         <p style="text-align:center;margin-top:0.75rem;font-size:0.7rem;color:#6b7280">&copy; 2026 Anahuac RV Park LLC</p>
         <p style="text-align:center;margin-top:0.75rem;font-size:0.85rem"><a href="/portal.html" style="color:var(--primary);text-decoration:underline">Tenant? Click here to access your portal</a></p>
+      </div>
+    </div>
+
+    <!-- Setup Wizard (first-time admin only) -->
+    <div id="setup-wizard" style="display:none;position:fixed;inset:0;z-index:10000;background:#fff;overflow-y:auto">
+      <div style="max-width:560px;margin:0 auto;padding:2rem 1.5rem 3rem">
+        <div style="text-align:center;margin-bottom:1rem">
+          <img src="/park_Logo.png" alt="" style="height:60px;margin-bottom:0.5rem">
+        </div>
+        <div id="wizard-body"></div>
       </div>
     </div>
 
@@ -125,11 +136,19 @@
             </ul>
           </li>
           <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Operations</li>
-          <li><a href="#" data-page="meters" class="nav-link">⚡ Meter Readings</a></li>
-          <li><a href="#" data-page="electric" class="nav-link">📊 Electric Analytics</a></li>
+          <li class="nav-group">
+            <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">📊 Utility Meters <span class="nav-caret">&#9662;</span></a>
+            <ul class="nav-sub">
+              <li><a href="#" data-page="meters" class="nav-link">⚡ Electric Readings</a></li>
+              <li><a href="#" data-page="electric" class="nav-link">⚡ Electric Analytics</a></li>
+              <li><a href="#" data-page="water-meters" class="nav-link">💧 Water Readings</a></li>
+              <li><a href="#" data-page="water-analytics" class="nav-link">💧 Water Analytics</a></li>
+            </ul>
+          </li>
           <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Financial</li>
           <li><a href="#" data-page="billing" class="nav-link">💰 Billing & Invoices</a></li>
           <li><a href="#" data-page="payments" class="nav-link">💳 Payments</a></li>
+          <li><a href="#" data-page="expenses" class="nav-link" id="nav-expenses" style="display:none">🧾 Expenses</a></li>
           <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Communication</li>
           <li><a href="#" data-page="messages" class="nav-link">📨 Messaging</a></li>
           <li><a href="#" data-page="waitlist" class="nav-link">📋 Waitlist</a></li>
@@ -137,13 +156,17 @@
           <li><a href="#" data-page="reports" class="nav-link" id="nav-reports" style="display:none">📊 Reports</a></li>
           <li><a href="#" data-page="users" class="nav-link" id="nav-users" style="display:none">👥 Users</a></li>
           <li><a href="#" data-page="admin" class="nav-link" id="nav-admin" style="display:none">🔧 Admin</a></li>
+          <li><a href="#" data-page="message-log" class="nav-link" id="nav-message-log" style="display:none">📋 Message Log</a></li>
+          <li><a href="#" data-page="branding" class="nav-link" id="nav-branding" style="display:none">🎨 Park Branding</a></li>
           <li><a href="#" data-page="lotmgmt" class="nav-link" id="nav-lotmgmt" style="display:none">🏗️ Lot Management</a></li>
           <li><a href="#" data-page="vendors" class="nav-link" id="nav-vendors" style="display:none">📒 Vendor Directory</a></li>
           <li><a href="#" data-page="documents" class="nav-link" id="nav-documents" style="display:none">📄 Documents</a></li>
           <li><a href="#" data-page="community" class="nav-link" id="nav-community" style="display:none">📋 Community Board</a></li>
+          <li><a href="#" data-page="lost-found" class="nav-link" id="nav-lost-found" style="display:none">🐾 Lost & Found Pets</a></li>
+          <li><a href="#" data-page="birding" class="nav-link" id="nav-birding" style="display:none">🐦 Bird Sightings</a></li>
+          <li><a href="#" data-page="hunting-fishing" class="nav-link" id="nav-hunting-fishing" style="display:none">🎣 Hunting & Fishing</a></li>
           <li><a href="#" data-page="maintenance" class="nav-link" id="nav-maintenance" style="display:none">🔧 Maintenance</a></li>
           <li><a href="#" data-page="inspections" class="nav-link" id="nav-inspections" style="display:none">📸 Lot Inspections</a></li>
-          <li><a href="#" data-page="expenses" class="nav-link" id="nav-expenses" style="display:none">💸 Expenses</a></li>
         </ul>
         <div class="sidebar-footer">
           <div id="sidebar-user-info" style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem;padding:0.5rem;background:rgba(255,255,255,0.05);border-radius:10px">
@@ -198,6 +221,7 @@
   <script src="/js/pages/waitlist.js"></script>
   <script src="/js/pages/users.js"></script>
   <script src="/js/pages/admin.js"></script>
+  <script src="/js/pages/message-log.js"></script>
   <script src="/js/pages/lotmgmt.js"></script>
   <script src="/js/pages/vendors.js"></script>
   <script src="/js/pages/documents.js"></script>
@@ -205,7 +229,48 @@
   <script src="/js/pages/expenses.js"></script>
   <script src="/js/pages/community.js"></script>
   <script src="/js/pages/inspections.js"></script>
+  <script src="/js/pages/branding.js"></script>
+  <script src="/js/pages/setup-wizard.js"></script>
+  <script src="/js/pages/water-meters.js"></script>
+  <script src="/js/pages/water-analytics.js"></script>
+  <script src="/js/pages/lost-found.js"></script>
+  <script src="/js/pages/birding.js"></script>
+  <script src="/js/pages/hunting-fishing.js"></script>
 <button id="refreshBtn" class="post-login-btn" onclick="window.location.reload()" title="Refresh Page" style="position:fixed;top:15px;right:15px;z-index:99999;width:48px;height:48px;border-radius:50%;background:white;border:3px solid #1a5c32;font-size:1.2rem;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.2);color:#1a5c32;font-weight:bold">&#8635;</button>
 <div id="portalQuickBtn" class="post-login-btn" style="position:fixed;bottom:20px;right:15px;z-index:99999;background:linear-gradient(135deg,#f59e0b,#d97706);color:#0d1a50;border-radius:30px;padding:12px 20px;font-size:0.9rem;font-weight:700;cursor:pointer;display:none;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(245,158,11,0.4)">🐊 Tenant Portal ↗</div>
+
+<!-- Help & Support floating button -->
+<button id="supportBtn" class="post-login-btn" onclick="toggleSupportPopup()" style="position:fixed;bottom:20px;left:15px;z-index:99998;width:44px;height:44px;border-radius:50%;background:var(--brand-primary,#1a5c32);color:#fff;border:none;font-size:1.2rem;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:transform 0.2s" title="Help & Support">?</button>
+<div id="supportPopup" style="display:none;position:fixed;bottom:75px;left:15px;z-index:99999;width:320px;max-width:calc(100vw - 30px);background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.18);border:1px solid #e5e7eb;overflow:hidden">
+  <div style="background:var(--brand-primary,#1a5c32);color:#fff;padding:0.85rem 1rem;display:flex;justify-content:space-between;align-items:center">
+    <strong style="font-size:0.9rem">Help & Support</strong>
+    <button onclick="toggleSupportPopup()" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;padding:0;line-height:1">✕</button>
+  </div>
+  <div style="padding:1rem">
+    <p style="font-size:0.82rem;color:var(--gray-600);margin:0 0 0.85rem;line-height:1.4">Need help? We typically respond within a few hours. 😊</p>
+    <div class="form-group" style="margin-bottom:0.6rem"><label style="font-size:0.78rem">Your Name</label><input id="support-name" style="font-size:0.85rem;padding:0.4rem 0.6rem"></div>
+    <div class="form-group" style="margin-bottom:0.6rem"><label style="font-size:0.78rem">Email</label><input id="support-email" type="email" style="font-size:0.85rem;padding:0.4rem 0.6rem" placeholder="so we can reply to you"></div>
+    <div class="form-group" style="margin-bottom:0.75rem"><label style="font-size:0.78rem">How can we help?</label><textarea id="support-message" rows="3" style="font-size:0.85rem;padding:0.4rem 0.6rem;resize:vertical" placeholder="Describe your question or issue..."></textarea></div>
+    <button class="btn btn-primary btn-full" style="font-size:0.88rem;padding:0.6rem" onclick="submitSupportRequest()">Send Message</button>
+    <div id="support-status" style="text-align:center;font-size:0.78rem;margin-top:0.5rem;display:none"></div>
+  </div>
+</div>
+<script>
+function toggleSupportPopup(){var p=document.getElementById('supportPopup');if(p)p.style.display=p.style.display==='none'?'':'none';}
+async function submitSupportRequest(){
+  var name=document.getElementById('support-name')?.value||'';
+  var email=document.getElementById('support-email')?.value||'';
+  var message=document.getElementById('support-message')?.value||'';
+  var status=document.getElementById('support-status');
+  if(!message.trim()){alert('Please enter a message.');return;}
+  try{
+    await API.post('/settings/support-request',{name:name,email:email,message:message});
+    if(status){status.textContent='✅ Sent! We\'ll get back to you soon.';status.style.color='#16a34a';status.style.display='';}
+    document.getElementById('support-message').value='';
+  }catch(err){
+    if(status){status.textContent='❌ '+(err.message||'Failed to send');status.style.color='#dc2626';status.style.display='';}
+  }
+}
+</script>
 </body>
 </html>

@@ -1,16 +1,16 @@
 /*
  * Anahuac RV Park Management System
  * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
- * Proprietary and Confidential.
- * Unauthorized copying, distribution, or use is strictly prohibited.
+ * Daily Arrival/Departure Reminder — sends SMS to manager at 8 AM CST.
+ * Requires admin toggle ON + dedup check before sending.
  */
 const { db } = require('../database');
 const { sendSms } = require('../twilio');
 
 function isEnabled() {
   try {
-    return db.prepare("SELECT value FROM settings WHERE key = 'daily_reminder_enabled'").get()?.value !== '0';
-  } catch { return true; } // default ON
+    return db.prepare("SELECT value FROM settings WHERE key = 'daily_reminder_enabled'").get()?.value === '1';
+  } catch { return false; } // default OFF
 }
 
 function getManagerPhone() {
@@ -18,15 +18,30 @@ function getManagerPhone() {
 }
 
 function todayStr() {
-  // Use Chicago timezone for date
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+}
+
+function alreadySent(date) {
+  var key = 'reminder:manager:' + date + ':sms';
+  return !!db.prepare('SELECT id FROM auto_message_log WHERE dedup_key = ?').get(key);
+}
+
+function logMessage(channel, subject, bodyPreview, status) {
+  var date = todayStr();
+  var key = 'reminder:manager:' + date + ':' + channel;
+  try {
+    db.prepare(
+      'INSERT OR IGNORE INTO auto_message_log (message_type, recipient_id, recipient_name, recipient_phone, channel, subject, body_preview, status, dedup_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run('reminder', null, 'Manager', getManagerPhone() || '', channel, subject, (bodyPreview || '').slice(0, 200), status, key);
+  } catch (e) {
+    console.error('[reminder-job] log insert failed:', e.message);
+  }
 }
 
 function getTodayArrivals() {
   const today = todayStr();
   const arrivals = [];
 
-  // Reservations arriving today
   try {
     const res = db.prepare(`
       SELECT guest_name as name, lot_id, phone FROM reservations
@@ -35,7 +50,6 @@ function getTodayArrivals() {
     arrivals.push(...res);
   } catch {}
 
-  // Tenants with move_in_date today
   try {
     const tenants = db.prepare(`
       SELECT first_name || ' ' || last_name as name, lot_id, phone FROM tenants
@@ -53,7 +67,6 @@ function getTodayDepartures() {
   const today = todayStr();
   const departures = [];
 
-  // Reservations departing today
   try {
     const res = db.prepare(`
       SELECT guest_name as name, lot_id, phone FROM reservations
@@ -62,7 +75,6 @@ function getTodayDepartures() {
     departures.push(...res);
   } catch {}
 
-  // Tenants with move_out_date today
   try {
     const tenants = db.prepare(`
       SELECT first_name || ' ' || last_name as name, lot_id, phone FROM tenants
@@ -77,55 +89,66 @@ function getTodayDepartures() {
 }
 
 async function sendDailyReminder() {
-  if (!isEnabled()) return;
+  if (!isEnabled()) {
+    console.log('[reminder-job] skipped — daily_reminder_enabled is OFF');
+    return;
+  }
+
+  const today = todayStr();
+
+  // Dedup check
+  if (alreadySent(today)) {
+    console.log('[reminder-job] skipped — already sent today (' + today + ')');
+    return;
+  }
 
   const arrivals = getTodayArrivals();
   const departures = getTodayDepartures();
 
-  if (!arrivals.length && !departures.length) return; // Nothing today, skip
+  if (!arrivals.length && !departures.length) return;
 
   const mgrPhone = getManagerPhone();
   if (!mgrPhone) return;
 
-  let msg = '📅 Good morning! Today at Anahuac RV Park:\n';
+  let msg = 'Good morning! Today at Anahuac RV Park:\n';
 
   if (arrivals.length) {
     msg += '\nARRIVING TODAY:\n';
     arrivals.forEach(a => {
-      msg += `• ${a.name} → Lot ${a.lot_id || '?'}${a.phone ? ' (' + a.phone + ')' : ''}\n`;
+      msg += `* ${a.name} > Lot ${a.lot_id || '?'}${a.phone ? ' (' + a.phone + ')' : ''}\n`;
     });
   }
 
   if (departures.length) {
     msg += '\nDEPARTING TODAY:\n';
     departures.forEach(d => {
-      msg += `• ${d.name} → Lot ${d.lot_id || '?'}${d.phone ? ' (' + d.phone + ')' : ''}\n`;
+      msg += `* ${d.name} > Lot ${d.lot_id || '?'}${d.phone ? ' (' + d.phone + ')' : ''}\n`;
     });
   }
 
-  msg += '\nHave a great day! 🐊';
+  msg += '\nHave a great day!';
 
   try {
     await sendSms(mgrPhone, msg);
+    logMessage('sms', 'Daily Arrival/Departure Reminder', msg, 'sent');
     console.log(`[reminder-job] daily reminder sent: ${arrivals.length} arrivals, ${departures.length} departures`);
   } catch (e) {
+    logMessage('sms', 'Daily Arrival/Departure Reminder', msg, 'failed');
     console.error('[reminder-job] SMS failed:', e.message);
   }
 }
 
 function start() {
-  // Schedule at 8:00 AM Chicago time
   function msUntilNext8AM() {
     const now = new Date();
-    // Get current Chicago time
     const chicagoStr = now.toLocaleString('en-US', { timeZone: 'America/Chicago', hour12: false });
     const [datePart, timePart] = chicagoStr.split(', ');
     const [h, m, s] = timePart.split(':').map(Number);
     const currentMins = h * 60 + m;
-    const targetMins = 8 * 60; // 8:00 AM
+    const targetMins = 8 * 60;
 
     let diffMins = targetMins - currentMins;
-    if (diffMins <= 0) diffMins += 24 * 60; // Next day
+    if (diffMins <= 0) diffMins += 24 * 60;
 
     return diffMins * 60 * 1000 - s * 1000;
   }
@@ -134,7 +157,6 @@ function start() {
     const ms = msUntilNext8AM();
     setTimeout(() => {
       sendDailyReminder().catch(e => console.error('[reminder-job] error:', e.message));
-      // Reschedule for next day (use 24h + recalc to handle DST)
       setTimeout(schedule, 1000);
     }, ms);
     console.log(`[reminder-job] next daily reminder in ${Math.round(ms / 60000)} minutes`);

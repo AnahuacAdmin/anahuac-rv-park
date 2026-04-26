@@ -219,12 +219,106 @@ async function initializeDatabase() {
     likes_count INTEGER DEFAULT 0
   )`);
 
+  // Community replies
+  db.run(`CREATE TABLE IF NOT EXISTS community_replies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+    tenant_id INTEGER,
+    author_name TEXT NOT NULL,
+    author_lot TEXT,
+    is_management INTEGER DEFAULT 0,
+    message TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  addCol("ALTER TABLE community_posts ADD COLUMN reply_count INTEGER DEFAULT 0");
+
+  // Hunting & Fishing Brag Board
+  db.run(`CREATE TABLE IF NOT EXISTS hunting_fishing_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    post_type TEXT NOT NULL DEFAULT 'fishing',
+    species TEXT,
+    weight_lbs REAL DEFAULT 0,
+    weight_oz REAL DEFAULT 0,
+    length_inches REAL DEFAULT 0,
+    location TEXT,
+    method TEXT,
+    bait_used TEXT,
+    photo_data TEXT,
+    description TEXT,
+    likes_count INTEGER DEFAULT 0,
+    is_featured INTEGER DEFAULT 0,
+    is_biggest_of_month INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Bird Sightings
+  db.run(`CREATE TABLE IF NOT EXISTS bird_sightings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    bird_name TEXT NOT NULL,
+    location TEXT,
+    spotted_date DATE,
+    spotted_time TEXT,
+    rarity TEXT DEFAULT 'Common',
+    photo_data TEXT,
+    notes TEXT,
+    likes_count INTEGER DEFAULT 0,
+    is_featured INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Lost & Found Pets
+  db.run(`CREATE TABLE IF NOT EXISTS lost_found_pets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    type TEXT NOT NULL DEFAULT 'lost',
+    pet_type TEXT DEFAULT 'Dog',
+    pet_name TEXT,
+    breed TEXT,
+    color_description TEXT,
+    last_seen_location TEXT,
+    date_occurred DATE,
+    photo_data TEXT,
+    contact_phone TEXT,
+    details TEXT,
+    status TEXT DEFAULT 'active',
+    reunited_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   // Electric alerts
   db.run(`CREATE TABLE IF NOT EXISTS electric_alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lot_id TEXT, tenant_id INTEGER, alert_type TEXT,
     message TEXT, is_dismissed INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP, dismissed_at DATETIME
+  )`);
+
+  // Water meter tracking
+  db.run(`CREATE TABLE IF NOT EXISTS water_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    rate_per_gallon REAL DEFAULT 0.00,
+    service_fee_percent REAL DEFAULT 9,
+    billing_enabled INTEGER DEFAULT 0,
+    monthly_allowance_gallons REAL DEFAULT NULL,
+    overage_only_mode INTEGER DEFAULT 1,
+    evaluation_mode INTEGER DEFAULT 1
+  )`);
+  // Ensure the single settings row exists
+  db.run(`INSERT OR IGNORE INTO water_settings (id) VALUES (1)`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS water_readings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id TEXT REFERENCES lots(id),
+    reading_date DATE NOT NULL,
+    previous_reading REAL DEFAULT 0,
+    current_reading REAL DEFAULT 0,
+    gallons_used REAL DEFAULT 0,
+    estimated_charge REAL DEFAULT 0,
+    notes TEXT,
+    photo_path TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
   // SMS templates
@@ -377,6 +471,21 @@ async function initializeDatabase() {
     sms_sent INTEGER DEFAULT 0,
     tenant_count INTEGER DEFAULT 0,
     message_count INTEGER DEFAULT 0
+  )`);
+
+  // Unified auto-message log (birthday, reminder, weather, etc.)
+  db.run(`CREATE TABLE IF NOT EXISTS auto_message_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_type TEXT NOT NULL,
+    recipient_id INTEGER,
+    recipient_name TEXT,
+    recipient_phone TEXT,
+    channel TEXT DEFAULT 'in_app',
+    subject TEXT,
+    body_preview TEXT,
+    status TEXT NOT NULL DEFAULT 'sent',
+    dedup_key TEXT UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
   addCol("ALTER TABLE lots ADD COLUMN lot_type TEXT DEFAULT 'standard'");
@@ -596,6 +705,12 @@ async function initializeDatabase() {
   if (!pinRow) {
     dbWrapper.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('recovery_pin', process.env.DEFAULT_RECOVERY_PIN || '0000');
   }
+
+  // Default all auto-message toggles to OFF — admin must explicitly enable
+  const ensureSetting = dbWrapper.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
+  ensureSetting.run('auto_birthday_enabled', '0');
+  ensureSetting.run('daily_reminder_enabled', '0');
+  ensureSetting.run('weather_alerts_enabled', '0');
 
   // Seed lots
   const existingLots = dbWrapper.prepare('SELECT COUNT(*) as count FROM lots').get();
