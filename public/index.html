@@ -37,7 +37,6 @@
 </head>
 <body class="login-page">
   <div id="splash" class="splash">
-    <img src="/park_Logo.png" alt="" class="splash-logo">
     <div class="splash-title">Anahuac RV Park</div>
     <div class="splash-subtitle">Welcome to the Gator Country! 🐊</div>
     <div class="splash-spinner"></div>
@@ -64,31 +63,17 @@
           <button type="submit" class="btn btn-primary btn-full">Sign In</button>
           <p id="login-error" class="error-text" style="display:none"></p>
         </form>
+        <div id="forgot-password-info" style="display:none;margin-top:1rem;padding:1rem;background:#fefce8;border:1px solid #fde68a;border-radius:10px;text-align:center">
+          <p style="font-weight:700;color:#92400e;margin-bottom:0.5rem;font-size:0.95rem">Forgot your password?</p>
+          <p style="font-size:0.85rem;color:#78716c;line-height:1.5;margin-bottom:0.5rem">Contact park management to reset your password:</p>
+          <!-- TODO: Replace anrvpark@gmail.com with a professional domain email (e.g. admin@anrvpark.com) once DNS/domain email is set up -->
+          <p style="font-size:0.9rem;margin-bottom:0.25rem"><strong>Phone:</strong> <a href="tel:4092676603" style="color:var(--primary);font-weight:600">409-267-6603</a></p>
+          <p style="font-size:0.9rem"><strong>Email:</strong> <a href="mailto:anrvpark@gmail.com" style="color:var(--primary);font-weight:600">anrvpark@gmail.com</a></p>
+          <p class="forgot-link" style="margin-top:0.75rem"><a href="#" id="back-to-login">&larr; Back to Sign In</a></p>
+        </div>
         <p class="forgot-link"><a href="#" id="forgot-password-link">Forgot Password?</a></p>
+        <!-- TODO: Replace anrvpark@gmail.com with a professional domain email (e.g. admin@anrvpark.com) once DNS/domain email is set up -->
         <p style="text-align:center;font-size:0.75rem;color:#9ca3af;margin-top:0.5rem">Need help? Contact support at <a href="mailto:anrvpark@gmail.com" style="color:var(--primary)">anrvpark@gmail.com</a></p>
-
-        <form id="recover-form" style="display:none">
-          <h3 class="recover-title">Password Recovery</h3>
-          <div class="form-group">
-            <label for="recover-username">Username</label>
-            <input type="text" id="recover-username" required>
-          </div>
-          <div class="form-group">
-            <label for="recover-pin">Recovery PIN</label>
-            <input type="password" id="recover-pin" required>
-          </div>
-          <div class="form-group">
-            <label for="recover-new-password">New Password</label>
-            <div class="password-wrap">
-              <input type="password" id="recover-new-password" required minlength="6">
-              <button type="button" id="toggle-recover-password" class="password-toggle" aria-label="Show password">&#128065;</button>
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary btn-full">Reset Password</button>
-          <p id="recover-error" class="error-text" style="display:none"></p>
-          <p id="recover-success" class="success-text" style="display:none">Password reset. You can now sign in.</p>
-          <p class="forgot-link"><a href="#" id="back-to-login">&larr; Back to Sign In</a></p>
-        </form>
 
         <p class="login-footer">1003 Davis Ave, Anahuac, TX 77514 | 409-267-6603</p>
         <p style="text-align:center;font-size:0.75rem;color:#9ca3af;font-style:italic;margin-top:0.75rem">"The earth is the Lord's, and everything in it." — Psalm 24:1</p>
@@ -107,84 +92,8 @@
       </div>
     </div>
 
-    <!-- Main App -->
-    <div id="main-app" style="display:none">
-      <header class="mobile-header">
-        <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Open menu">&#9776;</button>
-        <h2>🐊 Anahuac RV Park</h2>
-      </header>
-      <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
-      <nav id="sidebar">
-        <div class="sidebar-header">
-          <h2>🐊 Anahuac RV Park</h2>
-          <button id="menu-toggle" class="menu-btn">&#9776;</button>
-        </div>
-        <div class="sidebar-search" onclick="event.stopPropagation()">
-          <input type="text" id="global-search" placeholder="🔍 Search tenants, lots, invoices..." autocomplete="off" oninput="onSearchInput(this.value)" onkeydown="searchKeydown(event)">
-          <div id="search-results" class="search-results"></div>
-        </div>
-        <ul class="nav-menu">
-          <li><a href="#" data-page="dashboard" class="nav-link active">🐊 Dashboard</a></li>
-          <li><a href="#" data-page="sitemap" class="nav-link">🗺️ Site Map</a></li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Guest Management</li>
-          <li class="nav-group open">
-            <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">👥 Guests <span class="nav-caret">&#9662;</span></a>
-            <ul class="nav-sub">
-              <li><a href="#" data-page="tenants" class="nav-link">👤 Tenants</a></li>
-              <li><a href="#" data-page="checkins" class="nav-link">✅ Check-In/Out</a></li>
-              <li><a href="#" data-page="reservations" class="nav-link">📅 Reservations</a></li>
-            </ul>
-          </li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Operations</li>
-          <li class="nav-group">
-            <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">📊 Utility Meters <span class="nav-caret">&#9662;</span></a>
-            <ul class="nav-sub">
-              <li><a href="#" data-page="meters" class="nav-link">⚡ Electric Readings</a></li>
-              <li><a href="#" data-page="electric" class="nav-link">⚡ Electric Analytics</a></li>
-              <li><a href="#" data-page="water-meters" class="nav-link">💧 Water Readings</a></li>
-              <li><a href="#" data-page="water-analytics" class="nav-link">💧 Water Analytics</a></li>
-            </ul>
-          </li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Financial</li>
-          <li><a href="#" data-page="billing" class="nav-link">💰 Billing & Invoices</a></li>
-          <li><a href="#" data-page="payments" class="nav-link">💳 Payments</a></li>
-          <li><a href="#" data-page="expenses" class="nav-link" id="nav-expenses" style="display:none">🧾 Expenses</a></li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Communication</li>
-          <li><a href="#" data-page="messages" class="nav-link">📨 Messaging</a></li>
-          <li><a href="#" data-page="waitlist" class="nav-link">📋 Waitlist</a></li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600;display:none" id="nav-admin-divider">Administration</li>
-          <li><a href="#" data-page="reports" class="nav-link" id="nav-reports" style="display:none">📊 Reports</a></li>
-          <li><a href="#" data-page="users" class="nav-link" id="nav-users" style="display:none">👥 Users</a></li>
-          <li><a href="#" data-page="admin" class="nav-link" id="nav-admin" style="display:none">🔧 Admin</a></li>
-          <li><a href="#" data-page="message-log" class="nav-link" id="nav-message-log" style="display:none">📋 Message Log</a></li>
-          <li><a href="#" data-page="branding" class="nav-link" id="nav-branding" style="display:none">🎨 Park Branding</a></li>
-          <li><a href="#" data-page="lotmgmt" class="nav-link" id="nav-lotmgmt" style="display:none">🏗️ Lot Management</a></li>
-          <li><a href="#" data-page="vendors" class="nav-link" id="nav-vendors" style="display:none">📒 Vendor Directory</a></li>
-          <li><a href="#" data-page="documents" class="nav-link" id="nav-documents" style="display:none">📄 Documents</a></li>
-          <li><a href="#" data-page="community" class="nav-link" id="nav-community" style="display:none">📋 Community Board</a></li>
-          <li><a href="#" data-page="lost-found" class="nav-link" id="nav-lost-found" style="display:none">🐾 Lost & Found Pets</a></li>
-          <li><a href="#" data-page="birding" class="nav-link" id="nav-birding" style="display:none">🐦 Bird Sightings</a></li>
-          <li><a href="#" data-page="hunting-fishing" class="nav-link" id="nav-hunting-fishing" style="display:none">🎣 Hunting & Fishing</a></li>
-          <li><a href="#" data-page="maintenance" class="nav-link" id="nav-maintenance" style="display:none">🔧 Maintenance</a></li>
-          <li><a href="#" data-page="inspections" class="nav-link" id="nav-inspections" style="display:none">📸 Lot Inspections</a></li>
-        </ul>
-        <div class="sidebar-footer">
-          <div id="sidebar-user-info" style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem;padding:0.5rem;background:rgba(255,255,255,0.05);border-radius:10px">
-            <div id="sidebar-avatar" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:800;color:#1c1917;flex-shrink:0">AD</div>
-            <div style="flex:1;min-width:0">
-              <div id="sidebar-username" style="font-size:0.82rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Admin</div>
-              <div id="sidebar-role" style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.05em">Administrator</div>
-            </div>
-          </div>
-          <button id="change-password-btn" class="btn btn-outline btn-full" style="margin-bottom:0.5rem">🔒 Change Password</button>
-          <button id="logout-btn" class="btn btn-outline btn-full">🚪 Logout</button>
-        </div>
-      </nav>
-      <main id="content">
-        <div id="page-content"></div>
-        <footer style="text-align:center;padding:1.5rem 1rem 1rem;font-size:0.72rem;color:#9ca3af">&copy; 2026 Anahuac RV Park LLC &nbsp;|&nbsp; <a href="#" onclick="event.preventDefault();showKeyboardShortcuts()" style="color:#a8a29e;text-decoration:underline">⌨️ Keyboard Shortcuts</a> &nbsp;|&nbsp; <a href="/emergency-form.html" target="_blank" style="color:#a8a29e;text-decoration:underline">🖨️ Emergency Forms</a></footer>
-      </main>
-    </div>
+    <!-- Main App — injected by JS after login (not in source pre-auth) -->
+    <div id="main-app" style="display:none"></div>
   </div>
 
   <!-- Modal -->

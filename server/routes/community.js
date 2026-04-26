@@ -10,6 +10,7 @@ const { sendSms } = require('../twilio');
 router.get('/public', (req, res) => {
   var posts = db.prepare(`
     SELECT p.id, p.post_type, p.title, p.message, p.is_pinned, p.likes_count, p.submitted_at,
+      COALESCE(p.reply_count, 0) as reply_count,
       CASE WHEN p.tenant_id IS NULL THEN 'Park Management' ELSE t.first_name || ' ' || t.last_name END as author,
       CASE WHEN p.tenant_id IS NULL THEN '' ELSE 'Lot ' || COALESCE(p.lot_id, t.lot_id, '') END as author_lot,
       CASE WHEN p.photo_data IS NOT NULL AND p.photo_data != '' THEN 1 ELSE 0 END as has_photo
@@ -50,14 +51,82 @@ router.post('/submit', (req, res) => {
   res.json({ id: result.lastInsertRowid });
 });
 
+// Public: get replies for a post
+router.get('/:id/replies', (req, res) => {
+  var replies = db.prepare(`
+    SELECT id, post_id, tenant_id, author_name, author_lot, is_management, message, created_at
+    FROM community_replies WHERE post_id = ? ORDER BY created_at ASC
+  `).all(req.params.id);
+  res.json(replies);
+});
+
+// Public: add reply from portal tenant
+router.post('/:id/replies', (req, res) => {
+  var b = req.body || {};
+  if (!b.message || !String(b.message).trim()) return res.status(400).json({ error: 'Message is required' });
+  if (!b.author_name) return res.status(400).json({ error: 'Author name is required' });
+  // Verify the post exists and is approved
+  var post = db.prepare('SELECT id FROM community_posts WHERE id = ? AND status = ?').get(req.params.id, 'approved');
+  if (!post) return res.status(404).json({ error: 'Post not found' });
+  var result = db.prepare(
+    'INSERT INTO community_replies (post_id, tenant_id, author_name, author_lot, is_management, message) VALUES (?,?,?,?,0,?)'
+  ).run(req.params.id, b.tenant_id || null, String(b.author_name).trim(), b.author_lot || null, String(b.message).trim());
+  db.prepare('UPDATE community_posts SET reply_count = (SELECT COUNT(*) FROM community_replies WHERE post_id = ?) WHERE id = ?').run(req.params.id, req.params.id);
+  res.json({ id: result.lastInsertRowid });
+});
+
 // Admin routes
 router.use(authenticate);
 
-// All posts (admin)
+// Latest community activity — returns the single most recent event (post or reply)
+// for the dashboard strip. Admin-only.
+router.get('/latest-activity', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var latestPost = db.prepare(`
+    SELECT p.id, p.title, p.submitted_at as ts,
+      CASE WHEN p.tenant_id IS NULL THEN 'Park Management' ELSE t.first_name || ' ' || t.last_name END as author,
+      CASE WHEN p.tenant_id IS NULL THEN '' ELSE 'Lot ' || COALESCE(p.lot_id, t.lot_id, '') END as author_lot
+    FROM community_posts p LEFT JOIN tenants t ON p.tenant_id = t.id
+    WHERE p.status = 'approved'
+    ORDER BY p.submitted_at DESC LIMIT 1
+  `).get();
+  var latestReply = db.prepare(`
+    SELECT r.id, r.author_name as author, r.author_lot, r.is_management, r.created_at as ts,
+      p.id as post_id, p.title as post_title
+    FROM community_replies r
+    JOIN community_posts p ON r.post_id = p.id AND p.status = 'approved'
+    ORDER BY r.created_at DESC LIMIT 1
+  `).get();
+
+  // Compare timestamps to determine which is more recent
+  var postTs = latestPost?.ts || '';
+  var replyTs = latestReply?.ts || '';
+  if (!postTs && !replyTs) return res.json(null);
+
+  if (replyTs > postTs && latestReply) {
+    return res.json({
+      type: 'reply',
+      author: latestReply.author,
+      author_lot: latestReply.author_lot,
+      is_management: latestReply.is_management,
+      post_title: latestReply.post_title,
+      ts: latestReply.ts,
+    });
+  }
+  return res.json({
+    type: 'post',
+    author: latestPost.author,
+    author_lot: latestPost.author_lot,
+    post_title: latestPost.title,
+    ts: latestPost.ts,
+  });
+});
+
+// All posts (admin) — includes reply_count
 router.get('/', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   res.json(db.prepare(`
-    SELECT p.*, t.first_name, t.last_name FROM community_posts p
+    SELECT p.*, COALESCE(p.reply_count, 0) as reply_count, t.first_name, t.last_name FROM community_posts p
     LEFT JOIN tenants t ON p.tenant_id = t.id
     ORDER BY CASE p.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, p.submitted_at DESC
   `).all());
@@ -121,6 +190,31 @@ router.post('/', (req, res) => {
 router.delete('/:id', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   db.prepare('DELETE FROM community_posts WHERE id=?').run(req.params.id);
+  res.json({ success: true });
+});
+
+// Admin reply (marked as management)
+router.post('/:id/replies/admin', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var b = req.body || {};
+  if (!b.message || !String(b.message).trim()) return res.status(400).json({ error: 'Message is required' });
+  var post = db.prepare('SELECT id FROM community_posts WHERE id = ?').get(req.params.id);
+  if (!post) return res.status(404).json({ error: 'Post not found' });
+  var result = db.prepare(
+    'INSERT INTO community_replies (post_id, tenant_id, author_name, author_lot, is_management, message) VALUES (?,?,?,?,1,?)'
+  ).run(req.params.id, null, req.user.username || 'Management', null, String(b.message).trim());
+  db.prepare('UPDATE community_posts SET reply_count = (SELECT COUNT(*) FROM community_replies WHERE post_id = ?) WHERE id = ?').run(req.params.id, req.params.id);
+  res.json({ id: result.lastInsertRowid });
+});
+
+// Admin delete reply
+router.delete('/replies/:replyId', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var reply = db.prepare('SELECT post_id FROM community_replies WHERE id = ?').get(req.params.replyId);
+  db.prepare('DELETE FROM community_replies WHERE id = ?').run(req.params.replyId);
+  if (reply) {
+    db.prepare('UPDATE community_posts SET reply_count = (SELECT COUNT(*) FROM community_replies WHERE post_id = ?) WHERE id = ?').run(reply.post_id, reply.post_id);
+  }
   res.json({ success: true });
 });
 

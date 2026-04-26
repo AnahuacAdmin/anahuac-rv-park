@@ -15,6 +15,7 @@ router.use(authenticate);
 const PARK_PREFIX = 'Anahuac RV Park: ';
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 const FROM_ADDRESS = 'Anahuac RV Park <invoices@anrvpark.com>';
+// TODO: Replace anrvpark@gmail.com with a professional domain email (e.g. admin@anrvpark.com) once DNS/domain email is set up
 const REPLY_TO = 'anrvpark@gmail.com';
 const EMAIL_FOOTER_TEXT = '\n\n—\nAnahuac RV Park, LLC\n1003 Davis Ave, Anahuac, TX 77514\n409-267-6603\n\nYou are receiving this because you are a tenant at Anahuac RV Park LLC. Call 409-267-6603 to opt out of email communications.';
 const EMAIL_FOOTER_HTML = `

@@ -1044,9 +1044,22 @@ a { text-decoration: none; color: inherit; }
 }
 .table-container table thead th:first-child { background: var(--gray-50); z-index: 3; }
 
-.billing-table { min-width: 1400px; }
-.billing-table th, .billing-table td { padding: 0.45rem 0.55rem; font-size: 0.78rem; white-space: nowrap; }
-.billing-table th { font-size: 0.7rem; }
+.billing-table { min-width: 1400px; border-collapse: separate; border-spacing: 0; }
+.billing-table th, .billing-table td { padding: 0.7rem 0.55rem; font-size: 0.78rem; white-space: nowrap; border-bottom: 1px solid #cccccc; }
+.billing-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* Header row — dark green with white text */
+.billing-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--brand-primary, #1a5c32); color: #fff; font-weight: 700;
+  padding-top: 0.65rem; padding-bottom: 0.65rem;
+  border-bottom: 3px solid #0d3d1a;
+}
+
+/* Alternating row colors */
+.billing-table tbody tr:nth-child(even) > td { background: #f0f0f0; }
+.billing-table tbody tr:nth-child(odd) > td { background: #ffffff; }
+.billing-table tbody tr:hover > td { background: #e8f5e9 !important; }
 
 .billing-scroll {
   overflow-x: auto;
@@ -1055,12 +1068,10 @@ a { text-decoration: none; color: inherit; }
   -webkit-overflow-scrolling: touch;
 }
 
-.billing-table thead th { position: sticky; top: 0; background: var(--gray-50); z-index: 2; }
-
-/* Sticky first two columns */
-.billing-table th:nth-child(2), .billing-table td:nth-child(2) { position: sticky; left: 0; background: #fff; z-index: 1; box-shadow: 1px 0 0 var(--gray-200); }
-.billing-table th:nth-child(3), .billing-table td:nth-child(3) { position: sticky; left: 60px; background: #fff; z-index: 1; box-shadow: 1px 0 0 var(--gray-200); }
-.billing-table thead th:nth-child(2), .billing-table thead th:nth-child(3) { z-index: 3; background: var(--gray-50); }
+/* Sticky first two data columns (Invoice # and Lot — columns 2 & 3 since Actions is col 1) */
+.billing-table th:nth-child(2), .billing-table td:nth-child(2) { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--gray-200); }
+.billing-table th:nth-child(3), .billing-table td:nth-child(3) { position: sticky; left: 60px; z-index: 1; box-shadow: 1px 0 0 var(--gray-200); }
+.billing-table thead th:nth-child(2), .billing-table thead th:nth-child(3) { z-index: 3; }
 
 table { width: 100%; border-collapse: collapse; }
 th {
@@ -1369,11 +1380,105 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
   #portalQuickBtn { bottom: 80px !important; right: 15px !important; font-size: 0.8rem !important; padding: 10px 16px !important; }
   #refreshBtn { top: 10px !important; right: 10px !important; }
 }
+/* ===== ENHANCED MOBILE FIXES ===== */
+@media (max-width: 768px) {
+  /* Base font — ensure minimum readable size */
+  body { font-size: 0.92rem; }
+
+  /* Tables — always horizontally scrollable with visible hint */
+  .table-container, .billing-scroll, .scrollable-table-card {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    position: relative;
+  }
+  table { font-size: 0.8rem; }
+  th, td { padding: 0.5rem; white-space: nowrap; }
+
+  /* Billing action buttons — tappable on mobile */
+  .inv-act-btn { min-height: 32px; font-size: 0.72rem; }
+
+  /* Form inputs — full width, tappable */
+  input, select, textarea {
+    font-size: 1rem !important; /* prevents iOS zoom on focus */
+    min-height: 44px;
+  }
+  .form-group label { font-size: 0.85rem; margin-bottom: 0.3rem; display: block; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 0.6rem 0.75rem;
+  }
+  .form-row { grid-template-columns: 1fr !important; gap: 0.5rem; }
+
+  /* Modals — full width bottom sheet */
+  .modal { width: 100% !important; max-width: 100% !important; max-height: 90vh;
+    border-radius: 16px 16px 0 0; }
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  #modal-body { padding: 1rem; max-height: 75vh; overflow-y: auto; }
+
+  /* Buttons — min tap target */
+  .btn { min-height: 44px; font-size: 0.85rem; }
+  .btn-sm { min-height: 38px; font-size: 0.78rem; }
+  .btn-group { flex-wrap: wrap; gap: 0.35rem; }
+
+  /* Page header — stack on mobile */
+  .page-header { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+  .page-header h2 { font-size: 1.25rem; }
+  .page-header .btn-group { width: 100%; flex-wrap: wrap; }
+  .page-header .btn-group .btn { flex: 1; min-width: 0; text-align: center; justify-content: center; }
+
+  /* Dashboard cards — 2 col on phone, stack at 375px */
+  .dash-top-bar { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+  .dash-top-item { padding: 0.7rem; }
+  .dash-top-val { font-size: 1.1rem; }
+  .dash-top-label { font-size: 0.68rem; }
+  .dash-charts-row { grid-template-columns: 1fr; }
+  .dash-actions { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+  .dash-bottom-row { flex-direction: column; }
+  .dash-bible { padding: 0.6rem 0.75rem; font-size: 0.82rem; }
+  .daily-tip { font-size: 0.82rem; padding: 0.6rem 0.75rem; }
+
+  /* Filter bar — stack controls */
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-bar select, .filter-bar input, .filter-bar .btn { width: 100%; }
+
+  /* Site map — smaller lot cards */
+  .sitemap-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.4rem; }
+  .lot-card { min-height: 70px; padding: 0.5rem; }
+  .lot-card .lot-id { font-size: 0.9rem; }
+
+  /* Card padding reduction */
+  .card { padding: 0.75rem; }
+
+  /* Floating buttons — avoid overlap with bottom nav or each other */
+  #supportBtn { bottom: 15px !important; left: 10px !important; width: 40px; height: 40px; font-size: 1rem; }
+  #portalQuickBtn { bottom: 70px !important; right: 10px !important; padding: 10px 14px !important; font-size: 0.8rem !important; }
+
+  /* Community strip — wrap gracefully */
+  #dash-community-strip > div { font-size: 0.75rem; }
+
+  /* Branding page — single column */
+  #branding-grid { grid-template-columns: 1fr !important; }
+
+  /* Scrollable table card — full bleed on mobile */
+  .scrollable-table-card { border-radius: 0; margin-left: -0.75rem; margin-right: -0.75rem; padding: 0; }
+}
+
+/* Extra small phones (iPhone SE, 375px) */
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
   .page-header .btn-group { flex-direction: column; }
   .page-header .btn-group .btn { width: 100%; }
   .dash-actions { grid-template-columns: repeat(2, 1fr); }
+  .dash-top-bar { grid-template-columns: 1fr 1fr; }
+  .dash-top-val { font-size: 1rem; }
+
+  /* Weekly widget cards */
+  #weekly-calendar { overflow-x: auto; }
+
+  /* Lot cards even smaller */
+  .sitemap-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+  .lot-card { min-height: 65px; }
+
+  /* Nav-sub links — more padding for finger taps */
+  .nav-sub .nav-link { min-height: 44px; display: flex; align-items: center; }
 }
 
 /* === UTILITIES === */
@@ -1603,3 +1708,42 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th { background: var(--gray-50); color: var(--gray-600); font-weight: 600; text-align: left; padding: 0.6rem 0.5rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .data-table td { padding: 0.5rem; border-bottom: 1px solid var(--gray-100); font-size: 0.85rem; }
+
+/* === IMPORT HELP PANEL === */
+/* Hide default <summary> disclosure markers across browsers — the "?" icon
+   and summary text serve as the affordance. */
+.import-help-panel > summary::-webkit-details-marker { display: none; }
+.import-help-panel > summary { list-style: none; }
+.import-help-panel > summary:hover { background: var(--gray-50, #f3f4f6); }
+.import-help-panel[open] > summary { border-bottom: 1px solid #e5e7eb; }
+
+/* === BRANDING PAGE === */
+/* The sidebar-header is already flex. This ensures the h2 truncates gracefully
+   when a custom logo image is inserted before it. */
+.sidebar-header h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Collapse branding grid to single column on small screens */
+@media (max-width: 820px) {
+  #branding-grid { grid-template-columns: 1fr !important; }
+}
+
+/* === MOBILE-ONLY CALL BUTTONS === */
+/* Hide tel: call buttons on desktop — only show on mobile devices */
+@media (min-width: 769px) { .mobile-call-btn { display: none !important; } }
+
+/* === INVOICE ACTION BUTTONS (compact text grid) === */
+.inv-act-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 100%; height: 26px; padding: 0 4px; border: 1px solid var(--gray-200, #e7e5e4);
+  background: #fff; border-radius: 4px; cursor: pointer;
+  font-size: 0.68rem; font-weight: 600; color: var(--gray-700, #44403c);
+  font-family: inherit; white-space: nowrap;
+  transition: background 0.15s;
+}
+.inv-act-btn:hover { background: var(--gray-100, #f5f5f4); }
+.inv-act-btn:active { transform: scale(0.97); }
+.inv-act-green { background: #dcfce7; color: #16a34a; border-color: #a7f3d0; }
+.inv-act-green:hover { background: #bbf7d0; }
+.inv-act-red { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+.inv-act-red:hover { background: #fecaca; }
+.inv-act-orange { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.inv-act-orange:hover { background: #fde68a; }

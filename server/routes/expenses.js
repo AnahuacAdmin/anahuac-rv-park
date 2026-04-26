@@ -9,6 +9,7 @@ const { authenticate, requireAdmin } = require('../middleware');
 router.use(authenticate);
 router.use(requireAdmin);
 
+// List expenses with filters
 router.get('/', (req, res) => {
   var q = req.query;
   var sql = 'SELECT * FROM expenses WHERE 1=1';
@@ -16,19 +17,42 @@ router.get('/', (req, res) => {
   if (q.category && q.category !== 'all') { sql += ' AND category=?'; params.push(q.category); }
   if (q.from) { sql += ' AND expense_date>=?'; params.push(q.from); }
   if (q.to) { sql += ' AND expense_date<=?'; params.push(q.to); }
+  if (q.vendor) { sql += ' AND vendor LIKE ?'; params.push('%' + q.vendor + '%'); }
   sql += ' ORDER BY expense_date DESC';
   var rows = db.prepare(sql).all(...params);
   rows.forEach(function(r) { r.has_receipt = !!r.receipt_photo; delete r.receipt_photo; });
   res.json(rows);
 });
 
+// Monthly summary
 router.get('/summary', (req, res) => {
   var month = req.query.month || new Date().toISOString().slice(0, 7);
   var total = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM expenses WHERE expense_date LIKE ?").get(month + '%').t;
   var byCategory = db.prepare("SELECT category, COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date LIKE ? GROUP BY category ORDER BY total DESC").all(month + '%');
-  res.json({ month: month, total: total, byCategory: byCategory });
+
+  // Year total
+  var year = month.slice(0, 4);
+  var yearTotal = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM expenses WHERE expense_date LIKE ?").get(year + '%').t;
+
+  // Receipt count
+  var receiptCount = db.prepare("SELECT COUNT(*) as c FROM expenses WHERE receipt_photo IS NOT NULL AND receipt_photo != ''").get().c;
+
+  // Top vendor
+  var topVendors = db.prepare("SELECT vendor, COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date LIKE ? AND vendor IS NOT NULL AND vendor != '' GROUP BY vendor ORDER BY total DESC LIMIT 5").all(year + '%');
+
+  // Monthly history (last 6 months)
+  var monthlyHistory = [];
+  for (var i = 5; i >= 0; i--) {
+    var d = new Date(); d.setMonth(d.getMonth() - i);
+    var m = d.toISOString().slice(0, 7);
+    var t = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM expenses WHERE expense_date LIKE ?").get(m + '%').t;
+    monthlyHistory.push({ month: m, total: t });
+  }
+
+  res.json({ month, total, byCategory, yearTotal, receiptCount, topVendors, monthlyHistory });
 });
 
+// Get receipt image
 router.get('/:id/receipt', (req, res) => {
   var row = db.prepare('SELECT receipt_photo FROM expenses WHERE id=?').get(req.params.id);
   if (!row || !row.receipt_photo) return res.status(404).json({ error: 'No receipt' });
@@ -37,6 +61,34 @@ router.get('/:id/receipt', (req, res) => {
   res.send(buf);
 });
 
+// CSV export
+router.get('/export/csv', (req, res) => {
+  var q = req.query;
+  var sql = 'SELECT expense_date, category, vendor, description, amount, paid_by FROM expenses WHERE 1=1';
+  var params = [];
+  if (q.from) { sql += ' AND expense_date>=?'; params.push(q.from); }
+  if (q.to) { sql += ' AND expense_date<=?'; params.push(q.to); }
+  sql += ' ORDER BY expense_date DESC';
+  var rows = db.prepare(sql).all(...params);
+
+  var csvEsc = function(v) {
+    var s = String(v == null ? '' : v);
+    if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+  var lines = ['Date,Category,Vendor,Description,Amount,Paid By'];
+  rows.forEach(function(r) {
+    lines.push([r.expense_date, r.category, r.vendor, r.description, Number(r.amount).toFixed(2), r.paid_by].map(csvEsc).join(','));
+  });
+  var total = rows.reduce(function(s, r) { return s + (Number(r.amount) || 0); }, 0);
+  lines.push(',,,TOTAL,' + total.toFixed(2) + ',');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="expenses-' + (q.from || 'all') + '-to-' + (q.to || 'now') + '.csv"');
+  res.send(lines.join('\n') + '\n');
+});
+
+// Create expense
 router.post('/', (req, res) => {
   var b = req.body || {};
   if (!b.expense_date || !b.amount) return res.status(400).json({ error: 'Date and amount required' });
@@ -46,6 +98,68 @@ router.post('/', (req, res) => {
   res.json({ id: result.lastInsertRowid });
 });
 
+// Update expense
+router.put('/:id', (req, res) => {
+  var b = req.body || {};
+  // Only update receipt_photo if explicitly provided (avoids clearing it on edit)
+  if (b.receipt_photo !== undefined) {
+    db.prepare('UPDATE expenses SET expense_date=?, category=?, description=?, amount=?, receipt_photo=?, vendor=?, paid_by=? WHERE id=?').run(
+      b.expense_date, b.category || 'Other', b.description || '', Number(b.amount) || 0, b.receipt_photo || null, b.vendor || null, b.paid_by || null, req.params.id
+    );
+  } else {
+    db.prepare('UPDATE expenses SET expense_date=?, category=?, description=?, amount=?, vendor=?, paid_by=? WHERE id=?').run(
+      b.expense_date, b.category || 'Other', b.description || '', Number(b.amount) || 0, b.vendor || null, b.paid_by || null, req.params.id
+    );
+  }
+  res.json({ success: true });
+});
+
+// Scan receipt via Claude API
+router.post('/scan-receipt', async (req, res) => {
+  var b = req.body || {};
+  if (!b.image) return res.status(400).json({ error: 'image (base64) is required' });
+  var apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+
+  try {
+    var mime = b.mime || 'image/jpeg';
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mime, data: b.image } },
+            { type: 'text', text: 'You are a receipt scanner. Extract the following from this receipt image and return ONLY a JSON object with no other text:\n{\n  "vendor": "store/business name",\n  "date": "date in YYYY-MM-DD format",\n  "amount": total amount as a number only,\n  "items": "brief description of what was purchased",\n  "category": "best matching category from: Electric/Utilities, Plumbing/Water, Maintenance/Repairs, Supplies/Hardware, Landscaping, Insurance, Taxes/Fees, Equipment, Labor/Contractors, Office/Admin, Other"\n}\nIf you cannot read a field, return null for that field.' }
+          ]
+        }]
+      })
+    });
+    var data = await resp.json();
+    if (!resp.ok) {
+      console.error('[expenses] Claude API error:', data);
+      return res.status(500).json({ error: 'AI scan failed: ' + (data.error?.message || 'unknown') });
+    }
+    var text = (data.content && data.content[0] && data.content[0].text) || '';
+    // Extract JSON from response (may have markdown fences)
+    var jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(500).json({ error: 'Could not parse AI response' });
+    var parsed = JSON.parse(jsonMatch[0]);
+    res.json(parsed);
+  } catch (err) {
+    console.error('[expenses] scan-receipt error:', err.message);
+    res.status(500).json({ error: 'Receipt scan failed: ' + err.message });
+  }
+});
+
+// Delete expense
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM expenses WHERE id=?').run(req.params.id);
   res.json({ success: true });

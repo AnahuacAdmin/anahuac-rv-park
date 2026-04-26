@@ -56,6 +56,23 @@ function initials(name) {
 
 function isAdmin() { return API.user?.role === 'admin'; }
 
+function _stripTime(dt) {
+  if (!dt) return '';
+  try {
+    var iso = String(dt).replace(' ', 'T');
+    if (!iso.endsWith('Z') && !iso.includes('+')) iso += 'Z';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var now = new Date();
+    var diff = (now - d) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch { return ''; }
+}
+
 async function loadDashboard() {
   const el = document.getElementById('page-content');
   if (el) el.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;padding:3rem"><div class="loading-spinner"></div></div>';
@@ -71,10 +88,14 @@ async function loadDashboard() {
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('dashboard')}
 
-    <div class="page-header dash-fade-in" style="animation-delay:0.05s">
-      <h2>${getTimeGreeting()}, ${API.user?.username || 'Admin'}!</h2>
-      ${isAdmin() ? '<button class="btn btn-danger" style="font-size:0.85rem" onclick="showEmergencyBroadcast()" title="Send emergency SMS to ALL tenants immediately. Use only for real emergencies.">🚨 Emergency Alert</button>' : ''}
+    <div id="dash-banner-wrapper" class="dash-fade-in" style="animation-delay:0.05s">
+      <div class="page-header" id="dash-header-inner">
+        <h2>${getTimeGreeting()}, ${API.user?.username || 'Admin'}!</h2>
+        ${isAdmin() ? '<div class="btn-group"><button class="btn btn-outline" style="font-size:0.85rem" onclick="showShareApp()">📱 Share App</button><button class="btn btn-danger" style="font-size:0.85rem" onclick="showEmergencyBroadcast()" title="Send emergency SMS to ALL tenants immediately. Use only for real emergencies.">🚨 Emergency Alert</button></div>' : ''}
+      </div>
     </div>
+
+    <div id="dash-community-strip"></div>
 
     <div id="dash-weather-alert-banner"></div>
 
@@ -248,6 +269,11 @@ async function loadDashboard() {
     </div>` : ''}
 
     ${isAdmin() ? `
+    <div class="card dash-fade-in" style="animation-delay:0.855s">
+      <h3>💧 Water Usage</h3>
+      <div id="dash-water" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+    </div>
+
     <div class="card dash-fade-in" style="animation-delay:0.86s">
       <h3>🏥 Park Health Score</h3>
       <div id="dash-health-score" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
@@ -259,6 +285,8 @@ async function loadDashboard() {
     </div>
 
     <div id="dash-inspections-widget" style="display:none"></div>
+
+    <div id="dash-birthdays-widget" style="display:none"></div>
 
 ` : ''}
 
@@ -290,16 +318,95 @@ async function loadDashboard() {
     <div class="dash-fade-in" style="display:flex;gap:0.75rem;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.8rem;animation-delay:0.75s">
       <span style="display:flex;align-items:center;gap:4px" id="connection-indicator">${navigator.onLine ? '🟢 Online' : '🔴 Offline'}</span>
       <span style="color:var(--gray-400)">|</span>
+      <span id="dash-backup-reminder" style="color:var(--gray-500)"></span>
+      <button class="btn btn-sm btn-outline" style="padding:0.2rem 0.6rem;font-size:0.72rem;border-radius:6px" onclick="downloadEmergencyBackup()">💾 Backup</button>
+      <span style="color:var(--gray-400)">|</span>
       <span style="color:var(--gray-500)">Last sync: <span id="sync-status">—</span></span>
       <button class="btn btn-sm btn-outline" style="padding:0.2rem 0.6rem;font-size:0.72rem;border-radius:6px" onclick="if(typeof syncPendingRecords==='function')syncPendingRecords()">🔄 Sync Now</button>
       <span style="color:var(--gray-400)">|</span>
       <a href="/emergency-form.html" target="_blank" style="color:var(--brand-primary,#1a5c32);font-weight:600;text-decoration:none">🖨️ Emergency Forms</a>
     </div>
+
+    ${isAdmin() ? `
+    <!-- Weather Section -->
+    <div class="card dash-fade-in" style="animation-delay:0.92s;padding:0;overflow:hidden;max-width:100%" id="dash-radar-section">
+      <div id="dash-radar-alerts"></div>
+      <div style="padding:0.85rem 1rem 0.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+        <div>
+          <h3 style="margin:0;font-size:0.95rem;color:var(--gray-900)">🌩️ Live Weather — Anahuac, TX</h3>
+          <div style="font-size:0.72rem;color:var(--gray-400);margin-top:0.15rem" id="dash-radar-clock">Radar updates every 10 min</div>
+        </div>
+        <button class="btn btn-sm btn-outline" onclick="toggleDashRadarFullscreen()" id="dash-radar-fs-btn" style="font-size:0.75rem">⛶ Full Screen</button>
+      </div>
+
+      <!-- Radar + Weather panel side by side -->
+      <div style="display:flex;flex-wrap:wrap">
+        <div style="flex:2;min-width:280px">
+          <div id="dash-radar-map" style="height:400px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#78716c;font-size:0.88rem">
+            Loading radar...
+          </div>
+        </div>
+        <div id="dash-weather-panel" style="flex:1;min-width:220px;max-width:300px;padding:0.75rem;background:#f9fafb;border-left:1px solid #e5e7eb;font-size:0.82rem">
+          <div style="color:var(--gray-400);font-size:0.72rem;text-align:center">Loading weather...</div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div id="dash-radar-controls" style="display:none;padding:0.5rem 1rem;background:#f9fafb;border-top:1px solid #e5e7eb">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
+          <div style="display:flex;gap:0.35rem">
+            <button id="dash-radar-play-btn" onclick="toggleDashRadarPlay()" style="background:var(--brand-primary,#1a5c32);color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;min-width:60px">▶ Play</button>
+            <button onclick="resetDashRadarView()" style="background:#fff;color:var(--gray-600);border:1px solid var(--gray-300);border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer">📍 Reset</button>
+          </div>
+          <div id="dash-radar-timestamp" style="font-size:0.72rem;color:#78716c;text-align:right"></div>
+        </div>
+      </div>
+
+      <!-- Radar Legend -->
+      <div style="padding:0.4rem 1rem;background:#fff;border-top:1px solid #e5e7eb;display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;font-size:0.68rem;color:var(--gray-600)">
+        <span style="font-weight:600">Radar:</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:10px;background:#00e400;border-radius:2px;display:inline-block"></span>Light</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:10px;background:#00c800;border-radius:2px;display:inline-block"></span>Moderate</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:10px;background:#ffff00;border-radius:2px;display:inline-block"></span>Heavy</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:10px;background:#ff8c00;border-radius:2px;display:inline-block"></span>Very Heavy</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:10px;background:#ff0000;border-radius:2px;display:inline-block"></span>Extreme</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:10px;background:#c800c8;border-radius:2px;display:inline-block"></span>Hail</span>
+      </div>
+
+      <!-- 7-Day Forecast -->
+      <div id="dash-forecast" style="padding:0.6rem 1rem;border-top:1px solid #e5e7eb;overflow-x:auto">
+        <div style="font-size:0.72rem;color:var(--gray-400);text-align:center">Loading forecast...</div>
+      </div>
+
+      <!-- Severe Weather Procedures -->
+      <details style="border-top:1px solid #e5e7eb">
+        <summary style="padding:0.65rem 1rem;cursor:pointer;font-size:0.82rem;font-weight:600;color:var(--brand-primary);user-select:none;list-style:none">
+          ⚠️ Severe Weather Procedures <span style="float:right;font-size:0.7rem;color:var(--gray-400)">tap to expand</span>
+        </summary>
+        <div style="padding:0 1rem 1rem;font-size:0.85rem;line-height:1.6;color:var(--gray-700)">
+          <p style="margin:0.5rem 0"><strong style="color:#dc2626">🌀 Hurricane Warning:</strong></p>
+          <ol style="margin:0.25rem 0 0.75rem;padding-left:1.25rem">
+            <li>Send SMS blast via 🚨 Emergency Alert button</li>
+            <li>Post announcement on tenant portal</li>
+            <li>Instruct tenants to disconnect utilities and secure RVs</li>
+            <li>Follow Chambers County evacuation orders</li>
+            <li>Document park condition with photos</li>
+          </ol>
+          <p style="margin:0.5rem 0"><strong>🚨 Emergency Contacts:</strong></p>
+          <ul style="margin:0.25rem 0 0.5rem;padding-left:1.25rem">
+            <li><strong>Chambers County Emergency:</strong> 911</li>
+            <li><strong>Park Office:</strong> (409) 267-6603</li>
+            <li><strong>Park Address:</strong> 1003 Davis Ave, Anahuac, TX 77514</li>
+          </ul>
+        </div>
+      </details>
+    </div>` : ''}
   `;
 
   waitForChartAndRender(data);
   loadDashWeatherBanner();
   if (isAdmin()) loadWeeklySchedule();
+  loadDashBanner();
 
   // Count-up animation for stat values
   setTimeout(() => {
@@ -340,7 +447,11 @@ async function loadDashboard() {
     loadDashExpenses();
     loadDashHealthScore();
     loadDashElectricAlerts();
+    loadDashWater();
     loadDashInspections();
+    loadDashBirthdays();
+    if (typeof checkBackupReminder === 'function') checkBackupReminder();
+    initDashRadar();
 
     loadDashCommunity();
   }
@@ -381,6 +492,281 @@ async function loadDashHealthScore() {
   } catch { el.innerHTML = ''; }
 }
 
+async function loadDashBanner() {
+  var wrapper = document.getElementById('dash-banner-wrapper');
+  if (!wrapper) return;
+  try {
+    var res = await fetch('/api/settings/branding/image/banner');
+    if (!res.ok) return; // no banner configured — keep default header
+    var blob = await res.blob();
+    var url = URL.createObjectURL(blob);
+    wrapper.style.cssText =
+      'position:relative;border-radius:var(--radius,10px);overflow:hidden;' +
+      'margin-bottom:0.75rem;background:#000';
+    wrapper.innerHTML =
+      '<img src="' + url + '" style="width:100%;height:200px;object-fit:cover;display:block;opacity:0.7">' +
+      '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0.15) 0%,rgba(0,0,0,0.55) 100%);display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;flex-wrap:wrap;gap:0.5rem">' +
+        '<h2 style="color:#fff;margin:0;font-size:1.5rem;text-shadow:0 2px 8px rgba(0,0,0,0.5)">' +
+          getTimeGreeting() + ', ' + (API.user?.username || 'Admin') + '!' +
+        '</h2>' +
+        (isAdmin() ?
+          '<button class="btn btn-danger" style="font-size:0.85rem" onclick="showEmergencyBroadcast()" title="Send emergency SMS to ALL tenants immediately.">🚨 Emergency Alert</button>'
+          : '') +
+      '</div>';
+  } catch {}
+}
+
+// =====================================================================
+// Dashboard Weather Radar (lazy loaded)
+// =====================================================================
+var _dashRadarMap = null, _dashRadarLayers = [], _dashRadarIdx = 0, _dashRadarPlaying = false, _dashRadarInterval = null, _dashRadarLoaded = false;
+
+function _loadLeafletAssets() {
+  if (!document.getElementById('leaflet-css-dash')) {
+    var link = document.createElement('link');
+    link.id = 'leaflet-css-dash'; link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(link);
+  }
+  return new Promise(function(resolve) {
+    if (window.L) return resolve();
+    var s = document.createElement('script');
+    s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload = resolve;
+    document.head.appendChild(s);
+  });
+}
+
+async function initDashRadar() {
+  if (_dashRadarLoaded) return;
+  _dashRadarLoaded = true;
+
+  await _loadLeafletAssets();
+  var mapEl = document.getElementById('dash-radar-map');
+  if (!mapEl || !window.L) { _dashRadarLoaded = false; return; }
+  mapEl.innerHTML = '';
+  mapEl.style.height = '400px'; // ensure fixed height before Leaflet init
+
+  _dashRadarMap = L.map('dash-radar-map', { center: [29.7691, -94.6827], zoom: 7, maxZoom: 8, zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 8 }).addTo(_dashRadarMap);
+  L.marker([29.7691, -94.6827]).addTo(_dashRadarMap).bindPopup('<strong>Anahuac RV Park</strong><br>1003 Davis Ave');
+
+  // Force Leaflet to recalculate container size
+  setTimeout(function() { if (_dashRadarMap) _dashRadarMap.invalidateSize(); }, 200);
+
+  try {
+    var rv = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    var data = await rv.json();
+    var frames = (data.radar && data.radar.past) ? data.radar.past : [];
+    if (data.radar && data.radar.nowcast) frames = frames.concat(data.radar.nowcast);
+
+    _dashRadarLayers = frames.map(function(f) {
+      var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{z}/{x}/{y}/2/1_1.png', { opacity: 0, maxZoom: 8 });
+      layer._rvTime = f.time;
+      return layer;
+    });
+
+    if (_dashRadarLayers.length > 0) {
+      _dashRadarIdx = _dashRadarLayers.length - 1;
+      _dashRadarLayers[_dashRadarIdx].addTo(_dashRadarMap).setOpacity(0.65);
+      _updateDashRadarTs();
+      document.getElementById('dash-radar-controls').style.display = '';
+      toggleDashRadarPlay();
+    }
+  } catch (e) { console.error('[dash-radar]', e); }
+
+  // Load NWS alerts, weather panel, forecast, and clock
+  loadDashNWSAlerts();
+  loadDashWeatherPanel();
+  loadDashForecast();
+  startDashRadarClock();
+  // Auto refresh every 10 minutes
+  setInterval(function() { refreshDashRadar(); loadDashWeatherPanel(); }, 10 * 60 * 1000);
+}
+
+function _updateDashRadarTs() {
+  var el = document.getElementById('dash-radar-timestamp');
+  if (!el || !_dashRadarLayers[_dashRadarIdx]) return;
+  var t = _dashRadarLayers[_dashRadarIdx]._rvTime;
+  if (t) {
+    var d = new Date(t * 1000);
+    el.textContent = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' — ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+}
+
+function _showDashRadarFrame(idx) {
+  _dashRadarLayers.forEach(function(layer, i) {
+    if (i === idx) { if (!_dashRadarMap.hasLayer(layer)) layer.addTo(_dashRadarMap); layer.setOpacity(0.65); }
+    else { layer.setOpacity(0); }
+  });
+  _dashRadarIdx = idx;
+  _updateDashRadarTs();
+}
+
+function toggleDashRadarPlay() {
+  var btn = document.getElementById('dash-radar-play-btn');
+  if (_dashRadarPlaying) {
+    clearInterval(_dashRadarInterval); _dashRadarPlaying = false;
+    if (btn) btn.textContent = '▶ Play';
+  } else {
+    _dashRadarPlaying = true;
+    if (btn) btn.textContent = '⏸ Pause';
+    _dashRadarInterval = setInterval(function() {
+      _showDashRadarFrame((_dashRadarIdx + 1) % _dashRadarLayers.length);
+    }, 700);
+  }
+}
+
+async function refreshDashRadar() {
+  if (!_dashRadarMap) return;
+  try {
+    var rv = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    var data = await rv.json();
+    var frames = (data.radar && data.radar.past) ? data.radar.past : [];
+    if (data.radar && data.radar.nowcast) frames = frames.concat(data.radar.nowcast);
+    _dashRadarLayers.forEach(function(l) { if (_dashRadarMap.hasLayer(l)) _dashRadarMap.removeLayer(l); });
+    _dashRadarLayers = frames.map(function(f) {
+      var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{z}/{x}/{y}/2/1_1.png', { opacity: 0, maxZoom: 8 });
+      layer._rvTime = f.time; return layer;
+    });
+    if (_dashRadarLayers.length) { _dashRadarIdx = _dashRadarLayers.length - 1; _showDashRadarFrame(_dashRadarIdx); }
+  } catch {}
+}
+
+async function loadDashNWSAlerts() {
+  var el = document.getElementById('dash-radar-alerts');
+  if (!el) return;
+  try {
+    var r = await fetch('https://api.weather.gov/alerts/active?zone=TXC071');
+    var data = await r.json();
+    var alerts = (data.features || []).filter(function(f) { return f.properties && f.properties.event; });
+    if (!alerts.length) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    el.innerHTML = alerts.map(function(a) {
+      var p = a.properties;
+      var sev = p.severity || 'Unknown';
+      var bg = sev === 'Extreme' ? '#7f1d1d' : sev === 'Severe' ? '#dc2626' : sev === 'Moderate' ? '#f59e0b' : '#1a5c32';
+      return '<div style="background:' + bg + ';color:#fff;padding:0.6rem 1rem;font-size:0.85rem;font-weight:600">' +
+        '⚠️ ' + (p.event || 'Weather Alert') +
+        (p.headline ? '<div style="font-weight:400;font-size:0.78rem;margin-top:0.2rem;opacity:0.9">' + p.headline + '</div>' : '') + '</div>';
+    }).join('');
+  } catch { el.style.display = 'none'; }
+}
+
+function resetDashRadarView() {
+  if (_dashRadarMap) _dashRadarMap.setView([29.7691, -94.6827], 7);
+}
+
+function toggleDashRadarFullscreen() {
+  var section = document.getElementById('dash-radar-section');
+  var mapEl = document.getElementById('dash-radar-map');
+  var btn = document.getElementById('dash-radar-fs-btn');
+  if (!section) return;
+
+  if (!section._isFullscreen) {
+    section._isFullscreen = true;
+    section._origStyle = section.style.cssText;
+    section.style.cssText = 'position:fixed;inset:0;z-index:10000;background:#fff;margin:0;border-radius:0;overflow-y:auto';
+    if (mapEl) mapEl.style.height = 'calc(100vh - 120px)';
+    if (btn) btn.textContent = '✕ Exit Full Screen';
+    if (_dashRadarMap) setTimeout(function() { _dashRadarMap.invalidateSize(); }, 100);
+  } else {
+    section._isFullscreen = false;
+    section.style.cssText = section._origStyle || '';
+    if (mapEl) mapEl.style.height = '400px';
+    if (btn) btn.textContent = '⛶ Full Screen';
+    if (_dashRadarMap) setTimeout(function() { _dashRadarMap.invalidateSize(); }, 100);
+  }
+}
+
+// Weather panel — current conditions from Open-Meteo
+async function loadDashWeatherPanel() {
+  var el = document.getElementById('dash-weather-panel');
+  if (!el) return;
+  try {
+    var r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.7691&longitude=-94.6827&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,wind_direction_10m,surface_pressure,visibility,uv_index&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America/Chicago');
+    var d = await r.json();
+    var c = d.current;
+    if (!c) { el.innerHTML = '<div style="color:var(--gray-400)">Weather unavailable</div>'; return; }
+
+    var windDir = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    var dir = windDir[Math.round((c.wind_direction_10m || 0) / 22.5) % 16];
+    var visMiles = ((c.visibility || 0) / 1609).toFixed(1);
+    var pressureInHg = ((c.surface_pressure || 0) * 0.02953).toFixed(2);
+    var uvLabel = c.uv_index <= 2 ? 'Low' : c.uv_index <= 5 ? 'Moderate' : c.uv_index <= 7 ? 'High' : 'Very High';
+    var uvColor = c.uv_index <= 2 ? '#16a34a' : c.uv_index <= 5 ? '#f59e0b' : '#dc2626';
+
+    el.innerHTML =
+      '<div style="text-align:center;margin-bottom:0.6rem">' +
+        '<div style="font-size:2.2rem;font-weight:800;color:var(--gray-900)">' + Math.round(c.temperature_2m) + '°F</div>' +
+        '<div style="font-size:0.75rem;color:var(--gray-500)">Feels like ' + Math.round(c.apparent_temperature) + '°F</div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem 0.75rem;font-size:0.78rem">' +
+        _wxRow('💨 Wind', Math.round(c.wind_speed_10m) + ' mph ' + dir) +
+        _wxRow('💧 Humidity', c.relative_humidity_2m + '%') +
+        _wxRow('👁️ Visibility', visMiles + ' mi') +
+        _wxRow('📊 Pressure', pressureInHg + ' inHg') +
+        _wxRow('☀️ UV Index', '<span style="color:' + uvColor + ';font-weight:600">' + c.uv_index + ' (' + uvLabel + ')</span>') +
+      '</div>';
+  } catch { el.innerHTML = '<div style="color:var(--gray-400);font-size:0.78rem">Weather unavailable</div>'; }
+}
+
+function _wxRow(label, value) {
+  return '<div style="color:var(--gray-500)">' + label + '</div><div style="color:var(--gray-800);font-weight:500;text-align:right">' + value + '</div>';
+}
+
+// 7-day forecast from Open-Meteo
+async function loadDashForecast() {
+  var el = document.getElementById('dash-forecast');
+  if (!el) return;
+  try {
+    var r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.7691&longitude=-94.6827&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&temperature_unit=fahrenheit&timezone=America/Chicago&forecast_days=7');
+    var d = await r.json();
+    if (!d.daily) return;
+
+    var wxEmoji = function(code) {
+      if (code === 0) return '☀️';
+      if (code <= 3) return '⛅';
+      if (code <= 48) return '🌫️';
+      if (code <= 55) return '🌦️';
+      if (code <= 65) return '🌧️';
+      if (code <= 75) return '❄️';
+      if (code <= 82) return '🌧️';
+      if (code >= 95) return '⛈️';
+      return '☁️';
+    };
+
+    var days = d.daily.time.map(function(t, i) {
+      var dt = new Date(t + 'T12:00:00');
+      var dayName = dt.toLocaleDateString('en-US', { weekday: 'short' });
+      var hi = Math.round(d.daily.temperature_2m_max[i]);
+      var lo = Math.round(d.daily.temperature_2m_min[i]);
+      var precip = d.daily.precipitation_probability_max[i] || 0;
+      var emoji = wxEmoji(d.daily.weathercode[i]);
+      return '<div style="text-align:center;min-width:70px;flex-shrink:0">' +
+        '<div style="font-size:0.72rem;font-weight:600;color:var(--gray-600)">' + dayName + '</div>' +
+        '<div style="font-size:1.3rem;margin:0.15rem 0">' + emoji + '</div>' +
+        '<div style="font-size:0.78rem;font-weight:700;color:var(--gray-900)">' + hi + '°</div>' +
+        '<div style="font-size:0.72rem;color:var(--gray-400)">' + lo + '°</div>' +
+        (precip > 0 ? '<div style="font-size:0.65rem;color:#3b82f6;margin-top:0.1rem">💧' + precip + '%</div>' : '') +
+      '</div>';
+    });
+
+    el.innerHTML = '<div style="display:flex;gap:0.5rem;justify-content:space-between;overflow-x:auto">' + days.join('') + '</div>';
+  } catch { el.innerHTML = ''; }
+}
+
+function startDashRadarClock() {
+  function update() {
+    var el = document.getElementById('dash-radar-clock');
+    if (!el) return;
+    var now = new Date();
+    el.textContent = 'Radar updates every 10 min · ' + now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' }) + ' CT';
+  }
+  update();
+  setInterval(update, 60000);
+}
+
 async function loadDashCommunity() {
   try {
     var posts = await API.get('/community');
@@ -393,6 +779,67 @@ async function loadDashCommunity() {
       var content = document.getElementById('page-content');
       if (content && content.firstChild) content.insertBefore(widget, content.firstChild.nextSibling);
     }
+
+    // Most-recent community activity strip (post or reply, whichever is newer)
+    var strip = document.getElementById('dash-community-strip');
+    if (strip) {
+      try {
+        var activity = await API.get('/community/latest-activity');
+        if (!activity) {
+          strip.style.display = 'none';
+        } else {
+          var label, detail;
+          var aTime = _stripTime(activity.ts);
+          if (activity.type === 'reply') {
+            label = '<strong style="color:var(--gray-800);font-weight:600">' + escapeHtml(activity.author) + '</strong> replied to: ' +
+              '<strong style="color:var(--gray-800);font-weight:600">' + escapeHtml(activity.post_title || '(untitled)') + '</strong>';
+          } else {
+            label = '<strong style="color:var(--gray-800);font-weight:600">' + escapeHtml(activity.author) + '</strong> posted: ' +
+              '<strong style="color:var(--gray-800);font-weight:600">' + escapeHtml(activity.post_title || '(untitled)') + '</strong>';
+          }
+          strip.innerHTML =
+            '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;' +
+            'padding:0.35rem 0.75rem;margin-bottom:0.75rem;font-size:0.78rem;' +
+            'color:var(--gray-600);display:flex;align-items:center;gap:0.5rem;' +
+            'flex-wrap:wrap;line-height:1.3">' +
+              '<span style="opacity:0.7">📋</span>' +
+              '<span>' + label + '</span>' +
+              (aTime ? '<span style="color:var(--gray-400);font-size:0.72rem">· ' + aTime + '</span>' : '') +
+              '<a href="#" onclick="event.preventDefault();navigateTo(\'community\')" ' +
+                'style="margin-left:auto;color:var(--brand-primary);font-weight:500;text-decoration:none">View all →</a>' +
+            '</div>';
+        }
+      } catch { strip.style.display = 'none'; }
+    }
+  } catch {}
+}
+
+async function loadDashBirthdays() {
+  var widget = document.getElementById('dash-birthdays-widget');
+  if (!widget) return;
+  try {
+    var bdays = await API.get('/dashboard/upcoming-birthdays');
+    if (!bdays || !bdays.length) return;
+    widget.style.display = '';
+    widget.className = 'card dash-fade-in';
+    widget.style.animationDelay = '0.88s';
+    widget.innerHTML = '<h3>🎂 Upcoming Birthdays</h3>' +
+      '<div style="font-size:0.85rem">' +
+        bdays.map(function(b) {
+          var label = b.days_until === 0
+            ? '<span style="color:#dc2626;font-weight:700">Today!</span>'
+            : b.days_until === 1
+              ? '<span style="color:#f59e0b;font-weight:600">Tomorrow</span>'
+              : '<span style="color:var(--gray-500)">' + b.birthday_date + ' (' + b.days_until + 'd)</span>';
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-bottom:1px solid var(--gray-100)">' +
+            '<div>' +
+              '<strong>' + escapeHtml(b.first_name + ' ' + b.last_name) + '</strong>' +
+              ' <span style="font-size:0.78rem;color:var(--gray-400)">Lot ' + (b.lot_id || '?') + '</span>' +
+            '</div>' +
+            '<div style="text-align:right">' + label + '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
   } catch {}
 }
 
@@ -426,13 +873,40 @@ async function loadDashMaintenance() {
   } catch { el.innerHTML = ''; }
 }
 
+async function loadDashWater() {
+  var el = document.getElementById('dash-water');
+  if (!el) return;
+  try {
+    var data = await API.get('/water-meters/analytics');
+    var modeLabel = data.evaluationMode ? '📋 Evaluation' : '💰 Billing';
+    var highCount = (data.lotStats || []).filter(function(l) {
+      return data.allowance && l.this_month > data.allowance;
+    }).length;
+    el.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:baseline">' +
+        '<span>This month: <strong>' + Number(data.totalGallons || 0).toLocaleString() + ' gal</strong></span>' +
+        '<a href="#" onclick="event.preventDefault();navigateTo(\'water-meters\')" style="font-size:0.78rem;color:var(--brand-primary)">View →</a>' +
+      '</div>' +
+      '<div style="font-size:0.78rem;color:var(--gray-500);margin-top:0.25rem">' +
+        (data.readingsCount || 0) + '/' + (data.totalLots || 0) + ' lots read · Mode: ' + modeLabel +
+      '</div>' +
+      (highCount > 0 ? '<div style="font-size:0.78rem;color:#dc2626;margin-top:0.15rem">⚠️ ' + highCount + ' lot' + (highCount > 1 ? 's' : '') + ' over allowance</div>' : '');
+  } catch { el.innerHTML = '<span style="color:#a8a29e">No water data</span>'; }
+}
+
 async function loadDashExpenses() {
   var el = document.getElementById('dash-expenses');
   if (!el) return;
   try {
     var summary = await API.get('/expenses/summary');
-    el.innerHTML = '<span>This month: <strong>' + formatMoney(summary?.total || 0) + '</strong></span>' +
-      ' <a href="#" onclick="event.preventDefault();navigateTo(\'expenses\')" style="font-size:0.78rem;color:var(--brand-primary)">View →</a>';
+    var topCat = (summary?.byCategory || [])[0];
+    el.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:baseline">' +
+        '<span>This month: <strong>' + formatMoney(summary?.total || 0) + '</strong></span>' +
+        '<a href="#" onclick="event.preventDefault();navigateTo(\'expenses\')" style="font-size:0.78rem;color:var(--brand-primary)">View →</a>' +
+      '</div>' +
+      (summary?.yearTotal ? '<div style="font-size:0.78rem;color:var(--gray-500);margin-top:0.25rem">Year total: ' + formatMoney(summary.yearTotal) + (topCat ? ' · Top: ' + escapeHtml(topCat.category) : '') + '</div>' : '') +
+      (summary?.receiptCount ? '<div style="font-size:0.72rem;color:var(--gray-400);margin-top:0.15rem">🧾 ' + summary.receiptCount + ' receipts on file</div>' : '');
   } catch { el.innerHTML = ''; }
 }
 
@@ -645,7 +1119,7 @@ async function loadDashVendors() {
     el.innerHTML = favs.map(v =>
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.3rem 0;border-bottom:1px solid var(--gray-100)">' +
         '<span><strong>' + escapeHtml(v.name) + '</strong> <span class="badge badge-info" style="font-size:0.6rem">' + escapeHtml(v.category || '') + '</span></span>' +
-        (v.phone ? '<a href="tel:' + escapeHtml(v.phone) + '" class="btn btn-sm btn-success" style="padding:0.2rem 0.5rem;font-size:0.72rem" onclick="event.stopPropagation()">📞 Call</a>' : '') +
+        (v.phone ? '<a href="tel:' + escapeHtml(v.phone) + '" class="btn btn-sm btn-success mobile-call-btn" style="padding:0.2rem 0.5rem;font-size:0.72rem" onclick="event.stopPropagation()">📞 Call</a>' : '') +
       '</div>'
     ).join('');
   } catch { el.innerHTML = ''; }
@@ -1033,7 +1507,7 @@ function _toggleWeeklyDetail(idx, dateStr, arrivals, departures) {
       html += '<span style="font-size:0.8rem">▲</span>';
       html += '<div style="flex:1"><strong style="font-size:0.82rem">' + escapeHtml(a.name || '') + '</strong>';
       html += ' <span style="font-size:0.75rem;color:#78716c">Lot ' + (a.lot_id || '?') + '</span></div>';
-      if (a.phone) html += '<a href="tel:' + escapeHtml(a.phone) + '" style="font-size:0.72rem;background:#1a5c32;color:#fff;padding:2px 8px;border-radius:6px;text-decoration:none;font-weight:600;white-space:nowrap">📞 Call</a>';
+      if (a.phone) html += '<a href="tel:' + escapeHtml(a.phone) + '" class="mobile-call-btn" style="font-size:0.72rem;background:#1a5c32;color:#fff;padding:2px 8px;border-radius:6px;text-decoration:none;font-weight:600;white-space:nowrap">📞 Call</a>';
       html += '</div>';
     });
   }
@@ -1043,7 +1517,7 @@ function _toggleWeeklyDetail(idx, dateStr, arrivals, departures) {
       html += '<span style="font-size:0.8rem">▼</span>';
       html += '<div style="flex:1"><strong style="font-size:0.82rem">' + escapeHtml(d.name || '') + '</strong>';
       html += ' <span style="font-size:0.75rem;color:#78716c">Lot ' + (d.lot_id || '?') + '</span></div>';
-      if (d.phone) html += '<a href="tel:' + escapeHtml(d.phone) + '" style="font-size:0.72rem;background:#d97706;color:#fff;padding:2px 8px;border-radius:6px;text-decoration:none;font-weight:600;white-space:nowrap">📞 Call</a>';
+      if (d.phone) html += '<a href="tel:' + escapeHtml(d.phone) + '" class="mobile-call-btn" style="font-size:0.72rem;background:#d97706;color:#fff;padding:2px 8px;border-radius:6px;text-decoration:none;font-weight:600;white-space:nowrap">📞 Call</a>';
       html += '</div>';
     });
   }

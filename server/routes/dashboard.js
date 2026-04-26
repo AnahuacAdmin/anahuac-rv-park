@@ -172,4 +172,15 @@ router.get('/vacancy-cost', (req, res) => {
   }
 });
 
+// Upcoming birthdays for dashboard widget (next 7 days)
+router.get('/upcoming-birthdays', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    var { getUpcomingBirthdays } = require('../jobs/birthdayJob');
+    res.json(getUpcomingBirthdays(7));
+  } catch (e) {
+    res.json([]);
+  }
+});
+
 module.exports = router;

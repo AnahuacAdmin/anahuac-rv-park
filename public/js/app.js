@@ -8,6 +8,148 @@ let currentPage = 'dashboard';
 const _navHistory = [];
 localStorage.setItem('hasSeenTour', '1'); // Permanently disable welcome tour
 
+// Inject main app shell into DOM after authentication (keeps HTML out of View Source pre-login)
+function injectMainApp() {
+  const el = document.getElementById('main-app');
+  if (!el || el.children.length > 0) return; // already injected
+  el.innerHTML = `
+      <header class="mobile-header">
+        <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Open menu">&#9776;</button>
+        <h2>\u{1F40A} Anahuac RV Park</h2>
+      </header>
+      <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+      <nav id="sidebar">
+        <div class="sidebar-header">
+          <h2>\u{1F40A} Anahuac RV Park</h2>
+          <button id="menu-toggle" class="menu-btn">&#9776;</button>
+        </div>
+        <div class="sidebar-search" onclick="event.stopPropagation()">
+          <input type="text" id="global-search" placeholder="\u{1F50D} Search tenants, lots, invoices..." autocomplete="off" oninput="onSearchInput(this.value)" onkeydown="searchKeydown(event)">
+          <div id="search-results" class="search-results"></div>
+        </div>
+        <ul class="nav-menu">
+          <li><a href="#" data-page="dashboard" class="nav-link active">\u{1F40A} Dashboard</a></li>
+          <li><a href="#" data-page="sitemap" class="nav-link">\u{1F5FA}\u{FE0F} Site Map</a></li>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Guest Management</li>
+          <li class="nav-group open">
+            <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">\u{1F465} Guests <span class="nav-caret">&#9662;</span></a>
+            <ul class="nav-sub">
+              <li><a href="#" data-page="tenants" class="nav-link">\u{1F464} Tenants</a></li>
+              <li><a href="#" data-page="checkins" class="nav-link">\u2705 Check-In/Out</a></li>
+              <li><a href="#" data-page="reservations" class="nav-link">\u{1F4C5} Reservations</a></li>
+            </ul>
+          </li>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Operations</li>
+          <li class="nav-group">
+            <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">\u{1F4CA} Utility Meters <span class="nav-caret">&#9662;</span></a>
+            <ul class="nav-sub">
+              <li><a href="#" data-page="meters" class="nav-link">\u26A1 Electric Readings</a></li>
+              <li><a href="#" data-page="electric" class="nav-link">\u26A1 Electric Analytics</a></li>
+              <li><a href="#" data-page="water-meters" class="nav-link">\u{1F4A7} Water Readings</a></li>
+              <li><a href="#" data-page="water-analytics" class="nav-link">\u{1F4A7} Water Analytics</a></li>
+            </ul>
+          </li>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Financial</li>
+          <li><a href="#" data-page="billing" class="nav-link">\u{1F4B0} Billing & Invoices</a></li>
+          <li><a href="#" data-page="payments" class="nav-link">\u{1F4B3} Payments</a></li>
+          <li><a href="#" data-page="expenses" class="nav-link" id="nav-expenses" style="display:none">\u{1F9FE} Expenses</a></li>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Communication</li>
+          <li><a href="#" data-page="messages" class="nav-link">\u{1F4E8} Messaging</a></li>
+          <li><a href="#" data-page="waitlist" class="nav-link">\u{1F4CB} Waitlist</a></li>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600;display:none" id="nav-admin-divider">Administration</li>
+          <li><a href="#" data-page="reports" class="nav-link" id="nav-reports" style="display:none">\u{1F4CA} Reports</a></li>
+          <li><a href="#" data-page="users" class="nav-link" id="nav-users" style="display:none">\u{1F465} Users</a></li>
+          <li><a href="#" data-page="admin" class="nav-link" id="nav-admin" style="display:none">\u{1F527} Admin</a></li>
+          <li><a href="#" data-page="message-log" class="nav-link" id="nav-message-log" style="display:none">\u{1F4CB} Message Log</a></li>
+          <li><a href="#" data-page="branding" class="nav-link" id="nav-branding" style="display:none">\u{1F3A8} Park Branding</a></li>
+          <li><a href="#" data-page="lotmgmt" class="nav-link" id="nav-lotmgmt" style="display:none">\u{1F3D7}\u{FE0F} Lot Management</a></li>
+          <li><a href="#" data-page="vendors" class="nav-link" id="nav-vendors" style="display:none">\u{1F4D2} Vendor Directory</a></li>
+          <li><a href="#" data-page="documents" class="nav-link" id="nav-documents" style="display:none">\u{1F4C4} Documents</a></li>
+          <li><a href="#" data-page="community" class="nav-link" id="nav-community" style="display:none">\u{1F4CB} Community Board</a></li>
+          <li><a href="#" data-page="lost-found" class="nav-link" id="nav-lost-found" style="display:none">\u{1F43E} Lost & Found Pets</a></li>
+          <li><a href="#" data-page="birding" class="nav-link" id="nav-birding" style="display:none">\u{1F426} Bird Sightings</a></li>
+          <li><a href="#" data-page="hunting-fishing" class="nav-link" id="nav-hunting-fishing" style="display:none">\u{1F3A3} Hunting & Fishing</a></li>
+          <li><a href="#" data-page="maintenance" class="nav-link" id="nav-maintenance" style="display:none">\u{1F527} Maintenance</a></li>
+          <li><a href="#" data-page="inspections" class="nav-link" id="nav-inspections" style="display:none">\u{1F4F8} Lot Inspections</a></li>
+        </ul>
+        <div class="sidebar-footer">
+          <div id="sidebar-user-info" style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem;padding:0.5rem;background:rgba(255,255,255,0.05);border-radius:10px">
+            <div id="sidebar-avatar" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:800;color:#1c1917;flex-shrink:0">AD</div>
+            <div style="flex:1;min-width:0">
+              <div id="sidebar-username" style="font-size:0.82rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Admin</div>
+              <div id="sidebar-role" style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.05em">Administrator</div>
+            </div>
+          </div>
+          <button id="change-password-btn" class="btn btn-outline btn-full" style="margin-bottom:0.5rem">\u{1F512} Change Password</button>
+          <button id="logout-btn" class="btn btn-outline btn-full">\u{1F6AA} Logout</button>
+        </div>
+      </nav>
+      <main id="content">
+        <div id="page-content"></div>
+        <footer style="text-align:center;padding:1.5rem 1rem 1rem;font-size:0.72rem;color:#9ca3af">&copy; 2026 Anahuac RV Park LLC &nbsp;|&nbsp; <a href="#" onclick="event.preventDefault();showKeyboardShortcuts()" style="color:#a8a29e;text-decoration:underline">\u2328\u{FE0F} Keyboard Shortcuts</a> &nbsp;|&nbsp; <a href="/emergency-form.html" target="_blank" style="color:#a8a29e;text-decoration:underline">\u{1F5A8}\u{FE0F} Emergency Forms</a></footer>
+      </main>`;
+  wireMainAppEvents();
+}
+
+// Show/hide nav entries based on user role (safe to call before main-app exists)
+function refreshUsersNavVisibility() {
+  if (!document.getElementById('sidebar')) return; // main-app not injected yet
+  const isAdmin = API.user?.role === 'admin';
+  const isStaff = API.user?.role === 'staff';
+  document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses, #nav-community, #nav-inspections, #nav-branding, #nav-lost-found, #nav-birding, #nav-hunting-fishing, #nav-message-log').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
+  const adminDiv = document.getElementById('nav-admin-divider');
+  if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
+  document.querySelectorAll('[data-page="billing"], [data-page="payments"]').forEach(el => {
+    const li = el.closest('li');
+    if (li) li.style.display = isStaff ? 'none' : '';
+  });
+  document.querySelectorAll('[data-page="waitlist"]').forEach(el => {
+    const li = el.closest('li');
+    if (li) li.style.display = isStaff ? 'none' : '';
+  });
+  updateSidebarUser();
+}
+function updateSidebarUser() {
+  const u = API.user;
+  if (!u) return;
+  const name = u.username || 'User';
+  const role = u.role || 'user';
+  const initials = name.slice(0, 2).toUpperCase();
+  const avatarEl = document.getElementById('sidebar-avatar');
+  const nameEl = document.getElementById('sidebar-username');
+  const roleEl = document.getElementById('sidebar-role');
+  if (avatarEl) avatarEl.textContent = initials;
+  if (nameEl) nameEl.textContent = name;
+  if (roleEl) roleEl.textContent = role === 'admin' ? 'Administrator' : role === 'staff' ? 'Staff' : 'Manager';
+}
+
+// Wire up event listeners on the injected main-app elements
+function wireMainAppEvents() {
+  // Nav links
+  document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo(link.dataset.page);
+    });
+  });
+  // Mobile menu
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  function openSidebar()  { sidebar.classList.add('open');    backdrop?.classList.add('open'); }
+  function closeSidebar() { sidebar.classList.remove('open'); backdrop?.classList.remove('open'); }
+  function toggleSidebar() {
+    if (sidebar.classList.contains('open')) closeSidebar(); else openSidebar();
+  }
+  document.getElementById('menu-toggle').addEventListener('click', toggleSidebar);
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', toggleSidebar);
+  backdrop?.addEventListener('click', closeSidebar);
+  // Logout + change password
+  document.getElementById('logout-btn').addEventListener('click', () => API.logout());
+  document.getElementById('change-password-btn').addEventListener('click', () => showChangeMyPassword());
+  // Refresh nav visibility
+  refreshUsersNavVisibility();
+}
+
 function goBack() {
   if (_navHistory.length === 0) return;
   const prev = _navHistory.pop();
@@ -1037,6 +1179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         var needsWizard = await shouldShowSetupWizard();
         if (needsWizard) { showSetupWizard(); return; }
       }
+      injectMainApp();
       document.getElementById('main-app').style.display = '';
       navigateTo('dashboard');
     } catch (err) {
@@ -1063,112 +1206,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   wirePasswordToggle('toggle-password', 'password');
-  wirePasswordToggle('toggle-recover-password', 'recover-new-password');
 
-  // Forgot password — show recovery form
+  // Forgot password — show contact info
   const loginForm = document.getElementById('login-form');
-  const recoverForm = document.getElementById('recover-form');
+  const forgotInfo = document.getElementById('forgot-password-info');
   document.getElementById('forgot-password-link').addEventListener('click', (e) => {
     e.preventDefault();
     loginForm.style.display = 'none';
     document.getElementById('login-error').style.display = 'none';
-    recoverForm.style.display = '';
+    forgotInfo.style.display = '';
   });
   document.getElementById('back-to-login').addEventListener('click', (e) => {
     e.preventDefault();
-    recoverForm.style.display = 'none';
-    document.getElementById('recover-error').style.display = 'none';
-    document.getElementById('recover-success').style.display = 'none';
+    forgotInfo.style.display = 'none';
     loginForm.style.display = '';
   });
-  recoverForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const errEl = document.getElementById('recover-error');
-    const okEl = document.getElementById('recover-success');
-    errEl.style.display = 'none';
-    okEl.style.display = 'none';
-    try {
-      const res = await fetch('/api/auth/recover', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: document.getElementById('recover-username').value,
-          pin: document.getElementById('recover-pin').value,
-          newPassword: document.getElementById('recover-new-password').value,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Recovery failed');
-      okEl.style.display = '';
-      recoverForm.reset();
-    } catch (err) {
-      errEl.textContent = err.message;
-      errEl.style.display = '';
-    }
-  });
 
-  // Nav links — skip group toggles (no data-page)
-  document.querySelectorAll('.nav-link[data-page]').forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      navigateTo(link.dataset.page);
-    });
-  });
-
-  // Mobile menu — toggle sidebar via either the in-sidebar button or the top hamburger
-  const sidebar = document.getElementById('sidebar');
-  const backdrop = document.getElementById('sidebar-backdrop');
-  function openSidebar()  { sidebar.classList.add('open');    backdrop?.classList.add('open'); }
-  function closeSidebar() { sidebar.classList.remove('open'); backdrop?.classList.remove('open'); }
-  function toggleSidebar() {
-    if (sidebar.classList.contains('open')) closeSidebar(); else openSidebar();
-  }
-  document.getElementById('menu-toggle').addEventListener('click', toggleSidebar);
-  document.getElementById('mobile-menu-btn')?.addEventListener('click', toggleSidebar);
-  backdrop?.addEventListener('click', closeSidebar);
-
-  // Logout
-  document.getElementById('logout-btn').addEventListener('click', () => API.logout());
-
-  // Change my password
-  document.getElementById('change-password-btn').addEventListener('click', () => showChangeMyPassword());
-
-  // Show Users nav entry only for admins
-  function refreshUsersNavVisibility() {
-    const isAdmin = API.user?.role === 'admin';
-    const isStaff = API.user?.role === 'staff';
-    // Admin-only nav items
-    document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses, #nav-community, #nav-inspections, #nav-branding, #nav-lost-found, #nav-birding, #nav-hunting-fishing, #nav-message-log').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
-    const adminDiv = document.getElementById('nav-admin-divider');
-    if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
-    // Financial nav items — hidden for staff
-    document.querySelectorAll('[data-page="billing"], [data-page="payments"]').forEach(el => {
-      const li = el.closest('li');
-      if (li) li.style.display = isStaff ? 'none' : '';
-    });
-    // Waitlist — hide for staff
-    document.querySelectorAll('[data-page="waitlist"]').forEach(el => {
-      const li = el.closest('li');
-      if (li) li.style.display = isStaff ? 'none' : '';
-    });
-    // Update sidebar user info
-    updateSidebarUser();
-  }
-  function updateSidebarUser() {
-    const u = API.user;
-    if (!u) return;
-    const name = u.username || 'User';
-    const role = u.role || 'user';
-    const initials = name.slice(0, 2).toUpperCase();
-    const avatarEl = document.getElementById('sidebar-avatar');
-    const nameEl = document.getElementById('sidebar-username');
-    const roleEl = document.getElementById('sidebar-role');
-    if (avatarEl) avatarEl.textContent = initials;
-    if (nameEl) nameEl.textContent = name;
-    if (roleEl) roleEl.textContent = role === 'admin' ? 'Administrator' : role === 'staff' ? 'Staff' : 'Manager';
-  }
-  refreshUsersNavVisibility();
-  // Re-check after login
+  // Re-check nav visibility after login
   const origLogin = API.login.bind(API);
   API.login = async (...args) => {
     const r = await origLogin(...args);
@@ -1210,6 +1264,7 @@ document.addEventListener('DOMContentLoaded', () => {
         var needsWizard = await shouldShowSetupWizard();
         if (needsWizard) { showSetupWizard(); return; }
       }
+      injectMainApp();
       document.getElementById('main-app').style.display = '';
       navigateTo('dashboard');
     })();

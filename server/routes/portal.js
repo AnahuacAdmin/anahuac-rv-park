@@ -16,8 +16,46 @@ function getManagerPhone() {
 }
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
-// Track failed PIN attempts per tenant (in-memory, resets on restart)
+// Track failed PIN attempts keyed by lot+IP for brute force protection.
+// Tiered lockouts: 5 fails = 15 min, 10 fails = 1 hr, 15+ fails = 4 hr.
 const _failedAttempts = {};
+
+function getAttemptKey(req, lotId) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+  return `${String(lotId).toLowerCase()}_${ip}`;
+}
+
+function checkLockout(key) {
+  const entry = _failedAttempts[key];
+  if (!entry) return null;
+  if (entry.lockedUntil && Date.now() < entry.lockedUntil) {
+    const mins = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
+    return `Too many failed attempts. Try again in ${mins} minute${mins !== 1 ? 's' : ''}, or contact management at 409-267-6603.`;
+  }
+  // Lockout expired — clear it but keep count
+  if (entry.lockedUntil && Date.now() >= entry.lockedUntil) {
+    entry.lockedUntil = null;
+  }
+  return null;
+}
+
+function recordFailure(key) {
+  if (!_failedAttempts[key]) _failedAttempts[key] = { count: 0, lockedUntil: null };
+  const entry = _failedAttempts[key];
+  entry.count++;
+  if (entry.count >= 15) {
+    entry.lockedUntil = Date.now() + 4 * 60 * 60 * 1000; // 4 hours
+  } else if (entry.count >= 10) {
+    entry.lockedUntil = Date.now() + 60 * 60 * 1000; // 1 hour
+  } else if (entry.count >= 5) {
+    entry.lockedUntil = Date.now() + 15 * 60 * 1000; // 15 minutes
+  }
+  return entry.count;
+}
+
+function clearFailures(key) {
+  delete _failedAttempts[key];
+}
 
 // Admin preview tokens (in-memory, short-lived)
 const _previewTokens = new Map();
@@ -92,11 +130,10 @@ router.post('/login', (req, res) => {
 
   if (!tenant) return res.status(401).json({ error: 'Invalid credentials. Please check your lot number and last name, or contact management.' });
 
-  // Check lockout
-  const key = 'tenant_' + tenant.id;
-  if ((_failedAttempts[key] || 0) >= 3) {
-    return res.status(429).json({ error: 'Too many attempts. Please contact management.' });
-  }
+  // Check lockout (keyed by lot + IP)
+  const key = getAttemptKey(req, lot_id);
+  const lockoutMsg = checkLockout(key);
+  if (lockoutMsg) return res.status(429).json({ error: lockoutMsg });
 
   // If no PIN set, tell frontend to show setup screen
   if (!tenant.portal_pin) {
@@ -107,14 +144,16 @@ router.post('/login', (req, res) => {
   if (!pin) return res.status(400).json({ error: 'PIN is required', needs_pin: true });
 
   if (!bcrypt.compareSync(String(pin), tenant.portal_pin)) {
-    _failedAttempts[key] = (_failedAttempts[key] || 0) + 1;
-    const remaining = 3 - _failedAttempts[key];
-    if (remaining <= 0) return res.status(429).json({ error: 'Too many attempts. Please contact management.' });
-    return res.status(401).json({ error: `Incorrect PIN. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining.`, needs_pin: true });
+    const totalFails = recordFailure(key);
+    const newLockout = checkLockout(key);
+    if (newLockout) return res.status(429).json({ error: newLockout });
+    const threshold = totalFails < 5 ? 5 : totalFails < 10 ? 10 : 15;
+    const remaining = threshold - totalFails;
+    return res.status(401).json({ error: `Incorrect PIN. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining before lockout.`, needs_pin: true });
   }
 
   // Success — clear attempts
-  delete _failedAttempts[key];
+  clearFailures(key);
   const token = jwt.sign({ id: tenant.id, lot_id: tenant.lot_id, role: 'tenant', name: `${tenant.first_name} ${tenant.last_name}` }, SECRET, { expiresIn: '2h' });
   res.json({ token, tenant: { id: tenant.id, first_name: tenant.first_name, last_name: tenant.last_name, lot_id: tenant.lot_id } });
 });
@@ -234,6 +273,19 @@ router.post('/message', tenantAuth, (req, res) => {
   } catch {}
 
   res.json({ success: true });
+});
+
+// Birthday message for the logged-in tenant (most recent, within last 3 days)
+router.get('/birthday-message', tenantAuth, (req, res) => {
+  try {
+    var msg = db.prepare(`
+      SELECT id, subject, body, sent_date FROM messages
+      WHERE tenant_id = ? AND message_type = 'birthday'
+        AND sent_date >= datetime('now', '-3 days')
+      ORDER BY sent_date DESC LIMIT 1
+    `).get(req.tenant.id);
+    res.json(msg || null);
+  } catch { res.json(null); }
 });
 
 module.exports = router;

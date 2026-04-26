@@ -97,6 +97,7 @@
 
     /* ===== QUICK ACTIONS ===== */
     .quick-actions { display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;width:100%;max-width:800px;margin-bottom:1rem }
+    .quick-actions > :last-child:nth-child(odd) { grid-column:1/3;max-width:50%;justify-self:center }
     .qa-btn { background:#fff;border:1.5px solid #1a5c32;border-radius:14px;padding:1rem 0.75rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.35rem;min-height:90px;cursor:pointer;transition:all 0.2s;text-decoration:none;color:#1c1917;box-shadow:0 2px 8px rgba(0,0,0,0.06) }
     .qa-btn:hover { border-color:#1a5c32;background:#f0fdf4;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.06) }
     .qa-btn:active { transform:scale(0.97);border-color:#1a5c32 }
@@ -126,8 +127,41 @@
     .announcement:last-child { border-bottom:none }
     .announcement-date { font-size:0.7rem;color:#a8a29e;margin-top:0.15rem }
 
+    /* ===== CHOMPER CHAT ===== */
+    .chomper-overlay { position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;justify-content:center }
+    .chomper-panel { width:100%;max-width:460px;max-height:88vh;background:#fff;border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -8px 30px rgba(0,0,0,0.2);animation:chomperSlideUp 0.3s ease-out }
+    @keyframes chomperSlideUp { from { transform:translateY(100%) } to { transform:translateY(0) } }
+    .chomper-header { background:linear-gradient(135deg,#1a5c32,#2d8a52);padding:1rem 1rem;display:flex;align-items:center;gap:0.75rem;color:#fff }
+    .chomper-msgs { flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:0.6rem;background:#f0fdf4 }
+    .chomper-bubble { max-width:85%;padding:0.75rem 1rem;border-radius:16px;font-size:0.95rem;line-height:1.55;word-wrap:break-word }
+    .chomper-bubble.bot { background:#fff;color:#292524;align-self:flex-start;border:1.5px solid #a7f3d0;border-bottom-left-radius:4px }
+    .chomper-bubble.user { background:#1a5c32;color:#fff;align-self:flex-end;border-bottom-right-radius:4px;font-weight:500 }
+    .chomper-typing { align-self:flex-start;background:#fff;border:1.5px solid #a7f3d0;border-radius:16px;padding:0.6rem 1rem;display:flex;gap:5px;align-items:center }
+    .chomper-typing span { width:8px;height:8px;background:#1a5c32;border-radius:50%;animation:chomperDot 1.2s infinite }
+    .chomper-typing span:nth-child(2) { animation-delay:0.2s }
+    .chomper-typing span:nth-child(3) { animation-delay:0.4s }
+    @keyframes chomperDot { 0%,80%,100% { transform:scale(0.6);opacity:0.4 } 40% { transform:scale(1);opacity:1 } }
+    .chomper-quick-btn { padding:0.6rem 0.9rem;border:1.5px solid #1a5c32;background:#f0fdf4;border-radius:20px;font-size:0.9rem;color:#1a5c32;font-weight:600;cursor:pointer;white-space:nowrap;transition:background 0.15s }
+    .chomper-quick-btn:hover { background:#dcfce7 }
+    @keyframes chomperBlink { 0%,96%,100% { transform:scaleY(1) } 98% { transform:scaleY(0.1) } }
+    @keyframes chomperBob { 0%,100% { transform:rotate(-5deg) } 50% { transform:rotate(0deg) } }
+    .chomper-eyes { transform-origin:50px 34px; animation:chomperBlink 4s infinite }
+    .chomper-rod { transform-origin:68px 45px; animation:chomperBob 3s ease-in-out infinite }
+    @media(min-width:500px) { .chomper-panel { border-radius:20px;margin:1rem;max-height:82vh } }
+
+    /* ===== FONT SIZE TOGGLE ===== */
+    .fs-btn.fs-active { background:#1a5c32 !important;color:#fff !important }
+    #portal-wrapper.fs-large { font-size:110% }
+    #portal-wrapper.fs-xlarge { font-size:125% }
+
+    /* ===== RADAR ===== */
+    #radar-section details > summary::-webkit-details-marker { display:none }
+    #radar-section details > summary { list-style:none }
+    #radar-section details > summary:hover { background:#f0fdf4 }
+    #radar-section details[open] > summary { border-bottom:1px solid #e5e7eb }
+
     /* ===== COMMUNITY ===== */
-    .community-post { padding:0.75rem 0;border-bottom:1.5px solid #d1d5db }
+    .community-post { padding:0.85rem 0;border-bottom:2px solid #d1d5db }
     .community-post:last-child { border-bottom:none }
 
     /* ===== COLLAPSIBLE ===== */
@@ -197,6 +231,38 @@
       .link-btn { padding:0.55rem 0.6rem;font-size:0.78rem }
       .payment-hub { padding:1rem 0.85rem }
     }
+
+    /* ===== PORTAL MOBILE ENHANCEMENTS ===== */
+    @media (max-width:600px) {
+      /* Quick actions — ensure tappable */
+      .qa-btn { min-height:85px;padding:0.85rem 0.6rem }
+      .qa-icon { font-size:1.5rem }
+      .qa-label { font-size:0.82rem }
+      .quick-actions > :last-child:nth-child(odd) { max-width:100% }
+
+      /* Chomper chat — full width */
+      .chomper-panel { max-width:100%;border-radius:16px 16px 0 0 }
+      .chomper-bubble { max-width:92%;font-size:0.92rem }
+      .chomper-quick-btn { font-size:0.82rem;padding:0.5rem 0.7rem }
+
+      /* Community — tappable buttons */
+      .community-post button { min-height:40px }
+
+      /* Weather radar map */
+      #radar-map { height:250px }
+
+      /* Font size toggle */
+      .fs-btn { padding:0.35rem 0.75rem;font-size:0.82rem }
+
+      /* Forms — full width inputs, prevent zoom */
+      input, select, textarea { font-size:16px !important }
+
+      /* Reply input taller */
+      textarea { min-height:60px }
+
+      /* Report problem / message forms */
+      .card input, .card select, .card textarea { width:100%;min-height:44px;padding:0.6rem }
+    }
   </style>
 </head>
 <body>
@@ -256,70 +322,60 @@
 <!-- ==================== PORTAL DASHBOARD ==================== -->
 <div id="portal-wrapper" class="hidden" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0.75rem 0.75rem 2rem">
 
+  <!-- Severe Weather Alert + Checklist (hidden by default, shown by JS) -->
+  <div id="severe-weather-container" data-tab-section="home" style="display:none;width:100%;max-width:800px;margin-bottom:0.75rem"></div>
+
   <!-- Falling particles (holiday) -->
   <div class="falling-particles" id="falling-particles"></div>
 
-  <!-- Hero header -->
-  <div class="portal-hero">
-    <div class="hero-welcome" id="p-welcome" style="font-size:1rem;margin:0">Welcome home! 🐊</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap">
-      <div id="p-name-hero" style="font-size:0.82rem;font-weight:600;opacity:0.9"></div>
-      <div class="hero-date" id="p-date" style="font-size:0.72rem"></div>
+  <!-- ===== 1. SLIM GREETING BAR (max ~60px) ===== -->
+  <div class="portal-hero" data-tab-section="home" style="padding:0.4rem 0.85rem;margin-bottom:0.4rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:0.25rem">
+      <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">
+        <span id="p-welcome" style="font-size:0.82rem;font-weight:600">Hi! 🐊</span>
+        <span id="p-name-hero" style="font-size:0.78rem;opacity:0.9"></span>
+        <span style="opacity:0.5;margin:0 0.2rem;font-size:0.72rem">·</span>
+        <span id="p-date" style="font-size:0.68rem;opacity:0.65"></span>
+      </div>
+      <div style="display:inline-flex;background:rgba(255,255,255,0.15);border-radius:5px;overflow:hidden;flex-shrink:0">
+        <button onclick="setPortalFontSize('normal')" id="fs-normal" class="fs-btn fs-active" style="padding:0.15rem 0.4rem;border:none;background:none;cursor:pointer;font-size:0.65rem;font-weight:600;color:rgba(255,255,255,0.7)">A</button>
+        <button onclick="setPortalFontSize('large')" id="fs-large" class="fs-btn" style="padding:0.15rem 0.4rem;border:none;border-left:1px solid rgba(255,255,255,0.2);background:none;cursor:pointer;font-size:0.75rem;font-weight:600;color:rgba(255,255,255,0.7)">A+</button>
+        <button onclick="setPortalFontSize('xlarge')" id="fs-xlarge" class="fs-btn" style="padding:0.15rem 0.4rem;border:none;border-left:1px solid rgba(255,255,255,0.2);background:none;cursor:pointer;font-size:0.82rem;font-weight:600;color:rgba(255,255,255,0.7)">A++</button>
+      </div>
     </div>
-    <div id="hero-verse" style="font-size:0.85rem;color:rgba(255,255,255,0.9);margin-top:0.5rem;font-style:italic;display:none;border-left:2px solid rgba(255,255,255,0.4);padding-left:8px"></div>
+    <div id="hero-verse" style="font-size:0.88rem;color:rgba(255,255,255,0.95);margin-top:0.3rem;font-style:italic;display:none;border-left:3px solid rgba(255,255,255,0.5);padding-left:8px;line-height:1.4"></div>
   </div>
 
   <!-- Weather alert banner -->
-  <div id="portal-weather-banner" style="width:100%;max-width:800px;display:none"></div>
+  <div id="portal-weather-banner" data-tab-section="home" style="width:100%;max-width:800px;display:none"></div>
 
-  <!-- ===== COMMUNITY BOARD (top section) ===== -->
-  <div class="card" style="animation-delay:0.05s">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
-      <div class="card-title" style="margin:0;font-size:0.85rem">🏘️ Community</div>
-      <button class="btn btn-sm btn-green" id="portal-new-post-btn" style="font-size:0.78rem;padding:0.35rem 0.85rem;border-radius:10px">+ Share</button>
-    </div>
-    <div id="portal-new-post-form" style="display:none;margin-bottom:1rem;padding:0.85rem;background:#fafaf9;border-radius:12px;border:1px solid #e7e5e4;position:relative">
-      <button onclick="document.getElementById('portal-new-post-form').style.display='none'" style="position:absolute;top:8px;right:10px;background:none;border:none;font-size:1rem;color:#a8a29e;cursor:pointer;line-height:1">✕</button>
-      <form id="portal-post-form">
-        <div class="form-group" style="margin-bottom:0.6rem"><select name="post_type"><option value="community">📢 Community</option><option value="fishing">🎣 Fishing Story</option><option value="event">🎪 Event</option></select></div>
-        <div class="form-group" style="margin-bottom:0.6rem"><input name="title" placeholder="Title" required></div>
-        <div class="form-group" style="margin-bottom:0.6rem"><textarea name="message" rows="3" placeholder="Share with the community..." spellcheck="true"></textarea></div>
-        <div class="form-group" style="margin-bottom:0.6rem">
-          <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;min-height:auto"><input type="file" accept="image/*" capture="environment" style="display:none" id="post-photo-input"> 📷 Add Photo</label>
-          <span id="post-photo-status" style="font-size:0.78rem;color:#78716c;margin-left:0.5rem"></span>
-          <div id="post-photo-preview" style="margin-top:0.5rem"></div>
-          <input type="hidden" id="post-photo-data" name="photo_data">
-        </div>
-        <button type="submit" class="btn btn-green">Submit for Review</button>
-        <div style="text-align:center;margin-top:0.5rem"><a href="#" onclick="event.preventDefault();document.getElementById('portal-new-post-form').style.display='none'" style="font-size:0.8rem;color:#a8a29e;text-decoration:none">Cancel</a></div>
-      </form>
-    </div>
-    <div id="portal-community-feed" style="font-size:0.88rem;color:#78716c">Loading...</div>
-  </div>
-
-  <!-- Latest community post banner -->
-  <div id="latest-community-banner" style="display:none;width:100%;max-width:800px;background:#f0fdf4;border-radius:12px;padding:0.45rem 1rem;font-size:0.8rem;color:#1a5c32;cursor:pointer;margin-bottom:0.75rem;font-weight:500" onclick="document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth',block:'start'})"></div>
-
-  <!-- ===== SECTION 1: PAYMENT HUB ===== -->
-  <div class="card payment-hub" style="animation-delay:0.05s;border-top:4px solid #1a5c32">
-    <div style="font-size:0.72rem;color:#78716c;font-weight:600;margin-bottom:0.5rem">🐊 Anahuac RV Park</div>
-    <div class="tenant-header">
+  <!-- ===== 2. BALANCE HERO CARD ===== -->
+  <div class="card payment-hub" data-tab-section="home" style="border-top:4px solid #1a5c32;padding:1rem 1.25rem;margin-bottom:0.6rem">
+    <div class="tenant-header" style="display:none">
       <div class="tenant-name" id="p-name"></div>
       <div class="tenant-lot" id="p-lot"></div>
     </div>
-    <div class="balance-box">
-      <div class="balance-label">Current Balance</div>
-      <div class="balance-amount" id="p-balance">...</div>
+    <div class="balance-box" style="margin:0 0 0.5rem">
+      <div class="balance-label" style="font-size:0.82rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#78716c">Current Balance</div>
+      <div class="balance-amount" id="p-balance" style="font-size:2.8rem;font-weight:900;color:#dc2626;line-height:1.1">...</div>
     </div>
     <div id="pay-section"></div>
-    <div style="margin-top:0.75rem">
+    <div style="margin-top:0.6rem">
       <div class="card-title" style="font-size:0.72rem">Recent Invoices</div>
       <div id="p-invoices"></div>
     </div>
   </div>
 
-  <!-- ===== SECTION 2: QUICK ACTIONS ===== -->
-  <div class="quick-actions" style="animation-delay:0.1s">
+  <!-- Birthday Banner — between balance and quick actions -->
+  <div id="portal-birthday-banner" data-tab-section="home" style="display:none;width:100%;max-width:800px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border:3px solid #d97706;border-radius:16px;padding:1.5rem 1.25rem;margin-bottom:0.6rem;text-align:center;position:relative;overflow:hidden;box-shadow:0 4px 15px rgba(245,158,11,0.3)">
+    <div style="font-size:2.5rem;margin-bottom:0.4rem">🎂🎉🥳</div>
+    <div style="font-size:1.3rem;font-weight:800;color:#7c2d12;margin-bottom:0.25rem">Happy Birthday!</div>
+    <div id="portal-birthday-text" style="font-size:1rem;color:#92400e;font-weight:600;line-height:1.5"></div>
+    <div style="font-size:0.82rem;color:#78350f;margin-top:0.5rem;font-style:italic">Sincerely, Park Management ❤️</div>
+  </div>
+
+  <!-- ===== 3. QUICK ACTIONS ===== -->
+  <div class="quick-actions" data-tab-section="home" style="margin-bottom:0.6rem">
     <a class="qa-btn" href="#maint-form" onclick="event.preventDefault();document.getElementById('maint-form')?.scrollIntoView({behavior:'smooth'})">
       <span class="qa-icon">🔧</span><span class="qa-label">Report Problem</span>
     </a>
@@ -327,7 +383,12 @@
       <span class="qa-icon">💬</span><span class="qa-label">Message Us</span>
     </a>
     <a class="qa-btn" href="#portal-community-feed" onclick="event.preventDefault();document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth'})">
-      <span class="qa-icon">🏘️</span><span class="qa-label">Community</span>
+      <span class="qa-icon">🏘️</span><span class="qa-label">Community Chat</span>
+    </a>
+    <a class="qa-btn" href="#" onclick="event.preventDefault();openChomperChat()" style="border-color:#1a5c32;border-width:2px;background:linear-gradient(135deg,#f0fdf4,#dcfce7)">
+      <span class="qa-icon">🐊</span>
+      <span class="qa-label" style="color:#1a5c32">Ask Chomper</span>
+      <span style="font-size:0.62rem;color:#57534e;font-weight:500;margin-top:-2px">AI Assistant — ask me anything!</span>
     </a>
     <a class="qa-btn" id="qa-call-btn" href="tel:4092676603" onclick="return handleCallBtn(event)" style="position:relative">
       <span class="qa-icon">📞</span><span class="qa-label">Call Us</span>
@@ -341,8 +402,48 @@
     </a>
   </div>
 
+  <!-- ===== 4. COMMUNITY CHAT STRIP — slim banner ===== -->
+  <div class="card" data-tab-section="community" style="padding:0.4rem 0.75rem;margin-bottom:0.5rem">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="card-title" style="margin:0;font-size:0.75rem;flex-shrink:0">🏘️ Community</div>
+      <div id="portal-community-feed" style="flex:1;margin:0 0.6rem;font-size:0.78rem;color:#44403c;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-height:40px">Loading...</div>
+      <div style="display:flex;gap:0.25rem;flex-shrink:0">
+        <button class="btn btn-sm btn-green" id="portal-new-post-btn" style="font-size:0.68rem;padding:0.2rem 0.5rem;border-radius:6px;min-height:30px">+ Share</button>
+        <button class="btn btn-sm btn-outline" style="font-size:0.68rem;padding:0.2rem 0.5rem;border-radius:6px;min-height:30px" onclick="showFullCommunityChat()">View All</button>
+      </div>
+    </div>
+    <div id="portal-new-post-form" style="display:none;margin-top:0.5rem;padding:0.75rem;background:#fafaf9;border-radius:10px;border:1px solid #e7e5e4;position:relative">
+      <button onclick="document.getElementById('portal-new-post-form').style.display='none'" style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:1rem;color:#a8a29e;cursor:pointer;line-height:1">✕</button>
+      <form id="portal-post-form">
+        <div class="form-group" style="margin-bottom:0.5rem"><select name="post_type"><option value="community">📢 Community</option><option value="fishing">🎣 Fishing Story</option><option value="event">🎪 Event</option></select></div>
+        <div class="form-group" style="margin-bottom:0.5rem"><input name="title" placeholder="Title" required></div>
+        <div class="form-group" style="margin-bottom:0.5rem"><textarea name="message" rows="2" placeholder="Share with the community..." spellcheck="true"></textarea></div>
+        <div class="form-group" style="margin-bottom:0.5rem">
+          <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;min-height:auto"><input type="file" accept="image/*" capture="environment" style="display:none" id="post-photo-input"> 📷 Add Photo</label>
+          <span id="post-photo-status" style="font-size:0.72rem;color:#78716c;margin-left:0.4rem"></span>
+          <div id="post-photo-preview" style="margin-top:0.4rem"></div>
+          <input type="hidden" id="post-photo-data" name="photo_data">
+        </div>
+        <button type="submit" class="btn btn-green btn-full" style="font-size:0.85rem">Submit for Review</button>
+      </form>
+    </div>
+  </div>
+  <!-- Full community feed (expanded, scrolled to from View All) -->
+  <div id="portal-community-full" data-tab-section="community" style="display:none" class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <div class="card-title" style="margin:0;font-size:0.82rem">🏘️ Community Chat</div>
+      <button class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="document.getElementById('portal-community-full').style.display='none'">✕ Close</button>
+    </div>
+    <div id="portal-community-feed-full" style="font-size:0.9rem;color:#44403c">Loading...</div>
+  </div>
+
+  <!-- Latest community post banner -->
+  <div id="latest-community-banner" data-tab-section="community" style="display:none;width:100%;max-width:800px;background:#f0fdf4;border-radius:12px;padding:0.45rem 1rem;font-size:0.8rem;color:#1a5c32;cursor:pointer;margin-bottom:0.75rem;font-weight:500" onclick="document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth',block:'start'})"></div>
+
+  <!-- ===== 5. EVERYTHING ELSE ===== -->
+
   <!-- Weather (compact) -->
-  <div class="portal-two-col" style="animation-delay:0.12s">
+  <div class="portal-two-col" data-tab-section="home" style="animation-delay:0.12s">
     <div class="card" id="weather-card" style="padding:0.65rem 1rem">
       <div class="card-title" style="margin-bottom:0.15rem;font-size:0.72rem">🌤️ Weather in Anahuac</div>
       <div class="weather-bar" id="weather-content"><span class="wx-detail">Loading...</span></div>
@@ -354,25 +455,26 @@
   </div>
 
   <!-- Holiday Corner -->
-  <div class="card" id="holiday-card" style="display:none">
+  <div class="card" id="holiday-card" data-tab-section="home" style="display:none">
     <div class="card-title" id="holiday-card-title">🎉 Holiday Corner</div>
     <div id="holiday-card-content"></div>
   </div>
 
   <!-- New Year Countdown -->
-  <div class="card" id="countdown-card" style="display:none;text-align:center">
+  <div class="card" id="countdown-card" data-tab-section="home" style="display:none;text-align:center">
     <div class="card-title" style="justify-content:center">🎆 New Year Countdown</div>
     <div class="countdown-timer" id="countdown-timer"></div>
   </div>
 
+
   <!-- ===== SECTION 3: ANNOUNCEMENTS ===== -->
-  <div class="card" id="announcements-card" style="display:none;border-left:3px solid #1a5c32">
+  <div class="card" id="announcements-card" data-tab-section="home" style="display:none;border-left:3px solid #1a5c32">
     <div class="card-title">📢 From Management</div>
     <div id="announcements-list"></div>
   </div>
 
   <!-- Traffic bar -->
-  <div class="card" style="width:100%;max-width:800px;padding:0.65rem 1rem">
+  <div class="card" data-tab-section="home" style="width:100%;max-width:800px;padding:0.65rem 1rem">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div class="card-title" style="margin:0;font-size:0.72rem">🚗 Local Road Conditions</div>
       <button onclick="loadTrafficData()" style="background:none;border:none;font-size:0.7rem;color:#1a5c32;cursor:pointer;font-weight:600">↻ Refresh</button>
@@ -381,8 +483,108 @@
     <div id="portal-traffic-time" style="font-size:0.62rem;color:#a8a29e;margin-top:0.2rem;text-align:right"></div>
   </div>
 
+  <!-- ===== WEATHER RADAR ===== -->
+  <div class="card" data-tab-section="home" style="width:100%;max-width:800px;padding:0;overflow:hidden" id="radar-section">
+    <!-- NWS Alerts -->
+    <div id="radar-alerts" style="display:none"></div>
+
+    <div style="padding:0.85rem 1rem 0.5rem">
+      <div class="card-title" style="margin:0;font-size:0.85rem;color:#1a5c32">🌧️ Weather Radar — Chambers County TX</div>
+      <div style="font-size:0.72rem;color:#a8a29e;margin-top:0.15rem">Live radar updated every 10 minutes</div>
+    </div>
+
+    <!-- Map container — lazy loaded -->
+    <div id="radar-map" style="height:300px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#78716c;font-size:0.88rem">
+      Scroll here to load radar...
+    </div>
+
+    <!-- Controls -->
+    <div id="radar-controls" style="display:none;padding:0.5rem 1rem;background:#f9fafb;border-top:1px solid #e5e7eb;display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
+        <button id="radar-play-btn" onclick="toggleRadarPlay()" style="background:#1a5c32;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;min-width:60px">▶ Play</button>
+        <div id="radar-timestamp" style="font-size:0.72rem;color:#78716c;text-align:right"></div>
+      </div>
+    </div>
+
+    <!-- Severe Weather Tips -->
+    <details style="border-top:1px solid #e5e7eb">
+      <summary style="padding:0.65rem 1rem;cursor:pointer;font-size:0.82rem;font-weight:600;color:#1a5c32;user-select:none;list-style:none;display:flex;align-items:center;gap:0.4rem">
+        <span>⚠️ Severe Weather Tips for RV Residents</span>
+        <span style="margin-left:auto;font-size:0.7rem;color:#a8a29e">tap to expand</span>
+      </summary>
+      <div style="padding:0 1rem 1rem;font-size:0.85rem;line-height:1.6;color:#44403c">
+        <p style="margin:0.5rem 0"><strong style="color:#dc2626">🌀 Hurricane Warning Issued:</strong></p>
+        <ul style="margin:0.25rem 0 0.75rem;padding-left:1.25rem">
+          <li>Follow all Chambers County evacuation orders immediately</li>
+          <li>Disconnect electric, water, and sewer hookups</li>
+          <li>Secure or remove awnings, antennas, and loose items</li>
+          <li>Take important documents, medications, and valuables with you</li>
+          <li>Do NOT stay in your RV during a hurricane</li>
+        </ul>
+        <p style="margin:0.5rem 0"><strong>💨 High Wind Safety:</strong></p>
+        <ul style="margin:0.25rem 0 0.75rem;padding-left:1.25rem">
+          <li>Retract all slide-outs and awnings</li>
+          <li>Lower antennas and satellite dishes</li>
+          <li>Chock wheels and set parking brake</li>
+          <li>Secure outdoor furniture, grills, and decorations</li>
+          <li>Keep stabilizer jacks deployed for stability</li>
+        </ul>
+        <p style="margin:0.5rem 0"><strong>🚨 Emergency Contacts:</strong></p>
+        <ul style="margin:0.25rem 0 0.5rem;padding-left:1.25rem">
+          <li><strong>Park Office:</strong> <a href="tel:4092676603" style="color:#1a5c32">(409) 267-6603</a></li>
+          <li><strong>Chambers County Emergency:</strong> <a href="tel:911" style="color:#dc2626">911</a></li>
+          <li><strong>Park Address:</strong> 1003 Davis Ave, Anahuac, TX 77514</li>
+        </ul>
+        <p style="font-size:0.78rem;color:#78716c;margin:0.5rem 0 0">Management will send SMS alerts for severe weather. Keep your phone charged and notifications on.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- ===== HUNTING & FISHING ===== -->
+  <div class="card" data-tab-section="community" style="border-top:3px solid #92400e" id="portal-hunting-fishing">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <div class="card-title" style="margin:0;font-size:0.85rem;color:#92400e">🎣 Hunting & Fishing</div>
+      <button class="btn btn-sm" style="background:#92400e;color:#fff;font-size:0.75rem;padding:0.3rem 0.6rem;border-radius:8px" onclick="showHFPostForm()">+ Post Catch</button>
+    </div>
+    <div id="hf-tabs" style="display:flex;gap:0;margin-bottom:0.5rem;border-bottom:2px solid #e5e7eb">
+      <button class="btn btn-sm" id="hf-tab-fishing" onclick="switchHFTab('fishing')" style="border-radius:8px 8px 0 0;border:1px solid #e5e7eb;border-bottom:none;font-weight:600;font-size:0.78rem;background:#0284c7;color:#fff">🎣 Fishing</button>
+      <button class="btn btn-sm" id="hf-tab-hunting" onclick="switchHFTab('hunting')" style="border-radius:8px 8px 0 0;border:1px solid #e5e7eb;border-bottom:none;font-weight:600;font-size:0.78rem;margin-left:-1px">🦆 Hunting</button>
+      <button class="btn btn-sm" id="hf-tab-tips" onclick="switchHFTab('tips')" style="border-radius:8px 8px 0 0;border:1px solid #e5e7eb;border-bottom:none;font-weight:600;font-size:0.78rem;margin-left:-1px">📋 Local Tips</button>
+    </div>
+    <div id="hf-leaderboard" style="margin-bottom:0.5rem"></div>
+    <div id="hf-content"></div>
+  </div>
+
+  <!-- ===== BIRD SIGHTINGS ===== -->
+  <div class="card" data-tab-section="community" style="border-top:3px solid #0284c7" id="portal-birding">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <div class="card-title" style="margin:0;font-size:0.85rem;color:#0284c7">🐦 Bird Sightings</div>
+      <button class="btn btn-sm" style="background:#0284c7;color:#fff;font-size:0.75rem;padding:0.3rem 0.6rem;border-radius:8px" onclick="showPortalBirdForm()">+ Post Sighting</button>
+    </div>
+    <div id="portal-bird-of-day" style="margin-bottom:0.6rem"></div>
+    <div id="portal-bird-migration" style="margin-bottom:0.6rem"></div>
+    <div id="portal-bird-sun" style="margin-bottom:0.6rem"></div>
+    <div id="portal-bird-tabs" style="display:flex;gap:0;margin-bottom:0.5rem;border-bottom:2px solid #e5e7eb">
+      <button class="btn btn-sm" id="bird-tab-sightings" onclick="switchBirdTab('sightings')" style="border-radius:8px 8px 0 0;border:1px solid #e5e7eb;border-bottom:none;font-weight:600;font-size:0.78rem;background:#0284c7;color:#fff">Recent Sightings</button>
+      <button class="btn btn-sm" id="bird-tab-map" onclick="switchBirdTab('map')" style="border-radius:8px 8px 0 0;border:1px solid #e5e7eb;border-bottom:none;font-weight:600;font-size:0.78rem;margin-left:-1px">Birding Map</button>
+    </div>
+    <div id="portal-bird-content"></div>
+  </div>
+
+  <!-- ===== LOST & FOUND PETS ===== -->
+  <div class="card" data-tab-section="community" id="portal-lost-found">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+      <div class="card-title" style="margin:0;font-size:0.85rem">🐾 Lost & Found Pets</div>
+      <div style="display:flex;gap:0.35rem">
+        <button class="btn btn-sm" style="background:#dc2626;color:#fff;font-size:0.75rem;padding:0.3rem 0.6rem;border-radius:8px" onclick="showPortalLFForm('lost')">Report Lost</button>
+        <button class="btn btn-sm" style="background:#16a34a;color:#fff;font-size:0.75rem;padding:0.3rem 0.6rem;border-radius:8px" onclick="showPortalLFForm('found')">Report Found</button>
+      </div>
+    </div>
+    <div id="portal-lf-feed" style="font-size:0.9rem;color:#78716c">Loading...</div>
+  </div>
+
   <!-- ===== SECTION 5: MAINTENANCE (Report a Problem) ===== -->
-  <div class="card" style="animation-delay:0.18s">
+  <div class="card" data-tab-section="maint-tab" style="animation-delay:0.18s">
     <div class="card-title" style="font-size:0.85rem">🔧 Report a Problem</div>
     <p style="font-size:0.82rem;color:#78716c;margin-bottom:0.75rem;line-height:1.5">Submit a request and we'll get right on it. For emergencies call <a href="tel:4092676603" style="color:#1a5c32;font-weight:700">409-267-6603</a>.</p>
     <div id="maint-status"></div>
@@ -405,13 +607,13 @@
   </div>
 
   <!-- ===== INSPECTION HISTORY ===== -->
-  <div class="card" id="portal-inspections-card" style="display:none;animation-delay:0.19s;border-left:3px solid #f59e0b">
+  <div class="card" id="portal-inspections-card" data-tab-section="maint-tab" style="display:none;animation-delay:0.19s;border-left:3px solid #f59e0b">
     <div class="card-title" style="font-size:0.85rem">📋 Lot Inspection History</div>
     <div id="portal-inspections-list"></div>
   </div>
 
   <!-- ===== CONTACT / MESSAGE ===== -->
-  <div class="card" style="animation-delay:0.2s">
+  <div class="card" data-tab-section="contact" style="animation-delay:0.2s">
     <div class="card-title" style="font-size:0.85rem">💬 Message Management</div>
     <div id="msg-status"></div>
     <form id="msg-form">
@@ -424,7 +626,7 @@
   </div>
 
   <!-- ===== SECTION 5: PARK & LOCAL INFO (collapsible) ===== -->
-  <div class="card park-info-collapse" style="animation-delay:0.22s">
+  <div class="card park-info-collapse" data-tab-section="contact" style="animation-delay:0.22s">
     <button class="collapse-toggle" onclick="var b=this.nextElementSibling;b.classList.toggle('open');this.querySelector('.caret').textContent=b.classList.contains('open')?'▲':'▼'">
       <span class="card-title" style="margin:0;font-size:0.85rem">🏕️ Park & Local Info</span>
       <span class="caret" style="color:#a8a29e;font-size:0.8rem">▼</span>
@@ -486,7 +688,7 @@
   <!-- Bottom navigation -->
   <div class="portal-nav" id="portal-nav">
     <button class="portal-nav-btn active" data-tab="home"><span class="pnav-icon">🏠</span>Home</button>
-    <button class="portal-nav-btn" data-tab="community"><span class="pnav-icon">🏘️</span>Community</button>
+    <button class="portal-nav-btn" data-tab="community"><span class="pnav-icon">🏘️</span>Chat</button>
     <button class="portal-nav-btn" data-tab="maint-tab"><span class="pnav-icon">🔧</span>Repairs</button>
     <button class="portal-nav-btn" data-tab="contact"><span class="pnav-icon">📞</span>Contact</button>
   </div>
@@ -737,6 +939,11 @@ async function showPortal() {
     loadTrafficData(),
     loadLatestCommunityBanner(),
     loadPortalInspections(),
+    loadPortalBirthday(),
+    checkSevereWeatherAlerts(),
+    loadPortalLostFound(),
+    loadPortalBirding(),
+    loadPortalHuntingFishing(),
   ]);
   // Auto-refresh traffic every 15 minutes
   setInterval(loadTrafficData, 15 * 60 * 1000);
@@ -794,17 +1001,36 @@ async function showPortal() {
       alert('✅ Your post has been submitted for review! Management will review within 24 hours.');
     });
 
-    // Bottom navigation tabs
+    // Bottom navigation tabs — show/hide content sections
     var navBtns = document.querySelectorAll('.portal-nav-btn');
+    // Save original display state of tab sections on first run
+    var _tabOrigDisplay = {};
+    document.querySelectorAll('[data-tab-section]').forEach(function(el, i) {
+      _tabOrigDisplay[i] = el.style.display || '';
+      el.setAttribute('data-tab-idx', i);
+    });
+    function switchPortalTab(tab) {
+      navBtns.forEach(function(b) { b.classList.remove('active'); });
+      var activeBtn = document.querySelector('.portal-nav-btn[data-tab="' + tab + '"]');
+      if (activeBtn) activeBtn.classList.add('active');
+      document.querySelectorAll('[data-tab-section]').forEach(function(el) {
+        if (el.dataset.tabSection === tab) {
+          // Restore original display (preserves display:none for hidden-by-default elements)
+          var idx = el.getAttribute('data-tab-idx');
+          el.style.display = _tabOrigDisplay[idx] || '';
+        } else {
+          el.style.display = 'none';
+        }
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     navBtns.forEach(function(btn) {
       btn.addEventListener('click', function() {
-        var tab = this.dataset.tab;
-        navBtns.forEach(function(b) { b.classList.remove('active'); });
-        this.classList.add('active');
-        // Scroll to top
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        switchPortalTab(this.dataset.tab);
       });
     });
+    // Initialize: show home tab
+    switchPortalTab('home');
   }, 100);
 
   if (data) {
@@ -851,8 +1077,6 @@ const HOLIDAYS = {
                   verse:{t:'Love is patient, love is kind. It does not envy, it does not boast.',r:'1 Corinthians 13:4'} },
   stPatricks:   { s:[3,13],  e:[3,17],  name:"St. Patrick's Day! ☘️",      mascot:'☘️', emoji:'🍀', bg:'linear-gradient(135deg,#0a3d0a,#1a7a1a)', accent:'#ffd700',
                   verse:{t:'The Lord bless you and keep you; the Lord make his face shine on you.',r:'Numbers 6:24-25'} },
-  easter:       { s:[4,13],  e:[4,20],  name:'Happy Easter! 🐣',           mascot:'🐰', emoji:'🌸', bg:'linear-gradient(135deg,#4a235a,#9b59b6)', accent:'#f39c12',
-                  verse:{t:'He is not here; he has risen, just as he said.',r:'Matthew 28:6'} },
   mothersDay:   { s:[5,10],  e:[5,12],  name:"Happy Mother's Day! 🌸",     mascot:'💐', emoji:'🌺', bg:'linear-gradient(135deg,#6e0a3d,#ff69b4)', accent:'#ffd700',
                   verse:{t:'She is clothed with strength and dignity; she can laugh at the days to come.',r:'Proverbs 31:25'} },
   memorialDay:  { s:[5,25],  e:[5,27],  name:'Memorial Day 🎖️',            mascot:'🎖️', emoji:'🇺🇸', bg:'linear-gradient(135deg,#3c3b6e,#b22234)', accent:'#fff',
@@ -890,7 +1114,7 @@ function applyHolidayTheme() {
   // Holiday verse shown inline in hero header
   if (h.verse) {
     var hv = document.getElementById('hero-verse');
-    if (hv) { hv.textContent = '✝️ "' + h.verse.t + '" — ' + h.verse.r; hv.style.display = ''; }
+    if (hv) { hv.innerHTML = '✝️ "' + h.verse.t + '" — <strong>' + h.verse.r + '</strong>'; hv.style.display = ''; }
   }
 
   // Holiday content card — only show if there's extra content (Gatorfest link, music)
@@ -1073,7 +1297,7 @@ async function loadBibleVerse() {
   try {
     var r = await fetch('https://beta.ourmanna.com/api/v1/get?format=json&order=daily');
     var d = await r.json();
-    heroVerse.textContent = '✝️ "' + d.verse.details.text + '" — ' + d.verse.details.reference;
+    heroVerse.innerHTML = '✝️ "' + d.verse.details.text + '" — <strong>' + d.verse.details.reference + '</strong>';
     heroVerse.style.display = '';
   } catch {
     var fallback = [
@@ -1089,28 +1313,1214 @@ async function loadBibleVerse() {
   }
 }
 
+var _communityPostsCache = null;
+
 async function loadCommunityFeed() {
-  var el = document.getElementById('portal-community-feed');
-  if (!el) return;
+  var stripEl = document.getElementById('portal-community-feed');
   try {
     var r = await fetch('/api/community/public');
-    var posts = await r.json();
-    if (!posts || !posts.length) { el.innerHTML = '<div style="text-align:center;padding:1.5rem 0;color:#a8a29e;font-size:0.9rem">No posts yet! Be the first to share. 🎣</div>'; return; }
-    el.innerHTML = posts.map(function(p) {
-      var types = { recognition: {e:'🏆',c:'#f59e0b',bg:'#fff7ed'}, fishing: {e:'🎣',c:'#0284c7',bg:'#eff6ff'}, community: {e:'📢',c:'#1a5c32',bg:'#f0fdf4'}, event: {e:'🎪',c:'#7c3aed',bg:'#f5f3ff'}, announcement: {e:'📋',c:'#44403c',bg:'#fafaf9'} };
-      var typeInfo = types[p.post_type] || types.community;
-      var pinStyle = p.is_pinned ? 'border-left:3px solid #f59e0b;padding-left:0.6rem;' : '';
-      return '<div class="community-post" style="' + pinStyle + '">' +
-        (p.is_pinned ? '<span style="font-size:0.65rem;color:#f59e0b;font-weight:700">📌 PINNED</span> ' : '') +
-        '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.25rem"><span style="display:inline-block;font-size:0.65rem;font-weight:700;color:' + typeInfo.c + ';background:' + typeInfo.bg + ';padding:1px 6px;border-radius:6px">' + typeInfo.e + ' ' + (p.post_type || 'community') + '</span>' +
-        '<span style="font-size:0.72rem;color:#a8a29e">' + (p.author || '') + '</span></div>' +
-        (p.title ? '<div style="font-weight:700;font-size:0.92rem;color:#1c1917;margin-bottom:0.2rem">' + p.title + '</div>' : '') +
-        '<div style="font-size:0.88rem;color:#44403c;line-height:1.5">' + (p.message || '') + '</div>' +
-        (p.has_photo ? '<img src="/api/community/' + p.id + '/photo" style="max-width:100%;border-radius:10px;margin:0.5rem 0" onerror="this.style.display=\'none\'">' : '') +
-        '<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;color:#a8a29e;margin-top:0.3rem"><span>' + (p.submitted_at || '') + '</span>' +
-        '<button style="background:none;border:none;cursor:pointer;font-size:0.85rem;padding:4px 8px;border-radius:8px;transition:background 0.15s" onclick="likeCommunityPost(' + p.id + ',this)">❤️ ' + (p.likes_count || 0) + '</button></div></div>';
+    _communityPostsCache = await r.json();
+    if (!_communityPostsCache || !_communityPostsCache.length) {
+      if (stripEl) stripEl.textContent = 'No posts yet — be the first to share! 🎣';
+      return;
+    }
+    // Slim strip — just show latest post title + author
+    if (stripEl) {
+      var latest = _communityPostsCache[0];
+      var rc = latest.reply_count || 0;
+      stripEl.innerHTML = '<strong>' + _escPortal(latest.title || latest.message || '').slice(0, 60) + '</strong>' +
+        ' <span style="color:#78716c;font-size:0.72rem">— ' + (latest.author || '') + ' · 💬 ' + rc + '</span>';
+    }
+  } catch { if (stripEl) stripEl.textContent = 'Could not load'; }
+}
+
+function showFullCommunityChat() {
+  var fullEl = document.getElementById('portal-community-full');
+  var feedEl = document.getElementById('portal-community-feed-full');
+  if (!fullEl || !feedEl) return;
+  fullEl.style.display = '';
+  fullEl.scrollIntoView({ behavior: 'smooth' });
+
+  var posts = _communityPostsCache;
+  if (!posts || !posts.length) { feedEl.innerHTML = '<p style="color:#78716c;text-align:center">No posts yet.</p>'; return; }
+
+  feedEl.innerHTML = posts.map(function(p) {
+    var types = { recognition:{e:'🏆',c:'#f59e0b',bg:'#fff7ed'}, fishing:{e:'🎣',c:'#0284c7',bg:'#eff6ff'}, community:{e:'📢',c:'#1a5c32',bg:'#f0fdf4'}, event:{e:'🎪',c:'#7c3aed',bg:'#f5f3ff'}, announcement:{e:'📋',c:'#44403c',bg:'#fafaf9'} };
+    var typeInfo = types[p.post_type] || types.community;
+    var rc = p.reply_count || 0;
+    return '<div class="community-post" style="padding:0.85rem 0">' +
+      '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem"><span style="font-size:0.75rem;font-weight:700;color:' + typeInfo.c + ';background:' + typeInfo.bg + ';padding:2px 8px;border-radius:6px">' + typeInfo.e + ' ' + (p.post_type || 'community') + '</span>' +
+      '<span style="font-size:0.82rem;color:#57534e;font-weight:500">' + (p.author || '') + '</span></div>' +
+      (p.title ? '<div style="font-weight:700;font-size:1.05rem;color:#1c1917;margin-bottom:0.25rem">' + _escPortal(p.title) + '</div>' : '') +
+      '<div style="font-size:0.92rem;color:#292524;line-height:1.5">' + _escPortal(p.message || '') + '</div>' +
+      (p.has_photo ? '<img src="/api/community/' + p.id + '/photo" style="max-width:100%;border-radius:10px;margin:0.5rem 0" onerror="this.style.display=\'none\'">' : '') +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.4rem">' +
+        '<div style="display:flex;align-items:center;gap:0.6rem">' +
+          '<span style="font-size:0.78rem;color:#78716c">' + (p.submitted_at || '') + '</span>' +
+          '<span style="font-size:0.82rem;color:#44403c;font-weight:600">💬 ' + rc + '</span>' +
+        '</div>' +
+        '<button style="background:none;border:none;cursor:pointer;font-size:0.88rem;padding:4px 8px" onclick="likeCommunityPost(' + p.id + ',this)">❤️ ' + (p.likes_count || 0) + '</button>' +
+      '</div>' +
+      '<button onclick="togglePortalReplies(' + p.id + ')" style="display:block;width:100%;margin-top:0.4rem;padding:0.5rem;background:#1a5c32;color:#fff;border:none;border-radius:8px;font-size:0.88rem;font-weight:600;cursor:pointer">💬 Add a Comment</button>' +
+      '<div id="portal-replies-' + p.id + '" style="display:none;margin-top:0.6rem;padding-top:0.6rem;border-top:2px solid #e7e5e4">' +
+        '<div id="portal-replies-list-' + p.id + '"></div>' +
+        (_portalTenant ? '<div style="display:flex;gap:0.5rem;align-items:flex-start;margin-top:0.5rem">' +
+          '<textarea id="portal-reply-input-' + p.id + '" rows="2" placeholder="Write a comment..." style="flex:1;font-size:0.92rem;padding:0.6rem;border:2px solid #a8a29e;border-radius:10px;resize:vertical;font-family:inherit"></textarea>' +
+          '<button class="btn btn-green" style="padding:0.6rem 1rem;font-size:0.88rem;font-weight:700;border-radius:10px;min-height:44px" onclick="submitPortalReply(' + p.id + ')">Send</button>' +
+        '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// =====================================================================
+// =====================================================================
+// Severe Weather Alerts + RV Safety Checklists
+// =====================================================================
+var _severeAlertTypes = {
+  'Tornado Warning':        { icon: '🌪️', level: 'warning', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', type: 'tornado' },
+  'Tornado Watch':          { icon: '🌪️', level: 'watch',   color: '#d97706', bg: '#fffbeb', border: '#fde68a', type: 'tornado' },
+  'Hurricane Warning':      { icon: '🌀', level: 'warning', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', type: 'hurricane' },
+  'Hurricane Watch':        { icon: '🌀', level: 'watch',   color: '#d97706', bg: '#fffbeb', border: '#fde68a', type: 'hurricane' },
+  'Tropical Storm Warning': { icon: '🌀', level: 'warning', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', type: 'hurricane' },
+  'Flash Flood Emergency':  { icon: '🌊', level: 'warning', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', type: 'flood' },
+  'Flash Flood Warning':    { icon: '🌊', level: 'warning', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', type: 'flood' },
+};
+
+var _severeChecklists = {
+  tornado: {
+    title: 'TORNADO — Secure yourself immediately!',
+    items: [
+      'Move to a sturdy building immediately — do NOT stay in your RV',
+      'If no building available, go to the lowest floor of a nearby structure',
+      'Stay away from windows',
+      'Bring pets inside immediately',
+      'Call 911 if you need help evacuating',
+      'Park emergency: (409) 267-6603',
+    ]
+  },
+  hurricane: {
+    title: 'HURRICANE / TROPICAL STORM — Prepare now!',
+    items: [
+      'Secure or bring inside all outdoor furniture, decorations, and items',
+      'Disconnect water and electric hookups if flooding is expected',
+      'Fill your RV water tank in case water service is interrupted',
+      'Stock at least 3 days of food, water, and medications',
+      'Charge all phones and backup batteries',
+      'Know your evacuation route — Highway 61 north to I-10',
+      'If ordered to evacuate — LEAVE EARLY, do not wait until last minute',
+      'Park emergency: (409) 267-6603',
+      'Chambers County Emergency: 911',
+    ]
+  },
+  flood: {
+    title: 'FLASH FLOOD — Stay off roads!',
+    items: [
+      'Do not drive through flooded roads — Turn Around, Don\'t Drown',
+      'Move to higher ground if flooding threatens your lot',
+      'Disconnect electric hookup if water is rising near your lot',
+      'Call 911 if you need rescue',
+      'Park emergency: (409) 267-6603',
+    ]
+  },
+};
+
+var _severeAlertActive = false;
+
+async function checkSevereWeatherAlerts() {
+  var container = document.getElementById('severe-weather-container');
+  if (!container) return;
+  try {
+    var r = await fetch('https://api.weather.gov/alerts/active?zone=TXC071');
+    var data = await r.json();
+    var severeAlerts = (data.features || []).filter(function(f) {
+      return f.properties && _severeAlertTypes[f.properties.event];
+    });
+
+    if (!severeAlerts.length) {
+      // Show all-clear if we had alerts before
+      if (_severeAlertActive) {
+        var checked = _getSevereChecked();
+        if (Object.keys(checked).length > 0) {
+          container.style.display = '';
+          container.innerHTML = '<div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:12px;padding:1rem;text-align:center">' +
+            '<div style="font-size:1.5rem;margin-bottom:0.3rem">✅</div>' +
+            '<div style="font-size:1.05rem;font-weight:700;color:#16a34a">Alert has ended — stay safe!</div>' +
+            '<div style="font-size:0.82rem;color:#065f46;margin-top:0.3rem">All weather warnings for Chambers County have expired.</div>' +
+          '</div>';
+          setTimeout(function() { container.style.display = 'none'; _severeAlertActive = false; localStorage.removeItem('severe_checked'); }, 30000);
+        } else {
+          container.style.display = 'none';
+          _severeAlertActive = false;
+        }
+      } else {
+        container.style.display = 'none';
+      }
+      return;
+    }
+
+    _severeAlertActive = true;
+    container.style.display = '';
+
+    // Use the most severe alert to determine the checklist
+    var topAlert = severeAlerts[0];
+    var topConfig = _severeAlertTypes[topAlert.properties.event];
+    var isWarning = topConfig.level === 'warning';
+    var bannerBg = isWarning ? '#dc2626' : '#d97706';
+
+    // Render banners for all active alerts
+    var bannersHtml = severeAlerts.map(function(a) {
+      var p = a.properties;
+      var cfg = _severeAlertTypes[p.event];
+      var bg = cfg.level === 'warning' ? '#dc2626' : '#d97706';
+      var expires = p.expires ? new Date(p.expires) : null;
+      var expStr = expires ? 'Expires: ' + expires.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+      return '<div style="background:' + bg + ';color:#fff;padding:0.75rem 1rem;font-size:0.95rem;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.2)">' +
+        cfg.icon + ' ' + p.event.toUpperCase() +
+        (expStr ? '<span style="font-weight:400;font-size:0.78rem;margin-left:0.75rem;opacity:0.9">' + expStr + '</span>' : '') +
+        (p.headline ? '<div style="font-weight:400;font-size:0.82rem;margin-top:0.25rem;opacity:0.9;line-height:1.4">' + _escPortal(p.headline) + '</div>' : '') +
+      '</div>';
     }).join('');
-  } catch { el.innerHTML = '<p style="color:#a8a29e">Could not load community board</p>'; }
+
+    // Checklist
+    var checklist = _severeChecklists[topConfig.type] || _severeChecklists.tornado;
+    var checked = _getSevereChecked();
+    var checklistHtml = checklist.items.map(function(item, i) {
+      var key = topConfig.type + '-' + i;
+      var isChecked = checked[key];
+      return '<label style="display:flex;align-items:flex-start;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid ' + topConfig.border + ';cursor:pointer;font-size:0.92rem;line-height:1.5;color:#1c1917">' +
+        '<input type="checkbox" ' + (isChecked ? 'checked' : '') + ' onchange="toggleSevereCheck(\'' + key + '\',this.checked)" style="margin-top:4px;min-width:20px;min-height:20px;accent-color:' + (isWarning ? '#dc2626' : '#d97706') + '">' +
+        '<span' + (isChecked ? ' style="text-decoration:line-through;opacity:0.6"' : '') + '>' + _escPortal(item) + '</span>' +
+      '</label>';
+    }).join('');
+
+    container.innerHTML =
+      '<div style="border-radius:12px;overflow:hidden;border:2px solid ' + bannerBg + ';box-shadow:0 4px 20px rgba(0,0,0,0.15)">' +
+        bannersHtml +
+        '<details open style="background:' + topConfig.bg + '">' +
+          '<summary style="padding:0.7rem 1rem;cursor:pointer;font-size:0.92rem;font-weight:700;color:' + topConfig.color + ';user-select:none;list-style:none">' +
+            '📋 Secure Your RV Now — Safety Checklist' +
+            '<span style="float:right;font-size:0.75rem;font-weight:400;color:' + topConfig.color + '">tap to collapse</span>' +
+          '</summary>' +
+          '<div style="padding:0 1rem 1rem">' +
+            '<div style="font-weight:700;font-size:0.88rem;color:' + topConfig.color + ';margin-bottom:0.5rem">' + checklist.title + '</div>' +
+            checklistHtml +
+          '</div>' +
+        '</details>' +
+      '</div>';
+
+  } catch (e) {
+    console.error('[severe-weather] check failed:', e);
+    container.style.display = 'none';
+  }
+
+  // Re-check every 15 minutes
+  clearTimeout(window._severeWeatherTimer);
+  window._severeWeatherTimer = setTimeout(checkSevereWeatherAlerts, 15 * 60 * 1000);
+}
+
+function _getSevereChecked() {
+  try { return JSON.parse(localStorage.getItem('severe_checked') || '{}'); } catch { return {}; }
+}
+
+function toggleSevereCheck(key, checked) {
+  var data = _getSevereChecked();
+  if (checked) data[key] = true; else delete data[key];
+  try { localStorage.setItem('severe_checked', JSON.stringify(data)); } catch {}
+  // Update the visual strikethrough
+  var container = document.getElementById('severe-weather-container');
+  if (container) {
+    var labels = container.querySelectorAll('label');
+    labels.forEach(function(label) {
+      var cb = label.querySelector('input[type="checkbox"]');
+      var span = label.querySelector('span');
+      if (cb && span) {
+        if (cb.checked) { span.style.textDecoration = 'line-through'; span.style.opacity = '0.6'; }
+        else { span.style.textDecoration = ''; span.style.opacity = ''; }
+      }
+    });
+  }
+}
+
+// =====================================================================
+// Hunting & Fishing Brag Board — Portal
+// =====================================================================
+var _hfTab = 'fishing';
+
+var HF_FISH_SPECIES = ['Largemouth Bass','Striped Bass','Catfish','Crappie','Redfish','Flounder','Speckled Trout','Alligator Gar','Carp','Blue Crab','Shrimp','Other'];
+var HF_FISH_LOCATIONS = ['Trinity Bay','East Bay','Double Bayou','Anahuac Channel','Lake Anahuac','Umbrella Point','Park Pond','Other nearby'];
+var HF_FISH_BAITS = ['Live shad','Soft plastic','Topwater','Crankbait','Chicken liver','Cut bait','Artificial shrimp','Other'];
+var HF_HUNT_SPECIES = ['Duck','Snow Goose','Canada Goose','Speckled Belly Goose','Deer','Hog','Alligator','Dove','Other'];
+var HF_HUNT_LOCATIONS = ['Private lease','Public land','Anahuac area','J.D. Murphree WMA','Other nearby'];
+var HF_HUNT_METHODS = ['Shotgun','Rifle','Bow','Muzzleloader','Other'];
+
+function loadPortalHuntingFishing() {
+  loadHFLeaderboard();
+  switchHFTab(_hfTab);
+}
+
+function switchHFTab(tab) {
+  _hfTab = tab;
+  ['fishing','hunting','tips'].forEach(function(t) {
+    var btn = document.getElementById('hf-tab-' + t);
+    if (btn) {
+      var active = t === tab;
+      btn.style.background = active ? (t === 'hunting' ? '#92400e' : t === 'tips' ? '#1a5c32' : '#0284c7') : '#fff';
+      btn.style.color = active ? '#fff' : '#44403c';
+    }
+  });
+  if (tab === 'tips') loadHFTips();
+  else loadHFFeed(tab);
+}
+
+async function loadHFLeaderboard() {
+  var el = document.getElementById('hf-leaderboard');
+  if (!el) return;
+  try {
+    var r = await fetch('/api/hunting-fishing/leaderboard');
+    var lb = await r.json();
+    var items = [];
+    if (lb.biggestBass) items.push('🥇 Biggest Bass: <strong>' + _escPortal(lb.biggestBass.author) + '</strong> — ' + lb.biggestBass.weight_lbs + ' lbs');
+    if (lb.mostCatches) items.push('🎣 Most Catches: <strong>' + _escPortal(lb.mostCatches.author) + '</strong> (' + lb.mostCatches.c + ')');
+    if (lb.mostActive) items.push('🏆 Most Active: <strong>' + _escPortal(lb.mostActive.author) + '</strong> (' + lb.mostActive.c + ' posts)');
+    if (items.length) {
+      el.innerHTML = '<div style="background:linear-gradient(135deg,#fef3c7,#fffbeb);border:1px solid #fde68a;border-radius:10px;padding:0.6rem 0.85rem;font-size:0.82rem;color:#92400e">' +
+        '<div style="font-weight:700;font-size:0.72rem;margin-bottom:0.2rem">🏆 THIS MONTH\'S LEADERBOARD</div>' +
+        items.join(' · ') + '</div>';
+    }
+  } catch {}
+}
+
+async function loadHFFeed(type) {
+  var el = document.getElementById('hf-content');
+  if (!el) return;
+  try {
+    var r = await fetch('/api/hunting-fishing/public?type=' + type);
+    var posts = await r.json();
+
+    // Promo card for fishing tab
+    var promo = type === 'fishing' ? '<div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #a7f3d0;border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.75rem;font-size:0.82rem;color:#065f46">' +
+      '<div style="font-weight:700;font-size:0.85rem">🎣 Try Carlile Custom Creatures!</div>' +
+      '<div style="margin-top:0.15rem">Hand poured soft plastic lures made right here in Anahuac, TX. Ask management for details!</div></div>' : '';
+
+    if (!posts || !posts.length) {
+      el.innerHTML = promo + '<div style="text-align:center;padding:1.5rem 0;color:#a8a29e">No ' + type + ' posts yet — be the first! 🎣</div>';
+      return;
+    }
+
+    el.innerHTML = promo + posts.map(function(p) {
+      var isFishing = p.post_type === 'fishing';
+      var borderColor = isFishing ? '#0284c7' : '#92400e';
+      var weight = p.weight_lbs ? p.weight_lbs + ' lbs' + (p.weight_oz ? ' ' + p.weight_oz + ' oz' : '') : '';
+      var length = p.length_inches ? p.length_inches + '"' : '';
+      var measure = [weight, length].filter(Boolean).join(' · ');
+      var likeText = isFishing ? '🏆 Nice catch!' : '🎯 Great shot!';
+
+      return '<div style="border:1.5px solid ' + borderColor + ';border-radius:12px;overflow:hidden;margin-bottom:0.75rem">' +
+        (p.has_photo ? '<img src="/api/hunting-fishing/' + p.id + '/photo" style="width:100%;height:200px;object-fit:cover;display:block" onerror="this.style.display=\'none\'">' : '') +
+        '<div style="padding:0.75rem">' +
+          (p.is_biggest_of_month ? '<div style="background:#fef3c7;color:#f59e0b;font-size:0.75rem;font-weight:700;padding:3px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem">🥇 BIGGEST CATCH OF THE MONTH</div> ' : '') +
+          (p.is_featured ? '<div style="background:#f0fdf4;color:#16a34a;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem">⭐ FEATURED</div> ' : '') +
+          '<div style="font-weight:700;font-size:1.1rem;color:#1c1917">' + _escPortal(p.species || '?') + '</div>' +
+          (measure ? '<div style="font-size:0.95rem;font-weight:600;color:' + borderColor + ';margin-top:0.15rem">📏 ' + measure + '</div>' : '') +
+          '<div style="font-size:0.82rem;color:#57534e;margin-top:0.2rem">' +
+            '📍 ' + _escPortal(p.location || '?') +
+            (p.bait_used ? ' · 🪱 ' + _escPortal(p.bait_used) : '') +
+            (p.method ? ' · ' + _escPortal(p.method) : '') +
+          '</div>' +
+          (p.description ? '<div style="font-size:0.85rem;color:#44403c;margin-top:0.3rem;line-height:1.5">' + _escPortal(p.description) + '</div>' : '') +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.35rem;font-size:0.75rem;color:#a8a29e">' +
+            '<span>By ' + _escPortal(p.author) + (p.author_lot ? ' · ' + p.author_lot : '') + ' · ' + (p.created_at || '').split(' ')[0] + '</span>' +
+            '<button style="background:none;border:none;cursor:pointer;font-size:0.82rem;padding:4px 8px;border-radius:8px;color:#92400e;font-weight:600" onclick="likeHFPost(' + p.id + ',this)">' + likeText + ' (' + (p.likes_count || 0) + ')</button>' +
+          '</div>' +
+        '</div></div>';
+    }).join('');
+  } catch { el.innerHTML = '<div style="color:#a8a29e">Could not load posts</div>'; }
+}
+
+async function likeHFPost(id, btn) {
+  try { await fetch('/api/hunting-fishing/' + id + '/like', { method: 'POST' }); if (btn) btn.textContent = '✅ Liked!'; } catch {}
+}
+
+function loadHFTips() {
+  var el = document.getElementById('hf-content');
+  if (!el) return;
+  el.innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:0.75rem">' +
+      '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:10px;padding:0.75rem 0.85rem">' +
+        '<div style="font-weight:700;color:#1e40af;margin-bottom:0.4rem">🎣 Fishing Tips — Chambers County</div>' +
+        '<ul style="margin:0;padding-left:1.25rem;font-size:0.85rem;line-height:1.6;color:#1e3a5f">' +
+          '<li><strong>Trinity Bay:</strong> Best bass fishing in SE Texas. Try topwater at dawn.</li>' +
+          '<li><strong>Redfish:</strong> Peak Aug–Nov. Wade fish East Bay with gold spoons.</li>' +
+          '<li><strong>Flounder:</strong> Fall run (Oct–Nov) in Anahuac Channel. Use live mud minnows.</li>' +
+          '<li><strong>Alligator Gar:</strong> Trinity River — use cut carp on circle hooks.</li>' +
+          '<li><strong>Crabbing:</strong> East Bay year-round. Chicken necks in wire traps work great!</li>' +
+          '<li>🔗 Texas fishing license: <a href="https://tpwd.texas.gov/fishing/licenses" target="_blank" style="color:#1e40af;text-decoration:underline">tpwd.texas.gov</a></li>' +
+        '</ul></div>' +
+      '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:0.75rem 0.85rem">' +
+        '<div style="font-weight:700;color:#92400e;margin-bottom:0.4rem">🦆 Hunting Tips — Chambers County</div>' +
+        '<ul style="margin:0;padding-left:1.25rem;font-size:0.85rem;line-height:1.6;color:#78350f">' +
+          '<li><strong>Duck season:</strong> Typically Nov–Jan (check TPWD for exact dates)</li>' +
+          '<li><strong>Snow goose conservation order:</strong> Feb–March — no bag limits!</li>' +
+          '<li><strong>Deer:</strong> General season Nov–Jan. Bow starts October.</li>' +
+          '<li><strong>Alligator hunting:</strong> Sept season. Requires special tags.</li>' +
+          '<li><strong>Public hunting:</strong> J.D. Murphree WMA, McFaddin NWR</li>' +
+          '<li>🔗 Texas hunting license: <a href="https://tpwd.texas.gov/hunting/licenses" target="_blank" style="color:#92400e;text-decoration:underline">tpwd.texas.gov</a></li>' +
+        '</ul></div>' +
+      '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:0.75rem 0.85rem">' +
+        '<div style="font-weight:700;color:var(--gray-700);margin-bottom:0.4rem">🪱 Bait & Tackle Nearby</div>' +
+        '<div style="font-size:0.85rem;color:var(--gray-600);line-height:1.6">' +
+          'Ask your neighbors or management for the latest recommendations on local bait shops and guides in the Anahuac area. The community board is a great place to ask too! 🐊' +
+        '</div></div>' +
+    '</div>';
+}
+
+function showHFPostForm() {
+  var el = document.getElementById('hf-content');
+  if (!el) return;
+  var today = new Date().toISOString().split('T')[0];
+  el.innerHTML = '<div style="max-width:500px;margin:0 auto">' +
+    '<div class="form-group"><label><strong>Type</strong></label>' +
+      '<div style="display:flex;gap:0.5rem;margin-bottom:0.75rem">' +
+        '<button class="btn btn-sm" id="hf-form-fishing" onclick="setHFFormType(\'fishing\')" style="flex:1;background:#0284c7;color:#fff;font-size:0.88rem;min-height:44px">🎣 Fishing</button>' +
+        '<button class="btn btn-sm" id="hf-form-hunting" onclick="setHFFormType(\'hunting\')" style="flex:1;background:#fff;color:#92400e;border:1.5px solid #92400e;font-size:0.88rem;min-height:44px">🦆 Hunting</button>' +
+      '</div></div>' +
+    '<form id="portal-hf-form">' +
+    '<input type="hidden" name="post_type" id="hf-form-type" value="fishing">' +
+    '<div class="form-group"><label>Species / Game *</label>' +
+      '<select name="species" id="hf-species-select" required style="width:100%">' +
+        HF_FISH_SPECIES.map(function(s) { return '<option>' + s + '</option>'; }).join('') +
+      '</select></div>' +
+    '<div class="form-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem">' +
+      '<div class="form-group"><label>Weight (lbs)</label><input name="weight_lbs" type="number" step="0.1" style="width:100%" placeholder="0"></div>' +
+      '<div class="form-group"><label>Weight (oz)</label><input name="weight_oz" type="number" step="0.1" style="width:100%" placeholder="0"></div>' +
+      '<div class="form-group" id="hf-length-group"><label>Length (in)</label><input name="length_inches" type="number" step="0.1" style="width:100%" placeholder="0"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Location *</label><select name="location" id="hf-location-select" required style="width:100%">' +
+      HF_FISH_LOCATIONS.map(function(l) { return '<option>' + l + '</option>'; }).join('') +
+    '</select></div>' +
+    '<div class="form-group" id="hf-bait-group"><label>Bait / Lure</label><select name="bait_used" style="width:100%">' +
+      '<option value="">Select...</option>' + HF_FISH_BAITS.map(function(b) { return '<option>' + b + '</option>'; }).join('') +
+    '</select></div>' +
+    '<div class="form-group" id="hf-method-group" style="display:none"><label>Method</label><select name="method" style="width:100%">' +
+      '<option value="">Select...</option>' + HF_HUNT_METHODS.map(function(m) { return '<option>' + m + '</option>'; }).join('') +
+    '</select></div>' +
+    '<div class="form-group"><label>Photo * <span style="color:#dc2626">(required)</span></label>' +
+      '<input type="file" id="hf-photo-input" accept="image/*" capture="environment" required>' +
+      '<div id="hf-photo-preview" style="margin-top:0.4rem"></div>' +
+      '<input type="hidden" id="hf-photo-data" name="photo_data">' +
+    '</div>' +
+    '<div class="form-group"><label>Your Story <span style="color:#a8a29e">(optional)</span></label><textarea name="description" rows="2" placeholder="Tell us about the catch!" style="width:100%"></textarea></div>' +
+    '<button type="submit" class="btn btn-full" style="background:#92400e;color:#fff;font-size:0.95rem;min-height:48px">🏆 Post to Brag Board</button>' +
+    '</form>' +
+    '<div style="text-align:center;margin-top:0.75rem"><a href="#" onclick="event.preventDefault();switchHFTab(_hfTab)" style="color:#78716c;font-size:0.82rem">← Back</a></div></div>';
+
+  setTimeout(function() {
+    document.getElementById('hf-photo-input')?.addEventListener('change', function(ev) {
+      var file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('hf-photo-data').value = e.target.result.split(',')[1];
+        document.getElementById('hf-photo-preview').innerHTML = '<img src="' + e.target.result + '" style="max-width:200px;max-height:150px;border-radius:10px;border:1px solid #e5e7eb">';
+      };
+      reader.readAsDataURL(file);
+    });
+    document.getElementById('portal-hf-form')?.addEventListener('submit', async function(ev) {
+      ev.preventDefault();
+      var fd = new FormData(ev.target);
+      var data = Object.fromEntries(fd);
+      data.photo_data = document.getElementById('hf-photo-data')?.value || null;
+      if (!data.photo_data) { alert('Please add a photo!'); return; }
+      if (_portalTenant) data.tenant_id = _portalTenant.id;
+      try {
+        await fetch('/api/hunting-fishing/submit', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+        alert('🏆 Posted to the brag board!');
+        switchHFTab(data.post_type);
+      } catch { alert('Failed to post. Please try again.'); }
+    });
+  }, 50);
+}
+
+function setHFFormType(type) {
+  document.getElementById('hf-form-type').value = type;
+  var fishBtn = document.getElementById('hf-form-fishing');
+  var huntBtn = document.getElementById('hf-form-hunting');
+  if (fishBtn) { fishBtn.style.background = type === 'fishing' ? '#0284c7' : '#fff'; fishBtn.style.color = type === 'fishing' ? '#fff' : '#0284c7'; }
+  if (huntBtn) { huntBtn.style.background = type === 'hunting' ? '#92400e' : '#fff'; huntBtn.style.color = type === 'hunting' ? '#92400e' : '#92400e'; }
+
+  var speciesSelect = document.getElementById('hf-species-select');
+  var locationSelect = document.getElementById('hf-location-select');
+  var baitGroup = document.getElementById('hf-bait-group');
+  var methodGroup = document.getElementById('hf-method-group');
+  var lengthGroup = document.getElementById('hf-length-group');
+
+  if (type === 'fishing') {
+    speciesSelect.innerHTML = HF_FISH_SPECIES.map(function(s) { return '<option>' + s + '</option>'; }).join('');
+    locationSelect.innerHTML = HF_FISH_LOCATIONS.map(function(l) { return '<option>' + l + '</option>'; }).join('');
+    baitGroup.style.display = '';
+    methodGroup.style.display = 'none';
+    lengthGroup.style.display = '';
+  } else {
+    speciesSelect.innerHTML = HF_HUNT_SPECIES.map(function(s) { return '<option>' + s + '</option>'; }).join('');
+    locationSelect.innerHTML = HF_HUNT_LOCATIONS.map(function(l) { return '<option>' + l + '</option>'; }).join('');
+    baitGroup.style.display = 'none';
+    methodGroup.style.display = '';
+    lengthGroup.style.display = 'none';
+  }
+}
+
+// =====================================================================
+// Bird Sightings — Portal
+// =====================================================================
+
+var BIRD_OF_DAY = [
+  {n:'Roseate Spoonbill',e:'🦩',fact:'Uses its spoon-shaped bill to sweep through shallow water to catch food.',spot:'Anahuac NWR marshes',time:'Early morning'},
+  {n:'Whooping Crane',e:'🦢',fact:'One of the rarest birds in North America — only ~800 exist in the wild!',spot:'Anahuac NWR, winter months',time:'Dawn and dusk'},
+  {n:'Snow Goose',e:'🪿',fact:'Can fly at 50 mph and migrate 3,000 miles from Arctic Canada.',spot:'Clam Lake Unit, winter',time:'Dawn, huge flocks'},
+  {n:'Great Blue Heron',e:'🦅',fact:'Can strike prey in 1/60th of a second — faster than you can blink!',spot:'East Bay Bayou, year round',time:'Any time of day'},
+  {n:'Reddish Egret',e:'🦩',fact:'Dances and spins while hunting — the most entertaining hunter!',spot:'Trinity Bay shoreline',time:'Morning, low tide'},
+  {n:'Painted Bunting',e:'🐦',fact:'Called the most beautiful bird in North America — males are rainbow colored.',spot:'Willows Unit, spring',time:'Morning chorus'},
+  {n:'Scissor-tailed Flycatcher',e:'✂️',fact:'Texas state bird runner-up! Tail can be longer than its body.',spot:'Park fence lines and power lines',time:'Morning'},
+  {n:'Crested Caracara',e:'🦅',fact:'A falcon that walks on the ground! Called the "Mexican Eagle."',spot:'Open fields near park',time:'All day'},
+  {n:'Purple Gallinule',e:'🐔',fact:'Has incredibly long toes that let it walk on lily pads!',spot:'Anahuac NWR marshes',time:'Morning, summer'},
+  {n:'American Avocet',e:'🐦',fact:'Sweeps its curved bill side to side through water like a scythe.',spot:'Anahuac NWR mudflats',time:'Morning'},
+  {n:'White Ibis',e:'🦢',fact:'Flocks fly in V-formation and the young are born brown, turning white!',spot:'Throughout the park',time:'Evening roost flights'},
+  {n:'Tricolored Heron',e:'🦅',fact:'Uses its wings like an umbrella to shade the water and spot fish.',spot:'East Bay Bayou',time:'Low tide'},
+  {n:'Anhinga',e:'🐦',fact:'Swims with just its snake-like neck above water — called the "snakebird!"',spot:'Park pond, any marsh',time:'Morning sun perching'},
+  {n:'Black-bellied Whistling Duck',e:'🦆',fact:'One of the only ducks that perches in trees! Makes a whistling call.',spot:'Park pond, near H row',time:'Dawn and dusk'},
+  {n:'Clapper Rail',e:'🐔',fact:'So secretive it\'s called a "marsh ghost." Listen for its clapping call!',spot:'Anahuac NWR salt marsh',time:'Dawn, listen carefully'},
+  {n:'Seaside Sparrow',e:'🐦',fact:'Lives its entire life in salt marshes and never ventures far from the coast.',spot:'Anahuac NWR marsh edges',time:'Morning'},
+  {n:'Long-billed Curlew',e:'🐦',fact:'Has the longest bill of any North American shorebird — up to 8.6 inches!',spot:'Mudflats near Trinity Bay',time:'Low tide'},
+  {n:'Marbled Godwit',e:'🐦',fact:'Migrates from the Great Plains to the Gulf Coast every winter.',spot:'East Bay shoreline',time:'Low tide, winter'},
+  {n:'Neotropic Cormorant',e:'🐦',fact:'Spreads wings to dry after diving — looks like it\'s sunbathing!',spot:'Park pond, any water',time:'All day'},
+  {n:'Mottled Duck',e:'🦆',fact:'Year-round resident of the Gulf Coast — doesn\'t migrate at all!',spot:'Park pond, marshes',time:'Early morning'},
+  {n:'Fulvous Whistling Duck',e:'🦆',fact:'Found on every continent except Antarctica and Europe!',spot:'Rice fields near park',time:'Dawn'},
+  {n:'White-faced Ibis',e:'🦢',fact:'Its face turns deep red during breeding season — stunning!',spot:'Flooded fields, marshes',time:'Morning flocks'},
+  {n:'Glossy Ibis',e:'🦢',fact:'Feathers shimmer green and purple in sunlight like oil on water.',spot:'Anahuac NWR',time:'Morning'},
+  {n:'Least Bittern',e:'🐦',fact:'Smallest heron in the Americas — can straddle two reeds at once!',spot:'Dense marsh at NWR',time:'Dawn, very shy'},
+  {n:'King Rail',e:'🐔',fact:'Largest North American rail — the king of the marsh!',spot:'Fresh water marshes',time:'Dawn, listen for calls'},
+  {n:'American Bittern',e:'🦅',fact:'Points bill skyward to blend in with reeds — almost invisible!',spot:'Tall marsh grass',time:'Dusk, listen for booming'},
+  {n:'Sandhill Crane',e:'🦢',fact:'Dances, bows, and jumps during courtship — nature\'s ballet!',spot:'Open fields, winter',time:'Dawn departures'},
+  {n:'White Pelican',e:'🦢',fact:'Has a 9-foot wingspan and scoops fish cooperatively with other pelicans.',spot:'Trinity Bay, winter',time:'Mid-morning'},
+  {n:'Brown Pelican',e:'🦅',fact:'Dives headfirst from 60 feet into the water to catch fish!',spot:'East Bay, year round',time:'All day'},
+  {n:'Great Egret',e:'🦢',fact:'Nearly hunted to extinction for its plumes — now protected and thriving!',spot:'Everywhere near water',time:'Any time'},
+];
+
+var MIGRATION_CALENDAR = {
+  0: {birds:'Snow Geese, Whooping Cranes, Sandhill Cranes, Ducks & waterfowl',msg:'Winter birding is incredible! Massive Snow Goose flocks at Clam Lake. Bundle up and go early! 🧤'},
+  1: {birds:'Snow Geese, Whooping Cranes, Sandhill Cranes, Ducks & waterfowl',msg:'Still peak winter birding! Whooping Cranes are here through February. 🦢'},
+  2: {birds:'Painted Buntings, Warblers, Shorebirds, Roseate Spoonbills',msg:'Spring migration is starting! Watch for the first colorful migrants arriving. 🌸'},
+  3: {birds:'Painted Buntings, Warblers, Shorebirds, Roseate Spoonbills',msg:'AMAZING time for birding! Spring migration is in full swing — new birds arriving daily! 🎉'},
+  4: {birds:'Nesting Black-bellied Whistling Ducks, Purple Gallinules, Least Terns',msg:'Nesting season begins! Look for baby birds and nesting activity. Be respectful of nesting areas. 🥚'},
+  5: {birds:'Nesting season, Black-bellied Whistling Ducks, Purple Gallinules',msg:'Summer nesting is underway. Early morning birding before the heat is best! ☀️'},
+  6: {birds:'Post-breeding shorebirds, early fall migrants',msg:'Shorebirds are moving south early! Good time for mudflat birding at low tide. 🏖️'},
+  7: {birds:'Post-breeding shorebirds, early fall migrants',msg:'Fall migration starting! Watch for early warblers and raptors heading south. 🍂'},
+  8: {birds:'Fall warblers, Raptors, Shorebirds',msg:'Peak fall migration! Hawks, warblers, and shorebirds galore! 🦅'},
+  9: {birds:'Fall warblers, Raptors, Shorebirds, early ducks',msg:'Fall migration continues. First ducks and geese arriving for winter! 🍁'},
+  10: {birds:'Snow Geese arriving, Ducks, White Pelicans, Sandhill Cranes',msg:'Winter birds are arriving! Snow Geese flocks building at the refuge. ❄️'},
+  11: {birds:'Snow Geese, Ducks, White Pelicans, Sandhill Cranes, Whooping Cranes',msg:'Peak winter birding beginning! Incredible variety at the refuge. 🎄'},
+};
+
+var COMMON_BIRDS = ['Roseate Spoonbill','Whooping Crane','Snow Goose','Great Blue Heron','White Ibis','Tricolored Heron','Reddish Egret','Anhinga','Black-bellied Whistling Duck','Mottled Duck','Neotropic Cormorant','American Avocet','Long-billed Curlew','Seaside Sparrow','Clapper Rail','Purple Gallinule','Painted Bunting','Scissor-tailed Flycatcher','Crested Caracara','Other'];
+var BIRD_LOCATIONS = ['In the park','Anahuac NWR','Willows Unit','Clam Lake','McFaddin NWR','East Bay Bayou','Trinity Bay','Other nearby'];
+
+function loadPortalBirding() {
+  // Bird of the Day
+  var dayIdx = new Date().getDate() - 1;
+  var bird = BIRD_OF_DAY[dayIdx % BIRD_OF_DAY.length];
+  var botdEl = document.getElementById('portal-bird-of-day');
+  if (botdEl) {
+    botdEl.innerHTML = '<div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #93c5fd;border-radius:10px;padding:0.7rem 0.85rem">' +
+      '<div style="font-size:0.72rem;font-weight:600;color:#3b82f6;margin-bottom:0.2rem">🐦 Bird of the Day</div>' +
+      '<div style="font-weight:700;font-size:1rem;color:#1e3a5f">' + bird.e + ' ' + bird.n + '</div>' +
+      '<div style="font-size:0.82rem;color:#1e40af;margin-top:0.2rem;line-height:1.4">' + bird.fact + '</div>' +
+      '<div style="font-size:0.75rem;color:#64748b;margin-top:0.2rem">📍 ' + bird.spot + ' · 🕐 ' + bird.time + '</div></div>';
+  }
+
+  // Migration calendar
+  var month = new Date().getMonth();
+  var mig = MIGRATION_CALENDAR[month];
+  var migEl = document.getElementById('portal-bird-migration');
+  if (migEl && mig) {
+    migEl.innerHTML = '<div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:10px;padding:0.6rem 0.85rem;font-size:0.82rem">' +
+      '<div style="font-weight:600;color:#065f46;margin-bottom:0.15rem">🗓️ What\'s here in ' + new Date().toLocaleDateString('en-US',{month:'long'}) + ':</div>' +
+      '<div style="color:#047857">' + mig.msg + '</div>' +
+      '<div style="font-size:0.78rem;color:#6b7280;margin-top:0.15rem">Look for: ' + mig.birds + '</div></div>';
+  }
+
+  // Sunrise/sunset
+  loadBirdSunTimes();
+
+  // Default tab
+  switchBirdTab('sightings');
+}
+
+async function loadBirdSunTimes() {
+  var el = document.getElementById('portal-bird-sun');
+  if (!el) return;
+  try {
+    var r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.7691&longitude=-94.6827&daily=sunrise,sunset&timezone=America/Chicago&forecast_days=1');
+    var d = await r.json();
+    if (!d.daily) return;
+    var rise = new Date(d.daily.sunrise[0]).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    var set = new Date(d.daily.sunset[0]).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    el.innerHTML = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;font-size:0.82rem">' +
+      '<div style="flex:1;min-width:140px;background:#fffbeb;border-radius:8px;padding:0.45rem 0.65rem;border:1px solid #fde68a">' +
+        '🌅 <strong>Sunrise:</strong> ' + rise + ' <span style="color:#92400e;font-size:0.72rem">— Best birding time!</span></div>' +
+      '<div style="flex:1;min-width:140px;background:#fef3c7;border-radius:8px;padding:0.45rem 0.65rem;border:1px solid #fde68a">' +
+        '🌇 <strong>Sunset:</strong> ' + set + ' <span style="color:#92400e;font-size:0.72rem">— Golden hour birding!</span></div></div>';
+  } catch {}
+}
+
+function switchBirdTab(tab) {
+  var sBtn = document.getElementById('bird-tab-sightings');
+  var mBtn = document.getElementById('bird-tab-map');
+  if (sBtn) { sBtn.style.background = tab === 'sightings' ? '#0284c7' : '#fff'; sBtn.style.color = tab === 'sightings' ? '#fff' : '#44403c'; }
+  if (mBtn) { mBtn.style.background = tab === 'map' ? '#0284c7' : '#fff'; mBtn.style.color = tab === 'map' ? '#fff' : '#44403c'; }
+  if (tab === 'sightings') loadPortalBirdFeed();
+  else loadPortalBirdMap();
+}
+
+async function loadPortalBirdFeed() {
+  var el = document.getElementById('portal-bird-content');
+  if (!el) return;
+  try {
+    var r = await fetch('/api/birding/public');
+    var posts = await r.json();
+    if (!posts || !posts.length) {
+      el.innerHTML = '<div style="text-align:center;padding:1.5rem 0;color:#a8a29e">No sightings yet! Be the first to post. 🐦</div>';
+      return;
+    }
+    el.innerHTML = posts.map(function(p) {
+      var rarityColor = p.rarity === 'Very Rare' ? '#dc2626' : p.rarity === 'Rare' ? '#f59e0b' : p.rarity === 'Uncommon' ? '#3b82f6' : '#16a34a';
+      var isRare = p.rarity === 'Rare' || p.rarity === 'Very Rare';
+      return '<div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin-bottom:0.75rem' + (isRare ? ';border-color:#f59e0b;border-width:2px' : '') + '">' +
+        (p.has_photo ? '<img src="/api/birding/' + p.id + '/photo" style="width:100%;height:180px;object-fit:cover;display:block" onerror="this.style.display=\'none\'">' : '') +
+        '<div style="padding:0.75rem">' +
+          (isRare ? '<div style="background:#fffbeb;color:#f59e0b;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem">🌟 RARE SIGHTING!</div>' : '') +
+          (p.is_featured ? '<div style="background:#f0fdf4;color:#16a34a;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem">⭐ FEATURED</div>' : '') +
+          '<div style="font-weight:700;font-size:1.05rem;color:#1c1917">' + _escPortal(p.bird_name) + '</div>' +
+          '<div style="font-size:0.82rem;color:#57534e;margin-top:0.15rem">' +
+            '<span style="color:' + rarityColor + ';font-weight:600;font-size:0.72rem;background:' + rarityColor + '15;padding:1px 5px;border-radius:4px">' + p.rarity + '</span>' +
+            ' · 📍 ' + _escPortal(p.location || '?') + ' · ' + (p.spotted_date || '') +
+            (p.spotted_time ? ' ' + p.spotted_time : '') +
+          '</div>' +
+          (p.notes ? '<div style="font-size:0.85rem;color:#44403c;margin-top:0.3rem;line-height:1.5">' + _escPortal(p.notes) + '</div>' : '') +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.35rem;font-size:0.75rem;color:#a8a29e">' +
+            '<span>By ' + _escPortal(p.author) + (p.author_lot ? ' · ' + p.author_lot : '') + '</span>' +
+            '<button style="background:none;border:none;cursor:pointer;font-size:0.88rem;padding:4px 8px;border-radius:8px" onclick="likeBirdSighting(' + p.id + ',this)">❤️ ' + (p.likes_count || 0) + '</button>' +
+          '</div>' +
+        '</div></div>';
+    }).join('');
+  } catch { el.innerHTML = '<div style="color:#a8a29e">Could not load sightings</div>'; }
+}
+
+async function likeBirdSighting(id, btn) {
+  try { await fetch('/api/birding/' + id + '/like', { method: 'POST' }); if (btn) btn.textContent = '❤️ Liked!'; } catch {}
+}
+
+function loadPortalBirdMap() {
+  var el = document.getElementById('portal-bird-content');
+  if (!el) return;
+  el.innerHTML = '<div id="bird-map" style="height:350px;border-radius:8px;background:#e5e7eb"></div>';
+
+  // Load Leaflet (should already be loaded from radar)
+  var initMap = function() {
+    if (!window.L) { setTimeout(initMap, 200); return; }
+    var map = L.map('bird-map', { center: [29.7, -94.55], zoom: 10, maxZoom: 14 });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 14 }).addTo(map);
+
+    var spots = [
+      { lat: 29.6419, lng: -94.4614, name: 'Anahuac National Wildlife Refuge', desc: 'One of Texas\'s premier birding spots. Home to Snow Geese, Whooping Cranes, Roseate Spoonbills and 300+ species.', icon: '🐦' },
+      { lat: 29.6833, lng: -94.3833, name: 'Willows Unit — Anahuac NWR', desc: 'Great for rails, shorebirds and wading birds.', icon: '🐦' },
+      { lat: 29.7167, lng: -94.4333, name: 'Clam Lake Unit', desc: 'Excellent for waterfowl especially Snow Geese in winter.', icon: '🐦' },
+      { lat: 29.5667, lng: -94.2000, name: 'McFaddin NWR', desc: 'Alligators and amazing wading birds. Great at dawn and dusk.', icon: '🐦' },
+      { lat: 29.7500, lng: -94.6000, name: 'East Bay Bayou', desc: 'Local hotspot right near the park. Great Blue Herons and Egrets year round.', icon: '🐦' },
+      { lat: 29.7691, lng: -94.6827, name: 'Anahuac RV Park 🏕️', desc: 'Your home base for Chambers County birding! You are here!', icon: '🏕️' },
+    ];
+
+    spots.forEach(function(s) {
+      var dist = Math.round(haversine(29.7691, -94.6827, s.lat, s.lng) * 10) / 10;
+      L.marker([s.lat, s.lng]).addTo(map).bindPopup(
+        '<strong>' + s.icon + ' ' + s.name + '</strong><br>' +
+        '<span style="font-size:0.82rem">' + s.desc + '</span><br>' +
+        '<span style="font-size:0.75rem;color:#78716c">' + dist + ' miles from park</span>'
+      );
+    });
+    setTimeout(function() { map.invalidateSize(); }, 200);
+  };
+  initMap();
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  var R = 3959; var dLat = (lat2-lat1)*Math.PI/180; var dLon = (lon2-lon1)*Math.PI/180;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function showPortalBirdForm() {
+  var today = new Date().toISOString().split('T')[0];
+  var now = new Date().toTimeString().slice(0, 5);
+  var el = document.getElementById('portal-bird-content');
+  if (!el) return;
+
+  el.innerHTML = '<div style="max-width:500px;margin:0 auto">' +
+    '<form id="portal-bird-form">' +
+    '<div class="form-group"><label>Bird Name *</label>' +
+      '<input name="bird_name" list="bird-list" placeholder="Type or select..." required style="width:100%">' +
+      '<datalist id="bird-list">' + COMMON_BIRDS.map(function(b) { return '<option value="' + b + '">'; }).join('') + '</datalist></div>' +
+    '<div class="form-group"><label>Location Spotted *</label>' +
+      '<select name="location" required style="width:100%">' + BIRD_LOCATIONS.map(function(l) { return '<option>' + l + '</option>'; }).join('') + '</select></div>' +
+    '<div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' +
+      '<div class="form-group"><label>Date</label><input name="spotted_date" type="date" value="' + today + '" style="width:100%"></div>' +
+      '<div class="form-group"><label>Time</label><input name="spotted_time" type="time" value="' + now + '" style="width:100%"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Rarity</label>' +
+      '<select name="rarity" style="width:100%"><option>Common</option><option>Uncommon</option><option>Rare</option><option>Very Rare</option></select></div>' +
+    '<div class="form-group"><label>Photo <span style="color:#a8a29e">(optional)</span></label>' +
+      '<input type="file" id="bird-photo-input" accept="image/*" capture="environment">' +
+      '<div id="bird-photo-preview" style="margin-top:0.4rem"></div>' +
+      '<input type="hidden" id="bird-photo-data" name="photo_data">' +
+    '</div>' +
+    '<div class="form-group"><label>Notes</label><textarea name="notes" rows="2" placeholder="Any details — behavior, number of birds, etc." style="width:100%"></textarea></div>' +
+    '<button type="submit" class="btn btn-full" style="background:#0284c7;color:#fff;font-size:0.95rem;min-height:48px">🐦 Post Sighting</button>' +
+    '</form>' +
+    '<div style="text-align:center;margin-top:0.75rem"><a href="#" onclick="event.preventDefault();switchBirdTab(\'sightings\')" style="color:#78716c;font-size:0.82rem">← Back to sightings</a></div></div>';
+
+  setTimeout(function() {
+    document.getElementById('bird-photo-input')?.addEventListener('change', function(ev) {
+      var file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('bird-photo-data').value = e.target.result.split(',')[1];
+        document.getElementById('bird-photo-preview').innerHTML = '<img src="' + e.target.result + '" style="max-width:200px;max-height:150px;border-radius:10px;border:1px solid #e5e7eb">';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('portal-bird-form')?.addEventListener('submit', async function(ev) {
+      ev.preventDefault();
+      var fd = new FormData(ev.target);
+      var data = Object.fromEntries(fd);
+      data.photo_data = document.getElementById('bird-photo-data')?.value || null;
+      if (_portalTenant) data.tenant_id = _portalTenant.id;
+      try {
+        await fetch('/api/birding/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        alert('🐦 Sighting posted! Thank you for contributing!');
+        switchBirdTab('sightings');
+      } catch { alert('Failed to post. Please try again.'); }
+    });
+  }, 50);
+}
+
+// =====================================================================
+// Lost & Found Pets — Portal
+// =====================================================================
+
+async function loadPortalLostFound() {
+  var el = document.getElementById('portal-lf-feed');
+  if (!el) return;
+  try {
+    var r = await fetch('/api/lost-found/public');
+    var posts = await r.json();
+    if (!posts || !posts.length) {
+      el.innerHTML = '<div style="text-align:center;padding:1rem 0;color:#a8a29e">No lost or found pets right now. 🐾</div>';
+      return;
+    }
+    el.innerHTML = posts.map(function(p) {
+      var isLost = p.type === 'lost';
+      var badgeColor = p.status === 'reunited' ? '#f59e0b' : isLost ? '#dc2626' : '#16a34a';
+      var badgeBg = p.status === 'reunited' ? '#fffbeb' : isLost ? '#fef2f2' : '#f0fdf4';
+      var badgeText = p.status === 'reunited' ? '🎉 REUNITED' : isLost ? '🔴 LOST' : '🟢 FOUND';
+      var author = ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'A neighbor';
+      var ago = _lfPortalTimeAgo(p.created_at);
+
+      var actionBtn = '';
+      if (p.status === 'active' && _portalTenant) {
+        if (isLost) {
+          actionBtn = '<button class="btn btn-sm btn-success" style="width:100%;margin-top:0.5rem;font-size:0.88rem;min-height:40px" onclick="portalReunitePet(' + p.id + ')">🎉 I Found This Pet!</button>';
+        } else {
+          actionBtn = '<button class="btn btn-sm btn-primary" style="width:100%;margin-top:0.5rem;font-size:0.88rem;min-height:40px" onclick="portalReunitePet(' + p.id + ')">🐾 This Is My Pet!</button>';
+        }
+      }
+
+      return '<div style="border:1.5px solid ' + badgeColor + ';border-radius:12px;overflow:hidden;margin-bottom:0.75rem">' +
+        (p.has_photo ? '<img src="/api/lost-found/' + p.id + '/photo" style="width:100%;height:180px;object-fit:cover;display:block" onerror="this.style.display=\'none\'">' : '') +
+        '<div style="padding:0.75rem">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.35rem">' +
+            '<span style="background:' + badgeBg + ';color:' + badgeColor + ';font-size:0.78rem;font-weight:700;padding:3px 10px;border-radius:8px">' + badgeText + '</span>' +
+            '<span style="font-size:0.72rem;color:#a8a29e">' + ago + '</span>' +
+          '</div>' +
+          '<div style="font-weight:700;font-size:1.05rem;color:#1c1917;margin-bottom:0.2rem">' +
+            _escPortal((p.pet_name ? p.pet_name + ' — ' : '') + (p.pet_type || 'Pet')) + '</div>' +
+          (p.breed ? '<div style="font-size:0.88rem;color:#44403c">' + _escPortal(p.breed) + '</div>' : '') +
+          (p.color_description ? '<div style="font-size:0.88rem;color:#44403c">' + _escPortal(p.color_description) + '</div>' : '') +
+          (p.details ? '<div style="font-size:0.85rem;color:#57534e;margin-top:0.3rem;line-height:1.5">' + _escPortal(p.details) + '</div>' : '') +
+          '<div style="font-size:0.82rem;color:#78716c;margin-top:0.35rem">' +
+            '📍 ' + _escPortal(p.last_seen_location || 'Unknown') +
+            ' · ' + (p.date_occurred || '') +
+          '</div>' +
+          (p.contact_phone ? '<div style="font-size:0.88rem;margin-top:0.2rem"><a href="tel:' + _escPortal(p.contact_phone) + '" style="color:#1a5c32;font-weight:600">📞 ' + _escPortal(p.contact_phone) + '</a></div>' : '') +
+          '<div style="font-size:0.75rem;color:#a8a29e;margin-top:0.2rem">Posted by ' + _escPortal(author) + (p.lot_id ? ' · Lot ' + p.lot_id : '') + '</div>' +
+          (p.status === 'reunited' ? '<div style="background:#fef3c7;border-radius:8px;padding:0.5rem;margin-top:0.5rem;text-align:center;font-weight:700;color:#92400e;font-size:0.9rem">🎉 This pet has been reunited with their owner!</div>' : '') +
+          actionBtn +
+        '</div></div>';
+    }).join('');
+  } catch { el.innerHTML = '<div style="color:#a8a29e">Could not load lost & found</div>'; }
+}
+
+function _lfPortalTimeAgo(dt) {
+  if (!dt) return '';
+  try {
+    var d = new Date(String(dt).replace(' ', 'T') + (dt.includes('T') ? '' : 'Z'));
+    var diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString();
+  } catch { return dt; }
+}
+
+function showPortalLFForm(type) {
+  var isLost = type === 'lost';
+  var title = isLost ? '🔴 Report a Lost Pet' : '🟢 Report a Found Pet';
+  var locationLabel = isLost ? 'Where last seen (lot # or area)' : 'Where found (lot # or area)';
+  var dateLabel = isLost ? 'Date last seen' : 'Date found';
+  var today = new Date().toISOString().split('T')[0];
+
+  var formHtml = '<div style="max-width:500px;margin:0 auto">' +
+    '<form id="portal-lf-form">' +
+    '<input type="hidden" name="type" value="' + type + '">' +
+    '<div class="form-group"><label>Pet Type *</label>' +
+      '<select name="pet_type" style="width:100%"><option>Dog</option><option>Cat</option><option>Bird</option><option>Other</option></select></div>' +
+    (isLost ? '<div class="form-group"><label>Pet Name</label><input name="pet_name" placeholder="e.g. Buddy" style="width:100%"></div>' : '') +
+    '<div class="form-group"><label>Breed / Description *</label><input name="breed" placeholder="e.g. Golden Retriever, medium size" required style="width:100%"></div>' +
+    '<div class="form-group"><label>Color & Markings</label><input name="color_description" placeholder="e.g. Brown with white chest" style="width:100%"></div>' +
+    '<div class="form-group"><label>' + locationLabel + ' *</label><input name="last_seen_location" placeholder="e.g. Near Lot B-3" required style="width:100%"></div>' +
+    '<div class="form-group"><label>' + dateLabel + '</label><input name="date_occurred" type="date" value="' + today + '" style="width:100%"></div>' +
+    '<div class="form-group"><label>Photo * <span style="color:#dc2626">(required)</span></label>' +
+      '<input type="file" id="lf-photo-input" accept="image/*" capture="environment" required>' +
+      '<div id="lf-photo-preview" style="margin-top:0.4rem"></div>' +
+      '<input type="hidden" id="lf-photo-data" name="photo_data">' +
+    '</div>' +
+    '<div class="form-group"><label>Your Phone Number</label><input name="contact_phone" placeholder="So neighbors can reach you" style="width:100%"></div>' +
+    '<div class="form-group"><label>Additional Details</label><textarea name="details" rows="3" placeholder="Any other info that might help..." style="width:100%"></textarea></div>' +
+    '<button type="submit" class="btn btn-full" style="background:' + (isLost ? '#dc2626' : '#16a34a') + ';color:#fff;font-size:0.95rem;min-height:48px">' +
+      (isLost ? '🔴 Post Lost Pet Alert' : '🟢 Post Found Pet') + '</button>' +
+    '</form></div>';
+
+  // Show inline on the page
+  var el = document.getElementById('portal-lf-feed');
+  if (!el) return;
+  el.innerHTML = formHtml +
+    '<div style="text-align:center;margin-top:0.75rem"><a href="#" onclick="event.preventDefault();loadPortalLostFound()" style="color:#78716c;font-size:0.82rem">← Back to listings</a></div>';
+
+  setTimeout(function() {
+    // Photo handler
+    document.getElementById('lf-photo-input')?.addEventListener('change', function(ev) {
+      var file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) { alert('Photo too large. Max 10 MB.'); ev.target.value = ''; return; }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var b64 = e.target.result.split(',')[1];
+        document.getElementById('lf-photo-data').value = b64;
+        document.getElementById('lf-photo-preview').innerHTML =
+          '<img src="' + e.target.result + '" style="max-width:200px;max-height:150px;border-radius:10px;border:1px solid #e5e7eb">';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Form submit
+    document.getElementById('portal-lf-form')?.addEventListener('submit', async function(ev) {
+      ev.preventDefault();
+      var fd = new FormData(ev.target);
+      var photoData = document.getElementById('lf-photo-data')?.value;
+      if (!photoData) { alert('Please add a photo of the pet.'); return; }
+      var data = Object.fromEntries(fd);
+      data.photo_data = photoData;
+      if (_portalTenant) {
+        data.tenant_id = _portalTenant.id;
+        if (!data.contact_phone) data.contact_phone = _portalTenant.phone || '';
+      }
+      try {
+        await fetch('/api/lost-found/submit', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        alert(data.type === 'lost' ? '🔴 Your lost pet alert has been posted! We hope you find them soon. 🙏' : '🟢 Thank you for reporting a found pet! Hopefully the owner sees this.');
+        loadPortalLostFound();
+      } catch (err) {
+        alert('Failed to post: ' + (err.message || 'Please try again.'));
+      }
+    });
+  }, 50);
+}
+
+async function portalReunitePet(id) {
+  if (!confirm('Are you sure? This will mark the pet as reunited!')) return;
+  try {
+    await fetch('/api/lost-found/' + id + '/reunite', { method: 'POST' });
+    alert('🎉 Wonderful news! The pet has been marked as reunited!');
+    loadPortalLostFound();
+  } catch { alert('Failed. Please try again.'); }
+}
+
+// Chomper — AI Alligator Assistant Mascot 🐊
+// =====================================================================
+
+var _chomperSvg = '<svg viewBox="0 0 120 120" width="56" height="56" style="flex-shrink:0">' +
+  // Fishing rod (bobbing arm)
+  '<g class="chomper-rod">' +
+    '<line x1="72" y1="42" x2="100" y2="12" stroke="#8B6914" stroke-width="2.5" stroke-linecap="round"/>' +
+    '<line x1="100" y1="12" x2="105" y2="28" stroke="#78716c" stroke-width="1" stroke-dasharray="2,2"/>' +
+    '<circle cx="105" cy="28" r="3.5" fill="#dc2626"/><circle cx="105" cy="28" r="2" fill="#fff"/>' +
+  '</g>' +
+  // Body
+  '<ellipse cx="52" cy="80" rx="28" ry="22" fill="#4caf50"/>' +
+  // Belly
+  '<ellipse cx="52" cy="84" rx="18" ry="14" fill="#a5d6a7"/>' +
+  // Head
+  '<ellipse cx="52" cy="42" rx="22" ry="20" fill="#4caf50"/>' +
+  // Snout
+  '<ellipse cx="52" cy="52" rx="16" ry="10" fill="#43a047"/>' +
+  // Nostrils
+  '<circle cx="46" cy="48" r="1.5" fill="#2e7d32"/><circle cx="58" cy="48" r="1.5" fill="#2e7d32"/>' +
+  // Eyes (blink via CSS)
+  '<g class="chomper-eyes">' +
+    '<circle cx="42" cy="34" r="6" fill="#fff"/><circle cx="62" cy="34" r="6" fill="#fff"/>' +
+    '<circle cx="43" cy="34" r="3.5" fill="#292524"/><circle cx="63" cy="34" r="3.5" fill="#292524"/>' +
+    '<circle cx="44" cy="32.5" r="1.3" fill="#fff"/><circle cx="64" cy="32.5" r="1.3" fill="#fff"/>' +
+  '</g>' +
+  // Toothy smile
+  '<path d="M38 55 Q45 63 52 55 Q59 63 66 55" stroke="#2e7d32" stroke-width="1.5" fill="none"/>' +
+  '<rect x="43" y="54" width="3" height="3" rx="0.5" fill="#fff"/>' +
+  '<rect x="49" y="54" width="3" height="3" rx="0.5" fill="#fff"/>' +
+  '<rect x="55" y="54" width="3" height="3" rx="0.5" fill="#fff"/>' +
+  '<rect x="61" y="54" width="3" height="3" rx="0.5" fill="#fff"/>' +
+  // Right arm (holding rod)
+  '<path d="M74 68 Q80 55 72 42" stroke="#43a047" stroke-width="5" fill="none" stroke-linecap="round"/>' +
+  // Left arm (waving)
+  '<path d="M28 68 Q18 52 24 38" stroke="#43a047" stroke-width="5" fill="none" stroke-linecap="round"/>' +
+  '<circle cx="24" cy="36" r="3.5" fill="#4caf50"/>' +
+  // Feet
+  '<ellipse cx="38" cy="100" rx="8" ry="4" fill="#43a047"/>' +
+  '<ellipse cx="66" cy="100" rx="8" ry="4" fill="#43a047"/>' +
+'</svg>';
+
+var CHOMPER_KB = [
+  // === RENT & PAYMENTS ===
+  { q:'When is rent due?', k:'rent,due,when,pay,first,1st,owe,whats due', a:'Rent is due on the 1st of every month! 📅 Pay anytime before then to stay ahead. If you need a few extra days, just let management know — we\'re reel flexible! 🎣' },
+  { q:'How can I pay?', k:'pay,method,cash,check,venmo,zelle,deposit,how,ways,money order,where', a:'Lots of ways to pay! 💰\n\n💵 Cash\n📝 Check or Money Order\n📱 Venmo or Zelle\n📦 Night deposit box (front of the warehouse)\n💳 Pay online right here — tap "Pay Now"!\n\nWhatever works for you — we\'re hooked on making it easy! 🐊' },
+  { q:'What is my balance?', k:'balance,owe,bill,amount,much,total,how much', a:'Your current balance is right at the top of your portal! Look for the big "Current Balance" box. Tap "Pay Now" to pay instantly with a card. 💳 If it looks wrong, just message management! 🐊' },
+  { q:'What about late fees?', k:'late,fee,penalty,charge,$25,extra,overdue', a:'A $25 late fee kicks in after the 5th of the month if rent hasn\'t been received. Paying by the 1st is the best way to avoid it! 📅 If you\'re having trouble, reach out early — we understand life happens. ❤️' },
+  { q:'How is electric calculated?', k:'electric,kwh,meter,usage,calculated,reading,power,energy', a:'Electric is billed at $0.15 per kWh each month. We read your meter, subtract last month\'s reading, and multiply the kWh used by $0.15. Simple as catching a catfish! 🎣' },
+  { q:'What does prorated mean?', k:'prorated,prorate,partial,half,mid-month', a:'Prorated means you only pay for part of the month. If you moved in on the 15th, you\'d pay for the remaining 15 days — not the whole month. Fair and square! 🐊' },
+  { q:'Previous balance?', k:'previous,balance,carried,carryover,leftover', a:'A "previous balance" is any amount left over from your last bill that hasn\'t been paid yet. It carries forward. Think it\'s wrong? Tap "💬 Message Us"! 🐊' },
+  { q:'Dispute a charge?', k:'dispute,wrong,incorrect,error,mistake,overcharged', a:'If something on your bill doesn\'t look right, tap "💬 Message Us" and let management know which charge seems off. Include your lot number and they\'ll review it quickly! 😊' },
+  { q:'What if rent not paid?', k:'not paid,unpaid,eviction,behind,delinquent,collection', a:'We always try to work with tenants! Rent due the 1st → $25 late fee after 5th → management reaches out → continued non-payment may lead to formal notice. Please talk to us early! ❤️' },
+  { q:'Mailbox fee?', k:'mailbox,mail,box,$5,postal', a:'The mailbox fee is $5 per month for your personal park mailbox. 📬 Added to your invoice automatically.' },
+
+  // === PARK AMENITIES ===
+  { q:'What amenities?', k:'amenities,facilities,what,have,offer,features,stuff', a:'We\'ve got everything you need! 🏕️\n\n🧺 Washateria — near lot F1 (left side)\n🚿 Bath House — near B1 / A row\n🎣 Fishing Pond — near H row\n🗑️ Garbage Dumpster — center of park\n📦 Night Deposit Box — front of warehouse\n📬 Mailboxes — $5/month\n⚡ 30A and 50A electric hookups\n\nAll lots are 30ft x 60ft. Welcome to Gator Country! 🐊' },
+  { q:'Where is washateria?', k:'washateria,laundry,wash,washer,dryer,clothes', a:'The washateria is near lot F1, on the left side of the park. 🧺 Bring your quarters! If a machine acts up, report it on the portal! 🔧' },
+  { q:'Where is bath house?', k:'bath,house,shower,bathroom,restroom,toilet', a:'The bath house is near lot B1 in the A row area. 🚿 Showers and restrooms for all tenants!' },
+  { q:'Night deposit box?', k:'night,deposit,box,drop,warehouse,dropbox', a:'The night deposit box is at the front of the warehouse. 📦 Drop off payments anytime! Put your payment in an envelope with your name and lot number.' },
+  { q:'Where is the pond?', k:'pond,lake,fishing,fish,catch,bass', a:'The fishing pond is near H row by the premium lots. 🎣 Great for bass and catfish! Early morning and late afternoon are best. Tight lines! 🐊🐟' },
+  { q:'Premium lots?', k:'premium,H4,H5,H6,best,upgrade,bigger,nice', a:'Our premium lots are H4, H5, and H6 — right by the fishing pond! 🌟 $350–$375/month with pond views. Want to upgrade? Tap "💬 Message Us"!' },
+  { q:'Small RVs?', k:'small,rv,short,tiny,compact,25,under,fit', a:'Lot F4 is our best spot for smaller RVs (25 feet and under)! 🚐 All lots are 30ft wide by 60ft long.' },
+  { q:'Electric hookups?', k:'hookup,amp,30a,50a,plug,connection', a:'We have both 30-amp and 50-amp hookups! ⚡ 30A for smaller RVs, 50A for larger rigs.' },
+  { q:'Garbage dumpster?', k:'garbage,dumpster,trash,dump,waste,throw', a:'The garbage dumpster is in the center of the park. 🗑️ Please bag all trash. No dumping on your lot!' },
+
+  // === PARK RULES ===
+  { q:'Park rules?', k:'rule,rules,quiet,speed,visitor,guest,policy,regulation,hours', a:'Key park rules:\n\n🔇 Quiet hours: 10pm–7am\n🚗 Speed limit: 5 mph\n🐾 Pets must be leashed\n🧹 Keep your lot clean\n👥 Visitors 7+ nights need approval\n🚫 No subletting without written approval\n🗑️ Use the dumpster\n\nThanks for being a great neighbor! 🐊' },
+  { q:'Pets allowed?', k:'pet,dog,cat,animal,leash,puppy,kitten', a:'Yes! Pets are welcome! 🐾 Must be leashed outside your RV. Please clean up after them. Keep barking under control during quiet hours. We love furry friends! 🐶🐱' },
+
+  // === PORTAL HOW-TO ===
+  { q:'How to use portal?', k:'portal,use,how,work,navigate,help,tutorial,guide', a:'Welcome to your portal! 😊\n\n💰 Top — balance and pay\n🔧 Report Problem — maintenance\n💬 Message Us — contact management\n🏘️ Community Chat — chat with neighbors\n🐊 Ask Chomper — that\'s me!\n📞 Call Us — reach the office\n\nJust scroll to find everything! 🎣' },
+  { q:'How to log in?', k:'log in,login,sign in,access,enter,pin', a:'To log in: enter your phone number + 4-digit PIN. First time? You\'ll create a PIN. Forgot it? Tap "Forgot PIN?" or call 📞 (409) 267-6603! 🔑' },
+  { q:'View invoice?', k:'invoice,view,see,receipt,statement,look', a:'Your recent invoices are right on the portal home screen under your balance! 📄 Need an older one? Tap "💬 Message Us"!' },
+  { q:'Make a payment?', k:'make,payment,online,card,credit', a:'Tap the big green "Pay Now" button at the top of your portal! A small 3% fee applies for cards. Also accept cash, check, Venmo, Zelle, or night deposit! 💳' },
+  { q:'Report a problem?', k:'report,problem,fix,broke,repair,maintenance,issue,broken,leak,something', a:'Tap "🔧 Report Problem" on your portal → pick a category → describe the issue → add a photo → Submit! Management gets notified right away! 🔧' },
+  { q:'Upload a photo?', k:'photo,picture,image,camera,upload,attach,pic', a:'Look for "📷 Add Photo" when reporting a problem or posting to the community. You can take a new photo or choose from your gallery! 📸' },
+  { q:'Message management?', k:'message,management,contact,write,send,note,office,talk,reach', a:'Scroll down to "💬 Message Management" → type your message → tap Send! Or call 📞 (409) 267-6603! 🐊' },
+  { q:'Post on community?', k:'post,share,community,write,create,board', a:'Tap "+ Share" in the Community section → choose type → add title and message → submit! Management approves within 24 hours. 📋' },
+  { q:'View announcements?', k:'announcement,notice,news,update,bulletin', a:'Park announcements show up automatically near the top of your portal! 📢 Important ones get pinned.' },
+  { q:'Forgot password?', k:'forgot,password,pin,reset,locked,cant login', a:'On the login page, tap "Forgot PIN?" and follow the steps. 🔑 Still stuck? Call 📞 (409) 267-6603!' },
+  { q:'Update contact info?', k:'update,contact,phone,email,change,info,number', a:'Tap "💬 Message Us" and tell management what needs updating. They\'ll change it right away! 🔒' },
+
+  // === MOVE IN / MOVE OUT ===
+  { q:'Moving in?', k:'move in,moving,check in,arrive,arrival,new,start', a:'Welcome! 🏕️ Check in with management → get meter reading → hook up utilities → we\'ll set up your portal → first month may be prorated. Ask us anything! 🐊' },
+  { q:'Moving out?', k:'move out,moving out,leave,leaving,vacate,notice,checkout', a:'30 days written notice required. Clean your lot, settle balance, return keys, give us a forwarding address for your deposit return. We\'ll miss you — tight lines! 🎣' },
+  { q:'Security deposit?', k:'deposit,security,refund,return,money back,get back', a:'Deposit returned within 30 days of move-out! We check lot cleanliness, no damage, balances paid. We need a forwarding address! 📮 Questions? Tap "💬 Message Us"! 💰' },
+
+  // === EMERGENCIES ===
+  { q:'Emergency?', k:'emergency,urgent,fire,flood,911,help,danger,gas leak,pipe burst', a:'🚨 Call 911 first for fire, medical, or police!\n📞 Then call park: (409) 267-6603\n\nUrgent park issues: water breaks, electrical hazards, flooding, gas leaks. For non-emergencies use "🔧 Report Problem." 🐊' },
+
+  // === PARK INFO ===
+  { q:'Park address?', k:'address,location,where,direction,find,gps,located,phone,number,call', a:'📍 Anahuac RV Park LLC\n1003 Davis Ave, Anahuac, TX 77514\n📞 (409) 267-6603\n\nRight in the heart of Anahuac — the Alligator Capital of Texas! 🐊' },
+
+  // === MATH & MEASUREMENTS ===
+  { q:'Inches in a foot?', k:'inches,foot,feet,inch,12', a:'There are 12 inches in a foot! 📏 Fun fact — that\'s about the length of a small alligator\'s tail! 🐊' },
+  { q:'Feet in a yard?', k:'yard,yards,feet,3 feet', a:'3 feet in a yard! That\'s about one alligator nose-to-shoulder length. 🐊' },
+  { q:'Feet in a mile?', k:'mile,miles,5280', a:'5,280 feet in a mile! That\'s a reel long walk. 🎣' },
+  { q:'Cups in a gallon?', k:'cups,gallon,gallons,16 cups', a:'16 cups in a gallon! That\'s a lot of sweet tea. 🍹🐊' },
+  { q:'Ounces in a pound?', k:'ounces,pound,pounds,16 oz', a:'16 ounces in a pound! Important when weighing your trophy bass. 🎣' },
+  { q:'Miles to km?', k:'km,kilometer,kilometers,convert,1.6', a:'Multiply miles by 1.609 to get kilometers! So 10 miles ≈ 16.1 km. Math is reel easy! 🎣' },
+  { q:'Temperature convert?', k:'fahrenheit,celsius,temperature,convert,degrees', a:'Fahrenheit to Celsius: subtract 32, then divide by 1.8. So 90°F = about 32°C. Texas summer math! ☀️🐊' },
+  { q:'Gallons to liters?', k:'liters,litres,gallons,convert,3.78', a:'Multiply gallons by 3.785 to get liters! A gallon is about 3.8 liters. 💧' },
+
+  // === WEATHER ===
+  { q:'Weather?', k:'weather,rain,storm,temperature,forecast,hot,cold,wind', a:'Check the weather radar right on your portal! 🌤️ Just scroll down to the weather section — it shows live radar, current conditions, and the 7-day forecast for Anahuac. 🐊' },
+
+  // === FISHING ===
+  { q:'Best bait for bass?', k:'bait,bass,lure,best,fishing,what to use', a:'For bass in this area, try: 🎣\n\n🪱 Soft plastics (Texas rig)\n💥 Topwater at dawn\n🦞 Crawfish imitations\n\nAnd definitely try Carlile Custom Creatures — hand poured right here in Anahuac! Ask management! 🐊' },
+  { q:'Best time to fish?', k:'best time,when to fish,morning,evening,fishing time', a:'Early morning (dawn) and late evening (sunset) are the best times! 🌅 The fish are most active then. As we say — the early gator gets the fish! 🐊🎣' },
+  { q:'Best fishing spots?', k:'fishing spots,where to fish,best spots,trinity,east bay', a:'Chambers County is amazing for fishing! 🎣\n\n🏆 Trinity Bay — trophy bass\n🐟 East Bay — redfish and flounder\n🎣 Anahuac Channel — speckled trout\n🐊 Park pond — bass and catfish\n\nTight lines, neighbor! 🎣' },
+  { q:'Carlile Custom?', k:'carlile,custom,creatures,soft plastic,hand pour', a:'🎣 Carlile Custom Creatures makes hand-poured soft plastic lures right here in Anahuac, TX! Amazing for bass fishing in Trinity Bay. Ask management for details! 🐊' },
+
+  // === HUNTING ===
+  { q:'Duck season?', k:'duck,season,when,hunting,waterfowl', a:'Duck season in Texas is typically November through January. 🦆 Always check TPWD for exact dates: tpwd.texas.gov. Happy hunting! 🎯' },
+  { q:'Snow goose season?', k:'snow goose,goose,conservation order', a:'Snow goose conservation order runs February through March — no bag limits! 🪿 Check tpwd.texas.gov for exact dates.' },
+  { q:'Deer season?', k:'deer,buck,doe,season,hunting', a:'Texas deer season: General Nov–Jan, Bow starts October. 🦌 Always verify at tpwd.texas.gov!' },
+  { q:'Hunting license?', k:'hunting license,fishing license,tpwd,license', a:'Get your Texas hunting or fishing license at tpwd.texas.gov! 🎣 You can buy online or at most sporting goods stores.' },
+
+  // === LOCAL INFO ===
+  { q:'Anahuac NWR?', k:'nwr,refuge,wildlife,national,anahuac nwr', a:'Anahuac National Wildlife Refuge is about 20 minutes from the park! 🐦 One of the best birding spots in North America. Over 300 species! 🐊' },
+  { q:'Gatorfest?', k:'gatorfest,gator fest,festival,october', a:'Gatorfest is held in September in Anahuac! 🐊 It\'s the Texas Gatorfest — alligator catching, food, music, and fun! Less than a mile from the park! 🎪' },
+  { q:'How far is Houston?', k:'houston,distance,far,drive,city', a:'Houston is about 1 hour west of Anahuac (roughly 55 miles). Take I-10 west! 🚗' },
+  { q:'Trinity Bay?', k:'trinity,bay,water,beach', a:'Trinity Bay is about 10 minutes from the park! Great for fishing, kayaking, and birding. 🎣🐊' },
+
+  // === FUN RESPONSES ===
+  { q:'Tell me a joke', k:'joke,funny,laugh,humor,hilarious', a:'Why don\'t alligators like fast food? 🐊 Because they can\'t catch it! 😂🎣' },
+  { q:'How are you?', k:'how are you,how you doing,whats up,sup', a:'I\'m reel good, thanks for asking! 🎣 Just sitting here by the pond waiting to help. How can I help you today? 🐊' },
+  { q:'What are you?', k:'what are you,who are you,are you real,are you ai,robot', a:'I\'m Chomper — your friendly park assistant! 🐊 Actually, I\'m a very smart alligator who knows a LOT about this park and a bunch of other stuff too! Ask me anything! 🎣' },
+  { q:'Thank you', k:'thank,thanks,appreciate,helpful,great', a:'Happy to help, neighbor! Reel glad I could assist! 🎣 If you need anything else, I\'m always right here. 🐊' },
+  { q:'Hello', k:'hello,hi,hey,howdy,good morning,good afternoon,good evening', a:'Howdy neighbor! 🐊 Welcome back! What can I help you with today? I\'m hooked on helping! 🎣' },
+  { q:'Goodbye', k:'bye,goodbye,see you,later,gotta go', a:'See you later, alligator! 🐊 Come back anytime — I\'ll be right here by the pond! 🎣' },
+
+  // === TIME & DATES ===
+  { q:'What time is it?', k:'time,what time,clock,current time', a:'Check the clock on your phone or at the top of your screen! ⏰ I\'m an alligator — we don\'t wear watches! 🐊😄' },
+  { q:'Days in a month?', k:'days in,month,february,how many days,30 days,31 days,28 days', a:'Most months have 30 or 31 days! 📅\n\n31 days: Jan, Mar, May, Jul, Aug, Oct, Dec\n30 days: Apr, Jun, Sep, Nov\n28/29 days: February\n\nRemember — rent is due on the 1st! 🐊' },
+];
+
+function openChomperChat() {
+  if (document.getElementById('chomper-overlay')) {
+    document.getElementById('chomper-overlay').style.display = 'flex';
+    return;
+  }
+
+  var quickQuestions = [
+    'When is rent due?', 'How do I use the portal?', 'What amenities are here?',
+    'How do I report a problem?', 'How do I message management?', 'What are the park rules?'
+  ];
+  var quickBtns = quickQuestions.map(function(q) {
+    return '<button class="chomper-quick-btn" onclick="askChomper(\'' + q.replace(/'/g, "\\'") + '\')">' + q + '</button>';
+  }).join('');
+
+  var overlay = document.createElement('div');
+  overlay.id = 'chomper-overlay';
+  overlay.className = 'chomper-overlay';
+  overlay.onclick = function(e) { if (e.target === overlay) closeChomperChat(); };
+  overlay.innerHTML =
+    '<div class="chomper-panel">' +
+      '<div class="chomper-header">' +
+        _chomperSvg +
+        '<div style="flex:1">' +
+          '<div style="font-weight:700;font-size:1.1rem">Chomper — Park Assistant</div>' +
+          '<div style="font-size:0.75rem;opacity:0.9;line-height:1.3;margin-top:2px">Ask me ANYTHING about the park, your account, or how to use this portal. I\'m here to help — completely free!</div>' +
+        '</div>' +
+        '<button onclick="closeChomperChat()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;padding:0.25rem">✕</button>' +
+      '</div>' +
+      '<div class="chomper-msgs" id="chomper-msgs">' +
+        '<div class="chomper-bubble bot">Howdy! I\'m <strong>Chomper</strong> 🐊 your friendly park assistant! Ask me anything about the park, your bill, or how to use this portal. I\'m hooked on helping! 🎣</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.25rem" id="chomper-quick-btns">' +
+          quickBtns +
+        '</div>' +
+      '</div>' +
+      '<div style="padding:0.6rem;border-top:2px solid #a7f3d0;display:flex;gap:0.5rem;background:#fff">' +
+        '<input id="chomper-input" type="text" placeholder="Type a question..." style="flex:1;padding:0.65rem 0.75rem;border:2px solid #a8a29e;border-radius:10px;font-size:0.95rem;font-family:inherit" onkeydown="if(event.key===\'Enter\'){event.preventDefault();sendChomperMsg()}">' +
+        '<button onclick="sendChomperMsg()" style="background:#1a5c32;color:#fff;border:none;border-radius:10px;padding:0.65rem 1.1rem;font-size:0.95rem;font-weight:700;cursor:pointer;white-space:nowrap;min-height:48px">Send</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+function closeChomperChat() {
+  var el = document.getElementById('chomper-overlay');
+  if (el) el.style.display = 'none';
+}
+
+function askChomper(question) {
+  var qb = document.getElementById('chomper-quick-btns');
+  if (qb) qb.remove();
+  // Always clear the input field
+  var inp = document.getElementById('chomper-input');
+  if (inp) inp.value = '';
+
+  var msgs = document.getElementById('chomper-msgs');
+  msgs.innerHTML += '<div class="chomper-bubble user">' + _escPortal(question) + '</div>';
+  msgs.scrollTop = msgs.scrollHeight;
+
+  msgs.innerHTML += '<div class="chomper-typing" id="chomper-typing"><span></span><span></span><span></span></div>';
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // Smart local keyword matching — score every KB entry
+  var answer = null;
+  var qLower = question.toLowerCase().replace(/[?!.,'"]/g, '');
+  var bestScore = 0;
+  for (var i = 0; i < CHOMPER_KB.length; i++) {
+    var entry = CHOMPER_KB[i];
+    var kws = (entry.k || '').split(',');
+    var score = 0;
+    for (var j = 0; j < kws.length; j++) {
+      var kw = kws[j].trim();
+      if (kw && kw.length > 1 && qLower.includes(kw)) score += (kw.length > 4 ? 2 : 1);
+    }
+    // Bonus for matching question prefix
+    var qPrefix = entry.q.toLowerCase().replace(/[?!.,'"]/g, '');
+    if (qLower.includes(qPrefix.slice(0, 15))) score += 4;
+    // Bonus for exact word matches
+    var words = qLower.split(/\s+/);
+    kws.forEach(function(kw) { kw = kw.trim(); if (kw && words.indexOf(kw) !== -1) score += 1; });
+    if (score > bestScore) { bestScore = score; answer = entry.a; }
+  }
+  if (!answer || bestScore < 2) {
+    answer = 'That\'s a tough one to reel in! 🎣 For the best answer, tap <strong>Message Us</strong> and our team will get back to you quickly! Or call us at 📞 (409) 267-6603. 🐊';
+  }
+
+  setTimeout(function() {
+    var typing = document.getElementById('chomper-typing');
+    if (typing) typing.remove();
+    var formatted = answer.replace(/\n/g, '<br>');
+    msgs.innerHTML += '<div class="chomper-bubble bot">' + formatted + '</div>';
+    msgs.scrollTop = msgs.scrollHeight;
+  }, 600 + Math.random() * 400);
+}
+
+function sendChomperMsg() {
+  var input = document.getElementById('chomper-input');
+  if (!input) return;
+  var msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  askChomper(msg);
+}
+
+function setPortalFontSize(size) {
+  var wrapper = document.getElementById('portal-wrapper');
+  if (!wrapper) return;
+  wrapper.classList.remove('fs-large', 'fs-xlarge');
+  if (size === 'large') wrapper.classList.add('fs-large');
+  else if (size === 'xlarge') wrapper.classList.add('fs-xlarge');
+  // Update active button
+  document.querySelectorAll('.fs-btn').forEach(function(b) { b.classList.remove('fs-active'); });
+  var active = document.getElementById('fs-' + size);
+  if (active) active.classList.add('fs-active');
+  // Persist
+  try { localStorage.setItem('portal_font_size', size); } catch {}
+}
+// Restore on load
+(function() {
+  var saved = null;
+  try { saved = localStorage.getItem('portal_font_size'); } catch {}
+  if (saved && saved !== 'normal') setPortalFontSize(saved);
+})();
+
+function _escPortal(s) {
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function _portalReplyTime(dt) {
+  if (!dt) return '';
+  try {
+    var iso = String(dt).replace(' ', 'T');
+    if (!iso.endsWith('Z') && !iso.includes('+')) iso += 'Z';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return dt;
+    var now = new Date();
+    var diff = (now - d) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' +
+      d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+  } catch { return dt; }
+}
+
+async function togglePortalReplies(postId) {
+  var section = document.getElementById('portal-replies-' + postId);
+  if (!section) return;
+  if (section.style.display === 'none') {
+    section.style.display = '';
+    loadPortalReplies(postId);
+  } else {
+    section.style.display = 'none';
+  }
+}
+
+async function loadPortalReplies(postId) {
+  var el = document.getElementById('portal-replies-list-' + postId);
+  if (!el) return;
+  el.innerHTML = '<span style="font-size:0.88rem;color:#78716c">Loading comments...</span>';
+  try {
+    var r = await fetch('/api/community/' + postId + '/replies');
+    var replies = await r.json();
+    if (!replies || !replies.length) {
+      el.innerHTML = '<p style="font-size:0.88rem;color:#78716c;margin:0">No comments yet. Be the first!</p>';
+      return;
+    }
+    el.innerHTML = replies.map(function(r) {
+      var mgmtBadge = r.is_management
+        ? ' <span style="background:#1a5c32;color:#fff;font-size:0.68rem;padding:2px 7px;border-radius:4px;font-weight:700;vertical-align:middle">Management</span>'
+        : '';
+      var lotTag = r.author_lot ? ' <span style="color:#78716c;font-size:0.8rem">· ' + _escPortal(r.author_lot) + '</span>' : '';
+      return '<div style="padding:0.5rem 0;border-bottom:1px solid #e7e5e4;font-size:0.92rem">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<div><strong style="color:#1c1917;font-size:0.92rem">' + _escPortal(r.author_name) + '</strong>' + mgmtBadge + lotTag + '</div>' +
+          '<span style="font-size:0.75rem;color:#78716c">' + _portalReplyTime(r.created_at) + '</span>' +
+        '</div>' +
+        '<div style="color:#292524;margin-top:0.2rem;line-height:1.5;font-size:0.92rem">' + _escPortal(r.message) + '</div>' +
+      '</div>';
+    }).join('');
+  } catch {
+    el.innerHTML = '<p style="font-size:0.78rem;color:#dc2626">Could not load comments</p>';
+  }
+}
+
+async function submitPortalReply(postId) {
+  var input = document.getElementById('portal-reply-input-' + postId);
+  if (!input) return;
+  var msg = input.value.trim();
+  if (!msg) return;
+  if (!_portalTenant) { alert('Please log in to comment.'); return; }
+  try {
+    await fetch('/api/community/' + postId + '/replies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenant_id: _portalTenant.id,
+        author_name: (_portalTenant.first_name || '') + ' ' + (_portalTenant.last_name || ''),
+        author_lot: _portalTenant.lot_id ? 'Lot ' + _portalTenant.lot_id : null,
+        message: msg,
+      }),
+    });
+    input.value = '';
+    loadPortalReplies(postId);
+    // Update count in the post
+    var countBtn = document.querySelector('#portal-replies-' + postId)?.parentElement?.querySelector('[onclick*="togglePortalReplies"]');
+    if (countBtn) {
+      var cur = parseInt(countBtn.textContent.match(/\d+/)?.[0] || '0') + 1;
+      countBtn.textContent = '💬 ' + cur + ' comment' + (cur === 1 ? '' : 's');
+    }
+  } catch (err) {
+    alert('Could not post comment. Please try again.');
+  }
 }
 
 async function likeCommunityPost(id, btn) {
@@ -1280,6 +2690,221 @@ async function loadPortalRestaurants() {
       return '<a class="link-btn" href="' + (rest.url || '#') + '" target="_blank" rel="noopener noreferrer"><span class="lb-icon">' + (rest.emoji || '🍽️') + '</span> ' + rest.name + '</a>';
     }).join('');
   } catch { el.innerHTML = '<span style="color:#a8a29e;font-size:0.85rem">Could not load restaurants</span>'; }
+}
+
+// =====================================================================
+// Weather Radar — Lazy loaded with Intersection Observer
+// =====================================================================
+var _radarMap = null;
+var _radarLayers = [];
+var _radarIdx = 0;
+var _radarPlaying = false;
+var _radarInterval = null;
+var _radarLoaded = false;
+
+(function initRadarObserver() {
+  if (!('IntersectionObserver' in window)) return;
+  var observer = new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting && !_radarLoaded) {
+      _radarLoaded = true;
+      observer.disconnect();
+      loadRadar();
+    }
+  }, { rootMargin: '200px' });
+  // Observe after DOM is ready
+  setTimeout(function() {
+    var el = document.getElementById('radar-section');
+    if (el) observer.observe(el);
+  }, 500);
+})();
+
+function loadLeafletCSS() {
+  if (document.getElementById('leaflet-css')) return;
+  var link = document.createElement('link');
+  link.id = 'leaflet-css';
+  link.rel = 'stylesheet';
+  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  document.head.appendChild(link);
+}
+
+function loadLeafletJS() {
+  return new Promise(function(resolve) {
+    if (window.L) return resolve();
+    var script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.onload = resolve;
+    document.head.appendChild(script);
+  });
+}
+
+async function loadRadar() {
+  loadLeafletCSS();
+  await loadLeafletJS();
+
+  var mapEl = document.getElementById('radar-map');
+  if (!mapEl || !window.L) return;
+  mapEl.innerHTML = '';
+
+  _radarMap = L.map('radar-map', {
+    center: [29.7691, -94.6827],
+    zoom: 6,
+    maxZoom: 6,
+    zoomControl: true,
+    attributionControl: false,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 6,
+    attribution: '© OpenStreetMap'
+  }).addTo(_radarMap);
+
+  // Anahuac marker
+  L.marker([29.7691, -94.6827]).addTo(_radarMap)
+    .bindPopup('<strong>Anahuac RV Park</strong><br>1003 Davis Ave');
+
+  // Load RainViewer radar
+  try {
+    var rv = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    var data = await rv.json();
+    var frames = (data.radar && data.radar.past) ? data.radar.past : [];
+    if (data.radar && data.radar.nowcast) frames = frames.concat(data.radar.nowcast);
+
+    _radarLayers = frames.map(function(f) {
+      var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{z}/{x}/{y}/2/1_1.png', {
+        opacity: 0,
+        maxZoom: 6,
+      });
+      layer._rvTime = f.time;
+      return layer;
+    });
+
+    if (_radarLayers.length > 0) {
+      // Show last frame
+      _radarIdx = _radarLayers.length - 1;
+      _radarLayers[_radarIdx].addTo(_radarMap).setOpacity(0.65);
+      updateRadarTimestamp();
+      document.getElementById('radar-controls').style.display = '';
+      // Auto-play
+      toggleRadarPlay();
+    }
+  } catch (e) {
+    console.error('[radar] RainViewer load failed:', e);
+  }
+
+  // Load NWS alerts
+  loadNWSAlerts();
+
+  // Refresh radar every 10 minutes
+  setInterval(function() { if (_radarLoaded) refreshRadarFrames(); }, 10 * 60 * 1000);
+}
+
+function updateRadarTimestamp() {
+  var el = document.getElementById('radar-timestamp');
+  if (!el || !_radarLayers[_radarIdx]) return;
+  var t = _radarLayers[_radarIdx]._rvTime;
+  if (t) {
+    var d = new Date(t * 1000);
+    el.textContent = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' — ' +
+      d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+}
+
+function showRadarFrame(idx) {
+  _radarLayers.forEach(function(layer, i) {
+    if (i === idx) {
+      if (!_radarMap.hasLayer(layer)) layer.addTo(_radarMap);
+      layer.setOpacity(0.65);
+    } else {
+      layer.setOpacity(0);
+    }
+  });
+  _radarIdx = idx;
+  updateRadarTimestamp();
+}
+
+function toggleRadarPlay() {
+  var btn = document.getElementById('radar-play-btn');
+  if (_radarPlaying) {
+    clearInterval(_radarInterval);
+    _radarPlaying = false;
+    if (btn) btn.textContent = '▶ Play';
+  } else {
+    _radarPlaying = true;
+    if (btn) btn.textContent = '⏸ Pause';
+    _radarInterval = setInterval(function() {
+      var next = (_radarIdx + 1) % _radarLayers.length;
+      showRadarFrame(next);
+    }, 700);
+  }
+}
+
+async function refreshRadarFrames() {
+  try {
+    var rv = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    var data = await rv.json();
+    var frames = (data.radar && data.radar.past) ? data.radar.past : [];
+    if (data.radar && data.radar.nowcast) frames = frames.concat(data.radar.nowcast);
+
+    // Remove old layers
+    _radarLayers.forEach(function(l) { if (_radarMap.hasLayer(l)) _radarMap.removeLayer(l); });
+
+    _radarLayers = frames.map(function(f) {
+      var layer = L.tileLayer('https://tilecache.rainviewer.com' + f.path + '/256/{z}/{x}/{y}/2/1_1.png', {
+        opacity: 0, maxZoom: 12
+      });
+      layer._rvTime = f.time;
+      return layer;
+    });
+
+    if (_radarLayers.length > 0) {
+      _radarIdx = _radarLayers.length - 1;
+      showRadarFrame(_radarIdx);
+    }
+  } catch {}
+}
+
+async function loadNWSAlerts() {
+  var el = document.getElementById('radar-alerts');
+  if (!el) return;
+  try {
+    var r = await fetch('https://api.weather.gov/alerts/active?zone=TXC071');
+    var data = await r.json();
+    var alerts = (data.features || []).filter(function(f) {
+      return f.properties && f.properties.event;
+    });
+    if (!alerts.length) { el.style.display = 'none'; return; }
+
+    el.style.display = '';
+    el.innerHTML = alerts.map(function(a) {
+      var p = a.properties;
+      var severity = p.severity || 'Unknown';
+      var bg = severity === 'Extreme' ? '#7f1d1d' : severity === 'Severe' ? '#dc2626' : severity === 'Moderate' ? '#f59e0b' : '#1a5c32';
+      return '<div style="background:' + bg + ';color:#fff;padding:0.6rem 1rem;font-size:0.85rem;font-weight:600">' +
+        '⚠️ ' + (p.event || 'Weather Alert') +
+        (p.headline ? '<div style="font-weight:400;font-size:0.78rem;margin-top:0.2rem;opacity:0.9">' + p.headline + '</div>' : '') +
+      '</div>';
+    }).join('');
+  } catch { el.style.display = 'none'; }
+}
+
+async function loadPortalBirthday() {
+  try {
+    if (!_portalToken) return;
+    var r = await fetch('/api/portal/birthday-message', {
+      headers: { 'Authorization': 'Bearer ' + _portalToken }
+    });
+    if (!r.ok) return;
+    var msg = await r.json();
+    if (!msg || !msg.body) return;
+    var banner = document.getElementById('portal-birthday-banner');
+    var text = document.getElementById('portal-birthday-text');
+    if (banner && text) {
+      var firstName = _portalTenant?.first_name || 'friend';
+      text.innerHTML = 'Wishing you a wonderful day, <strong style="font-size:1.15rem">' + _escPortal(firstName) + '</strong>!<br>' +
+        '<span style="font-size:0.88rem">From all of us here at Anahuac RV Park — we hope your special day is filled with joy!</span>';
+      banner.style.display = '';
+    }
+  } catch {}
 }
 
 async function loadAnnouncements() {

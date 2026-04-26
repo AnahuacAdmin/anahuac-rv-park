@@ -4,6 +4,13 @@
  * Proprietary and Confidential.
  * Unauthorized copying, distribution, or use is strictly prohibited.
  */
+function toggleCheckinPaymentNote(method) {
+  var cardNote = document.getElementById('checkin-payment-card-note');
+  var refGroup = document.getElementById('checkin-payment-ref-group');
+  if (cardNote) cardNote.style.display = method === 'card' ? '' : 'none';
+  if (refGroup) refGroup.style.display = (method && method !== 'card') ? '' : 'none';
+}
+
 async function loadCheckins() {
   const [checkins, tenants, lots] = await Promise.all([
     API.get('/checkins'), API.get('/tenants'), API.get('/lots')
@@ -171,6 +178,39 @@ async function showCheckIn() {
       </fieldset>
 
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
+
+      <details style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+        <summary style="cursor:pointer;font-weight:700;font-size:0.92rem;user-select:none;list-style:none;display:flex;align-items:center;gap:0.4rem">
+          <span>💰 Collect Payment</span>
+          <span style="font-size:0.75rem;font-weight:400;color:var(--gray-500);margin-left:0.25rem">(optional)</span>
+        </summary>
+        <div style="margin-top:0.75rem">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Amount ($)</label>
+              <input name="payment_amount" type="number" step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label>Payment Method</label>
+              <select name="payment_method" id="checkin-payment-method" onchange="toggleCheckinPaymentNote(this.value)">
+                <option value="">— Skip —</option>
+                <option value="cash">Cash</option>
+                <option value="check">Check</option>
+                <option value="money_order">Money Order</option>
+                <option value="card">Credit/Debit Card (Stripe)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" id="checkin-payment-ref-group" style="display:none">
+            <label>Reference # (optional)</label>
+            <input name="payment_reference" placeholder="Check number, receipt number, etc.">
+          </div>
+          <div id="checkin-payment-card-note" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.6rem 0.75rem;font-size:0.82rem;color:#1e40af">
+            💳 Card payment will open Stripe checkout after check-in is complete. A 3% convenience fee applies.
+          </div>
+        </div>
+      </details>
+
       <button type="submit" class="btn btn-success btn-full mt-2">Check In</button>
       <p id="checkin-error" class="error-text" style="display:none"></p>
     </form>
@@ -384,6 +424,7 @@ async function processCheckIn(e) {
   }
 
   // Auto-generate prorated invoice for mid-month move-in (monthly tenants only)
+  var generatedInvoiceId = null;
   const rentType = data.rent_type || 'monthly';
   const moveInDate = new Date(data.check_in_date + 'T00:00:00');
   const moveDay = moveInDate.getDate();
@@ -397,7 +438,7 @@ async function processCheckIn(e) {
       const prorated = +((monthlyRate / dim) * remaining).toFixed(2);
       const moName = moveInDate.toLocaleString('default', { month: 'long' });
       const endDate = `${yr}-${String(mo + 1).padStart(2, '0')}-${dim}`;
-      await API.post('/invoices', {
+      var invResult = await API.post('/invoices', {
         tenant_id: tenant.id,
         invoice_date: data.check_in_date,
         due_date: data.check_in_date,
@@ -406,9 +447,43 @@ async function processCheckIn(e) {
         rent_amount: prorated,
         notes: `Prorated - ${moName} ${yr} (${remaining}/${dim} days)`,
       });
-      console.log(`Prorated invoice created: $${prorated} for ${remaining} days`);
+      generatedInvoiceId = invResult?.id || null;
+      console.log(`Prorated invoice created: $${prorated} for ${remaining} days, id=${generatedInvoiceId}`);
     } catch (err) {
       console.error('Prorated invoice failed (non-fatal):', err);
+    }
+  }
+
+  // === COLLECT PAYMENT (if requested) ===
+  var paymentAmount = parseFloat(data.payment_amount) || 0;
+  var paymentMethod = data.payment_method || '';
+
+  if (paymentAmount > 0 && paymentMethod && paymentMethod !== 'card') {
+    // Cash / Check / Money Order — record directly
+    try {
+      await API.post('/payments', {
+        tenant_id: tenant.id,
+        invoice_id: generatedInvoiceId || null,
+        payment_date: data.check_in_date || new Date().toISOString().split('T')[0],
+        amount: paymentAmount,
+        payment_method: paymentMethod,
+        reference_number: data.payment_reference || null,
+        notes: 'Collected at check-in',
+      });
+      if (typeof showStatusToast === 'function') showStatusToast('✅', 'Payment of $' + paymentAmount.toFixed(2) + ' recorded');
+    } catch (err) {
+      console.error('Check-in payment failed (non-fatal):', err);
+      if (typeof showStatusToast === 'function') showStatusToast('⚠️', 'Check-in complete but payment failed to save — record it on the Payments page');
+    }
+  }
+
+  // Card via Stripe — redirect AFTER check-in is complete (non-blocking)
+  var stripeRedirectPending = false;
+  if (paymentAmount > 0 && paymentMethod === 'card') {
+    if (generatedInvoiceId) {
+      stripeRedirectPending = true;
+    } else {
+      if (typeof showStatusToast === 'function') showStatusToast('ℹ️', 'No invoice generated yet — collect card payment from the Payments page');
     }
   }
 
@@ -435,6 +510,22 @@ async function processCheckIn(e) {
       <button class="btn btn-outline btn-full mt-2" onclick="closeModal();loadCheckins()">Done</button>
     </div>
   `), 3200);
+
+  // Stripe card redirect — fires AFTER check-in is fully complete
+  if (stripeRedirectPending && generatedInvoiceId) {
+    setTimeout(async function() {
+      try {
+        var session = await API.post('/payments/create-checkout-session', { invoice_id: generatedInvoiceId });
+        if (session?.url) {
+          if (typeof showStatusToast === 'function') showStatusToast('💳', 'Redirecting to Stripe for card payment...');
+          setTimeout(function() { window.location.href = session.url; }, 1500);
+        }
+      } catch (err) {
+        console.error('Stripe session failed (non-fatal):', err);
+        if (typeof showStatusToast === 'function') showStatusToast('⚠️', 'Check-in complete! Card payment can be collected later from the Payments page.');
+      }
+    }, 4000);
+  }
 }
 
 async function sendWelcomeText(tenantId, tenantName) {

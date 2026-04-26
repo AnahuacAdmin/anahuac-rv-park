@@ -244,6 +244,181 @@ router.get('/scores', (req, res) => {
   res.json({ tenants: results, averageScore: avg });
 });
 
+// CSV template download — pre-filled example rows so new parks can see the
+// expected column names and value formats. Admin-only.
+router.get('/import/template', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const csv =
+    'Lot,Full Name,Phone,Email,Monthly Rate,Move-In Date,Lease Type,RV Make/Model,RV Length,License Plate,Date of Birth,Notes\n' +
+    'A-1,John Smith,555-123-4567,john@example.com,350.00,2024-03-15,monthly,Winnebago View,25,TX ABC1234,1985-06-15,Long-term resident\n' +
+    'A-2,Mary Johnson,555-987-6543,mary.j@example.com,295.00,2024-01-01,monthly,Tiffin Allegro,32,TX XYZ5678,1972-11-30,\n' +
+    'B-3,Bob Davis,555-555-1212,,450.00,2024-04-01,prorated,Forest River Salem,28,,1990-03-22,Prorated first month\n';
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="tenant-import-template.csv"');
+  res.send(csv);
+});
+
+// Bulk import tenants from a parsed CSV/Excel file. The client parses the file
+// and sends mapped rows. Each row with a valid, existing lot will either update
+// the active tenant on that lot or create a new one. Admin-only.
+//
+// Body: { rows: [ { lot_id, full_name, phone, email, monthly_rent,
+//                   move_in_date, rent_type, rv_make_model, rv_length,
+//                   license_plate, notes } ] }
+router.post('/import', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const rows = Array.isArray(req.body?.rows) ? req.body.rows : null;
+  if (!rows) return res.status(400).json({ error: 'rows array is required' });
+
+  const str = (v) => (v === undefined || v === null || v === '') ? null : String(v).trim();
+  const num = (v) => {
+    if (v === undefined || v === null || v === '') return 0;
+    const n = Number(String(v).replace(/[$,\s]/g, ''));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const parseDate = (v) => {
+    if (v === undefined || v === null || v === '') return null;
+    const s = String(v).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (m) {
+      let [, mm, dd, yy] = m;
+      if (yy.length === 2) yy = (Number(yy) < 50 ? '20' : '19') + yy;
+      return `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+    }
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    return null;
+  };
+  const splitName = (full) => {
+    const parts = String(full || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return null;
+    if (parts.length === 1) return { first: parts[0], last: '' };
+    return { first: parts.slice(0, -1).join(' '), last: parts[parts.length - 1] };
+  };
+  const splitMakeModel = (v) => {
+    const s = str(v);
+    if (!s) return { make: null, model: null };
+    const slash = s.split('/');
+    if (slash.length > 1) return { make: slash[0].trim(), model: slash.slice(1).join('/').trim() };
+    const sp = s.indexOf(' ');
+    if (sp > 0) return { make: s.slice(0, sp).trim(), model: s.slice(sp + 1).trim() };
+    return { make: s, model: null };
+  };
+
+  const imported = [];
+  const errors = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNum = idx + 2; // account for header row + 1-based indexing
+    try {
+      const lot_id = str(raw.lot_id);
+      const full_name = str(raw.full_name);
+
+      if (!lot_id) {
+        errors.push({ row: rowNum, lot_id: '', name: full_name || '', error: 'Missing lot number' });
+        return;
+      }
+      if (!full_name) {
+        errors.push({ row: rowNum, lot_id, name: '', error: 'Missing tenant name' });
+        return;
+      }
+
+      const lot = db.prepare('SELECT id FROM lots WHERE id = ?').get(lot_id);
+      if (!lot) {
+        errors.push({ row: rowNum, lot_id, name: full_name, error: `Lot "${lot_id}" does not exist` });
+        return;
+      }
+
+      const name = splitName(full_name);
+      if (!name || !name.first) {
+        errors.push({ row: rowNum, lot_id, name: full_name, error: 'Could not parse name' });
+        return;
+      }
+
+      const phone = str(raw.phone);
+      const email = str(raw.email);
+      const monthly_rent = num(raw.monthly_rent);
+      const move_in_date = parseDate(raw.move_in_date);
+      // Normalize to lowercase so values match what the rest of the app renders
+      // (rent_type badges in tenants.js compare against lowercase strings).
+      const rent_type = (str(raw.rent_type) || 'monthly').toLowerCase().replace(/\s+/g, '_');
+      const { make: rv_make, model: rv_model } = splitMakeModel(raw.rv_make_model);
+      const rv_length = str(raw.rv_length);
+      const license_plate = str(raw.license_plate);
+      const date_of_birth = parseDate(raw.date_of_birth);
+      const notes = str(raw.notes);
+
+      const existing = db.prepare('SELECT id FROM tenants WHERE lot_id = ? AND is_active = 1').get(lot_id);
+      let tenantId;
+      let action;
+
+      if (existing) {
+        // COALESCE preserves existing values when the import column is empty;
+        // monthly_rent only overwrites when a positive value was supplied.
+        db.prepare(`
+          UPDATE tenants SET
+            first_name = ?,
+            last_name = ?,
+            phone = COALESCE(?, phone),
+            email = COALESCE(?, email),
+            monthly_rent = CASE WHEN ? > 0 THEN ? ELSE monthly_rent END,
+            move_in_date = COALESCE(?, move_in_date),
+            rent_type = ?,
+            rv_make = COALESCE(?, rv_make),
+            rv_model = COALESCE(?, rv_model),
+            rv_length = COALESCE(?, rv_length),
+            license_plate = COALESCE(?, license_plate),
+            date_of_birth = COALESCE(?, date_of_birth),
+            notes = COALESCE(?, notes)
+          WHERE id = ?
+        `).run(
+          name.first, name.last, phone, email,
+          monthly_rent, monthly_rent,
+          move_in_date, rent_type,
+          rv_make, rv_model, rv_length, license_plate, date_of_birth, notes,
+          existing.id
+        );
+        tenantId = existing.id;
+        action = 'updated';
+      } else {
+        const result = db.prepare(`
+          INSERT INTO tenants
+            (lot_id, first_name, last_name, phone, email, rv_make, rv_model, rv_length,
+             license_plate, monthly_rent, rent_type, move_in_date, date_of_birth, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          lot_id, name.first, name.last, phone, email,
+          rv_make, rv_model, rv_length, license_plate,
+          monthly_rent > 0 ? monthly_rent : 295,
+          rent_type,
+          move_in_date || new Date().toISOString().split('T')[0],
+          date_of_birth, notes
+        );
+        tenantId = result.lastInsertRowid;
+        action = 'created';
+      }
+
+      db.prepare("UPDATE lots SET status = 'occupied' WHERE id = ?").run(lot_id);
+      imported.push({ row: rowNum, lot_id, tenant_id: tenantId, action, name: `${name.first} ${name.last}`.trim() });
+    } catch (err) {
+      errors.push({
+        row: rowNum,
+        lot_id: raw?.lot_id || '',
+        name: raw?.full_name || '',
+        error: err.message || 'Unknown error',
+      });
+    }
+  });
+
+  res.json({
+    imported: imported.length,
+    failed: errors.length,
+    errors,
+    details: imported,
+  });
+});
+
 // Bulk flat rate operations
 router.post('/bulk-flat-rate', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });

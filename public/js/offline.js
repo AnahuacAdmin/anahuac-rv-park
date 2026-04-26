@@ -98,33 +98,80 @@ let _wasEverOffline = false; // Only show "back online" if we were actually offl
 function isOffline() { return !_isOnline; }
 
 function showOfflineBanner() {
-  // NUCLEAR: never show unless genuinely offline right now
   if (navigator.onLine === true) return;
-  if (window.navigator && window.navigator.onLine === true) return;
   _wasEverOffline = true;
   var banner = document.getElementById('offline-banner');
   if (!banner) {
     banner = document.createElement('div');
     banner.id = 'offline-banner';
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10000;background:linear-gradient(135deg,#d97706,#f59e0b);color:#1c1917;padding:8px 16px;text-align:center;font-size:0.85rem;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;gap:8px';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10000;background:linear-gradient(135deg,#d97706,#f59e0b);color:#1c1917;padding:10px 16px;text-align:center;font-size:0.88rem;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer';
+    banner.onclick = showEmergencyGuide;
     document.body.appendChild(banner);
   }
-  banner.innerHTML = '⚠️ OFFLINE MODE — Limited features available. Data will sync when reconnected.';
+  banner.innerHTML = '📡 OFFLINE MODE — No internet connection. Data saved locally. <span style="text-decoration:underline;margin-left:4px">Emergency Guide →</span>';
   banner.style.display = '';
+  updateConnectionDot('offline');
+  // Show emergency guide on first offline event
+  if (!window._emergencyGuideShown) { window._emergencyGuideShown = true; showEmergencyGuide(); }
 }
 
 function showOnlineBanner() {
-  // Only show "back online" if we were actually offline before
   if (!_wasEverOffline) return;
   var banner = document.getElementById('offline-banner');
   if (banner) {
     banner.style.background = 'linear-gradient(135deg,#16a34a,#22c55e)';
     banner.style.color = '#fff';
-    banner.innerHTML = '✅ Back online! Syncing data...';
+    banner.innerHTML = '✅ Back Online! Syncing your offline data now...';
     banner.style.display = '';
-    setTimeout(function() { banner.style.display = 'none'; }, 3000);
+    setTimeout(function() { banner.style.display = 'none'; }, 4000);
   }
+  updateConnectionDot('online');
   _wasEverOffline = false;
+}
+
+function updateConnectionDot(state) {
+  var dot = document.getElementById('connection-dot');
+  if (!dot) {
+    dot = document.createElement('div');
+    dot.id = 'connection-dot';
+    dot.style.cssText = 'position:fixed;top:8px;right:60px;z-index:9999;display:flex;align-items:center;gap:4px;font-size:0.68rem;font-weight:600;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,0.95);box-shadow:0 1px 4px rgba(0,0,0,0.15)';
+    document.body.appendChild(dot);
+  }
+  if (state === 'offline') { dot.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:#dc2626;display:inline-block"></span> Offline'; dot.style.color = '#dc2626'; }
+  else if (state === 'syncing') { dot.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;animation:pulse 1s infinite"></span> Syncing'; dot.style.color = '#f59e0b'; }
+  else { dot.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block"></span> Online'; dot.style.color = '#16a34a'; }
+}
+
+function showEmergencyGuide() {
+  var existing = document.getElementById('emergency-guide-overlay');
+  if (existing) { existing.remove(); return; }
+  var overlay = document.createElement('div');
+  overlay.id = 'emergency-guide-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;padding:1.5rem">' +
+      '<h2 style="margin:0 0 0.75rem;color:#d97706;font-size:1.2rem">📡 CONNECTION LOST</h2>' +
+      '<div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:0.6rem 0.75rem;margin-bottom:0.75rem;font-size:0.88rem;color:#065f46;font-weight:600">YOUR DATA IS SAFE ✅<br><span style="font-weight:400;font-size:0.82rem">All data is stored on secure servers and will be there when internet returns.</span></div>' +
+      '<h4 style="margin:0.75rem 0 0.35rem;color:#1c1917">What still works:</h4>' +
+      '<div style="font-size:0.85rem;line-height:1.6;color:#44403c">' +
+        '✅ View cached tenant list<br>✅ Check tenants in and out<br>✅ Log payments received<br>✅ Enter meter readings<br>✅ Log expenses<br>✅ Access emergency contacts</div>' +
+      '<h4 style="margin:0.75rem 0 0.35rem;color:#1c1917">Needs internet:</h4>' +
+      '<div style="font-size:0.85rem;line-height:1.6;color:#78716c">' +
+        '❌ Sending SMS messages<br>❌ AI receipt scanning<br>❌ Live weather radar<br>❌ Syncing to server</div>' +
+      '<h4 style="margin:0.75rem 0 0.35rem;color:#dc2626">Emergency Contacts:</h4>' +
+      '<div style="font-size:0.88rem;line-height:1.8;color:#1c1917">' +
+        '🚨 <strong>911</strong> — Life emergencies<br>' +
+        '📞 <strong>(409) 267-6603</strong> — Park office<br>' +
+        '🌀 <strong>(409) 267-2500</strong> — Chambers County OEM<br>' +
+        '⚡ <strong>1-800-968-8243</strong> — Entergy outages</div>' +
+      '<h4 style="margin:0.75rem 0 0.35rem;color:#1c1917">📱 Use Phone as Hotspot:</h4>' +
+      '<div style="font-size:0.82rem;line-height:1.5;color:#44403c">' +
+        '<strong>iPhone:</strong> Settings → Personal Hotspot → Allow Others to Join<br>' +
+        '<strong>Android:</strong> Settings → Network → Hotspot → Turn On<br>' +
+        '<span style="color:#78716c">Your phone\'s data can keep the app running when WiFi is down!</span></div>' +
+      '<button onclick="document.getElementById(\'emergency-guide-overlay\').remove()" style="display:block;width:100%;margin-top:1rem;padding:0.75rem;background:#1a5c32;color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer">Got it — Continue in Offline Mode</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
 }
 
 function hideOfflineBanner() {
@@ -149,27 +196,33 @@ async function syncPendingRecords() {
   const pending = await getAllPending();
   if (!pending.length) { updateSyncBadge(); return; }
 
+  updateConnectionDot('syncing');
   let synced = 0;
   for (const item of pending) {
     try {
       const endpoint = {
-        checkin: '/tenants',
+        checkin: '/checkins/checkin',
         meter: '/meters',
         payment: '/payments',
+        expense: '/expenses',
+        water_reading: '/water-meters/readings',
+        note: '/tenants/' + (item.data?.tenant_id || 0),
       }[item.type];
       if (!endpoint) { await removePending(item.id); continue; }
-      await API.post(endpoint, item.data);
+      var method = item.type === 'note' ? 'put' : 'post';
+      if (method === 'put') await API.put(endpoint, item.data);
+      else await API.post(endpoint, item.data);
       await removePending(item.id);
       synced++;
     } catch (err) {
-      console.error(`[offline-sync] failed to sync ${item.type} #${item.id}:`, err.message);
-      // Don't remove — will retry next cycle
+      console.error('[offline-sync] failed to sync ' + item.type + ':', err.message);
     }
   }
 
   _lastSyncTime = new Date();
   updateSyncBadge();
   updateSyncStatus();
+  updateConnectionDot('online');
 
   if (synced > 0) {
     if (typeof showStatusToast === 'function') {
@@ -248,11 +301,21 @@ function patchApiForOffline() {
       }
       return result;
     }
-    // Offline: queue certain operations
-    if (url === '/tenants' || url === '/meters' || url === '/payments') {
-      const type = url === '/tenants' ? 'checkin' : url === '/meters' ? 'meter' : 'payment';
-      await addPending(type, data);
-      return { id: 'offline-' + Date.now(), offline: true };
+    // Offline: queue supported operations
+    var offlineTypes = {
+      '/checkins/checkin': 'checkin',
+      '/tenants': 'checkin',
+      '/meters': 'meter',
+      '/payments': 'payment',
+      '/expenses': 'expense',
+      '/water-meters/readings': 'water_reading',
+    };
+    for (var path in offlineTypes) {
+      if (url === path || url.startsWith(path + '/')) {
+        await addPending(offlineTypes[path], data);
+        if (typeof showStatusToast === 'function') showStatusToast('📤', 'Saved offline — will sync when connected');
+        return { id: 'offline-' + Date.now(), offline: true };
+      }
     }
     throw new Error('This action requires an internet connection.');
   };

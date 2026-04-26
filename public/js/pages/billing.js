@@ -86,7 +86,7 @@ async function loadBilling() {
     <div class="card billing-page-card">
       <div class="billing-scroll">
         <table class="billing-table">
-          <thead><tr><th>Invoice #</th><th>Lot</th><th>Tenant</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th style="width:90px">Actions</th><th>Invoice #</th><th>Lot</th><th>Tenant</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
           <tbody id="invoices-body">
             ${renderInvoiceRows(invoices)}
           </tbody>
@@ -99,7 +99,7 @@ async function loadBilling() {
 }
 
 function renderInvoiceRows(invoices) {
-  if (!invoices.length) return '<tr><td colspan="16" class="text-center">No invoices yet. Generate monthly invoices to get started.</td></tr>';
+  if (!invoices.length) return '<tr><td colspan="16" class="text-center" style="padding:2rem">No invoices yet. Generate monthly invoices to get started.</td></tr>';
   return invoices.map(inv => renderInvoiceRow(inv)).join('');
 }
 
@@ -114,8 +114,22 @@ function renderInvoiceRow(inv) {
   const _rt = _t?.rent_type || 'monthly';
   const _rtColor = { monthly:'#1a5c32', weekly:'#7c3aed', daily:'#f59e0b', prorated:'#eab308', electric_only:'#9ca3af', premium:'#1a5c32', standard:'#1a5c32' }[_rt] || '#1a5c32';
   const _isFlat = _t?.flat_rate;
+  const _paused = _t?.eviction_paused;
+  const _statusColor = _paused ? '#9ca3af' : inv.status === 'paid' ? '#16a34a' : inv.status === 'partial' ? '#f59e0b' : '#dc2626';
   return `
-    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_rtColor}">
+    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_statusColor}">
+      <td style="padding:0.25rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">
+          <button class="inv-act-btn" onclick="event.stopPropagation();viewInvoice(${inv.id})">View</button>
+          <button class="inv-act-btn" onclick="event.stopPropagation();downloadInvoicePdf(${inv.id})">PDF</button>
+          <button class="inv-act-btn" onclick="event.stopPropagation();emailInvoice(${inv.id})">Email</button>
+          <button class="inv-act-btn" onclick="event.stopPropagation();smsInvoice(${inv.id})">SMS</button>
+          ${inv.balance_due > 0.005 ? `<button class="inv-act-btn inv-act-green" onclick="event.stopPropagation();payInvoiceWithStripe(${inv.id})">Pay</button>` : ''}
+          ${invoicePauseBtnCompact(inv)}
+          <button class="inv-act-btn" onclick="event.stopPropagation();editInvoice(${inv.id})">Edit</button>
+          <button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();deleteInvoice(${inv.id})">Del</button>
+        </div>
+      </td>
       <td>${inv.invoice_number}${inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.6rem">PRORATED</span>' : ''}${_isFlat ? ' <span class="badge badge-success" style="font-size:0.6rem" title="Flat rate covers all charges including electric">FLAT RATE</span>' : ''}</td>
       <td><strong>${inv.lot_id}</strong></td>
       <td>${inv.first_name} ${inv.last_name}</td>
@@ -131,16 +145,6 @@ function renderInvoiceRow(inv) {
       <td>${formatMoney(inv.amount_paid)}</td>
       <td><strong>${formatMoney(inv.balance_due)}</strong></td>
       <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}">${inv.status}</span>${invoiceEvictionBadge(inv)}</td>
-      <td class="btn-group">
-        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); viewInvoice(${inv.id})">View</button>
-        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); downloadInvoicePdf(${inv.id})">PDF</button>
-        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); emailInvoice(${inv.id})">Email</button>
-        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); smsInvoice(${inv.id})">SMS</button>
-        ${inv.balance_due > 0.005 ? `<button class="btn btn-sm btn-success" onclick="event.stopPropagation(); payInvoiceWithStripe(${inv.id})">Pay Now</button>` : ''}
-        ${invoicePauseBtn(inv)}
-        <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); editInvoice(${inv.id})">Edit</button>
-        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteInvoice(${inv.id})">Del</button>
-      </td>
     </tr>
   `;
 }
@@ -148,6 +152,7 @@ function renderInvoiceRow(inv) {
 function renderDeletedInvoiceRow(inv) {
   return `
     <tr class="invoice-row deleted-row" data-id="${inv.id}" style="color:#9ca3af;background:#f3f4f6;font-style:italic">
+      <td style="padding:0.25rem"><button class="inv-act-btn inv-act-green" style="width:100%" onclick="restoreInvoice(${inv.id})">Restore</button></td>
       <td>${inv.invoice_number}</td>
       <td>${inv.lot_id}</td>
       <td>${inv.first_name} ${inv.last_name}</td>
@@ -163,7 +168,6 @@ function renderDeletedInvoiceRow(inv) {
       <td>${formatMoney(inv.amount_paid)}</td>
       <td>${formatMoney(inv.balance_due)}</td>
       <td><span class="badge badge-gray">deleted</span></td>
-      <td><button class="btn btn-sm btn-success" onclick="restoreInvoice(${inv.id})">Restore</button></td>
     </tr>
   `;
 }
@@ -194,6 +198,18 @@ function invoicePauseBtn(inv) {
   }
   if (t.eviction_paused) {
     return `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); resumeEviction(${t.id})">Resume</button>`;
+  }
+  return '';
+}
+
+function invoicePauseBtnCompact(inv) {
+  const t = (window._billingTenants || []).find(x => x.id === inv.tenant_id);
+  if (!t) return '';
+  if (t.eviction_warning === 1 && !t.eviction_paused && inv.balance_due > 0) {
+    return `<button class="inv-act-btn inv-act-orange" onclick="event.stopPropagation();showPauseEviction(${t.id}, '${(t.first_name + ' ' + t.last_name).replace(/'/g, "\\'")}')">Pause</button>`;
+  }
+  if (t.eviction_paused) {
+    return `<button class="inv-act-btn" onclick="event.stopPropagation();resumeEviction(${t.id})">Resume</button>`;
   }
   return '';
 }

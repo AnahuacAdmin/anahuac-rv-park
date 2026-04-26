@@ -22,9 +22,11 @@ async function loadTenants() {
     <div class="page-header">
       <h2>Tenant Management</h2>
       <div class="btn-group">
+        ${API.user?.role === 'admin' ? '<button class="btn btn-outline" onclick="showImportTenants()">📥 Import Tenants</button>' : ''}
         <button class="btn btn-outline" onclick="showRecurringFeesSummary()">Recurring Fees Summary</button>
       </div>
     </div>
+    ${API.user?.role === 'admin' ? importHelpPanelHtml() : ''}
     <div class="card scrollable-table-card">
       <div class="table-container">
         <table>
@@ -407,4 +409,429 @@ async function removeTenant(id, name) {
   if (!confirm(`Remove tenant ${name}? This will mark them as inactive and free the lot.`)) return;
   await API.del(`/tenants/${id}`);
   loadTenants();
+}
+
+// =====================================================================
+// CSV / Excel Tenant Import
+// =====================================================================
+
+// Shared "how to import" guide. Used both on the Tenants page (collapsed)
+// and embedded inside the import modal's upload step so users don't have to
+// close the wizard to re-read the steps.
+function importHelpPanelHtml() {
+  return `
+    <details class="import-help-panel" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:1rem;overflow:hidden">
+      <summary style="padding:0.6rem 0.9rem;cursor:pointer;font-size:0.88rem;color:var(--gray-700);font-weight:500;user-select:none;list-style:none;display:flex;align-items:center;gap:0.4rem">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#e0e7ff;color:#4338ca;font-size:0.72rem;font-weight:700">?</span>
+        How to import tenants
+      </summary>
+      <div style="padding:0 1rem 1rem;font-size:0.85rem;line-height:1.5;color:var(--gray-700)">
+        <ol style="padding-left:1.25rem;margin:0.85rem 0 0">
+          <li style="margin-bottom:0.85rem">
+            <strong style="color:var(--gray-900)">Step 1 — Download the template</strong><br>
+            Click <em>Download Template</em> to get a pre-formatted CSV file with the correct column headers.
+            <div style="margin-top:0.4rem">
+              <button class="btn btn-sm btn-outline" onclick="downloadImportTemplate()">⬇ Download Template</button>
+            </div>
+          </li>
+          <li style="margin-bottom:0.85rem">
+            <strong style="color:var(--gray-900)">Step 2 — Fill in your tenant data</strong><br>
+            Open in Excel or Google Sheets. One row per lot.<br>
+            <strong>Required fields:</strong> Lot Number and Full Name.<br>
+            <strong>Optional:</strong> Phone, Email, Monthly Rate, Move-in Date, Lease Type, RV Info, License Plate, Notes.
+            <div style="background:#fffbeb;border-left:3px solid #f59e0b;padding:0.4rem 0.6rem;margin-top:0.4rem;font-size:0.8rem;border-radius:0 4px 4px 0">
+              💡 <strong>Tip:</strong> Numbers only for rent (no $ sign). Dates in MM/DD/YYYY format.
+            </div>
+          </li>
+          <li style="margin-bottom:0.85rem">
+            <strong style="color:var(--gray-900)">Step 3 — Save as CSV or keep as Excel</strong><br>
+            <em>Save As CSV</em> in Excel, or <em>Download as CSV</em> from Google Sheets. Excel <code style="background:#f3f4f6;padding:1px 5px;border-radius:3px;font-size:0.78rem">.xlsx</code> files also work.
+          </li>
+          <li>
+            <strong style="color:var(--gray-900)">Step 4 — Upload your file</strong><br>
+            Click <em>Import Tenants</em>, select your file, review the column mapping, check the preview, then click <em>Import</em>.
+          </li>
+        </ol>
+      </div>
+    </details>
+  `;
+}
+
+// Target fields the importer can populate, in display order.
+var IMPORT_FIELDS = [
+  { key: 'lot_id',         label: 'Lot Number',        required: true,
+    aliases: ['lot','lotnumber','lotid','site','sitenumber','space','spacenumber','stall'] },
+  { key: 'full_name',      label: 'Tenant Full Name',  required: true,
+    aliases: ['name','fullname','tenant','tenantname','resident','residentname','customer'] },
+  { key: 'phone',          label: 'Phone Number',
+    aliases: ['phone','phonenumber','tel','telephone','mobile','cell','cellphone','contact','contactnumber'] },
+  { key: 'email',          label: 'Email Address',
+    aliases: ['email','emailaddress','mail','eaddress'] },
+  { key: 'monthly_rent',   label: 'Monthly Rate ($)',
+    aliases: ['rent','monthlyrent','monthlyrate','rate','amount','price','lotrent','monthly'] },
+  { key: 'move_in_date',   label: 'Move-In Date',
+    aliases: ['movein','moveindate','movedin','startdate','start','since','arrival'] },
+  { key: 'rent_type',      label: 'Lease Type',
+    aliases: ['leasetype','lease','ratetype','renttype','type','billing','billingtype'] },
+  { key: 'rv_make_model',  label: 'RV Make/Model',
+    aliases: ['rvmakemodel','rvmodel','rvmake','makemodel','rv','unit','rig','coach'] },
+  { key: 'rv_length',      label: 'RV Length (ft)',
+    aliases: ['rvlength','length','size','ft','feet','rvsize'] },
+  { key: 'license_plate',  label: 'License Plate',
+    aliases: ['plate','licenseplate','license','tag','tagnumber','platenumber'] },
+  { key: 'date_of_birth',  label: 'Date of Birth',
+    aliases: ['dateofbirth','dob','birthday','birthdate','birth','bday'] },
+  { key: 'notes',          label: 'Notes',
+    aliases: ['notes','note','comments','comment','memo','remarks','description'] },
+];
+
+// Parsed file state kept across the two-step wizard (file → mapping → results).
+var _importState = null;
+
+function showImportTenants() {
+  if (API.user?.role !== 'admin') { alert('Admin access required.'); return; }
+  _importState = null;
+  showModal('📥 Import Tenants', `
+    <div style="max-width:640px">
+      <p style="margin-top:0">Upload a <strong>CSV</strong> or <strong>Excel (.xlsx)</strong> file to bulk-import or update tenant records. You'll be able to map your columns to our fields and preview the data before anything is saved.</p>
+
+      ${importHelpPanelHtml()}
+
+      <div class="form-group">
+        <label><strong>Choose a file</strong></label>
+        <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls" onchange="handleImportFile(event)">
+      </div>
+
+      <div id="import-file-error" class="error-text" style="display:none"></div>
+
+      <p style="font-size:0.78rem;color:var(--gray-500);margin-top:1rem">
+        Existing tenants on a given lot will be <strong>updated</strong>. Lots with no active tenant will receive <strong>new</strong> tenant records. Only admins can run this import.
+      </p>
+    </div>
+  `);
+}
+
+async function downloadImportTemplate() {
+  try {
+    // Authenticated fetch → blob → download. Can't use a plain <a href> because
+    // the endpoint requires the bearer token.
+    const res = await fetch('/api/tenants/import/template', {
+      headers: { 'Authorization': 'Bearer ' + API.token },
+    });
+    if (!res.ok) throw new Error('Failed to download template');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tenant-import-template.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Could not download template: ' + (err.message || 'unknown error'));
+  }
+}
+
+function handleImportFile(e) {
+  var file = e.target.files && e.target.files[0];
+  var errEl = document.getElementById('import-file-error');
+  if (errEl) errEl.style.display = 'none';
+  if (!file) return;
+
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      // SheetJS handles both CSV and xlsx from a single ArrayBuffer input.
+      var data = new Uint8Array(ev.target.result);
+      var wb = XLSX.read(data, { type: 'array', cellDates: true });
+      var sheetName = wb.SheetNames[0];
+      if (!sheetName) throw new Error('No sheets found in file');
+      var sheet = wb.Sheets[sheetName];
+      // header:1 gives us a 2D array so we can treat row 0 as headers.
+      // raw:false + dateNF makes dates come through as formatted strings.
+      var aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd', defval: '' });
+      if (!aoa.length) throw new Error('File is empty');
+      var headers = (aoa[0] || []).map(function(h) { return String(h || '').trim(); });
+      var dataRows = aoa.slice(1).filter(function(r) {
+        return r.some(function(c) { return String(c || '').trim() !== ''; });
+      });
+      if (!headers.length) throw new Error('No header row detected');
+      if (!dataRows.length) throw new Error('No data rows found after the header');
+
+      _importState = { headers: headers, rows: dataRows, fileName: file.name };
+      renderImportMapping();
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = 'Could not read file: ' + (err.message || 'unknown error');
+        errEl.style.display = '';
+      }
+    }
+  };
+  reader.onerror = function() {
+    if (errEl) { errEl.textContent = 'Failed to read file.'; errEl.style.display = ''; }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function _normalizeHeader(h) {
+  return String(h || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function _autoDetectMapping(headers) {
+  // For each target field, find the first source column whose normalized name
+  // matches one of the aliases. Returns { targetKey: sourceIndex | -1 }.
+  var used = {};
+  var map = {};
+  IMPORT_FIELDS.forEach(function(f) {
+    map[f.key] = -1;
+    for (var i = 0; i < headers.length; i++) {
+      if (used[i]) continue;
+      var n = _normalizeHeader(headers[i]);
+      if (n && f.aliases.indexOf(n) !== -1) {
+        map[f.key] = i;
+        used[i] = true;
+        return;
+      }
+    }
+  });
+  return map;
+}
+
+function renderImportMapping() {
+  var s = _importState;
+  if (!s) return;
+  var auto = _autoDetectMapping(s.headers);
+  var preview = s.rows.slice(0, 5);
+
+  // Build the <option> list per-field so the `selected` flag goes on exactly
+  // the right option (avoids substring collisions like "1" matching "10").
+  var buildOptions = function(selectedIdx) {
+    var skipSel = (selectedIdx === -1) ? ' selected' : '';
+    var opts = '<option value="-1"' + skipSel + '>— (skip) —</option>';
+    for (var i = 0; i < s.headers.length; i++) {
+      var sel = (i === selectedIdx) ? ' selected' : '';
+      opts += '<option value="' + i + '"' + sel + '>' +
+        escapeHtml(s.headers[i] || '(column ' + (i + 1) + ')') + '</option>';
+    }
+    return opts;
+  };
+
+  var mappingRows = IMPORT_FIELDS.map(function(f) {
+    return '<tr>' +
+      '<td style="padding:0.35rem 0.5rem;white-space:nowrap">' +
+        '<strong>' + escapeHtml(f.label) + '</strong>' +
+        (f.required ? ' <span style="color:#dc2626;font-size:0.72rem">*required</span>' : '') +
+      '</td>' +
+      '<td style="padding:0.35rem 0.5rem">' +
+        '<select data-target="' + f.key + '" style="width:100%;padding:0.3rem">' +
+          buildOptions(auto[f.key]) +
+        '</select>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  var previewHead = '<tr>' + s.headers.map(function(h) {
+    return '<th style="padding:0.3rem 0.5rem;background:#f3f4f6;font-size:0.75rem">' + escapeHtml(h || '') + '</th>';
+  }).join('') + '</tr>';
+
+  var previewBody = preview.map(function(row) {
+    return '<tr>' + s.headers.map(function(_, i) {
+      var v = row[i];
+      return '<td style="padding:0.25rem 0.5rem;font-size:0.78rem;border-top:1px solid #e5e7eb">' +
+        escapeHtml(v == null ? '' : String(v)) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+
+  showModal('📥 Import Tenants — Step 2: Map Columns', `
+    <div style="max-width:900px">
+      <p style="margin-top:0">File: <strong>${escapeHtml(s.fileName)}</strong> — <strong>${s.rows.length}</strong> row${s.rows.length === 1 ? '' : 's'} detected.</p>
+
+      <h4 style="margin-bottom:0.35rem">Column Mapping</h4>
+      <p style="margin:0 0 0.5rem;font-size:0.8rem;color:var(--gray-500)">Match each of our fields to a column in your file. We've auto-detected matches by column name — adjust as needed.</p>
+
+      <div style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;margin-bottom:1rem">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:#f9fafb">
+              <th style="text-align:left;padding:0.4rem 0.5rem;font-size:0.8rem">Our Field</th>
+              <th style="text-align:left;padding:0.4rem 0.5rem;font-size:0.8rem">Your Column</th>
+            </tr>
+          </thead>
+          <tbody>${mappingRows}</tbody>
+        </table>
+      </div>
+
+      <h4 style="margin-bottom:0.35rem">Preview (first 5 rows)</h4>
+      <div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:6px;max-height:240px;overflow-y:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>${previewHead}</thead>
+          <tbody>${previewBody}</tbody>
+        </table>
+      </div>
+
+      <div id="import-mapping-error" class="error-text" style="display:none;margin-top:0.75rem"></div>
+
+      <div class="btn-group" style="margin-top:1rem;display:flex;gap:0.5rem;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="showImportTenants()">← Back</button>
+        <button class="btn btn-primary" onclick="confirmImportTenants()">Import ${s.rows.length} Row${s.rows.length === 1 ? '' : 's'}</button>
+      </div>
+    </div>
+  `);
+}
+
+async function confirmImportTenants() {
+  var s = _importState;
+  if (!s) return;
+  var errEl = document.getElementById('import-mapping-error');
+  if (errEl) errEl.style.display = 'none';
+
+  // Collect current select values.
+  var mapping = {};
+  document.querySelectorAll('select[data-target]').forEach(function(sel) {
+    mapping[sel.getAttribute('data-target')] = parseInt(sel.value, 10);
+  });
+
+  // Enforce required-field mapping.
+  var missing = IMPORT_FIELDS.filter(function(f) { return f.required && (mapping[f.key] === -1 || isNaN(mapping[f.key])); });
+  if (missing.length) {
+    if (errEl) {
+      errEl.textContent = 'Please map the required field(s): ' + missing.map(function(f) { return f.label; }).join(', ');
+      errEl.style.display = '';
+    }
+    return;
+  }
+
+  // Prevent the same source column being assigned to multiple targets.
+  var usedCols = {};
+  var dup = null;
+  Object.keys(mapping).forEach(function(k) {
+    var v = mapping[k];
+    if (v === -1 || isNaN(v)) return;
+    if (usedCols[v]) dup = v;
+    else usedCols[v] = k;
+  });
+  if (dup !== null) {
+    if (errEl) {
+      errEl.textContent = 'Column "' + (s.headers[dup] || '(unnamed)') + '" is mapped to more than one field. Each column can only map to one field.';
+      errEl.style.display = '';
+    }
+    return;
+  }
+
+  // Build the payload rows using the mapping.
+  var payloadRows = s.rows.map(function(row) {
+    var obj = {};
+    IMPORT_FIELDS.forEach(function(f) {
+      var idx = mapping[f.key];
+      if (idx === -1 || isNaN(idx)) return;
+      var v = row[idx];
+      obj[f.key] = v == null ? '' : String(v).trim();
+    });
+    return obj;
+  });
+
+  // Show a lightweight loading state on the confirm button.
+  var btns = document.querySelectorAll('.modal-footer .btn, .btn-group .btn');
+  btns.forEach(function(b) { b.disabled = true; });
+
+  try {
+    var result = await API.post('/tenants/import', { rows: payloadRows });
+    renderImportResults(result);
+    // Refresh the tenants list in the background so closing the modal shows new data.
+    loadTenants();
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = 'Import failed: ' + (err.message || 'unknown error');
+      errEl.style.display = '';
+    }
+    btns.forEach(function(b) { b.disabled = false; });
+  }
+}
+
+function renderImportResults(result) {
+  var imported = result.imported || 0;
+  var errs = result.errors || [];
+  var details = result.details || [];
+  var created = details.filter(function(d) { return d.action === 'created'; }).length;
+  var updated = details.filter(function(d) { return d.action === 'updated'; }).length;
+
+  // Stash errors for the CSV download.
+  window._importErrors = errs;
+
+  var summary =
+    '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem">' +
+      '<div style="flex:1;min-width:140px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:0.75rem;text-align:center">' +
+        '<div style="font-size:1.75rem;font-weight:800;color:#047857">' + imported + '</div>' +
+        '<div style="font-size:0.78rem;color:#065f46">imported successfully</div>' +
+        '<div style="font-size:0.7rem;color:#059669;margin-top:0.2rem">' + created + ' created · ' + updated + ' updated</div>' +
+      '</div>' +
+      '<div style="flex:1;min-width:140px;background:' + (errs.length ? '#fef2f2' : '#f9fafb') + ';border:1px solid ' + (errs.length ? '#fecaca' : '#e5e7eb') + ';border-radius:6px;padding:0.75rem;text-align:center">' +
+        '<div style="font-size:1.75rem;font-weight:800;color:' + (errs.length ? '#b91c1c' : '#6b7280') + '">' + errs.length + '</div>' +
+        '<div style="font-size:0.78rem;color:' + (errs.length ? '#991b1b' : '#6b7280') + '">row' + (errs.length === 1 ? '' : 's') + ' with errors</div>' +
+      '</div>' +
+    '</div>';
+
+  var errorList = '';
+  if (errs.length) {
+    errorList =
+      '<h4 style="margin-bottom:0.35rem">Errors</h4>' +
+      '<div style="overflow-x:auto;border:1px solid #fecaca;border-radius:6px;max-height:260px;overflow-y:auto">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:0.8rem">' +
+          '<thead><tr style="background:#fef2f2">' +
+            '<th style="padding:0.35rem 0.5rem;text-align:left">Row</th>' +
+            '<th style="padding:0.35rem 0.5rem;text-align:left">Lot</th>' +
+            '<th style="padding:0.35rem 0.5rem;text-align:left">Name</th>' +
+            '<th style="padding:0.35rem 0.5rem;text-align:left">Reason</th>' +
+          '</tr></thead>' +
+          '<tbody>' +
+            errs.map(function(e) {
+              return '<tr style="border-top:1px solid #fee2e2">' +
+                '<td style="padding:0.3rem 0.5rem">' + (e.row || '') + '</td>' +
+                '<td style="padding:0.3rem 0.5rem">' + escapeHtml(e.lot_id || '') + '</td>' +
+                '<td style="padding:0.3rem 0.5rem">' + escapeHtml(e.name || '') + '</td>' +
+                '<td style="padding:0.3rem 0.5rem;color:#991b1b">' + escapeHtml(e.error || '') + '</td>' +
+              '</tr>';
+            }).join('') +
+          '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div style="margin-top:0.5rem">' +
+        '<button class="btn btn-sm btn-outline" onclick="downloadImportErrorReport()">⬇ Download Error Report (CSV)</button>' +
+      '</div>';
+  }
+
+  showModal('📥 Import Tenants — Results', `
+    <div style="max-width:720px">
+      ${summary}
+      ${errorList}
+      <div class="btn-group" style="margin-top:1.25rem;display:flex;gap:0.5rem;justify-content:flex-end">
+        <button class="btn btn-primary" onclick="closeModal()">Done</button>
+      </div>
+    </div>
+  `);
+}
+
+function downloadImportErrorReport() {
+  var errs = window._importErrors || [];
+  if (!errs.length) return;
+  var csvCell = function(v) {
+    var s = String(v == null ? '' : v);
+    // Escape quotes per RFC 4180 and wrap if the cell contains delimiters.
+    if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+  var lines = ['Row,Lot,Name,Error'];
+  errs.forEach(function(e) {
+    lines.push([e.row || '', e.lot_id || '', e.name || '', e.error || ''].map(csvCell).join(','));
+  });
+  var blob = new Blob([lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'tenant-import-errors-' + new Date().toISOString().split('T')[0] + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
