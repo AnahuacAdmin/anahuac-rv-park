@@ -513,14 +513,7 @@ async function initializeDatabase() {
     )
   `);
 
-  // One-shot cleanup: remove lot A6 if it still exists from the old seed.
-  try {
-    const a6 = db.exec("SELECT id FROM lots WHERE id = 'A6'");
-    if (a6.length && a6[0].values.length) {
-      db.run("DELETE FROM lots WHERE id = 'A6'");
-      console.log('Migration: deleted lot A6');
-    }
-  } catch (e) { /* table may not exist yet on a brand-new DB */ }
+  // A6 is a valid lot — old migration that deleted it has been removed.
 
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
