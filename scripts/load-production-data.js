@@ -29,14 +29,14 @@ async function main() {
   // =========================================================
   const lotStatuses = {
     A1: 'owner_reserved', A2: 'occupied', A3: 'occupied', A4: 'occupied',
-    A5: 'occupied', A6: 'occupied', A7: 'occupied', A8: 'occupied', A9: 'occupied',
+    A5: 'occupied',
     B1: 'owner_reserved', B2: 'occupied', B3: 'vacant', B4: 'occupied',
     C1: 'vacant', C2: 'vacant', C3: 'occupied',
     D1: 'vacant', D2: 'vacant', D3: 'occupied',
     E1: 'occupied', E2: 'occupied', E3: 'occupied', E4: 'occupied',
     F1: 'occupied', F2: 'occupied', F3: 'occupied', F4: 'vacant', F5: 'occupied',
     G1: 'occupied', G2: 'occupied', G3: 'occupied', G4: 'occupied', G5: 'occupied',
-    H1: 'vacant', H2: 'occupied',
+    H1: 'vacant', H2: 'occupied', H3: 'occupied', H4: 'occupied', H5: 'occupied', H6: 'occupied',
   };
   for (const [lotId, status] of Object.entries(lotStatuses)) {
     db.prepare('UPDATE lots SET status = ? WHERE id = ?').run(status, lotId);
@@ -49,9 +49,9 @@ async function main() {
       db.prepare('DELETE FROM lots WHERE id = ?').run(id);
     }
   }
-  // Ensure A6-A9 lots exist (may not be in seed data)
+  // Ensure H3-H6 lots exist (may not be in seed data)
   const ensureLots = [
-    ['A6', 'A', 6], ['A7', 'A', 7], ['A8', 'A', 8], ['A9', 'A', 9],
+    ['H3', 'H', 3], ['H4', 'H', 4], ['H5', 'H', 5], ['H6', 'H', 6],
   ];
   for (const [id, row, num] of ensureLots) {
     const exists = db.prepare('SELECT id FROM lots WHERE id = ?').get(id);
@@ -76,10 +76,10 @@ async function main() {
     ['A3', 'Curtis & Nicole', 'McKinzy', 295, 'standard', '2026-01-01', 1, null, 5, 0, null, 200, 0],
     ['A4', 'Fredrick', 'Tham',       295, 'standard', '2026-01-01', 1, '$25 credit for help mowing spaces', 5, 25, 'Mowing credit', 200, 0],
     ['A5', 'Ruth', 'Morrison',       295, 'standard', '2026-01-01', 1, 'Overpayment credit $0.75 from prev month', 0, 0.75, 'Overpayment prev month', 0, 1],
-    ['A6', 'Justin', 'Martin',       295, 'standard', '2026-01-01', 1, null, 0, 0, null, 200, 0],
-    ['A7', 'Aislinn', 'Nygaard',     350, 'standard', '2026-01-01', 1, '$4 unpaid balance from prev month', 0, 0, null, 0, 1],
-    ['A8', 'Shawna', 'Nygaard',      350, 'standard', '2026-01-01', 1, 'Overpayment credit $23.55 from prev month', 5, 23.55, 'Overpayment prev month', 0, 1],
-    ['A9', 'Jolie', 'Hebert',        375, 'standard', '2026-01-01', 1, null, 5, 0, null, 200, 0],
+    ['H3', 'Justin', 'Martin',       295, 'standard', '2026-01-01', 1, null, 0, 0, null, 200, 0],
+    ['H4', 'Aislinn', 'Nygaard',     350, 'standard', '2026-01-01', 1, '$4 unpaid balance from prev month', 0, 0, null, 0, 1],
+    ['H5', 'Shawna', 'Nygaard',      350, 'standard', '2026-01-01', 1, 'Overpayment credit $23.55 from prev month', 5, 23.55, 'Overpayment prev month', 0, 1],
+    ['H6', 'Jolie', 'Hebert',        375, 'standard', '2026-01-01', 1, null, 5, 0, null, 200, 0],
     ['B1', 'Henry', '(Owner)',        0,   'electric_only', '2026-01-01', 1, 'Owner/management space', 0, 0, null, 0, 1],
     ['B2', 'David', 'Carroll',        295, 'standard', '2026-01-01', 1, null, 0, 0, null, 0, 1],
     ['B4', 'Michael & Fanci', 'Hebert', 295, 'standard', '2026-01-01', 1, null, 0, 0, null, 200, 0],
@@ -116,8 +116,8 @@ async function main() {
   const readings = [
     // [lot_id, prev, curr]
     ['A1', 21371, 21411], ['A2', 14954, 14954], ['A3', 57336, 57884],
-    ['A4', 37435, 37641], ['A5', 69085, 69218], ['A6', 33235, 33888],
-    ['A7', 44260, 45493], ['A8', 65910, 67051], ['A9', 21953, 22429],
+    ['A4', 37435, 37641], ['A5', 69085, 69218],
+    ['H3', 33235, 33888], ['H4', 44260, 45493], ['H5', 65910, 67051], ['H6', 21953, 22429],
     ['B1', 33714, 34012], ['B2', 20855, 21720], ['B3', 19141, 19141],
     ['B4', 49812, 50441], ['C1', 53701, 53730], ['C2', 48406, 48468],
     ['C3', 93636, 94155], ['D1', 46287, 46294], ['D2', 20581, 20581],
@@ -156,10 +156,10 @@ async function main() {
     ['A3', 295, 82.20,  5, 0,  null,              0,     382.20],
     ['A4', 295, 30.90,  5, 0,  null,              25,    305.90],
     ['A5', 295, 19.95,  0, 0,  null,              0.75,  314.20],
-    ['A6', 295, 97.95,  0, 0,  null,              0,     392.95],
-    ['A7', 350, 184.95, 0, 4,  'Unpaid prev balance', 0, 538.95],
-    ['A8', 350, 171.15, 5, 0,  null,              23.55, 502.60],
-    ['A9', 375, 71.40,  5, 0,  null,              0,     451.40],
+    ['H3', 295, 97.95,  0, 0,  null,              0,     392.95],
+    ['H4', 350, 184.95, 0, 4,  'Unpaid prev balance', 0, 538.95],
+    ['H5', 350, 171.15, 5, 0,  null,              23.55, 502.60],
+    ['H6', 375, 71.40,  5, 0,  null,              0,     451.40],
     ['B1', 0,   44.70,  0, 0,  null,              0,     44.70],
     ['B2', 295, 129.75, 0, 0,  null,              0,     424.75],
     ['B4', 295, 94.35,  0, 0,  null,              0,     389.35],

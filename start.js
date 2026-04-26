@@ -3,14 +3,14 @@ const { execSync } = require('child_process');
 const path = require('path');
 
 try {
-  console.log('[start] Running production data load...');
-  execSync('node ' + path.join(__dirname, 'scripts', 'load-production-data.js'), {
+  console.log('[start] Running lot fix script...');
+  execSync('node ' + path.join(__dirname, 'scripts', 'fix-lots.js'), {
     stdio: 'inherit',
     cwd: __dirname
   });
-  console.log('[start] Load complete, starting server...');
+  console.log('[start] Fix complete, starting server...');
 } catch (err) {
-  console.error('[start] Load script failed:', err.message);
+  console.error('[start] Fix script failed:', err.message);
   console.error('[start] Starting server anyway...');
 }
 
