@@ -263,6 +263,15 @@ async function loadDashboard() {
     </div>` : ''}
 
     ${isAdmin() ? `
+    <div class="card dash-fade-in" style="animation-delay:0.795s">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <h3 style="margin:0">💚 Tenant Credits</h3>
+        <span id="dash-credits-total" style="font-weight:700;color:#16a34a"></span>
+      </div>
+      <div id="dash-credits" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+    </div>` : ''}
+
+    ${isAdmin() ? `
     <div style="display:flex;gap:0.75rem;flex-wrap:wrap;width:100%;max-width:100%">
       <div class="card dash-fade-in" style="flex:1;min-width:200px;animation-delay:0.8s">
         <h3>💰 Deposit Summary</h3>
@@ -452,6 +461,7 @@ async function loadDashboard() {
     window._healthInterval = setInterval(refreshHealth, 5 * 60 * 1000);
     // Load dashboard widgets
     loadDashVendors();
+    loadDashCredits();
     loadDashDeposits();
     loadDashMaintenance();
     loadDashExpenses();
@@ -492,6 +502,29 @@ async function loadDashReviews() {
   } catch {
     el.innerHTML = '<span style="color:var(--gray-400)">Could not load review data</span>';
   }
+}
+
+async function loadDashCredits() {
+  var el = document.getElementById('dash-credits');
+  var totalEl = document.getElementById('dash-credits-total');
+  if (!el) return;
+  try {
+    var data = await API.get('/credits/summary');
+    if (totalEl) totalEl.textContent = formatMoney(data.total) + ' total';
+    if (!data.tenants || data.tenants.length === 0) {
+      el.innerHTML = '<span style="color:var(--gray-400)">No tenants have credit balances.</span>';
+      if (totalEl) totalEl.textContent = '$0.00';
+      return;
+    }
+    el.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:0.85rem">' +
+      '<thead><tr style="border-bottom:1px solid var(--gray-200)"><th style="text-align:left;padding:0.3rem">Tenant</th><th style="text-align:left;padding:0.3rem">Lot</th><th style="text-align:right;padding:0.3rem">Credit</th></tr></thead>' +
+      '<tbody>' + data.tenants.map(function(t) {
+        return '<tr style="border-bottom:1px solid var(--gray-100)">' +
+          '<td style="padding:0.3rem"><a href="#" onclick="event.preventDefault();navigateTo(\'tenants\')" style="color:var(--brand-primary);font-weight:600">' + escapeHtml(t.first_name + ' ' + t.last_name) + '</a></td>' +
+          '<td style="padding:0.3rem">' + escapeHtml(t.lot_id) + '</td>' +
+          '<td style="padding:0.3rem;text-align:right;font-weight:700;color:#16a34a">' + formatMoney(t.credit_balance) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  } catch { el.innerHTML = '<span style="color:var(--gray-400)">Failed to load.</span>'; }
 }
 
 async function loadDashDeposits() {

@@ -156,6 +156,34 @@ function tenantForm(lots, tenant = {}) {
         </div>
       ` : ''}
 
+      ${tenant.id ? `
+      <fieldset style="border:2px solid ${Number(tenant.credit_balance) > 0 ? '#16a34a' : Number(tenant.balance_due) > 0 ? '#dc2626' : '#d1d5db'};padding:0.75rem;margin:0.75rem 0;border-radius:8px">
+        <legend><strong>Account Balance</strong></legend>
+        <div style="display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap">
+          <div>
+            <div style="font-size:0.8rem;color:var(--gray-500)">Outstanding Balance</div>
+            <div style="font-size:1.2rem;font-weight:700;color:${Number(tenant.balance_due) > 0 ? '#dc2626' : '#16a34a'}">${Number(tenant.balance_due) > 0 ? formatMoney(tenant.balance_due) + ' owed' : '$0.00 — paid up'}</div>
+          </div>
+          <div>
+            <div style="font-size:0.8rem;color:var(--gray-500)">Credit on File</div>
+            <div style="font-size:1.2rem;font-weight:700;color:${Number(tenant.credit_balance) > 0 ? '#16a34a' : 'var(--gray-400)'}">
+              ${Number(tenant.credit_balance) > 0 ? formatMoney(tenant.credit_balance) + ' credit' : '$0.00'}
+            </div>
+          </div>
+        </div>
+        ${Number(tenant.credit_balance) > 0 ? `
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem">
+          <button type="button" class="btn btn-sm btn-outline" style="color:#16a34a;border-color:#16a34a" onclick="showApplyCredit(${tenant.id}, ${tenant.credit_balance}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Apply to Invoice</button>
+          <button type="button" class="btn btn-sm btn-outline" style="color:#dc2626;border-color:#dc2626" onclick="showRefundCredit(${tenant.id}, ${tenant.credit_balance}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Refund</button>
+          <button type="button" class="btn btn-sm btn-outline" style="color:#0284c7;border-color:#0284c7" onclick="showTransferCredit(${tenant.id}, ${tenant.credit_balance}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`, '${tenant.lot_id}')">Transfer to Another Tenant</button>
+        </div>
+        ` : ''}
+        <div style="margin-top:0.75rem">
+          <button type="button" class="btn btn-sm btn-outline" onclick="showCreditHistory(${tenant.id}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">View Credit History</button>
+        </div>
+      </fieldset>
+      ` : ''}
+
       <fieldset style="border:1px solid #16a34a;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
         <legend><strong style="color:#16a34a">Flat Rate Billing</strong></legend>
         <p><small>When enabled, one fixed monthly amount covers rent + electric + all fees. No separate electric charge.</small></p>
@@ -874,4 +902,238 @@ async function promptTenantReview(tenantId, tenantName) {
       }
     });
   }, 100);
+}
+
+// === CREDIT MANAGEMENT MODALS ===
+
+async function showTransferCredit(tenantId, creditBalance, tenantName, lotId) {
+  var tenants = await API.get('/tenants');
+  var others = tenants.filter(function(t) { return t.id !== tenantId && t.is_active; });
+  showModal('Transfer Credit', `
+    <div style="margin-bottom:1rem">
+      <div style="font-size:0.85rem;color:var(--gray-500)">From</div>
+      <div style="font-weight:700">${escapeHtml(tenantName)} — Lot ${escapeHtml(lotId)}</div>
+      <div style="color:#16a34a;font-weight:600">Credit available: ${formatMoney(creditBalance)}</div>
+    </div>
+    <form id="transfer-credit-form">
+      <div class="form-group">
+        <label>Transfer to Tenant</label>
+        <select name="to_tenant_id" required>
+          <option value="">Select tenant...</option>
+          ${others.map(function(t) { return '<option value="' + t.id + '">' + t.lot_id + ' - ' + t.first_name + ' ' + t.last_name + '</option>'; }).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount to Transfer ($)</label>
+        <input name="amount" type="number" step="0.01" min="0.01" max="${creditBalance}" value="${creditBalance.toFixed(2)}" inputmode="decimal" required>
+      </div>
+      <div class="form-group">
+        <label>Reason <span style="font-weight:400;color:var(--gray-400)">(optional)</span></label>
+        <textarea name="reason" placeholder="e.g. Parent paying for child at H4"></textarea>
+      </div>
+      <p id="transfer-error" class="error-text" style="display:none"></p>
+      <div class="btn-group mt-2">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Transfer</button>
+      </div>
+    </form>
+  `);
+  setTimeout(function() {
+    var form = document.getElementById('transfer-credit-form');
+    if (form) form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var fd = new FormData(form);
+      var errEl = document.getElementById('transfer-error');
+      try {
+        var r = await API.post('/credits/transfer', {
+          from_tenant_id: tenantId,
+          to_tenant_id: parseInt(fd.get('to_tenant_id')),
+          amount: parseFloat(fd.get('amount')),
+          reason: fd.get('reason') || '',
+        });
+        closeModal();
+        showStatusToast('✅', 'Transferred ' + formatMoney(r.transferred) + ' from ' + r.from.name + ' to ' + r.to.name);
+        loadTenants();
+      } catch (err) {
+        if (errEl) { errEl.textContent = err.message || 'Transfer failed'; errEl.style.display = ''; }
+      }
+    });
+  }, 50);
+}
+
+async function showRefundCredit(tenantId, creditBalance, tenantName) {
+  showModal('Refund Credit', `
+    <div style="margin-bottom:1rem">
+      <div style="font-weight:700">${escapeHtml(tenantName)}</div>
+      <div style="color:#16a34a;font-weight:600">Credit available: ${formatMoney(creditBalance)}</div>
+    </div>
+    <form id="refund-credit-form">
+      <div class="form-group">
+        <label>Refund Amount ($)</label>
+        <input name="amount" type="number" step="0.01" min="0.01" max="${creditBalance}" value="${creditBalance.toFixed(2)}" inputmode="decimal" required>
+      </div>
+      <div class="form-group">
+        <label>Refund Method</label>
+        <select name="payment_method">
+          <option value="cash">Cash</option>
+          <option value="check">Check</option>
+          <option value="card">Card</option>
+          <option value="zelle">Zelle</option>
+          <option value="venmo">Venmo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Reference # <span style="font-weight:400;color:var(--gray-400)">(optional)</span></label>
+        <input name="reference_number" placeholder="Check number, etc.">
+      </div>
+      <div class="form-group">
+        <label>Reason <span style="font-weight:400;color:var(--gray-400)">(optional)</span></label>
+        <input name="reason" placeholder="e.g. Tenant requested cash refund">
+      </div>
+      <p id="refund-error" class="error-text" style="display:none"></p>
+      <div class="btn-group mt-2">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background:#dc2626;border-color:#dc2626">Refund</button>
+      </div>
+    </form>
+  `);
+  setTimeout(function() {
+    var form = document.getElementById('refund-credit-form');
+    if (form) form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var fd = new FormData(form);
+      var errEl = document.getElementById('refund-error');
+      try {
+        var r = await API.post('/credits/refund', {
+          tenant_id: tenantId,
+          amount: parseFloat(fd.get('amount')),
+          payment_method: fd.get('payment_method'),
+          reference_number: fd.get('reference_number') || '',
+          reason: fd.get('reason') || '',
+        });
+        closeModal();
+        showStatusToast('✅', 'Refunded ' + formatMoney(r.refunded) + '. New credit balance: ' + formatMoney(r.new_balance));
+        loadTenants();
+      } catch (err) {
+        if (errEl) { errEl.textContent = err.message || 'Refund failed'; errEl.style.display = ''; }
+      }
+    });
+  }, 50);
+}
+
+async function showApplyCredit(tenantId, creditBalance, tenantName) {
+  var invoices = [];
+  try {
+    var all = await API.get('/invoices?tenant_id=' + tenantId);
+    invoices = all.filter(function(inv) { return inv.status !== 'paid' && !inv.deleted && Number(inv.balance_due) > 0; });
+  } catch (e) {}
+
+  if (invoices.length === 0) {
+    showStatusToast('ℹ️', 'No unpaid invoices to apply credit to.');
+    return;
+  }
+
+  showModal('Apply Credit to Invoice', `
+    <div style="margin-bottom:1rem">
+      <div style="font-weight:700">${escapeHtml(tenantName)}</div>
+      <div style="color:#16a34a;font-weight:600">Credit available: ${formatMoney(creditBalance)}</div>
+    </div>
+    <form id="apply-credit-form">
+      <div class="form-group">
+        <label>Invoice</label>
+        <select name="invoice_id" id="apply-credit-invoice" required>
+          ${invoices.map(function(inv) { return '<option value="' + inv.id + '" data-balance="' + inv.balance_due + '">' + (inv.invoice_number || 'Invoice #' + inv.id) + ' — ' + formatMoney(inv.balance_due) + ' due</option>'; }).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount to Apply ($)</label>
+        <input name="amount" id="apply-credit-amount" type="number" step="0.01" min="0.01" inputmode="decimal" required>
+      </div>
+      <div id="apply-credit-calc" style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.85rem;color:#1e40af;margin-bottom:0.5rem"></div>
+      <p id="apply-credit-error" class="error-text" style="display:none"></p>
+      <div class="btn-group mt-2">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background:#16a34a;border-color:#16a34a">Apply Credit</button>
+      </div>
+    </form>
+  `);
+  setTimeout(function() {
+    var invSelect = document.getElementById('apply-credit-invoice');
+    var amtInput = document.getElementById('apply-credit-amount');
+    function updateCalc() {
+      var opt = invSelect.selectedOptions[0];
+      var invBal = opt ? parseFloat(opt.dataset.balance) : 0;
+      var maxApply = Math.min(creditBalance, invBal);
+      amtInput.max = maxApply;
+      if (!amtInput.value) amtInput.value = maxApply.toFixed(2);
+      var amt = parseFloat(amtInput.value) || 0;
+      var applied = Math.min(amt, maxApply);
+      var calc = document.getElementById('apply-credit-calc');
+      if (calc) {
+        var remInv = Math.max(0, invBal - applied);
+        var remCredit = Math.max(0, creditBalance - applied);
+        calc.innerHTML = 'After applying: Invoice balance <strong>' + formatMoney(remInv) + '</strong> | Remaining credit <strong>' + formatMoney(remCredit) + '</strong>';
+      }
+    }
+    updateCalc();
+    if (invSelect) invSelect.addEventListener('change', updateCalc);
+    if (amtInput) amtInput.addEventListener('input', updateCalc);
+
+    var form = document.getElementById('apply-credit-form');
+    if (form) form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var fd = new FormData(form);
+      var errEl = document.getElementById('apply-credit-error');
+      try {
+        var r = await API.post('/credits/apply-to-invoice', {
+          tenant_id: tenantId,
+          invoice_id: parseInt(fd.get('invoice_id')),
+          amount: parseFloat(fd.get('amount')),
+        });
+        closeModal();
+        showStatusToast('✅', 'Applied ' + formatMoney(r.applied) + ' credit. Invoice balance: ' + formatMoney(r.new_invoice_balance));
+        loadTenants();
+      } catch (err) {
+        if (errEl) { errEl.textContent = err.message || 'Failed'; errEl.style.display = ''; }
+      }
+    });
+  }, 50);
+}
+
+async function showCreditHistory(tenantId, tenantName) {
+  var history = [];
+  try { history = await API.get('/credits/history/' + tenantId); } catch (e) {}
+  var typeLabels = {
+    overpayment: '💰 Overpayment',
+    transfer_in: '📥 Transfer In',
+    transfer_out: '📤 Transfer Out',
+    applied_to_invoice: '📋 Applied to Invoice',
+    refund: '💸 Refund',
+    hold_as_credit: '🏦 Held as Credit',
+    manual_add: '➕ Manual Adjustment',
+  };
+  showModal('Credit History — ' + tenantName, `
+    <div style="max-height:400px;overflow-y:auto">
+      ${history.length === 0 ? '<p style="color:var(--gray-400);text-align:center;padding:1rem">No credit transactions recorded yet.</p>' : `
+      <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+        <thead><tr style="border-bottom:2px solid var(--gray-200)">
+          <th style="text-align:left;padding:0.4rem">Date</th>
+          <th style="text-align:left;padding:0.4rem">Type</th>
+          <th style="text-align:right;padding:0.4rem">Amount</th>
+          <th style="text-align:left;padding:0.4rem">Details</th>
+        </tr></thead>
+        <tbody>
+          ${history.map(function(h) {
+            var isPositive = h.amount > 0;
+            return '<tr style="border-bottom:1px solid var(--gray-100)">' +
+              '<td style="padding:0.4rem;white-space:nowrap">' + formatDate(h.created_at) + '</td>' +
+              '<td style="padding:0.4rem">' + (typeLabels[h.transaction_type] || h.transaction_type) + '</td>' +
+              '<td style="padding:0.4rem;text-align:right;font-weight:600;color:' + (isPositive ? '#16a34a' : '#dc2626') + '">' + (isPositive ? '+' : '') + formatMoney(Math.abs(h.amount)) + '</td>' +
+              '<td style="padding:0.4rem;font-size:0.78rem;color:var(--gray-500)">' + escapeHtml(h.notes || '') + (h.related_tenant_name ? ' (' + escapeHtml(h.related_tenant_name) + ')' : '') + '</td>' +
+              '</tr>';
+          }).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `);
 }

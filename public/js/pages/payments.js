@@ -80,6 +80,7 @@ async function showRecordPayment() {
         </div>
         <div class="form-group"><label>Reference #</label><input name="reference_number"></div>
       </div>
+      <div id="payment-overpay-preview" style="display:none"></div>
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
       <div class="form-group">
         <label style="display:flex;align-items:center;gap:0.5rem;font-weight:500">
@@ -99,25 +100,77 @@ function filterPaymentInvoices(tenantId) {
     opt.style.display = opt.dataset.tenant === tenantId ? '' : 'none';
   });
   select.value = '';
+  updatePaymentPreview();
 }
+
+function updatePaymentPreview() {
+  var preview = document.getElementById('payment-overpay-preview');
+  if (!preview) return;
+  var invSelect = document.getElementById('payment-invoice-select');
+  var amtInput = document.querySelector('form [name="amount"]');
+  if (!invSelect || !amtInput) return;
+
+  var amount = parseFloat(amtInput.value) || 0;
+  var invOpt = invSelect.selectedOptions[0];
+  if (!invOpt || !invOpt.value || amount <= 0) { preview.style.display = 'none'; return; }
+
+  // Parse balance from option text "INV-xxx - $295.00 due"
+  var match = invOpt.textContent.match(/\$([\d,]+\.?\d*)\s+due/);
+  var invoiceDue = match ? parseFloat(match[1].replace(',', '')) : 0;
+  if (invoiceDue <= 0) { preview.style.display = 'none'; return; }
+
+  if (amount > invoiceDue + 0.005) {
+    var overage = +(amount - invoiceDue).toFixed(2);
+    preview.style.display = '';
+    preview.innerHTML = `
+      <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem;margin-bottom:0.75rem">
+        <div style="font-size:0.85rem;margin-bottom:0.5rem">
+          <strong>Invoice Total:</strong> ${formatMoney(invoiceDue)}<br>
+          <strong>Payment Amount:</strong> ${formatMoney(amount)}<br>
+          <strong>Overage:</strong> <span style="color:#16a34a;font-weight:700">${formatMoney(overage)}</span>
+        </div>
+        <div style="font-size:0.85rem;font-weight:600;margin-bottom:0.5rem">Apply to:</div>
+        <label style="display:flex;align-items:center;gap:0.35rem;padding:0.4rem 0;cursor:pointer;font-size:0.85rem">
+          <input type="radio" name="hold_as_credit" value="" checked> Pay this invoice + credit overage (${formatMoney(overage)})
+        </label>
+        <label style="display:flex;align-items:center;gap:0.35rem;padding:0.4rem 0;cursor:pointer;font-size:0.85rem">
+          <input type="radio" name="hold_as_credit" value="1"> Hold full ${formatMoney(amount)} as credit (no invoice paid)
+        </label>
+      </div>`;
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+// Wire amount/invoice change to update preview
+document.addEventListener('change', function(e) {
+  if (e.target.name === 'amount' || e.target.id === 'payment-invoice-select') updatePaymentPreview();
+});
+document.addEventListener('input', function(e) {
+  if (e.target.name === 'amount') updatePaymentPreview();
+});
 
 async function savePayment(e) {
   e.preventDefault();
   const form = new FormData(e.target);
+  var holdAsCredit = form.get('hold_as_credit') === '1';
   const data = {
     tenant_id: parseInt(form.get('tenant_id')),
-    invoice_id: form.get('invoice_id') ? parseInt(form.get('invoice_id')) : null,
+    invoice_id: holdAsCredit ? null : (form.get('invoice_id') ? parseInt(form.get('invoice_id')) : null),
     payment_date: form.get('payment_date'),
     amount: parseFloat(form.get('amount')),
     payment_method: form.get('payment_method'),
     reference_number: form.get('reference_number'),
     notes: form.get('notes'),
     send_sms_receipt: form.get('send_sms_receipt') === '1',
+    hold_as_credit: holdAsCredit,
   };
   try {
     const r = await API.post('/payments', data);
     closeModal();
-    if (r?.overpayment > 0) {
+    if (r?.held_as_credit > 0) {
+      showCelebration('💚🏦', `${formatMoney(r.held_as_credit)} held as tenant credit!`);
+    } else if (r?.overpayment > 0) {
       showCelebration('🎉💚', `Overpayment of ${formatMoney(r.overpayment)} added as credit!`);
     } else {
       showCelebration('💰🎉', 'Payment Recorded!');

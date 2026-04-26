@@ -183,6 +183,9 @@ router.post('/checkout', async (req, res) => {
       if (invBalance < -0.005) {
         const overpay = +Math.abs(invBalance).toFixed(2);
         db.prepare('UPDATE tenants SET credit_balance = credit_balance + ? WHERE id = ?').run(overpay, tenant_id);
+        db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, invoice_id, notes)
+          VALUES (?, 'overpayment', ?, ?, ?)`).run(tenant_id, overpay, payment_invoice_id,
+          `Overpayment of $${overpay.toFixed(2)} at checkout`);
       }
 
       // Clear eviction flags if fully paid

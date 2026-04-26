@@ -113,16 +113,42 @@ router.get('/tenant/:tenantId', (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes, send_sms_receipt } = req.body;
+  const { tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes, send_sms_receipt, hold_as_credit } = req.body;
+
+  let newBalance = null;
+  let invoiceNumber = null;
+  let overpayment = 0;
+
+  // "Hold as credit" mode: entire amount goes to credit balance, no invoice paid
+  if (hold_as_credit) {
+    const creditAmount = +Number(amount).toFixed(2);
+    db.prepare('UPDATE tenants SET credit_balance = credit_balance + ? WHERE id = ?').run(creditAmount, tenant_id);
+    const payResult = db.prepare(`
+      INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(tenant_id, payment_date, creditAmount, payment_method, reference_number, (notes ? notes + ' — ' : '') + 'Held as tenant credit');
+    db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, payment_id, notes)
+      VALUES (?, 'hold_as_credit', ?, ?, ?)`).run(tenant_id, creditAmount, payResult.lastInsertRowid,
+      `$${creditAmount.toFixed(2)} held as credit via ${payment_method || 'cash'}`);
+
+    // SMS receipt
+    let smsResult = null;
+    try {
+      const tenant = db.prepare('SELECT first_name, phone FROM tenants WHERE id = ?').get(tenant_id);
+      if (tenant?.phone) {
+        const body = `Payment Received - Anahuac RV Park\nAmount: $${creditAmount.toFixed(2)} (held as account credit)\nMethod: ${payment_method || 'N/A'}\nDate: ${payment_date}\nThank you! Questions? Call 409-267-6603`;
+        await sendSms(tenant.phone, body);
+        smsResult = { sent: true };
+      }
+    } catch (e) { smsResult = { sent: false, reason: e.message }; }
+
+    return res.json({ id: payResult.lastInsertRowid, smsReceipt: smsResult, overpayment: 0, held_as_credit: creditAmount });
+  }
 
   const result = db.prepare(`
     INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes);
-
-  let newBalance = null;
-  let invoiceNumber = null;
-  let overpayment = 0;
 
   // Update invoice if linked
   if (invoice_id) {
@@ -139,6 +165,9 @@ router.post('/', async (req, res) => {
     if (balance < -0.005) {
       overpayment = +Math.abs(balance).toFixed(2);
       db.prepare('UPDATE tenants SET credit_balance = credit_balance + ? WHERE id = ?').run(overpayment, tenant_id);
+      db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, payment_id, invoice_id, notes)
+        VALUES (?, 'overpayment', ?, ?, ?, ?)`).run(tenant_id, overpayment, result.lastInsertRowid, invoice_id,
+        `Overpayment of $${overpayment.toFixed(2)} on ${invoiceNumber || 'invoice #' + invoice_id}`);
       console.log(`[payments] overpayment of $${overpayment} added as credit to tenant ${tenant_id}`);
     }
 

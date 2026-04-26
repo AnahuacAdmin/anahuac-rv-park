@@ -499,6 +499,18 @@ async function initializeDatabase() {
     status TEXT DEFAULT 'sent'
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS credit_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER NOT NULL,
+    transaction_type TEXT NOT NULL,
+    amount REAL NOT NULL,
+    related_tenant_id INTEGER,
+    invoice_id INTEGER,
+    payment_id INTEGER,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   addCol("ALTER TABLE lots ADD COLUMN lot_type TEXT DEFAULT 'standard'");
   addCol("ALTER TABLE lots ADD COLUMN amenities TEXT");
   addCol("ALTER TABLE lots ADD COLUMN default_rate REAL DEFAULT 295");

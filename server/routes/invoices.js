@@ -483,12 +483,17 @@ router.post('/generate', (req, res) => {
         db.prepare('UPDATE tenants SET credit_balance = credit_balance - ? WHERE id = ?').run(creditApplied, tenant.id);
       }
       const total = +(flatAmount - creditApplied).toFixed(2);
-      db.prepare(`
+      const flatInvResult = db.prepare(`
         INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
           rent_amount, electric_amount, subtotal, total_amount, balance_due, status, notes, credit_applied)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'pending', ?, ?)
       `).run(tenant.id, tenant.lot_id, invoiceNum, startDate, dueDate, startDate, endDate,
         flatAmount, flatAmount, total, total, 'Flat rate — all-inclusive', creditApplied);
+      if (creditApplied > 0) {
+        db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, invoice_id, notes)
+          VALUES (?, 'applied_to_invoice', ?, ?, ?)`).run(tenant.id, -creditApplied, flatInvResult.lastInsertRowid,
+          `$${creditApplied.toFixed(2)} credit applied to ${invoiceNum} (flat rate)`);
+      }
       generated.push(tenant.lot_id);
       continue; // skip the normal calculation below
     }
@@ -524,7 +529,7 @@ router.post('/generate', (req, res) => {
     }
     const total = +(totalBeforeCredit - creditApplied).toFixed(2);
 
-    db.prepare(`
+    const stdInvResult = db.prepare(`
       INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
         rent_amount, electric_amount, mailbox_fee, misc_fee, misc_description,
         refund_amount, refund_description, late_fee, subtotal, total_amount, balance_due, status, notes, credit_applied)
@@ -532,6 +537,11 @@ router.post('/generate', (req, res) => {
     `).run(tenant.id, tenant.lot_id, invoiceNum, startDate, dueDate, startDate, endDate,
       rentAmount, electricAmount, mailbox, misc, tenant.recurring_misc_description,
       credit, tenant.recurring_credit_description, lateFee, subtotal, total, total, combinedNotes, creditApplied);
+    if (creditApplied > 0) {
+      db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, invoice_id, notes)
+        VALUES (?, 'applied_to_invoice', ?, ?, ?)`).run(tenant.id, -creditApplied, stdInvResult.lastInsertRowid,
+        `$${creditApplied.toFixed(2)} credit applied to ${invoiceNum}`);
+    }
     generated.push(tenant.lot_id);
   }
 
