@@ -1250,23 +1250,38 @@ document.addEventListener('DOMContentLoaded', () => {
     history.replaceState({}, '', location.pathname);
   }
 
-  // Auto-login if token exists
+  // Auto-login if token exists — validate first, fall back to login screen if expired
   if (API.token) {
-    document.getElementById('login-screen').style.display = 'none';
-    document.body.classList.remove('login-page');
-    var rb2 = document.getElementById('refreshBtn');
-    if (rb2) { rb2.style.display = 'flex'; rb2.onclick = function() { location.reload(); }; }
-    wirePortalButton();
-    applyBranding();
-    // Check if first-time setup wizard should show
     (async function() {
-      if (typeof shouldShowSetupWizard === 'function') {
-        var needsWizard = await shouldShowSetupWizard();
-        if (needsWizard) { showSetupWizard(); return; }
+      try {
+        // Validate token with a lightweight authenticated request
+        var check = await API.get('/settings');
+        if (!check) throw new Error('Token expired');
+        // Token valid — proceed
+        document.getElementById('login-screen').style.display = 'none';
+        document.body.classList.remove('login-page');
+        var rb2 = document.getElementById('refreshBtn');
+        if (rb2) { rb2.style.display = 'flex'; rb2.onclick = function() { location.reload(); }; }
+        wirePortalButton();
+        applyBranding();
+        if (typeof shouldShowSetupWizard === 'function') {
+          var needsWizard = await shouldShowSetupWizard();
+          if (needsWizard) { showSetupWizard(); return; }
+        }
+        injectMainApp();
+        document.getElementById('main-app').style.display = '';
+        navigateTo('dashboard');
+      } catch (e) {
+        // Token expired or invalid — show login screen
+        console.warn('[auto-login] token invalid, showing login:', e.message);
+        API.token = null;
+        localStorage.removeItem('rv_token');
+        localStorage.removeItem('rv_user');
+        document.getElementById('login-screen').style.display = '';
+        document.body.classList.add('login-page');
+        // Hide post-login buttons
+        document.querySelectorAll('.post-login-btn').forEach(function(b) { b.style.display = 'none'; });
       }
-      injectMainApp();
-      document.getElementById('main-app').style.display = '';
-      navigateTo('dashboard');
     })();
   }
 });
