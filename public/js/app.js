@@ -235,7 +235,7 @@ function celebrateTenantCheckIn(firstName, lotId) {
 let _toastTimer = null;
 let _toastSafetyTimer = null;
 
-function showStatusToast(emoji, text, autoDismissMs = 4000) {
+function showStatusToast(emoji, text, autoDismissMs = 8000) {
   let el = document.getElementById('status-toast');
   if (!el) {
     el = document.createElement('div');
@@ -259,8 +259,8 @@ function showStatusToast(emoji, text, autoDismissMs = 4000) {
   if (autoDismissMs >= 0) {
     _toastTimer = setTimeout(function() { dismissToast(); }, autoDismissMs);
   }
-  // SAFETY NET: no toast survives longer than 8 seconds, period
-  _toastSafetyTimer = setTimeout(function() { dismissToast(); }, 8000);
+  // SAFETY NET: no toast survives longer than 12 seconds, period
+  _toastSafetyTimer = setTimeout(function() { dismissToast(); }, 12000);
   return {
     update: function(newEmoji, newText, resetTimer) {
       if (resetTimer === undefined) resetTimer = true;
@@ -269,8 +269,8 @@ function showStatusToast(emoji, text, autoDismissMs = 4000) {
       if (resetTimer) {
         clearTimeout(_toastTimer);
         clearTimeout(_toastSafetyTimer);
-        _toastTimer = setTimeout(function() { dismissToast(); }, autoDismissMs >= 0 ? autoDismissMs : 4000);
-        _toastSafetyTimer = setTimeout(function() { dismissToast(); }, 8000);
+        _toastTimer = setTimeout(function() { dismissToast(); }, autoDismissMs >= 0 ? autoDismissMs : 8000);
+        _toastSafetyTimer = setTimeout(function() { dismissToast(); }, 12000);
       }
     },
     hide: function(delay) {

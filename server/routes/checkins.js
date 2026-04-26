@@ -58,8 +58,10 @@ router.post('/checkin', (req, res) => {
   }
 });
 
-router.post('/checkout', (req, res) => {
-  const { tenant_id, lot_id, check_out_date, notes, deposit_action, deduction_amount, deduction_reason } = req.body;
+router.post('/checkout', async (req, res) => {
+  try {
+  const { tenant_id, lot_id, check_out_date, notes, deposit_action, deduction_amount, deduction_reason,
+    payment_amount, payment_method, payment_invoice_id, payment_reference } = req.body;
 
   db.prepare(`
     UPDATE checkins SET check_out_date = ?, status = 'checked_out', notes = ?
@@ -158,6 +160,57 @@ router.post('/checkout', (req, res) => {
     };
   }
 
+  // Final Payment at checkout
+  let paymentRecorded = null;
+  let smsResult = null;
+  if (payment_amount && payment_amount > 0 && payment_method) {
+    const payResult = db.prepare(
+      'INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(tenant_id, payment_invoice_id || null, check_out_date, payment_amount, payment_method, payment_reference || null, 'Payment recorded at checkout');
+
+    paymentRecorded = payment_amount;
+
+    // Update invoice if linked
+    if (payment_invoice_id) {
+      const totalPaid = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoice_id = ?').get(payment_invoice_id);
+      const invoice = db.prepare('SELECT total_amount FROM invoices WHERE id = ?').get(payment_invoice_id);
+      const invBalance = (invoice?.total_amount || 0) - totalPaid.total;
+      const invStatus = invBalance <= 0.005 ? 'paid' : 'partial';
+      db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
+        .run(totalPaid.total, Math.max(0, invBalance), invStatus, payment_invoice_id);
+
+      // Overpayment → tenant credit
+      if (invBalance < -0.005) {
+        const overpay = +Math.abs(invBalance).toFixed(2);
+        db.prepare('UPDATE tenants SET credit_balance = credit_balance + ? WHERE id = ?').run(overpay, tenant_id);
+      }
+
+      // Clear eviction flags if fully paid
+      if (invBalance <= 0.005) {
+        const unpaid = db.prepare(
+          "SELECT COUNT(*) as cnt FROM invoices WHERE tenant_id = ? AND balance_due > 0.005 AND status IN ('pending','partial') AND COALESCE(deleted,0) = 0"
+        ).get(tenant_id);
+        if (!unpaid || unpaid.cnt === 0) {
+          db.prepare('UPDATE tenants SET eviction_warning = 0, eviction_notified = 0, eviction_paused = 0, eviction_pause_note = NULL WHERE id = ?').run(tenant_id);
+        }
+      }
+    }
+
+    // Auto-send SMS receipt (non-blocking)
+    try {
+      if (tenant?.phone) {
+        const remBal = Math.max(0, (db.prepare('SELECT balance_due FROM invoices WHERE id = ?').get(payment_invoice_id)?.balance_due || 0));
+        const balStr = payment_invoice_id ? `$${remBal.toFixed(2)}` : 'N/A';
+        const body = `Payment Received - Anahuac RV Park\nAmount: $${Number(payment_amount).toFixed(2)}\nMethod: ${payment_method}\nDate: ${check_out_date}\nRemaining Balance: ${balStr}\nThank you! Questions? Call 409-267-6603`;
+        await sendSms(tenant.phone, body);
+        smsResult = { sent: true };
+      }
+    } catch (e) {
+      console.error('[checkout] sms receipt failed:', e);
+      smsResult = { sent: false, reason: e.message };
+    }
+  }
+
   res.json({
     success: true,
     statement,
@@ -165,7 +218,13 @@ router.post('/checkout', (req, res) => {
     tenant_name: tenant ? `${tenant.first_name} ${tenant.last_name}` : null,
     tenant_phone: tenant?.phone || null,
     tenant_email: tenant?.email || null,
+    payment_recorded: paymentRecorded,
+    sms_receipt: smsResult,
   });
+  } catch (err) {
+    console.error('[checkins] checkout failed:', err);
+    res.status(500).json({ error: 'Check-out failed: ' + err.message });
+  }
 });
 
 // Send welcome SMS (two messages) to a newly checked-in tenant.

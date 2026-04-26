@@ -562,9 +562,12 @@ async function showCheckOut() {
       <div class="form-group"><label>Check-Out Date</label><input name="check_out_date" type="date" value="${new Date().toISOString().split('T')[0]}" required></div>
 
       <div id="deposit-section" style="display:none"></div>
+      <div id="payment-section" style="display:none"></div>
 
       <div class="form-group"><label>Notes</label><textarea name="notes" placeholder="Any additional notes about this checkout..."></textarea></div>
-      <button type="submit" class="btn btn-warning btn-full mt-2">Check Out</button>
+      <div style="position:sticky;bottom:0;background:#fff;padding:0.5rem 0;z-index:10">
+        <button type="submit" class="btn btn-warning btn-full" style="min-height:48px;font-size:1rem">Check Out</button>
+      </div>
       <p id="checkout-error" class="error-text" style="display:none"></p>
     </form>
   `);
@@ -652,6 +655,106 @@ function checkoutSelected(sel) {
       'If a deposit was collected, go to <em>Tenants → Edit ' + escapeHtml(tName) + ' → Deposit Paid</em> first, then return here.' +
       '</div>';
   }
+
+  // Render Final Payment section
+  renderCheckoutPaymentSection(tid);
+}
+
+async function renderCheckoutPaymentSection(tenantId) {
+  var paySection = document.getElementById('payment-section');
+  if (!paySection) return;
+
+  // Fetch unpaid invoices for this tenant
+  var invoices = [];
+  try {
+    var allInv = await API.get('/invoices?tenant_id=' + tenantId);
+    invoices = allInv.filter(function(inv) { return inv.status !== 'paid' && !inv.deleted && Number(inv.balance_due) > 0; });
+  } catch (e) { console.error('[checkout] failed to load invoices:', e); }
+
+  if (invoices.length === 0) {
+    paySection.style.display = '';
+    paySection.innerHTML = '<div style="background:#f0fdf4;border:1px solid #dcfce7;border-radius:8px;padding:0.65rem 0.75rem;font-size:0.82rem;color:#166534;margin-bottom:0.5rem">' +
+      '✅ <strong>No outstanding balance.</strong> No payment needed at checkout.</div>';
+    return;
+  }
+
+  var totalOwed = invoices.reduce(function(sum, inv) { return sum + Number(inv.balance_due); }, 0);
+
+  paySection.style.display = '';
+  paySection.innerHTML = `
+    <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+      <legend><strong>Final Payment</strong></legend>
+      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.85rem;color:#92400e;margin-bottom:0.75rem">
+        Outstanding balance: <strong>${formatMoney(totalOwed)}</strong>
+      </div>
+      <div class="form-group">
+        <label>Apply to Invoice</label>
+        <select name="payment_invoice_id" id="checkout-invoice-select">
+          ${invoices.length === 1
+            ? `<option value="${invoices[0].id}">${invoices[0].invoice_number || 'Invoice #' + invoices[0].id} — ${formatMoney(invoices[0].balance_due)} due</option>`
+            : `<option value="">Select invoice...</option>${invoices.map(function(inv) { return '<option value="' + inv.id + '">' + (inv.invoice_number || 'Invoice #' + inv.id) + ' — ' + formatMoney(inv.balance_due) + ' due</option>'; }).join('')}`
+          }
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Payment Amount ($)</label>
+        <input name="payment_amount" id="checkout-payment-amount" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00" style="font-size:1.1rem;font-weight:600">
+      </div>
+      <div class="form-group">
+        <label>Payment Method</label>
+        <div id="payment-method-radios" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem">
+          ${['Cash','Check','Card','Zelle','Venmo','Other'].map(function(m) {
+            return '<label style="display:flex;align-items:center;gap:0.35rem;padding:0.5rem 0.75rem;border:1px solid var(--gray-300);border-radius:8px;cursor:pointer;min-height:48px;font-size:0.9rem">' +
+              '<input type="radio" name="payment_method" value="' + m + '"> ' + m + '</label>';
+          }).join('')}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Reference # <span style="font-weight:400;color:var(--gray-400)">(optional)</span></label>
+        <input name="payment_reference" placeholder="Check number, transaction ID, etc.">
+      </div>
+      <div id="checkout-balance-calc" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.9rem;color:#1e40af;margin-top:0.5rem"></div>
+    </fieldset>
+  `;
+
+  // Wire events
+  setTimeout(function() {
+    var amtInput = document.getElementById('checkout-payment-amount');
+    var invSelect = document.getElementById('checkout-invoice-select');
+    if (amtInput) amtInput.addEventListener('input', function() { updateCheckoutBalanceCalc(invoices); });
+    if (invSelect) invSelect.addEventListener('change', function() { updateCheckoutBalanceCalc(invoices); });
+    // Auto-select single invoice and pre-fill amount
+    if (invoices.length === 1) {
+      if (amtInput) amtInput.value = Number(invoices[0].balance_due).toFixed(2);
+      updateCheckoutBalanceCalc(invoices);
+    }
+  }, 50);
+}
+
+function updateCheckoutBalanceCalc(invoices) {
+  var amtInput = document.getElementById('checkout-payment-amount');
+  var invSelect = document.getElementById('checkout-invoice-select');
+  var calcEl = document.getElementById('checkout-balance-calc');
+  if (!amtInput || !calcEl) return;
+
+  var amount = parseFloat(amtInput.value) || 0;
+  var invId = invSelect ? invSelect.value : '';
+  if (amount <= 0 || !invId) { calcEl.style.display = 'none'; return; }
+
+  var inv = invoices.find(function(i) { return String(i.id) === invId; });
+  if (!inv) { calcEl.style.display = 'none'; return; }
+
+  var invBalance = Number(inv.balance_due);
+  var remaining = Math.max(0, invBalance - amount);
+  calcEl.style.display = '';
+  if (remaining <= 0.005) {
+    calcEl.innerHTML = '✅ This payment <strong>fully covers</strong> the invoice balance of ' + formatMoney(invBalance);
+    if (amount > invBalance + 0.005) {
+      calcEl.innerHTML += '<br>⚠️ Overpayment of <strong>' + formatMoney(amount - invBalance) + '</strong> will be added as tenant credit.';
+    }
+  } else {
+    calcEl.innerHTML = 'After payment: <strong>' + formatMoney(remaining) + '</strong> remaining on this invoice.';
+  }
 }
 
 function updateDepositCalc(sel, deposit, balance) {
@@ -674,6 +777,18 @@ async function processCheckOut(e) {
   const errEl = document.getElementById('checkout-error');
   if (errEl) errEl.style.display = 'none';
   try {
+    var paymentAmount = parseFloat(form.get('payment_amount')) || 0;
+    var paymentMethod = form.get('payment_method') || null;
+    var paymentInvoiceId = form.get('payment_invoice_id') ? parseInt(form.get('payment_invoice_id')) : null;
+    var paymentReference = form.get('payment_reference') || null;
+
+    // Validate: if amount entered, method is required
+    if (paymentAmount > 0 && !paymentMethod) {
+      var errEl2 = document.getElementById('checkout-error');
+      if (errEl2) { errEl2.textContent = 'Please select a payment method.'; errEl2.style.display = ''; }
+      return;
+    }
+
     const result = await API.post('/checkins/checkout', {
       tenant_id: parseInt(form.get('tenant_id')),
       lot_id: form.get('lot_id'),
@@ -682,9 +797,16 @@ async function processCheckOut(e) {
       deposit_action: form.get('deposit_action') || null,
       deduction_amount: parseFloat(form.get('deduction_amount')) || 0,
       deduction_reason: form.get('deduction_reason') || null,
+      payment_amount: paymentAmount > 0 ? paymentAmount : null,
+      payment_method: paymentMethod,
+      payment_invoice_id: paymentInvoiceId,
+      payment_reference: paymentReference,
     });
     closeModal();
-    showStatusToast('✅', "Tenant checked out! Don't forget to collect keys/access cards.");
+    var toastMsg = "Tenant checked out!";
+    if (result.payment_recorded) toastMsg += " Payment of " + formatMoney(result.payment_recorded) + " recorded.";
+    toastMsg += " Don't forget to collect keys/access cards.";
+    showStatusToast('✅', toastMsg);
 
     // Show Move-Out Statement if deposit was settled
     if (result.statement) {
