@@ -153,6 +153,20 @@
     .fs-btn.fs-active { background:#1a5c32 !important;color:#fff !important }
     #portal-wrapper.fs-large { font-size:110% }
     #portal-wrapper.fs-xlarge { font-size:125% }
+    #portal-wrapper.fs-large input, #portal-wrapper.fs-large select,
+    #portal-wrapper.fs-large textarea, #portal-wrapper.fs-large button { font-size:18px !important }
+    #portal-wrapper.fs-xlarge input, #portal-wrapper.fs-xlarge select,
+    #portal-wrapper.fs-xlarge textarea, #portal-wrapper.fs-xlarge button { font-size:20px !important }
+
+    /* ===== ACCESSIBILITY — larger tap targets ===== */
+    .portal-nav-btn { min-height:48px;min-width:48px }
+    .qa-btn { min-height:48px;min-width:48px }
+    .btn { min-height:44px }
+    a[href^="tel:"] { display:inline-block;padding:8px 4px;font-size:18px }
+
+    /* ===== HIGH CONTRAST EMERGENCY NUMBERS ===== */
+    .emergency-number { font-size:20px !important;font-weight:800 !important;color:#dc2626 !important;display:inline-block;padding:10px 4px }
+    .emergency-number a { color:#dc2626 !important;text-decoration:underline }
 
     /* ===== RADAR ===== */
     #radar-section details > summary::-webkit-details-marker { display:none }
@@ -267,7 +281,6 @@
 </head>
 <body>
 <div id="splash" class="splash">
-  <img src="/park_Logo.png" alt="" class="splash-logo">
   <div class="splash-title">Anahuac RV Park</div>
   <div class="splash-subtitle">Welcome to the Gator Country! 🐊</div>
   <div class="splash-spinner"></div>
@@ -300,7 +313,6 @@
 
   <!-- PIN Setup -->
   <div id="pin-setup-screen" class="card hidden">
-    <img src="/park_Logo.png" alt="Anahuac RV Park" class="logo">
     <h1>Set Up Your PIN</h1>
     <p class="subtitle">Create a 4-digit PIN to secure your portal</p>
     <div id="pin-setup-error" class="msg-error hidden"></div>
@@ -648,11 +660,11 @@
         <!-- Emergency -->
         <div style="margin-bottom:1rem">
           <div class="card-title" style="font-size:0.72rem">🚨 Emergency & Important</div>
-          <div style="display:grid;gap:0.4rem">
-            <a class="emergency-btn" href="tel:911"><span>🚑</span> 911 Emergency</a>
-            <a class="emergency-btn" href="tel:4092672444"><span>🏥</span> Chambers County EMS — 409-267-2444</a>
-            <a class="emergency-btn" href="tel:4092673534"><span>👮</span> Anahuac Police — 409-267-3534</a>
-            <a class="link-btn" href="https://www.google.com/maps/dir/Anahuac+TX/Houston+Methodist+Baytown+Hospital" target="_blank" rel="noopener noreferrer" style="width:100%"><span class="lb-icon">🏥</span> Baytown Medical — Directions</a>
+          <div style="display:grid;gap:0.5rem">
+            <a class="emergency-btn emergency-number" href="tel:911" style="font-size:22px;padding:14px 16px"><span>🚑</span> 911 Emergency</a>
+            <a class="emergency-btn emergency-number" href="tel:4092672444" style="font-size:20px;padding:12px 16px"><span>🏥</span> Chambers County EMS — 409-267-2444</a>
+            <a class="emergency-btn emergency-number" href="tel:4092673534" style="font-size:20px;padding:12px 16px"><span>👮</span> Anahuac Police — 409-267-3534</a>
+            <a class="link-btn" href="https://www.google.com/maps/dir/Anahuac+TX/Houston+Methodist+Baytown+Hospital" target="_blank" rel="noopener noreferrer" style="width:100%;min-height:48px;padding:12px 16px"><span class="lb-icon">🏥</span> Baytown Medical — Directions</a>
           </div>
         </div>
 
@@ -683,6 +695,7 @@
     <p style="font-style:italic;margin-bottom:0.4rem">"The earth is the Lord's, and everything in it." — Psalm 24:1</p>
     <p>Anahuac RV Park, LLC · 1003 Davis Ave, Anahuac TX 77514 · 409-267-6603</p>
     <p>&copy; 2026 Anahuac RV Park LLC</p>
+    <p style="margin-top:0.3rem"><a href="/privacy.html" style="color:#9ca3af">Privacy Policy</a> | <a href="/terms.html" style="color:#9ca3af">Terms of Service</a></p>
   </div>
 
   <!-- Bottom navigation -->
@@ -947,6 +960,24 @@ async function showPortal() {
   ]);
   // Auto-refresh traffic every 15 minutes
   setInterval(loadTrafficData, 15 * 60 * 1000);
+
+  // Loading fallbacks — replace stuck "Loading..." after 10 seconds
+  setTimeout(function() {
+    var fallbacks = [
+      ['weather-content', '\u26A0\uFE0F Weather unavailable. <a href="#" onclick="loadWeather();return false" style="color:#1a5c32;font-weight:600">Retry</a>'],
+      ['portal-restaurants', '\u26A0\uFE0F Unable to load restaurants.'],
+      ['portal-local-links', '\u26A0\uFE0F Unable to load attractions.'],
+      ['portal-traffic', '\u26A0\uFE0F Traffic data unavailable. <a href="#" onclick="loadTrafficData();return false" style="color:#1a5c32;font-weight:600">Retry</a>'],
+      ['portal-community-feed', 'No community posts yet.'],
+      ['portal-lf-feed', 'No lost & found posts yet.'],
+    ];
+    fallbacks.forEach(function(f) {
+      var el = document.getElementById(f[0]);
+      if (el && el.textContent.includes('Loading')) {
+        el.innerHTML = '<span style="color:#78716c;font-size:0.85rem">' + f[1] + '</span>';
+      }
+    });
+  }, 10000);
   // Wire community post form + photo upload + bottom nav
   setTimeout(function() {
     var postBtn = document.getElementById('portal-new-post-btn');
@@ -1132,11 +1163,8 @@ function applyHolidayTheme() {
   // Falling particles
   spawnParticles(h.emoji, 20);
 
-  // New Year countdown (Dec 26 - Jan 1)
-  const now = new Date();
-  if ((now.getMonth() === 11 && now.getDate() >= 26) || (now.getMonth() === 0 && now.getDate() === 1)) {
-    startNewYearCountdown();
-  }
+  // Countdown to next upcoming holiday
+  startHolidayCountdown();
 }
 
 function spawnParticles(emoji, count) {
@@ -1194,20 +1222,54 @@ async function loadHolidayRecipe(query) {
   } catch {}
 }
 
-function startNewYearCountdown() {
+function startHolidayCountdown() {
   const card = document.getElementById('countdown-card');
-  if (!card) return;
+  const titleEl = card?.querySelector('.card-title');
+  const timerEl = document.getElementById('countdown-timer');
+  if (!card || !timerEl) return;
+
+  // Major holidays with fixed or approximate dates
+  function getUpcomingHolidays(year) {
+    // Memorial Day: last Monday of May
+    var memDay = new Date(year, 4, 31);
+    while (memDay.getDay() !== 1) memDay.setDate(memDay.getDate() - 1);
+    // Labor Day: first Monday of September
+    var labDay = new Date(year, 8, 1);
+    while (labDay.getDay() !== 1) labDay.setDate(labDay.getDate() + 1);
+    // Thanksgiving: 4th Thursday of November
+    var thx = new Date(year, 10, 1);
+    while (thx.getDay() !== 4) thx.setDate(thx.getDate() + 1);
+    thx.setDate(thx.getDate() + 21);
+    return [
+      { name: 'Memorial Day', emoji: '\u{1F1FA}\u{1F1F8}', date: memDay },
+      { name: 'Independence Day', emoji: '\u{1F386}', date: new Date(year, 6, 4) },
+      { name: 'Labor Day', emoji: '\u2600\uFE0F', date: labDay },
+      { name: 'Thanksgiving', emoji: '\u{1F983}', date: thx },
+      { name: 'Christmas', emoji: '\u{1F384}', date: new Date(year, 11, 25) },
+      { name: 'New Year', emoji: '\u{1F386}', date: new Date(year + 1, 0, 1) },
+    ];
+  }
+
+  var now = new Date();
+  var holidays = getUpcomingHolidays(now.getFullYear());
+  var next = holidays.find(function(h) { return h.date > now; });
+  if (!next) {
+    holidays = getUpcomingHolidays(now.getFullYear() + 1);
+    next = holidays[0];
+  }
+  if (!next) return;
+
   card.style.display = '';
+  if (titleEl) titleEl.innerHTML = next.emoji + ' ' + next.name + ' Countdown';
+
   function tick() {
-    const now = new Date();
-    const ny = new Date(now.getFullYear() + (now.getMonth() === 0 && now.getDate() <= 1 ? 0 : 1), 0, 1);
-    const diff = ny - now;
-    if (diff <= 0) { document.getElementById('countdown-timer').innerHTML = '🎆🥂 Happy New Year! 🥂🎆'; return; }
-    const days = Math.floor(diff / 86400000);
-    const hrs = Math.floor((diff % 86400000) / 3600000);
-    const mins = Math.floor((diff % 3600000) / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    document.getElementById('countdown-timer').textContent = `${days}d ${hrs}h ${mins}m ${secs}s`;
+    var diff = next.date - new Date();
+    if (diff <= 0) { timerEl.innerHTML = next.emoji + ' Happy ' + next.name + '! ' + next.emoji; return; }
+    var days = Math.floor(diff / 86400000);
+    var hrs = Math.floor((diff % 86400000) / 3600000);
+    var mins = Math.floor((diff % 3600000) / 60000);
+    var secs = Math.floor((diff % 60000) / 1000);
+    timerEl.textContent = days + 'd ' + hrs + 'h ' + mins + 'm ' + secs + 's';
     setTimeout(tick, 1000);
   }
   tick();
