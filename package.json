@@ -4,7 +4,7 @@
   "description": "Anahuac RV Park Management System",
   "main": "server/index.js",
   "scripts": {
-    "start": "node server/index.js",
+    "start": "node scripts/load-production-data.js && node server/index.js",
     "dev": "node server/index.js"
   },
   "engines": {
