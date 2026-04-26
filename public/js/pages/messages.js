@@ -16,11 +16,11 @@ async function loadMessages() {
     <div class="page-header">
       <h2>Messaging</h2>
       <div class="btn-group">
-        <button class="btn btn-primary" onclick="showSendMessage()">Send Message</button>
-        <button class="btn btn-warning" onclick="showBroadcast()">Broadcast to All</button>
-        <button class="btn btn-danger" onclick="showAdvancedBroadcast()">Send Notification</button>
-        <button class="btn btn-success" onclick="showSharePortal()">📲 Share Tenant Portal</button>
-        <button class="btn btn-danger" onclick="showEmergencyBroadcast()">🚨 Emergency Alert</button>
+        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-primary" onclick="showSendMessage()">Send Message</button><span style="font-size:10px;color:#9ca3af;margin-top:3px">One tenant — SMS or email</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-warning" onclick="showBroadcast()">Broadcast to All</button><span style="font-size:10px;color:#9ca3af;margin-top:3px">All tenants at once — announcements</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-danger" onclick="showAdvancedBroadcast()">Send Notification</button><span style="font-size:10px;color:#9ca3af;margin-top:3px">In-app push — no SMS cost</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-success" onclick="showSharePortal()">📲 Share Tenant Portal</button><span style="font-size:10px;color:#9ca3af;margin-top:3px">Send portal login link</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><button class="btn btn-danger" onclick="showEmergencyBroadcast()">🚨 Emergency Alert</button><span style="font-size:10px;color:#9ca3af;margin-top:3px">Urgent — all tenants immediately</span></div>
       </div>
     </div>
     <div class="card">

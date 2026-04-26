@@ -13,10 +13,7 @@ async function loadMessageLog() {
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <h2>Message Log</h2>
-      <div class="btn-group">
-        <button class="btn btn-outline" onclick="cleanupBirthdayDupes()">Clean Up Birthday Duplicates</button>
-        <button class="btn btn-primary" onclick="loadMessageLog()">Refresh</button>
-      </div>
+      <button class="btn btn-primary" onclick="loadMessageLog()">Refresh</button>
     </div>
     <div class="card">
       <div class="form-row" style="margin-bottom:1rem;gap:0.75rem;align-items:flex-end">
@@ -108,13 +105,3 @@ async function loadMessageLogTable() {
   }
 }
 
-async function cleanupBirthdayDupes() {
-  if (!confirm('This will remove duplicate birthday messages from the messages table, keeping only one per person per date. Continue?')) return;
-  try {
-    var r = await API.post('/admin/cleanup-birthday-dupes', {});
-    showStatusToast('OK', 'Cleaned up ' + (r.deleted || 0) + ' duplicate birthday messages');
-    loadMessageLogTable();
-  } catch (err) {
-    alert('Cleanup failed: ' + (err.message || 'unknown'));
-  }
-}

@@ -144,21 +144,4 @@ router.get('/message-log', requireAdmin, (req, res) => {
   }
 });
 
-// Clean up duplicate birthday messages from the messages table (one-time or on-demand)
-router.post('/cleanup-birthday-dupes', requireAdmin, (req, res) => {
-  try {
-    // Keep only the first birthday message per tenant per date
-    const dupes = db.prepare(`
-      DELETE FROM messages WHERE id NOT IN (
-        SELECT MIN(id) FROM messages
-        WHERE message_type = 'birthday'
-        GROUP BY tenant_id, date(sent_date)
-      ) AND message_type = 'birthday'
-    `).run();
-    res.json({ deleted: dupes.changes });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 module.exports = router;
