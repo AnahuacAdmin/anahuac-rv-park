@@ -21,7 +21,7 @@ async function loadMeters() {
     <div class="card scrollable-table-card">
       <div class="table-container">
         <table>
-          <thead><tr><th>Lot</th><th>Tenant</th><th>Date</th><th>Previous</th><th>Current</th><th>Prev Photo</th><th>Curr Photo</th><th>kWh</th><th>Charge</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Lot</th><th>Guest</th><th>Date</th><th>Previous</th><th>Current</th><th>Prev Photo</th><th>Curr Photo</th><th>kWh</th><th>Charge</th><th>Actions</th></tr></thead>
           <tbody>
             ${readings.map(r => {
               var tenantName = escapeHtml(r.first_name + ' ' + r.last_name);
@@ -146,9 +146,9 @@ async function showAddReading() {
   showModal('New Meter Reading', `
     <form onsubmit="saveReading(event)">
       <div class="form-group">
-        <label>Tenant / Lot</label>
+        <label>Guest / Lot</label>
         <select name="tenant_select" required onchange="meterTenantSelected(this)">
-          <option value="">Select tenant...</option>
+          <option value="">Select guest...</option>
           ${tenants.map(t => `<option value="${t.id}|${t.lot_id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
         </select>
         <input type="hidden" name="tenant_id">
@@ -312,7 +312,7 @@ async function showQuickAddReading() {
   showModal('Quick Add Reading', `
     <form onsubmit="saveQuickUpdate(event, document.getElementById('qa-lot').value, parseInt(document.getElementById('qa-tenant').value))">
       <div class="form-group">
-        <label>Lot / Tenant</label>
+        <label>Lot / Guest</label>
         <select id="qa-select" required onchange="qaSelected(this)">
           <option value="">Select lot...</option>
           ${readings.map(r => `<option value="${r.lot_id}|${r.tenant_id}|${r.current_reading}">${r.lot_id} — ${r.first_name} ${r.last_name} (last: ${r.current_reading.toLocaleString()})</option>`).join('')}
@@ -369,7 +369,7 @@ function showMeterPhotoLightbox(id, lotId, tenantName, date, prev, curr, kwh, ch
     '<img src="/api/meters/' + id + '/photo" style="width:100%;max-height:60vh;object-fit:contain;border-radius:10px;margin-bottom:1rem" onerror="this.outerHTML=\'<p style=color:#dc2626>Photo not available.</p>\'">' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;text-align:left;font-size:0.88rem;background:var(--gray-50,#fafaf9);padding:0.75rem;border-radius:8px">' +
       '<div><strong>Lot:</strong> ' + escapeHtml(lotId) + '</div>' +
-      '<div><strong>Tenant:</strong> ' + escapeHtml(tenantName) + '</div>' +
+      '<div><strong>Guest:</strong> ' + escapeHtml(tenantName) + '</div>' +
       '<div><strong>Date:</strong> ' + formatDate(date) + '</div>' +
       '<div><strong>Previous:</strong> ' + Number(prev).toLocaleString() + '</div>' +
       '<div><strong>Current:</strong> ' + Number(curr).toLocaleString() + '</div>' +

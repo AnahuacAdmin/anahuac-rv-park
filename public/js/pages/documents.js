@@ -85,7 +85,7 @@ async function refreshDocList() {
       return;
     }
     el.innerHTML = '<div class="card"><div class="table-container"><table>' +
-      '<thead><tr><th>Tenant</th><th>Lot</th><th>Type</th><th>Document</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>' +
+      '<thead><tr><th>Guest</th><th>Lot</th><th>Type</th><th>Document</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>' +
       docs.map(function(d) {
         return '<tr>' +
           '<td>' + escapeHtml((d.first_name || '') + ' ' + (d.last_name || '')) + '</td>' +
@@ -108,8 +108,8 @@ function showUploadDoc() {
   var tenants = window._docTenants || [];
   showModal('📤 Upload Document',
     '<form id="upload-doc-form">' +
-    '<div class="form-group"><label>Tenant</label><select name="tenant_id" id="upload-tenant-sel" required>' +
-      '<option value="">Select tenant...</option>' +
+    '<div class="form-group"><label>Guest</label><select name="tenant_id" id="upload-tenant-sel" required>' +
+      '<option value="">Select guest...</option>' +
       tenants.map(function(t) { return '<option value="' + t.id + '" data-lot="' + (t.lot_id || '') + '">' + t.lot_id + ' - ' + t.first_name + ' ' + t.last_name + '</option>'; }).join('') +
     '</select></div>' +
     '<div class="form-group"><label>Document Type</label><select name="doc_type">' +
@@ -170,9 +170,9 @@ async function deleteDocument(id, name) {
 async function showMissingDocs() {
   try {
     var list = await API.get('/documents/missing');
-    showModal('⚠️ Tenants Missing Documents',
+    showModal('⚠️ Guests Missing Documents',
       list.length
-        ? '<table><thead><tr><th>Lot</th><th>Tenant</th><th>Documents</th></tr></thead><tbody>' +
+        ? '<table><thead><tr><th>Lot</th><th>Guest</th><th>Documents</th></tr></thead><tbody>' +
           list.map(function(t) {
             return '<tr><td><strong>' + escapeHtml(t.lot_id) + '</strong></td><td>' + escapeHtml(t.first_name + ' ' + t.last_name) + '</td><td style="color:#dc2626;font-weight:600">0 documents</td></tr>';
           }).join('') + '</tbody></table>'

@@ -23,7 +23,7 @@ async function loadPayments() {
     <div class="card scrollable-table-card">
       <div class="table-container">
         <table>
-          <thead><tr><th>Date</th><th>Lot</th><th>Tenant</th><th>Amount</th><th>Method</th><th>Invoice</th><th>Reference</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Date</th><th>Lot</th><th>Guest</th><th>Amount</th><th>Method</th><th>Invoice</th><th>Reference</th><th>Actions</th></tr></thead>
           <tbody>
             ${payments.length ? payments.map(p => `
               <tr>
@@ -51,9 +51,9 @@ async function showRecordPayment() {
   showModal('Record Payment', `
     <form onsubmit="savePayment(event)">
       <div class="form-group">
-        <label>Tenant</label>
+        <label>Guest</label>
         <select name="tenant_id" required onchange="filterPaymentInvoices(this.value)">
-          <option value="">Select tenant...</option>
+          <option value="">Select guest...</option>
           ${tenants.map(t => `<option value="${t.id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
         </select>
       </div>

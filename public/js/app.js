@@ -476,24 +476,24 @@ const HELP_CONTENT = {
     <li>View park occupancy, revenue, and outstanding balances at a glance.</li>
     <li><strong>Quick Actions:</strong> shortcuts to common tasks like meter readings, invoices, check-ins.</li>
     <li><strong>System Health:</strong> monitor Stripe, Twilio, and database status.</li>
-    <li>Click the <strong>🐊 Tenant Portal</strong> button to view what tenants see.</li>
+    <li>Click the <strong>🐊 Guest Portal</strong> button to view what guests see.</li>
     <li>Click the <strong>🔄 refresh button</strong> (top right) to update data anytime.</li>
-    <li><strong>Staff view:</strong> Staff members see occupancy and tenant info but not financial data.</li>
+    <li><strong>Staff view:</strong> Staff members see occupancy and guest info but not financial data.</li>
   </ul>`,
-  checkins: `<p><strong>🏕️ Checking In a New Tenant:</strong></p><ol>
+  checkins: `<p><strong>🏕️ Checking In a New Guest:</strong></p><ol>
     <li>Click <em>Check-In</em>.</li>
-    <li>Enter tenant's full name, phone, and email.</li>
+    <li>Enter guest's full name, phone, and email.</li>
     <li>Select their lot number from the dropdown.</li>
     <li>Choose rate type: <strong>Daily</strong> ($30), <strong>Weekly</strong> ($150), or <strong>Monthly</strong> ($295).</li>
     <li>If moving in mid-month, the prorated amount calculates automatically.</li>
     <li>Enter deposit amount collected.</li>
-    <li>Toggle <strong>Flat Rate</strong> if this tenant pays one fixed amount for everything.</li>
+    <li>Toggle <strong>Flat Rate</strong> if this guest pays one fixed amount for everything.</li>
     <li>Enter vehicle/RV information and emergency contact.</li>
     <li>Click <em>Check In</em> — a celebration will appear! 🎉</li>
     <li>After check-in: <strong>Send Welcome Text</strong> or <strong>Print Welcome Card</strong> with WiFi, rules, and QR payment code.</li>
   </ol>
-  <p><strong>🚪 Checking Out a Tenant:</strong></p><ol>
-    <li>Select the tenant from the dropdown.</li>
+  <p><strong>🚪 Checking Out a Guest:</strong></p><ol>
+    <li>Select the guest from the dropdown.</li>
     <li>Enter move-out date.</li>
     <li>Choose deposit settlement: <strong>Full Refund</strong>, <strong>Partial Refund</strong> (deduct damages), <strong>Apply to Balance</strong>, or <strong>No Refund</strong>.</li>
     <li>A <strong>Move-Out Statement</strong> will be generated — print it for your records.</li>
@@ -516,13 +516,13 @@ const HELP_CONTENT = {
   billing: `<p><strong>🧾 Managing Billing</strong></p>
   <p><strong>Generating Invoices:</strong></p><ol>
     <li>Click <em>Generate Monthly Invoices</em> at the start of each month.</li>
-    <li>System creates invoices for ALL active tenants automatically.</li>
-    <li>Flat rate tenants get their fixed amount (electric skipped).</li>
+    <li>System creates invoices for ALL active guests automatically.</li>
+    <li>Flat rate guests get their fixed amount (electric skipped).</li>
     <li>Prorated invoices created for mid-month move-ins.</li>
   </ol>
   <p><strong>Sending & Managing:</strong></p><ul>
     <li>Click <em>Email</em> to send with PDF attachment and payment link.</li>
-    <li>Click <em>SMS</em> to text a summary to the tenant.</li>
+    <li>Click <em>SMS</em> to text a summary to the guest.</li>
     <li>Click directly on <strong>fees, refund, or notes</strong> cells to edit inline.</li>
     <li><em>Check Late Fees</em> auto-applies $25 to invoices 3+ days overdue.</li>
     <li><em>Pay Now</em> opens Stripe online payment (3% convenience fee shown on button).</li>
@@ -533,26 +533,26 @@ const HELP_CONTENT = {
   payments: `<p><strong>💳 Recording Payments</strong></p><ol>
     <li>Click <em>Log Payment</em> on any invoice row.</li>
     <li>Enter amount, method (Cash, Check, Money Order, or Card — 3% fee applies), and date.</li>
-    <li>An <strong>SMS receipt</strong> is automatically sent to the tenant.</li>
-    <li>System updates balance automatically. Overpayments become <strong>tenant credit</strong>.</li>
+    <li>An <strong>SMS receipt</strong> is automatically sent to the guest.</li>
+    <li>System updates balance automatically. Overpayments become <strong>guest credit</strong>.</li>
     <li>Filter by <em>Unpaid</em> to see who still owes.</li>
   </ol>
-  <p>Tenants can also pay online via the <strong>Tenant Portal</strong> or the payment link in their invoice email.</p>`,
+  <p>Guests can also pay online via the <strong>Guest Portal</strong> or the payment link in their invoice email.</p>`,
   messages: `<p><strong>📱 Messaging Options:</strong></p><ul>
-    <li><strong>Send Message</strong> — send to one tenant (record only, or via SMS).</li>
-    <li><strong>Broadcast to All</strong> — message all tenants at once. Confirm before sending!</li>
+    <li><strong>Send Message</strong> — send to one guest (record only, or via SMS).</li>
+    <li><strong>Broadcast to All</strong> — message all guests at once. Confirm before sending!</li>
     <li><strong>Send Notification</strong> — advanced: choose a template (Late Payment, Weather Emergency, Power Outage, General, Custom), pick recipients, deliver via SMS, Email, or both.</li>
-    <li><strong>📲 Share Tenant Portal</strong> — text the portal login link so tenants can view invoices and pay online.</li>
+    <li><strong>📲 Share Guest Portal</strong> — text the portal login link so guests can view invoices and pay online.</li>
   </ul>
-  <p>When a tenant replies to your text, it forwards to your phone and is logged here.</p>`,
+  <p>When a guest replies to your text, it forwards to your phone and is logged here.</p>`,
   waitlist: `<ol>
-    <li>Click <em>+ Add to Waitlist</em> to add a prospective tenant.</li>
+    <li>Click <em>+ Add to Waitlist</em> to add a prospective guest.</li>
     <li>Fill in contact info, RV length, and preferred lot.</li>
     <li>Track status: <strong>Waiting</strong> → <strong>Contacted</strong> → <strong>Placed</strong>.</li>
     <li>When a lot opens, update status, then go to <em>Check-In/Out</em> to move them in.</li>
   </ol>`,
   sitemap: `<p><strong>🗺️ Reading the Site Map</strong></p>
-  <p>Click any lot card to see tenant details, billing, payments, and meter history.</p>
+  <p>Click any lot card to see guest details, billing, payments, and meter history.</p>
   <p><strong>Color Codes:</strong></p><ul>
     <li>🟢 <strong>Green border</strong> = Occupied</li>
     <li>🟢 <strong>Green fill</strong> = Vacant / Available</li>
@@ -562,14 +562,14 @@ const HELP_CONTENT = {
     <li><span style="background:#dcfce7;color:#166534;padding:1px 6px;border-radius:10px;font-size:0.75rem">FLAT RATE</span> = Flat rate billing</li>
   </ul>
   <p>Admin view shows balance amounts and payment flags on each lot.</p>`,
-  tenants: `<p><strong>👤 Managing Tenants</strong></p>
+  tenants: `<p><strong>👤 Managing Guests</strong></p>
   <p>Click <em>Edit</em> to update:</p><ul>
     <li>Contact info, RV details, rent amount, and rate type</li>
     <li><strong>Flat Rate Billing</strong> — one fixed monthly amount covering everything</li>
     <li><strong>Recurring monthly fees</strong> — late fee, mailbox, misc, credit/discount (auto-apply on invoice generation)</li>
     <li><strong>Communication preferences</strong> — Email+SMS, Email only, SMS only, or Print</li>
     <li><strong>Move to Different Lot</strong> — transfers with prorated billing</li>
-    <li><strong>Reset Portal PIN</strong> — if tenant forgets their login</li>
+    <li><strong>Reset Portal PIN</strong> — if guest forgets their login</li>
   </ul>
   <p>Click <em>History</em> for check-in/out records and payment history.</p>
   <p><em>Recurring Fees Summary</em> shows all auto-charges at a glance.</p>`,
@@ -578,7 +578,7 @@ const HELP_CONTENT = {
     <li><strong>Stats bar:</strong> park average, highest/lowest usage lots.</li>
     <li><strong>Per-Lot Detail:</strong> select a lot for individual stats, bar chart, and readings table.</li>
     <li><strong>📄 Download PDF:</strong> branded electric report for the selected lot.</li>
-    <li><strong>📱 Text to Tenant:</strong> SMS usage summary — great when tenants question their bill!</li>
+    <li><strong>📱 Text to Guest:</strong> SMS usage summary — great when guests question their bill!</li>
   </ul>`,
   reports: `<p><strong>📊 Reports</strong></p>
   <p><strong>Monthly Income Report:</strong></p><ol>
@@ -594,11 +594,11 @@ const HELP_CONTENT = {
     <li>Enter guest name, contact, lot, dates, nightly rate. Total auto-calculates.</li>
     <li><em>Calendar View</em> shows reservations on a monthly grid.</li>
     <li><em>View</em> for printable confirmation, <em>PDF</em>, or <em>Email to Guest</em>.</li>
-    <li>When guest arrives, click <em>Check In</em> to convert to active tenant.</li>
+    <li>When guest arrives, click <em>Check In</em> to convert to active guest.</li>
   </ol>`,
   admin: `<p><strong>⚙️ System Settings</strong></p><ul>
     <li><strong>Electric Rate:</strong> per-kWh rate for all meter calculations.</li>
-    <li><strong>Flat Rate Billing:</strong> default flat rate, apply to all/by row, manage flat rate tenants.</li>
+    <li><strong>Flat Rate Billing:</strong> default flat rate, apply to all/by row, manage flat rate guests.</li>
     <li><strong>WiFi Password:</strong> included on Welcome Cards.</li>
     <li><strong>Eviction Settings:</strong> auto-SMS/email when 5+ days overdue.</li>
     <li><strong>Downtime Alerts:</strong> SMS notifications to managers when services go down.</li>
@@ -608,17 +608,17 @@ const HELP_CONTENT = {
     <li><strong>🖨️ Emergency Forms:</strong> printable check-in, meter reading, and payment forms for when internet is down.</li>
   </ul>`,
   community: `<p><strong>📋 Community Board</strong></p><ul>
-    <li>Review and approve tenant-submitted posts.</li>
+    <li>Review and approve guest-submitted posts.</li>
     <li><strong>Pending</strong>: posts waiting for your approval. Approve or reject with a reason.</li>
     <li><strong>Create Post</strong>: publish announcements or community updates (auto-approved).</li>
-    <li><strong>🏆 Recognize Tenant</strong>: give a public shoutout — tenant gets an SMS notification!</li>
+    <li><strong>🏆 Recognize Guest</strong>: give a public shoutout — guest gets an SMS notification!</li>
     <li><strong>📌 Pin</strong>: pinned posts show at the top of the community board.</li>
-    <li>Tenants submit posts from the portal. They get SMS when approved or rejected.</li>
+    <li>Guests submit posts from the portal. They get SMS when approved or rejected.</li>
   </ul>`,
   maintenance: `<p><strong>🔧 Maintenance Requests</strong></p>
-  <p>This page shows all repair and maintenance requests submitted by tenants from their portal.</p>
+  <p>This page shows all repair and maintenance requests submitted by guests from their portal.</p>
   <p><strong>Viewing Requests:</strong></p><ul>
-    <li>New requests appear automatically when a tenant submits one.</li>
+    <li>New requests appear automatically when a guest submits one.</li>
     <li>You also receive an <strong>SMS notification</strong> instantly.</li>
     <li>Requests sorted by status priority, then most recent first.</li>
   </ul>
@@ -626,9 +626,9 @@ const HELP_CONTENT = {
     <li>Click <em>Acknowledge</em> when you've seen the request.</li>
     <li>Click <em>In Progress</em> when work has started.</li>
     <li>Click <em>Resolve</em> when complete — add resolution notes documenting what was done.</li>
-    <li>Tenant gets an SMS: "Your maintenance request has been resolved!"</li>
+    <li>Guest gets an SMS: "Your maintenance request has been resolved!"</li>
   </ol>
-  <p>💡 <strong>TIP:</strong> Resolve requests promptly — it builds trust with tenants!</p>`,
+  <p>💡 <strong>TIP:</strong> Resolve requests promptly — it builds trust with guests!</p>`,
   expenses: `<p><strong>💸 Expense Tracking</strong></p>
   <p>Track all money spent running the park for accounting and tax purposes.</p>
   <p><strong>Adding an Expense:</strong></p><ol>

@@ -37,7 +37,7 @@ async function loadReports() {
       <div class="card"><h3>Monthly Revenue</h3><div style="height:250px"><canvas id="chartRevenue"></canvas></div></div>
       <div class="card"><h3>Occupancy Trend</h3><div style="height:250px"><canvas id="chartOccupancy"></canvas></div></div>
       <div class="card"><h3>Invoice Status</h3><div style="height:250px"><canvas id="chartStatus"></canvas></div></div>
-      <div class="card"><h3>Revenue by Tenant Type</h3><div style="height:250px"><canvas id="chartByType"></canvas></div></div>
+      <div class="card"><h3>Revenue by Guest Type</h3><div style="height:250px"><canvas id="chartByType"></canvas></div></div>
       <div class="card"><h3>Electric Usage & Revenue</h3><div style="height:250px"><canvas id="chartElectric"></canvas></div></div>
       <div class="card"><h3>Top Outstanding Balances</h3><div style="height:250px"><canvas id="chartOutstanding"></canvas></div></div>
     </div>
@@ -184,7 +184,7 @@ async function generateReport() {
       </div>
       <div class="card" style="flex:1;min-width:250px">
         <h3>Top 5 Highest Balances</h3>
-        <table><thead><tr><th>Lot</th><th>Tenant</th><th>Balance</th></tr></thead><tbody>
+        <table><thead><tr><th>Lot</th><th>Guest</th><th>Balance</th></tr></thead><tbody>
           ${data.topBalances.map(t => `<tr><td>${t.lot_id}</td><td>${t.first_name} ${t.last_name}</td><td style="color:#dc2626;font-weight:700">${formatMoney(t.balance)}</td></tr>`).join('')}
         </tbody></table>
       </div>
@@ -193,14 +193,14 @@ async function generateReport() {
     <div class="card" style="margin-bottom:1rem">
       <h3>Payments Received — ${monthName}</h3>
       <div class="table-container" style="max-height:250px">
-        <table><thead><tr><th>Date</th><th>Lot</th><th>Tenant</th><th>Amount</th><th>Method</th></tr></thead><tbody>
+        <table><thead><tr><th>Date</th><th>Lot</th><th>Guest</th><th>Amount</th><th>Method</th></tr></thead><tbody>
           ${data.payments.length ? data.payments.map(p => `<tr><td>${formatDate(p.payment_date)}</td><td>${p.lot_id}</td><td>${p.first_name} ${p.last_name}</td><td><strong>${formatMoney(p.amount)}</strong></td><td>${p.payment_method || '—'}</td></tr>`).join('') : '<tr><td colspan="5" class="text-center">No payments this month</td></tr>'}
         </tbody></table>
       </div>
     </div>
 
     <div class="card">
-      <h3>Tenant Detail — ${monthName}</h3>
+      <h3>Guest Detail — ${monthName}</h3>
       <div class="table-container">
         <table><thead><tr><th>Lot</th><th>Name</th><th>Rate Type</th><th>Monthly Rate</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>
           ${data.tenantDetail.map(t => {
@@ -311,7 +311,7 @@ function buildReportHtml(data, monthName) {
       <div style="background:#fee2e2;border-radius:8px;padding:0.75rem;text-align:center"><div style="font-size:1.2rem;font-weight:800;color:#dc2626">${formatMoney(data.outstanding)}</div><div style="font-size:0.7rem;color:#78716c">Outstanding</div></div>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-bottom:1rem">
-      <thead><tr style="background:#fafaf9;border-bottom:2px solid #e7e5e4"><th style="padding:0.4rem;text-align:left">Lot</th><th style="padding:0.4rem;text-align:left">Tenant</th><th style="padding:0.4rem;text-align:right">Rate</th><th style="padding:0.4rem;text-align:right">Paid</th><th style="padding:0.4rem;text-align:right">Balance</th></tr></thead>
+      <thead><tr style="background:#fafaf9;border-bottom:2px solid #e7e5e4"><th style="padding:0.4rem;text-align:left">Lot</th><th style="padding:0.4rem;text-align:left">Guest</th><th style="padding:0.4rem;text-align:right">Rate</th><th style="padding:0.4rem;text-align:right">Paid</th><th style="padding:0.4rem;text-align:right">Balance</th></tr></thead>
       <tbody>${data.tenantDetail.map(t => `<tr style="border-bottom:1px solid #e7e5e4"><td style="padding:0.3rem 0.4rem">${t.lot_id}</td><td style="padding:0.3rem">${t.first_name} ${t.last_name}</td><td style="padding:0.3rem;text-align:right">${formatMoney(t.monthly_rent)}</td><td style="padding:0.3rem;text-align:right">${formatMoney(t.amount_paid)}</td><td style="padding:0.3rem;text-align:right;color:${t.balance_due > 0 ? '#dc2626' : '#16a34a'}">${formatMoney(t.balance_due)}</td></tr>`).join('')}</tbody>
     </table>
     <div style="border-top:2px solid #1a5c32;padding-top:0.5rem;font-size:0.7rem;color:#78716c;text-align:center">&copy; 2026 Anahuac RV Park LLC | Confidential</div>

@@ -40,9 +40,9 @@ async function loadMessages() {
     <div class="page-header">
       <h2>Messaging</h2>
       <div class="messaging-buttons">
-        <div class="messaging-btn-wrap"><button class="btn btn-primary" onclick="showSendMessage()">Send Message</button><span class="messaging-btn-sub">General message to one tenant</span></div>
+        <div class="messaging-btn-wrap"><button class="btn btn-primary" onclick="showSendMessage()">Send Message</button><span class="messaging-btn-sub">General message to one guest</span></div>
         <div class="messaging-btn-wrap"><button class="btn btn-warning" onclick="showBroadcast()">Broadcast to All</button><span class="messaging-btn-sub">Notice · Reminder · Urgent · Maintenance</span></div>
-        <div class="messaging-btn-wrap"><button class="btn btn-success" onclick="showSharePortal()">Share Tenant Portal</button><span class="messaging-btn-sub">Send portal login link</span></div>
+        <div class="messaging-btn-wrap"><button class="btn btn-success" onclick="showSharePortal()">Share Guest Portal</button><span class="messaging-btn-sub">Send portal login link</span></div>
         <div class="messaging-btn-wrap"><button class="btn btn-danger" onclick="showEmergencyBroadcast()">Emergency Alert</button><span class="messaging-btn-sub">Hurricane · Tornado · Flood · Fire · Power · Custom</span></div>
       </div>
       <div style="text-align:center;margin-top:12px;font-size:12px;color:#666;font-style:italic">In-app notifications and email are free. SMS messages incur Twilio charges per text.</div>
@@ -62,7 +62,7 @@ async function loadMessages() {
     <div class="card">
       <div class="table-container">
         <table>
-          <thead><tr><th>Date</th><th>Tenant</th><th>Lot</th><th>Subject</th><th>Type</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Date</th><th>Guest</th><th>Lot</th><th>Subject</th><th>Type</th><th>Actions</th></tr></thead>
           <tbody>
             ${messages.length ? messages.map(m => `
               <tr>
@@ -92,9 +92,9 @@ async function showSendMessage() {
   showModal('Send Message', `
     <form onsubmit="sendMessage(event)">
       <div class="form-group">
-        <label>To Tenant</label>
+        <label>To Guest</label>
         <select name="tenant_id" required>
-          <option value="">Select tenant...</option>
+          <option value="">Select guest...</option>
           ${tenants.map(t => '<option value="' + t.id + '">' + (t.lot_id || '?') + ' - ' + t.first_name + ' ' + t.last_name + '</option>').join('')}
         </select>
       </div>
@@ -286,13 +286,13 @@ const PORTAL_MSG_TEMPLATE = (name) => `Hi ${name}! Anahuac RV Park now has an on
 async function showSharePortal() {
   const tenants = await API.get('/tenants');
   if (!tenants) return;
-  showModal('Share Tenant Portal', `
-    <p style="margin-bottom:1rem;font-size:0.9rem;color:var(--gray-500)">Send the portal link to tenants via SMS so they can view their balance and pay online.</p>
+  showModal('Share Guest Portal', `
+    <p style="margin-bottom:1rem;font-size:0.9rem;color:var(--gray-500)">Send the portal link to guests via SMS so they can view their balance and pay online.</p>
     <div class="form-group">
       <label>Send To</label>
       <select id="portal-recipient" onchange="portalRecipientChanged()">
-        <option value="">Select a tenant...</option>
-        <option value="ALL">ALL Active Tenants</option>
+        <option value="">Select a guest...</option>
+        <option value="ALL">ALL Active Guests</option>
         ${tenants.filter(t => t.phone).map(t => `<option value="${t.id}" data-name="${t.first_name}" data-phone="${t.phone}">${t.lot_id} — ${t.first_name} ${t.last_name} (${t.phone})</option>`).join('')}
       </select>
     </div>
@@ -329,7 +329,7 @@ async function sendPortalLink() {
         message_type: 'portal_invite',
         recipients: 'all',
         delivery: 'sms',
-        subject: 'Tenant Portal',
+        subject: 'Guest Portal',
         message: msg.replace('[Name]', '[name]'),
       });
       toast.update('OK', 'Portal links sent!');
@@ -343,16 +343,16 @@ async function sendPortalLink() {
     }
   } else {
     const opt = sel.selectedOptions[0];
-    const name = opt?.dataset?.name || 'Tenant';
+    const name = opt?.dataset?.name || 'Guest';
     const phone = opt?.dataset?.phone;
-    if (!phone) { if (errEl) { errEl.textContent = 'This tenant has no phone number.'; errEl.style.display = ''; } return; }
+    if (!phone) { if (errEl) { errEl.textContent = 'This guest has no phone number.'; errEl.style.display = ''; } return; }
 
     const personalMsg = msg.replace('[Name]', name).replace('[name]', name);
     const toast = showStatusToast('Sending', `Sending to ${name}...`, -1);
     try {
       await API.post('/messages', {
         tenant_id: parseInt(sel.value),
-        subject: 'Tenant Portal Link',
+        subject: 'Guest Portal Link',
         body: personalMsg,
         message_type: 'portal_invite',
         delivery_method: 'sms',

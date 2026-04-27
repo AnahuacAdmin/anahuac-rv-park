@@ -86,7 +86,7 @@ async function loadBilling() {
     <div class="card billing-page-card">
       <div class="billing-scroll">
         <table class="billing-table">
-          <thead><tr><th style="width:90px">Actions</th><th>Invoice #</th><th>Lot</th><th>Tenant</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
+          <thead><tr><th style="width:90px">Actions</th><th>Invoice #</th><th>Lot</th><th>Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
           <tbody id="invoices-body">
             ${renderInvoiceRows(invoices)}
           </tbody>
@@ -416,9 +416,9 @@ async function showCreateInvoice() {
   showModal('Create Invoice', `
     <form onsubmit="createInvoice(event)">
       <div class="form-group">
-        <label>Tenant</label>
+        <label>Guest</label>
         <select name="tenant_id" required>
-          <option value="">Select tenant...</option>
+          <option value="">Select guest...</option>
           ${tenants.map(t => `<option value="${t.id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
         </select>
       </div>
@@ -855,8 +855,8 @@ async function editInvoice(id) {
       </div>
       <div class="form-group"><label>Notes</label><textarea name="notes">${inv.notes || ''}</textarea></div>
       <fieldset style="border:1px solid #ddd;padding:0.5rem;margin:0.5rem 0;border-radius:6px">
-        <legend><small>Make Recurring on Tenant</small></legend>
-        <p><small>Check any of these to also save the value to the tenant's recurring fees so it auto-applies on future monthly invoices.</small></p>
+        <legend><small>Make Recurring on Guest</small></legend>
+        <p><small>Check any of these to also save the value to the guest's recurring fees so it auto-applies on future monthly invoices.</small></p>
         <label><input type="checkbox" name="rec_late"> Late Fee</label> &nbsp;
         <label><input type="checkbox" name="rec_mailbox"> Mailbox Fee</label> &nbsp;
         <label><input type="checkbox" name="rec_misc"> Misc Fee + Description</label> &nbsp;
@@ -1049,7 +1049,7 @@ async function exportInvoicesToExcel() {
   const rows = filtered.map(i => ({
     'Invoice #':    i.invoice_number,
     'Lot':          i.lot_id,
-    'Tenant':       `${i.first_name || ''} ${i.last_name || ''}`.trim(),
+    'Guest':        `${i.first_name || ''} ${i.last_name || ''}`.trim(),
     'Invoice Date': i.invoice_date,
     'Due Date':     i.due_date,
     'Rent':         num(i.rent_amount),
@@ -1074,7 +1074,7 @@ async function exportInvoicesToExcel() {
   rows.push({});
   rows.push({
     'Invoice #':    'TOTAL',
-    'Tenant':       `${filtered.length} invoices`,
+    'Guest':        `${filtered.length} invoices`,
     'Rent':         sum('rent_amount'),
     'Electric':     sum('electric_amount'),
     'Mailbox Fee':  sum('mailbox_fee'),

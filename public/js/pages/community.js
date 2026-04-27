@@ -15,7 +15,7 @@ async function loadCommunity() {
     helpPanel('community') +
     '<div class="page-header"><h2>📋 Community Board</h2><div class="btn-group">' +
     '<button class="btn btn-primary" id="btn-new-post">+ Create Post</button>' +
-    '<button class="btn btn-warning" id="btn-recognition">🏆 Recognize Tenant</button>' +
+    '<button class="btn btn-warning" id="btn-recognition">🏆 Recognize Guest</button>' +
     '</div></div>' +
     (pending > 0 ? '<div class="card" style="border-left:4px solid #f59e0b;margin-bottom:1rem;padding:0.6rem 1rem"><strong style="color:#d97706">⏳ ' + pending + ' post' + (pending > 1 ? 's' : '') + ' pending approval</strong></div>' : '') +
     '<div class="filter-bar"><select id="community-filter"><option value="all">All Posts</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div>' +
@@ -198,12 +198,12 @@ function showCreatePost() {
 
 async function showRecognizeTenant() {
   var tenants = await API.get('/tenants');
-  showModal('🏆 Recognize a Tenant', '<form id="recognize-form">' +
-    '<div class="form-group"><label>Tenant</label><select name="tenant_id" id="recognize-tenant" required><option value="">Select...</option>' +
+  showModal('🏆 Recognize a Guest', '<form id="recognize-form">' +
+    '<div class="form-group"><label>Guest</label><select name="tenant_id" id="recognize-tenant" required><option value="">Select...</option>' +
     (tenants || []).map(function(t) { return '<option value="' + t.id + '" data-lot="' + t.lot_id + '">' + t.lot_id + ' - ' + t.first_name + ' ' + t.last_name + '</option>'; }).join('') +
     '</select></div>' +
     '<div class="form-group"><label>Recognition Message</label><textarea name="message" rows="3" placeholder="What are you recognizing them for?"></textarea></div>' +
-    '<button type="submit" class="btn btn-success btn-full">🏆 Post Recognition & Notify Tenant</button></form>');
+    '<button type="submit" class="btn btn-success btn-full">🏆 Post Recognition & Notify Guest</button></form>');
   setTimeout(function() {
     var form = document.getElementById('recognize-form');
     if (form) form.addEventListener('submit', async function(e) {

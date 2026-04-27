@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <title>Rules & Regulations - Anahuac RV Park</title>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,system-ui,'Segoe UI',Roboto,sans-serif; color:#1f2937; background:#f9fafb; line-height:1.6; }
+    .rules-page { max-width:800px; margin:0 auto; padding:1.5rem 1rem; }
+    .rules-header { text-align:center; border-bottom:3px solid #166534; padding-bottom:1rem; margin-bottom:1.5rem; }
+    .rules-header img { height:80px; width:auto; margin-bottom:0.5rem; }
+    .rules-header h1 { color:#166534; font-size:1.5rem; margin:0.25rem 0; }
+    .rules-header .park-info { font-size:0.85rem; color:#6b7280; }
+    .rules-subtitle { text-align:center; font-style:italic; color:#374151; margin-bottom:1.5rem; padding:0.75rem; background:#f0fdf4; border-radius:8px; font-size:0.95rem; }
+    .rules-list { counter-reset:rule; list-style:none; }
+    .rules-list li { counter-increment:rule; padding:0.6rem 0 0.6rem 0; border-bottom:1px solid #e5e7eb; font-size:0.92rem; display:flex; gap:0.75rem; align-items:flex-start; }
+    .rules-list li:last-child { border-bottom:none; }
+    .rule-num { background:#166534; color:#fff; min-width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.8rem; flex-shrink:0; margin-top:0.1rem; }
+    .rule-num::before { content:counter(rule); }
+    .rules-footer { text-align:center; margin-top:2rem; padding:1rem; background:#fef3c7; border:2px solid #f59e0b; border-radius:8px; font-weight:700; font-size:1rem; color:#92400e; letter-spacing:0.02em; }
+    .rules-actions { display:flex; gap:0.75rem; justify-content:center; margin:1.5rem 0; flex-wrap:wrap; }
+    .rules-actions button, .rules-actions a { padding:0.6rem 1.5rem; border-radius:8px; font-size:0.95rem; font-weight:600; cursor:pointer; border:none; text-decoration:none; display:inline-flex; align-items:center; gap:0.5rem; min-height:48px; }
+    .btn-print { background:#166534; color:#fff; }
+    .btn-print:hover { background:#14532d; }
+    .btn-back { background:#e5e7eb; color:#374151; }
+    .btn-back:hover { background:#d1d5db; }
+    .font-controls { display:flex; gap:0.5rem; justify-content:center; margin-bottom:1rem; }
+    .font-controls button { background:#f3f4f6; border:1px solid #d1d5db; border-radius:6px; padding:0.3rem 0.75rem; cursor:pointer; font-size:0.85rem; min-height:36px; }
+    .font-controls button:hover { background:#e5e7eb; }
+    @media print {
+      .no-print { display:none !important; }
+      body { background:#fff; }
+      .rules-page { padding:0; max-width:100%; }
+      .rules-header { border-bottom:2px solid #000; }
+      .rules-list li { page-break-inside:avoid; }
+      @page { margin:0.5in; size:letter portrait; }
+    }
+  </style>
+</head>
+<body>
+<div class="rules-page" id="rules-content">
+  <div class="no-print font-controls">
+    <button onclick="changeFontSize(-1)">A-</button>
+    <button onclick="changeFontSize(0)">Aa</button>
+    <button onclick="changeFontSize(1)">A+</button>
+  </div>
+
+  <div class="rules-header">
+    <img src="/park_Logo.png" alt="Anahuac RV Park">
+    <h1>Anahuac RV Park Rules & Regulations</h1>
+    <p class="park-info">1003 Davis Ave, Anahuac, TX 77514 &bull; (409) 267-6603 &bull; anrvpark@gmail.com</p>
+  </div>
+
+  <div class="rules-subtitle">
+    The following rules are designed to ensure all guests have a quiet, pleasant, and enjoyable stay&hellip; Please respect your neighbors and the park!
+  </div>
+
+  <ol class="rules-list">
+    <li><span class="rule-num"></span><span>Check out time is 1:00 pm for guests departing.</span></li>
+    <li><span class="rule-num"></span><span>Rent is due on time. Failure to pay on time will result in late fees or you will be asked to leave.</span></li>
+    <li><span class="rule-num"></span><span>A sewer hose seal (rubber donut or threaded connector) for your sewer hose is required for all sewer hook ups.</span></li>
+    <li><span class="rule-num"></span><span>All garbage must be placed in supplied dumpster in front of park. No garbage over 50lbs is allowed in dumpster. No large items protruding outside of dumpster allowed. Garbage bags and small items only.</span></li>
+    <li><span class="rule-num"></span><span>We offer no refunds for rent &ndash; we will refund remaining balance of security deposit after applying cost of electricity to last month of visit.</span></li>
+    <li><span class="rule-num"></span><span>Pets are welcome &ndash; only if pet lives indoors/inside the RV. All pets must be on a leash at all times and under physical control of owner/handler when outside. Pet owners are required to remove all of their pet feces immediately. All pets are to use green area when being walked on leash by owner. If owner cannot keep pet feces away from other sites, guest/visitor will be asked to leave. Please make sure your pets do not go after our ducks.</span></li>
+    <li><span class="rule-num"></span><span>Please do not leave anything poisonous outside (such as ant killer) or anything that would be harmful to the ducks.</span></li>
+    <li><span class="rule-num"></span><span>Children under the age of 18 &ndash; must be supervised at all times by parents. Please do not let your children chase or harm our ducks!</span></li>
+    <li><span class="rule-num"></span><span>Sites must be kept clean at all times. You may be charged a fee for any cleanup management has to do to your site in order to maintain it. If it continues, management may ask you to leave. Please help us to maintain grass/weeds around your site and personal property by keeping everything easily accessible for maintenance. This includes keeping all trash picked up around your site. All hoses/cords/personal belongings need to be off the ground or you are required to maintain the weeds around such items. We will not be responsible for any personal property that is damaged IF we have to cut down weeds around your belongings.</span></li>
+    <li><span class="rule-num"></span><span>No changes are allowed to sites including decks and or plants unless approved by management.</span></li>
+    <li><span class="rule-num"></span><span>No fires allowed except for pits or fire rings. No fireworks are allowed in the City limits. No smoking in the park buildings (bathroom, Washateria).</span></li>
+    <li><span class="rule-num"></span><span>No firearms or weapons allowed.</span></li>
+    <li><span class="rule-num"></span><span>The speed limit in the park is posted 5mph. Please respect the speed limit. There are children and ducks in the park. Be aware of your surroundings when driving. Anybody continuously not following the speed limit or reckless driving will be asked to leave.</span></li>
+    <li><span class="rule-num"></span><span>Washateria/Laundry Facility is unlocked 24hrs. But please insure you close the door well on your way out. If clothes are left unattended for longer than 30min., anybody has the right to remove the belongings to free up the machine. Please be mindful of your neighbors and do not keep a machine occupied for longer than needed. Use only American Made Quarters. Please no foreign objects in quarter slots.</span></li>
+    <li><span class="rule-num"></span><span>Quiet hours in RV Park and City Ordinance are from 10pm to 7am. No exceptions! Please keep all vehicle radios to a minimum while driving thru the park.</span></li>
+    <li><span class="rule-num"></span><span>No more than two people/cars are allowed per space. Rent is based on two people. An increase of $25 per additional person/vehicle/boat will be applied to rent if it is more than two.</span></li>
+    <li><span class="rule-num"></span><span>You are not allowed to share the wifi password with any visitors.</span></li>
+    <li><span class="rule-num"></span><span>Guests must park within their designated rented space only.</span></li>
+    <li><span class="rule-num"></span><span>Guests are only allowed two visitors at a time. Heavy traffic of visitors is not allowed. Guest will be held responsible for the actions of their visitors/family members.</span></li>
+    <li><span class="rule-num"></span><span>No subleasing allowed.</span></li>
+    <li><span class="rule-num"></span><span>Guests are not to violate the law in the use of the premises for immoral purposes, the sale of liquor, the sale or use of drugs, or any other illegal activities.</span></li>
+    <li><span class="rule-num"></span><span>Management reserves the right to immediately remove any guest or their visitors, who have shown a disregard for our rules, disrespect to management/property or other guests, without refund. Guest and their visitors agree to use the campground at their own risk. The management and owners are not responsible for damage, injury, or loss to persons, pets or property.</span></li>
+    <li><span class="rule-num"></span><span>All unauthorized parking will be towed away at vehicle/RV owners' expense and risk.</span></li>
+    <li><span class="rule-num"></span><span>We reserve the right to make changes to the rules, regulations and fees that we deem necessary.</span></li>
+  </ol>
+
+  <div class="rules-footer">
+    EVERYONE IS CONSIDERED A GUEST IN THE PARK&hellip;. THERE IS NO TENANT/LANDLORD AGREEMENT
+  </div>
+
+  <div class="no-print rules-actions">
+    <button class="btn-print" onclick="window.print()">Print Rules</button>
+    <a class="btn-back" href="/portal.html">Back to Portal</a>
+  </div>
+</div>
+
+<script>
+var _baseFontSize = 92;
+function changeFontSize(dir) {
+  if (dir === 0) _baseFontSize = 92;
+  else _baseFontSize = Math.max(70, Math.min(130, _baseFontSize + dir * 8));
+  document.querySelector('.rules-list').style.fontSize = (_baseFontSize / 100) + 'rem';
+}
+</script>
+</body>
+</html>

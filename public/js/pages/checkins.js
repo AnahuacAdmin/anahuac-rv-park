@@ -37,7 +37,7 @@ async function loadCheckins() {
       <h3 class="mb-1">Activity Log</h3>
       <div class="table-container">
         <table>
-          <thead><tr><th>Tenant</th><th>Lot</th><th>Check-In</th><th>Check-Out</th><th>Status</th></tr></thead>
+          <thead><tr><th>Guest</th><th>Lot</th><th>Check-In</th><th>Check-Out</th><th>Status</th></tr></thead>
           <tbody>
             ${checkins.length ? checkins.map(c => `
               <tr>
@@ -70,10 +70,10 @@ async function showCheckIn() {
   _checkinDefaultFlatRate = parseFloat(settings?.default_flat_rate) || 0;
   const vacantLots = lots.filter(l => l.status === 'vacant');
 
-  showModal('Check-In New Tenant', `
+  showModal('Check-In New Guest', `
     <form onsubmit="processCheckIn(event)">
       <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
-        <legend><strong>Tenant Info</strong></legend>
+        <legend><strong>Guest Info</strong></legend>
         <div class="form-row">
           <div class="form-group"><label>First Name</label><input name="first_name" required></div>
           <div class="form-group"><label>Last Name</label><input name="last_name" required></div>
@@ -403,7 +403,7 @@ async function processCheckIn(e) {
       flat_rate: data.flat_rate === '1' ? 1 : 0,
       flat_rate_amount: parseFloat(data.flat_rate_amount) || 0,
     });
-    if (!tenant?.id) throw new Error('Tenant was not created — no ID returned');
+    if (!tenant?.id) throw new Error('Guest was not created — no ID returned');
     // Upload scanned documents if any
     uploadCheckinDocs(tenant.id, data.lot_id);
   } catch (err) {
@@ -419,7 +419,7 @@ async function processCheckIn(e) {
       tenant_id: tenant.id, lot_id: data.lot_id, check_in_date: data.check_in_date, notes: data.notes
     });
   } catch (err) {
-    // Tenant was created but checkin record failed — not fatal, warn and continue.
+    // Guest was created but checkin record failed — not fatal, warn and continue.
     console.error('Checkin record failed:', err);
   }
 
@@ -492,12 +492,13 @@ async function processCheckIn(e) {
   // Show success with option to send welcome text.
   const tenantName = `${data.first_name} ${data.last_name}`;
   const phone = data.phone;
+  window._lastCheckinTenant = Object.assign({}, data, { id: tenant.id });
   celebrateTenantCheckIn(data.first_name, data.lot_id);
   setTimeout(() => showModal('Check-In Complete', `
     <div style="text-align:center;padding:1rem 0">
       <div style="font-size:2.5rem;margin-bottom:0.5rem">&#9989;</div>
       <h3>${tenantName} checked in to Lot ${data.lot_id}</h3>
-      <p style="color:var(--gray-500);margin:0.5rem 0 1.5rem">Tenant record created and lot marked occupied.</p>
+      <p style="color:var(--gray-500);margin:0.5rem 0 1.5rem">Guest record created and lot marked occupied.</p>
       ${phone ? `
         <button class="btn btn-success btn-full" onclick="sendWelcomeText(${tenant.id}, '${tenantName.replace(/'/g, "\\'")}')">
           &#128241; Send Welcome Text to ${phone}
@@ -507,6 +508,20 @@ async function processCheckIn(e) {
       <button class="btn btn-primary btn-full mt-2" onclick="printWelcomeCard('${tenantName.replace(/'/g, "\\'")}', '${data.lot_id}', ${tenant.id})">
         &#128438; Print Welcome Card
       </button>
+
+      <div style="border-top:1px solid var(--gray-200);margin:1rem 0 0.75rem;padding-top:0.75rem">
+        <p style="font-weight:700;margin-bottom:0.5rem">Check-In Forms & Rules</p>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center">
+          <button class="btn btn-outline" style="flex:1;min-width:130px" onclick="openCheckinFormShort(window._lastCheckinTenant)">Short Form<br><span style="font-size:0.7rem;font-weight:400">1 month or less</span></button>
+          <button class="btn btn-outline" style="flex:1;min-width:130px" onclick="openCheckinFormLong(window._lastCheckinTenant)">Long Application<br><span style="font-size:0.7rem;font-weight:400">Extended stay</span></button>
+          <button class="btn btn-outline" style="flex:1;min-width:130px" onclick="openRules()">Park Rules<br><span style="font-size:0.7rem;font-weight:400">Print or view</span></button>
+        </div>
+        <div style="display:flex;gap:0.5rem;margin-top:0.5rem;justify-content:center">
+          ${phone ? `<button class="btn btn-sm btn-outline" onclick="smsRulesToGuest(${tenant.id})">SMS Rules Link</button>` : ''}
+          ${data.email ? `<button class="btn btn-sm btn-outline" onclick="emailRulesToGuest(${tenant.id})">Email Rules Link</button>` : ''}
+        </div>
+      </div>
+
       <button class="btn btn-outline btn-full mt-2" onclick="closeModal();loadCheckins()">Done</button>
     </div>
   `), 3200);
@@ -549,10 +564,10 @@ async function showCheckOut() {
   _checkoutTenants = await API.get('/tenants');
   _checkoutData = null;
   _checkoutOtherCharges = [];
-  showModal('Check-Out Tenant', `
+  showModal('Check-Out Guest', `
     <form id="checkout-form">
       <div class="form-group">
-        <label>Select Tenant</label>
+        <label>Select Guest</label>
         <select name="tenant_select" id="checkout-tenant-select" required>
           <option value="">Select tenant...</option>
           ${_checkoutTenants.map(t => `<option value="${t.id}|${t.lot_id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
@@ -1265,5 +1280,74 @@ async function sendReviewRequest(tenantId, tenantName) {
     showStatusToast('⚠️', 'Review request failed: ' + (err.message || 'unknown error'));
   }
   loadCheckins();
+}
+
+// === CHECK-IN FORMS ===
+function buildFormParams(tenantData) {
+  var t = tenantData || {};
+  var p = new URLSearchParams();
+  if (t.first_name || t.last_name) p.set('name', ((t.first_name || '') + ' ' + (t.last_name || '')).trim());
+  if (t.phone) p.set('phone', t.phone);
+  if (t.email) p.set('email', t.email);
+  if (t.lot_id) p.set('lot', t.lot_id);
+  if (t.move_in_date) p.set('date', t.move_in_date);
+  if (t.rv_year || t.rv_make || t.rv_model) p.set('rv', [t.rv_year, t.rv_make, t.rv_model].filter(Boolean).join(' '));
+  if (t.license_plate) p.set('plates', (t.license_plate_state ? t.license_plate_state + ' ' : '') + t.license_plate);
+  if (t.id_number) p.set('dl', t.id_number);
+  if (t.date_of_birth) p.set('dob', t.date_of_birth);
+  if (t.vehicle_make || t.vehicle_model) p.set('vehicle', [t.vehicle_year, t.vehicle_make, t.vehicle_model].filter(Boolean).join(' '));
+  if (t.emergency_contact) p.set('ec_name', t.emergency_contact);
+  if (t.emergency_phone) p.set('ec_phone', t.emergency_phone);
+  if (t.monthly_rent) p.set('rate', '$' + Number(t.monthly_rent).toFixed(2));
+  return p.toString();
+}
+
+function openCheckinFormShort(tenantData) {
+  var qs = buildFormParams(tenantData);
+  window.open('/checkin-form-short.html' + (qs ? '?' + qs : ''), '_blank', 'width=800,height=900');
+}
+
+function openCheckinFormLong(tenantData) {
+  var qs = buildFormParams(tenantData);
+  window.open('/checkin-form-long.html' + (qs ? '?' + qs : ''), '_blank', 'width=800,height=1100');
+}
+
+function openRules() {
+  window.open('/rules.html', '_blank', 'width=850,height=900');
+}
+
+async function smsRulesToGuest(tenantId) {
+  try {
+    var tenant = await API.get('/tenants/' + tenantId);
+    if (!tenant?.phone) { showStatusToast('⚠️', 'No phone number on file'); return; }
+    var appUrl = window.location.origin;
+    await API.post('/messages', {
+      tenant_id: tenantId,
+      subject: 'Park Rules & Regulations',
+      body: 'Hi ' + (tenant.first_name || 'Guest') + '! Here are the Anahuac RV Park Rules & Regulations: ' + appUrl + '/rules.html — Please review them at your convenience. Thank you!',
+      message_type: 'general',
+    });
+    showStatusToast('✅', 'Rules link sent via SMS to ' + tenant.first_name);
+  } catch (err) {
+    showStatusToast('❌', 'Failed to send rules: ' + (err.message || 'unknown'));
+  }
+}
+
+async function emailRulesToGuest(tenantId) {
+  try {
+    var tenant = await API.get('/tenants/' + tenantId);
+    if (!tenant?.email) { showStatusToast('⚠️', 'No email on file'); return; }
+    var appUrl = window.location.origin;
+    await API.post('/messages', {
+      tenant_id: tenantId,
+      subject: 'Park Rules & Regulations',
+      body: 'Hi ' + (tenant.first_name || 'Guest') + '! Here are the Anahuac RV Park Rules & Regulations: ' + appUrl + '/rules.html — Please review them at your convenience. Thank you!',
+      message_type: 'general',
+      delivery: 'email',
+    });
+    showStatusToast('✅', 'Rules link emailed to ' + tenant.first_name);
+  } catch (err) {
+    showStatusToast('❌', 'Failed to email rules: ' + (err.message || 'unknown'));
+  }
 }
 

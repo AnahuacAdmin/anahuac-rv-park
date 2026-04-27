@@ -107,9 +107,9 @@ async function showNewInspection() {
   var tenants = await API.get('/tenants');
   showModal('📸 Log New Issue', `
     <div class="form-group">
-      <label>Tenant / Lot</label>
+      <label>Guest / Lot</label>
       <select id="insp-tenant" style="font-size:1rem" required>
-        <option value="">Select tenant...</option>
+        <option value="">Select guest...</option>
         ${(tenants || []).filter(t => t.is_active).map(t => '<option value="' + t.id + '" data-lot="' + escapeHtml(t.lot_id || '') + '">' + escapeHtml(t.lot_id || '?') + ' — ' + escapeHtml(t.first_name + ' ' + t.last_name) + '</option>').join('')}
       </select>
     </div>

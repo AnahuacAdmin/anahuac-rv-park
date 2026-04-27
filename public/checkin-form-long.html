@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <title>Monthly Rental Application - Anahuac RV Park</title>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,system-ui,'Segoe UI',Roboto,sans-serif; color:#1f2937; background:#fff; line-height:1.45; font-size:11px; }
+    .form-page { max-width:750px; margin:0 auto; padding:1rem; }
+    .form-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #166534; padding-bottom:0.5rem; margin-bottom:0.5rem; }
+    .form-header img { height:55px; width:auto; }
+    .form-header h1 { color:#166534; font-size:1rem; margin:0; }
+    .form-header h2 { font-size:0.8rem; color:#374151; font-weight:600; margin:0.1rem 0 0; }
+    .form-header .park-info { font-size:0.7rem; color:#6b7280; }
+    .field-group { display:grid; gap:0.2rem 0.6rem; margin-bottom:0.3rem; }
+    .field { margin-bottom:0.15rem; }
+    .field label { display:block; font-size:0.68rem; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:0.02em; margin-bottom:0.05rem; }
+    .field input, .field select, .field textarea { width:100%; border:none; border-bottom:1px solid #9ca3af; font-size:0.8rem; padding:0.1rem 0.2rem; background:transparent; font-family:inherit; }
+    .field input:focus, .field textarea:focus { outline:none; border-bottom-color:#166534; }
+    .field textarea { border:1px solid #9ca3af; border-radius:3px; min-height:1.5rem; resize:vertical; }
+    .section-title { background:#f0fdf4; color:#166534; font-weight:700; font-size:0.75rem; padding:0.25rem 0.4rem; margin:0.4rem 0 0.3rem; border-left:3px solid #166534; }
+    .q-row { display:flex; align-items:flex-start; gap:0.5rem; margin-bottom:0.2rem; font-size:0.78rem; border-bottom:1px dotted #e5e7eb; padding:0.15rem 0; }
+    .q-row .q-text { flex:1; }
+    .q-row .q-answer { display:flex; gap:0.5rem; white-space:nowrap; font-size:0.75rem; }
+    .q-row .q-answer label { display:flex; align-items:center; gap:0.15rem; font-weight:400; text-transform:none; }
+    .q-explain { font-size:0.72rem; color:#6b7280; margin-left:1rem; }
+    .disclaimer { margin-top:0.5rem; padding:0.4rem; background:#fef3c7; border:1px solid #f59e0b; border-radius:4px; font-size:0.68rem; line-height:1.35; color:#78350f; }
+    .disclaimer p { margin-bottom:0.2rem; }
+    .disclaimer p:last-child { margin-bottom:0; }
+    .sig-section { display:flex; gap:1rem; margin-top:0.5rem; }
+    .sig-block { flex:1; }
+    .sig-block .sig-line { border-bottom:1px solid #374151; height:1.2rem; margin-bottom:0.1rem; }
+    .sig-block label { font-size:0.68rem; color:#6b7280; font-weight:400; text-transform:none; }
+    .occ-table { width:100%; border-collapse:collapse; font-size:0.75rem; margin-bottom:0.3rem; }
+    .occ-table th { background:#f3f4f6; text-align:left; padding:0.2rem 0.3rem; font-size:0.68rem; border-bottom:1px solid #d1d5db; }
+    .occ-table td { padding:0.15rem 0.3rem; border-bottom:1px solid #e5e7eb; }
+    .occ-table input { border:none; border-bottom:1px dotted #9ca3af; width:100%; font-size:0.75rem; padding:0.05rem; }
+    .no-print { text-align:center; margin:1rem 0; }
+    .no-print button { padding:0.5rem 1.5rem; border-radius:8px; font-size:0.95rem; font-weight:600; cursor:pointer; border:none; min-height:44px; margin:0 0.25rem; }
+    .btn-print { background:#166534; color:#fff; }
+    .btn-back { background:#e5e7eb; color:#374151; }
+    @media print {
+      .no-print { display:none !important; }
+      body { font-size:10px; }
+      .form-page { padding:0; }
+      .section-title { break-after:avoid; }
+      @page { margin:0.35in; size:letter portrait; }
+    }
+  </style>
+</head>
+<body>
+<div class="form-page">
+  <div class="no-print" style="margin-bottom:0.5rem">
+    <button class="btn-print" onclick="window.print()">Print Application</button>
+    <button class="btn-back" onclick="window.close()">Close</button>
+  </div>
+
+  <div class="form-header">
+    <div style="display:flex;align-items:center;gap:0.5rem">
+      <img src="/park_Logo.png" alt="Anahuac RV Park">
+      <div>
+        <h1>Anahuac RV Park, LLC</h1>
+        <p class="park-info">1003 Davis Ave, Anahuac, TX 77514 &bull; (409) 267-6603</p>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <h2>MONTHLY RENTAL<br>APPLICATION</h2>
+      <p class="park-info">Extended Stay (1+ Months)</p>
+    </div>
+  </div>
+
+  <div class="section-title">APPLICANT INFORMATION</div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>Date Requested for Move-In</label><input type="text" id="f-movein-date"></div>
+    <div class="field"><label>Assigned Lot</label><input type="text" id="f-lot"></div>
+    <div class="field"><label>Monthly Rate</label><input type="text" id="f-rate"></div>
+  </div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr">
+    <div class="field"><label>Full Name</label><input type="text" id="f-name"></div>
+    <div class="field"><label>Date of Birth</label><input type="text" id="f-dob"></div>
+  </div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>Social Security Number</label><input type="text" id="f-ssn"></div>
+    <div class="field"><label>Driver's License Number</label><input type="text" id="f-dl"></div>
+    <div class="field"><label>DL State</label><input type="text" id="f-dl-state"></div>
+  </div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>Cell Phone</label><input type="text" id="f-phone"></div>
+    <div class="field"><label>Home Phone</label><input type="text"></div>
+    <div class="field"><label>Email</label><input type="text" id="f-email"></div>
+  </div>
+
+  <div class="section-title">PERMANENT ADDRESS</div>
+  <div class="field-group" style="grid-template-columns:2fr 1fr 0.5fr 1fr">
+    <div class="field"><label>Street Address</label><input type="text"></div>
+    <div class="field"><label>City</label><input type="text"></div>
+    <div class="field"><label>State</label><input type="text"></div>
+    <div class="field"><label>Zip</label><input type="text"></div>
+  </div>
+
+  <div class="section-title">EMPLOYMENT INFORMATION</div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>Employer Name</label><input type="text"></div>
+    <div class="field"><label>Position</label><input type="text"></div>
+    <div class="field"><label>How Long Employed</label><input type="text"></div>
+  </div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>Gross Monthly Income</label><input type="text"></div>
+    <div class="field"><label>Supervisor Name</label><input type="text"></div>
+    <div class="field"><label>Employer Phone</label><input type="text"></div>
+  </div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr">
+    <div class="field"><label>Employer Email</label><input type="text"></div>
+    <div class="field"><label>Employer Address</label><input type="text"></div>
+  </div>
+
+  <div class="section-title">PREVIOUS RV PARK / LANDLORD REFERENCE</div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>Name / Park</label><input type="text"></div>
+    <div class="field"><label>Phone</label><input type="text"></div>
+    <div class="field"><label>Dates of Stay</label><input type="text"></div>
+  </div>
+
+  <div class="section-title">ALL OCCUPANTS</div>
+  <table class="occ-table">
+    <thead><tr><th>Full Name</th><th>Date of Birth</th><th>Relationship</th></tr></thead>
+    <tbody>
+      <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+      <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+      <tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td></tr>
+    </tbody>
+  </table>
+  <div class="section-title" style="font-size:0.7rem">MINOR OCCUPANTS</div>
+  <table class="occ-table">
+    <thead><tr><th>Name</th><th>Age</th><th>Date of Birth</th></tr></thead>
+    <tbody>
+      <tr><td><input type="text"></td><td><input type="text" style="width:50px"></td><td><input type="text"></td></tr>
+      <tr><td><input type="text"></td><td><input type="text" style="width:50px"></td><td><input type="text"></td></tr>
+    </tbody>
+  </table>
+
+  <div class="section-title">EMERGENCY CONTACT</div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>Name</label><input type="text" id="f-ec-name"></div>
+    <div class="field"><label>Phone</label><input type="text" id="f-ec-phone"></div>
+    <div class="field"><label>Relationship</label><input type="text" id="f-ec-rel"></div>
+  </div>
+
+  <div class="section-title">PET INFORMATION</div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr 1fr">
+    <div class="field"><label>Pet Name</label><input type="text"></div>
+    <div class="field"><label>Breed</label><input type="text"></div>
+    <div class="field"><label>Age</label><input type="text"></div>
+    <div class="field"><label>Weight</label><input type="text"></div>
+  </div>
+
+  <div class="section-title">VEHICLE / RV DETAILS</div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>RV Size / Length</label><input type="text"></div>
+    <div class="field"><label>RV Type (5th Wheel, Travel Trailer, etc.)</label><input type="text"></div>
+    <div class="field"><label>RV Year / Make / Model</label><input type="text" id="f-rv"></div>
+  </div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr">
+    <div class="field"><label>RV Color</label><input type="text"></div>
+    <div class="field"><label>RV License Plate (State &amp; Number)</label><input type="text" id="f-plates"></div>
+  </div>
+  <div style="font-size:0.72rem;font-weight:600;margin:0.3rem 0 0.15rem;color:#374151">Additional Vehicles on Site:</div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>Year / Make / Model</label><input type="text" id="f-vehicle"></div>
+    <div class="field"><label>Color</label><input type="text"></div>
+    <div class="field"><label>License Plate</label><input type="text"></div>
+  </div>
+
+  <div class="section-title">PERSONAL REFERENCES (2 Required)</div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>Reference 1 - Name</label><input type="text"></div>
+    <div class="field"><label>Phone</label><input type="text"></div>
+    <div class="field"><label>Relationship</label><input type="text"></div>
+  </div>
+  <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="field"><label>Reference 2 - Name</label><input type="text"></div>
+    <div class="field"><label>Phone</label><input type="text"></div>
+    <div class="field"><label>Relationship</label><input type="text"></div>
+  </div>
+
+  <div class="section-title">HOW DID YOU HEAR ABOUT US?</div>
+  <div class="field"><input type="text" id="f-referral" style="width:100%"></div>
+
+  <div class="section-title">OCCUPANT QUESTIONNAIRE</div>
+  <p style="font-size:0.7rem;color:#6b7280;margin-bottom:0.2rem">Answer Yes or No. If Yes, please explain on the line provided.</p>
+
+  <div class="q-row">
+    <span class="q-text">1. Will you maintain Insurance on your RV?</span>
+    <span class="q-answer"><label><input type="radio" name="q1" value="yes"> Yes</label><label><input type="radio" name="q1" value="no"> No</label></span>
+  </div>
+  <div class="field" style="margin-left:1rem;margin-bottom:0.2rem"><input type="text" placeholder="Explain if needed..."></div>
+
+  <div class="q-row">
+    <span class="q-text">2. Have you ever been evicted?</span>
+    <span class="q-answer"><label><input type="radio" name="q2" value="yes"> Yes</label><label><input type="radio" name="q2" value="no"> No</label></span>
+  </div>
+  <div class="field" style="margin-left:1rem;margin-bottom:0.2rem"><input type="text" placeholder="Explain if needed..."></div>
+
+  <div class="q-row">
+    <span class="q-text">3. Have you ever been asked to move out by a landlord?</span>
+    <span class="q-answer"><label><input type="radio" name="q3" value="yes"> Yes</label><label><input type="radio" name="q3" value="no"> No</label></span>
+  </div>
+  <div class="field" style="margin-left:1rem;margin-bottom:0.2rem"><input type="text" placeholder="Explain if needed..."></div>
+
+  <div class="q-row">
+    <span class="q-text">4. Have you ever breached a lease or rental contract?</span>
+    <span class="q-answer"><label><input type="radio" name="q4" value="yes"> Yes</label><label><input type="radio" name="q4" value="no"> No</label></span>
+  </div>
+  <div class="field" style="margin-left:1rem;margin-bottom:0.2rem"><input type="text" placeholder="Explain if needed..."></div>
+
+  <div class="q-row">
+    <span class="q-text">5. Have you ever been sued for nonpayment/outstanding money owed?</span>
+    <span class="q-answer"><label><input type="radio" name="q5" value="yes"> Yes</label><label><input type="radio" name="q5" value="no"> No</label></span>
+  </div>
+  <div class="field" style="margin-left:1rem;margin-bottom:0.2rem"><input type="text" placeholder="Explain if needed..."></div>
+
+  <div class="q-row">
+    <span class="q-text">6. Have you or any other occupants ever been convicted of a crime?</span>
+    <span class="q-answer"><label><input type="radio" name="q6" value="yes"> Yes</label><label><input type="radio" name="q6" value="no"> No</label></span>
+  </div>
+  <div class="field" style="margin-left:1rem;margin-bottom:0.2rem"><input type="text" placeholder="Explain if needed..."></div>
+
+  <div class="q-row">
+    <span class="q-text">7. Do you or any other occupants have any criminal matters pending?</span>
+    <span class="q-answer"><label><input type="radio" name="q7" value="yes"> Yes</label><label><input type="radio" name="q7" value="no"> No</label></span>
+  </div>
+  <div class="field" style="margin-left:1rem;margin-bottom:0.2rem"><input type="text" placeholder="Explain if needed..."></div>
+
+  <div class="q-row">
+    <span class="q-text">8. Is any Occupant a registered sex offender?</span>
+    <span class="q-answer"><label><input type="radio" name="q8" value="yes"> Yes</label><label><input type="radio" name="q8" value="no"> No</label></span>
+  </div>
+  <div class="field" style="margin-left:1rem;margin-bottom:0.2rem"><input type="text" placeholder="Explain if needed..."></div>
+
+  <div class="disclaimer">
+    <p><strong>THIS AGREEMENT DOES NOT CREATE A LANDLORD/TENANT RELATIONSHIP.</strong></p>
+    <p><strong>BY SIGNING THIS APPLICATION, APPLICANT/LICENSEE HAS VERIFIED THAT ALL INFORMATION PROVIDED IS CORRECT. GUESTS ARE CONSIDERED LICENSEES AND HAVE NO EXCLUSIVE POSSESSION, VESTED INTEREST OR CONTROL OF THE PREMISES&hellip;THERE IS NO TENANT/LANDLORD AGREEMENT.</strong></p>
+    <p><strong>GUEST ALSO AGREE TO ALL ANAHUAC RV PARK RULES, TERMS AND CONDITIONS THAT ARE POSTED ON THE PROPERTY AND SET BY PARK MANAGEMENT.</strong></p>
+    <p><strong>ANAHUAC RV PARK RESERVES THE RIGHT TO CHANGE THE RULES OF THE PARK WITHOUT NOTICE.</strong></p>
+    <p><strong>ANAHUAC RV PARK RESERVES THE RIGHT TO IMMEDIATELY REMOVE ANY PERSON WHO HAS VIOLATED THE RULES OF THE PARK- REFUNDS WILL NOT BE GIVEN.</strong></p>
+    <p style="margin-top:0.3rem"><strong>I AUTHORIZE ANAHUAC RV PARK TO VERIFY ALL INFORMATION PROVIDED AND TO OBTAIN CREDIT AND/OR BACKGROUND REPORTS AS DEEMED NECESSARY.</strong></p>
+  </div>
+
+  <div class="sig-section">
+    <div class="sig-block"><div class="sig-line"></div><label>Applicant Signature</label></div>
+    <div class="sig-block" style="max-width:120px"><div class="sig-line"></div><label>Date</label></div>
+  </div>
+  <div class="sig-section" style="margin-top:0.4rem">
+    <div class="sig-block"><div class="sig-line"></div><label>Park Management Signature</label></div>
+    <div class="sig-block" style="max-width:120px"><div class="sig-line"></div><label>Date</label></div>
+  </div>
+</div>
+
+<script>
+var params = new URLSearchParams(window.location.search);
+function fill(id, val) { if (val) { var el = document.getElementById(id); if (el) el.value = val; } }
+fill('f-name', params.get('name'));
+fill('f-phone', params.get('phone'));
+fill('f-email', params.get('email'));
+fill('f-lot', params.get('lot'));
+fill('f-movein-date', params.get('date'));
+fill('f-rv', params.get('rv'));
+fill('f-plates', params.get('plates'));
+fill('f-dl', params.get('dl'));
+fill('f-dl-state', params.get('dl_state'));
+fill('f-dob', params.get('dob'));
+fill('f-vehicle', params.get('vehicle'));
+fill('f-ec-name', params.get('ec_name'));
+fill('f-ec-phone', params.get('ec_phone'));
+fill('f-ec-rel', params.get('ec_rel'));
+fill('f-rate', params.get('rate'));
+</script>
+</body>
+</html>

@@ -29,7 +29,7 @@ async function loadLotMgmt() {
     <div class="card">
       <div class="table-container">
         <table>
-          <thead><tr><th>Lot ID</th><th>Row</th><th>#</th><th>Type</th><th>Size</th><th>Amenities</th><th>Default Rate</th><th>Short Term</th><th>Status</th><th>Tenant</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Lot ID</th><th>Row</th><th>#</th><th>Type</th><th>Size</th><th>Amenities</th><th>Default Rate</th><th>Short Term</th><th>Status</th><th>Guest</th><th>Actions</th></tr></thead>
           <tbody>
             ${lots.map(l => {
               const typeColor = { standard:'#2563eb', premium:'#7c3aed', 'pull-through':'#f59e0b', owner_reserved:'#9ca3af' }[l.lot_type || 'standard'] || '#2563eb';

@@ -78,7 +78,7 @@ async function loadWaterReadingsTab() {
 
     var total = readings.reduce(function(s, r) { return s + (r.gallons_used || 0); }, 0);
     el.innerHTML = '<div class="card"><div class="table-container"><table>' +
-      '<thead><tr><th>Lot</th><th>Tenant</th><th>Date</th><th>Prev</th><th>Current</th><th>Gallons</th><th>Est. Charge</th><th>Photo</th><th>Actions</th></tr></thead><tbody>' +
+      '<thead><tr><th>Lot</th><th>Guest</th><th>Date</th><th>Prev</th><th>Current</th><th>Gallons</th><th>Est. Charge</th><th>Photo</th><th>Actions</th></tr></thead><tbody>' +
       readings.map(function(r) {
         var name = ((r.first_name || '') + ' ' + (r.last_name || '')).trim() || '—';
         var photoLink = r.has_photo ? '<a href="/api/water-meters/readings/' + r.id + '/photo" target="_blank" style="color:var(--brand-primary);font-size:0.75rem">📷 View</a>' : '<span style="color:#a8a29e">—</span>';

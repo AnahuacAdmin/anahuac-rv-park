@@ -142,6 +142,7 @@ app.use('/api/credits', require('./routes/credits'));
 // Public pages — serve without .html extension so /privacy and /terms work
 app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'privacy.html')));
 app.get('/terms', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'terms.html')));
+app.get('/rules', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'rules.html')));
 
 // SPA fallback
 app.get('*', (req, res) => {

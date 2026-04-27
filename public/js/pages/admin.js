@@ -371,7 +371,7 @@ async function loadFlatRateTenants() {
     }
     el.innerHTML = `
       <table style="width:100%;font-size:0.85rem">
-        <thead><tr><th>Lot</th><th>Tenant</th><th>Flat Rate</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Lot</th><th>Guest</th><th>Flat Rate</th><th>Actions</th></tr></thead>
         <tbody>${flat.map(t => `
           <tr>
             <td><strong>${t.lot_id}</strong></td>
@@ -419,7 +419,7 @@ async function loadOfflineAdminStatus() {
     el.innerHTML = `
       <div>Status: <strong>${navigator.onLine ? '🟢 Online' : '🔴 Offline'}</strong></div>
       <div>Pending sync: <strong>${pending.length}</strong> item${pending.length !== 1 ? 's' : ''}</div>
-      ${cached ? `<div>Tenant cache: <strong>${cached.data?.length || 0} tenants</strong> (cached ${new Date(cached.cachedAt).toLocaleString()})</div>` : '<div>Tenant cache: not yet cached</div>'}
+      ${cached ? `<div>Guest cache: <strong>${cached.data?.length || 0} guests</strong> (cached ${new Date(cached.cachedAt).toLocaleString()})</div>` : '<div>Guest cache: not yet cached</div>'}
     `;
   } catch { el.textContent = 'Offline engine not available.'; }
 }

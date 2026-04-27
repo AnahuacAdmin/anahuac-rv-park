@@ -20,7 +20,7 @@ async function loadTenants() {
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('tenants')}
     <div class="page-header">
-      <h2>Tenant Management</h2>
+      <h2>Guest Management</h2>
       <div class="btn-group">
         ${API.user?.role === 'admin' ? '<button class="btn btn-outline" onclick="showImportTenants()">📥 Import Tenants</button>' : ''}
         <button class="btn btn-outline" onclick="showRecurringFeesSummary()">Recurring Fees Summary</button>
@@ -56,7 +56,7 @@ async function loadTenants() {
 async function showAddTenant() {
   const lots = await API.get('/lots');
   const vacantLots = lots.filter(l => l.status === 'vacant');
-  showModal('Add New Tenant', tenantForm(vacantLots));
+  showModal('Add New Guest', tenantForm(vacantLots));
 }
 
 async function showEditTenant(id) {
@@ -64,7 +64,7 @@ async function showEditTenant(id) {
   if (!tenant) return;
   const lots = await API.get('/lots');
   const availableLots = lots.filter(l => l.status === 'vacant' || l.id === tenant.lot_id);
-  showModal('Edit Tenant', tenantForm(availableLots, tenant));
+  showModal('Edit Guest', tenantForm(availableLots, tenant));
 }
 
 function tenantForm(lots, tenant = {}) {
@@ -175,7 +175,7 @@ function tenantForm(lots, tenant = {}) {
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem">
           <button type="button" class="btn btn-sm btn-outline" style="color:#16a34a;border-color:#16a34a" onclick="showApplyCredit(${tenant.id}, ${tenant.credit_balance}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Apply to Invoice</button>
           <button type="button" class="btn btn-sm btn-outline" style="color:#dc2626;border-color:#dc2626" onclick="showRefundCredit(${tenant.id}, ${tenant.credit_balance}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Refund</button>
-          <button type="button" class="btn btn-sm btn-outline" style="color:#0284c7;border-color:#0284c7" onclick="showTransferCredit(${tenant.id}, ${tenant.credit_balance}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`, '${tenant.lot_id}')">Transfer to Another Tenant</button>
+          <button type="button" class="btn btn-sm btn-outline" style="color:#0284c7;border-color:#0284c7" onclick="showTransferCredit(${tenant.id}, ${tenant.credit_balance}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`, '${tenant.lot_id}')">Transfer to Another Guest</button>
         </div>
         ` : ''}
         <div style="margin-top:0.75rem">
@@ -241,7 +241,7 @@ function tenantForm(lots, tenant = {}) {
       </fieldset>
 
       <div class="form-group"><label>Notes</label><textarea name="notes">${tenant.notes || ''}</textarea></div>
-      <button type="submit" class="btn btn-primary btn-full mt-2">${tenant.id ? 'Update' : 'Add'} Tenant</button>
+      <button type="submit" class="btn btn-primary btn-full mt-2">${tenant.id ? 'Update' : 'Add'} Guest</button>
     </form>
   `;
 }
@@ -308,8 +308,8 @@ async function showMoveTenant(tenantId, currentLot, tenantName) {
         <label>Mid-Month Move Notes</label>
         <textarea name="mid_month_move_notes" placeholder="Reason for move, condition of lots, special arrangements..."></textarea>
       </div>
-      <p><small>This will: move the tenant, mark <strong>${currentLot}</strong> vacant, mark the new lot occupied, record the final electric reading on the old lot and the opening reading on the new lot. Rent for the next monthly invoice will be prorated by days at each lot.</small></p>
-      <button type="submit" class="btn btn-primary btn-full mt-2">Move Tenant</button>
+      <p><small>This will: move the guest, mark <strong>${currentLot}</strong> vacant, mark the new lot occupied, record the final electric reading on the old lot and the opening reading on the new lot. Rent for the next monthly invoice will be prorated by days at each lot.</small></p>
+      <button type="submit" class="btn btn-primary btn-full mt-2">Move Guest</button>
       <p id="move-tenant-error" class="error-text" style="display:none"></p>
     </form>
   `);
@@ -396,7 +396,7 @@ async function showRecurringFeesSummary() {
   const body = withFees.length ? `
     <div class="table-container">
       <table>
-        <thead><tr><th>Lot</th><th>Tenant</th><th class="text-right">Late</th><th class="text-right">Mailbox</th><th class="text-right">Misc</th><th class="text-right">Credit</th><th class="text-right">Net / month</th></tr></thead>
+        <thead><tr><th>Lot</th><th>Guest</th><th class="text-right">Late</th><th class="text-right">Mailbox</th><th class="text-right">Misc</th><th class="text-right">Credit</th><th class="text-right">Net / month</th></tr></thead>
         <tbody>
           ${withFees.map(t => {
             const net = num(t.recurring_late_fee) + num(t.recurring_mailbox_fee) + num(t.recurring_misc_fee) - num(t.recurring_credit);
@@ -490,7 +490,7 @@ function importHelpPanelHtml() {
 var IMPORT_FIELDS = [
   { key: 'lot_id',         label: 'Lot Number',        required: true,
     aliases: ['lot','lotnumber','lotid','site','sitenumber','space','spacenumber','stall'] },
-  { key: 'full_name',      label: 'Tenant Full Name',  required: true,
+  { key: 'full_name',      label: 'Guest Full Name',   required: true,
     aliases: ['name','fullname','tenant','tenantname','resident','residentname','customer'] },
   { key: 'phone',          label: 'Phone Number',
     aliases: ['phone','phonenumber','tel','telephone','mobile','cell','cellphone','contact','contactnumber'] },
@@ -917,9 +917,9 @@ async function showTransferCredit(tenantId, creditBalance, tenantName, lotId) {
     </div>
     <form id="transfer-credit-form">
       <div class="form-group">
-        <label>Transfer to Tenant</label>
+        <label>Transfer to Guest</label>
         <select name="to_tenant_id" required>
-          <option value="">Select tenant...</option>
+          <option value="">Select guest...</option>
           ${others.map(function(t) { return '<option value="' + t.id + '">' + t.lot_id + ' - ' + t.first_name + ' ' + t.last_name + '</option>'; }).join('')}
         </select>
       </div>
@@ -988,7 +988,7 @@ async function showRefundCredit(tenantId, creditBalance, tenantName) {
       </div>
       <div class="form-group">
         <label>Reason <span style="font-weight:400;color:var(--gray-400)">(optional)</span></label>
-        <input name="reason" placeholder="e.g. Tenant requested cash refund">
+        <input name="reason" placeholder="e.g. Guest requested cash refund">
       </div>
       <p id="refund-error" class="error-text" style="display:none"></p>
       <div class="btn-group mt-2">

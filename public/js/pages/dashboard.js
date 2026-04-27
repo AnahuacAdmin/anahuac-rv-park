@@ -186,7 +186,7 @@ async function loadDashboard() {
       <button class="dash-action-btn" onclick="navigateTo('messages')"><span class="dash-action-icon">📱</span>Messaging</button>
       <a class="dash-action-btn dash-portal-btn" href="/portal.html" target="_blank" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#0d1a50;border:2px solid #d97706;text-decoration:none">
         <span class="dash-action-icon" style="font-size:2rem">🐊</span>
-        <span style="font-weight:700;font-size:0.85rem">Tenant Portal</span>
+        <span style="font-weight:700;font-size:0.85rem">Guest Portal</span>
         <span style="font-size:0.68rem;font-weight:400;opacity:0.8">View &amp; Pay Bills ↗</span>
       </a>
     </div>
@@ -265,7 +265,7 @@ async function loadDashboard() {
     ${isAdmin() ? `
     <div class="card dash-fade-in" style="animation-delay:0.795s">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-        <h3 style="margin:0">💚 Tenant Credits</h3>
+        <h3 style="margin:0">💚 Guest Credits</h3>
         <span id="dash-credits-total" style="font-weight:700;color:#16a34a"></span>
       </div>
       <div id="dash-credits" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
@@ -490,7 +490,7 @@ async function loadDashReviews() {
     html += '<span style="font-size:0.9rem"><strong>' + data.thisMonth + '</strong> review requests sent this month</span>';
     html += '</div>';
     if (data.requests.length) {
-      html += '<div style="max-height:180px;overflow-y:auto"><table class="data-table" style="font-size:0.8rem"><thead><tr><th>Date</th><th>Tenant</th><th>Lot</th><th>Method</th></tr></thead><tbody>';
+      html += '<div style="max-height:180px;overflow-y:auto"><table class="data-table" style="font-size:0.8rem"><thead><tr><th>Date</th><th>Guest</th><th>Lot</th><th>Method</th></tr></thead><tbody>';
       data.requests.slice(0, 10).forEach(function(r) {
         html += '<tr><td>' + (r.sent_at || '').split('T')[0] + '</td><td>' + escapeHtml(r.tenant_name || '') + '</td><td>' + escapeHtml(r.lot_number || '') + '</td><td>' + escapeHtml(r.method || '') + '</td></tr>';
       });
@@ -517,7 +517,7 @@ async function loadDashCredits() {
       return;
     }
     el.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:0.85rem">' +
-      '<thead><tr style="border-bottom:1px solid var(--gray-200)"><th style="text-align:left;padding:0.3rem">Tenant</th><th style="text-align:left;padding:0.3rem">Lot</th><th style="text-align:right;padding:0.3rem">Credit</th></tr></thead>' +
+      '<thead><tr style="border-bottom:1px solid var(--gray-200)"><th style="text-align:left;padding:0.3rem">Guest</th><th style="text-align:left;padding:0.3rem">Lot</th><th style="text-align:right;padding:0.3rem">Credit</th></tr></thead>' +
       '<tbody>' + data.tenants.map(function(t) {
         return '<tr style="border-bottom:1px solid var(--gray-100)">' +
           '<td style="padding:0.3rem"><a href="#" onclick="event.preventDefault();navigateTo(\'tenants\')" style="color:var(--brand-primary);font-weight:600">' + escapeHtml(t.first_name + ' ' + t.last_name) + '</a></td>' +

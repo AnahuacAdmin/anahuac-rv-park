@@ -125,7 +125,7 @@ async function loadLotDetail(lotId) {
     <div style="height:250px;margin-bottom:1rem"><canvas id="lotChart"></canvas></div>
     <div class="btn-group" style="margin:0.75rem 0" id="lot-export-buttons">
       <button class="btn btn-primary" onclick="downloadLotPdf('${lotId}')">📄 Download PDF</button>
-      <button class="btn btn-success" onclick="textLotToTenant('${lotId}')">📱 Text to Tenant</button>
+      <button class="btn btn-success" onclick="textLotToTenant('${lotId}')">📱 Text to Guest</button>
     </div>
     <div class="table-container" style="margin-top:1rem;max-height:250px" id="lot-readings-table">
       <table>
@@ -202,7 +202,7 @@ async function downloadLotPdf(lotId) {
 
       <div style="display:flex;justify-content:space-between;margin-bottom:1rem">
         <div>
-          <p style="margin:0;font-size:0.85rem"><strong>Tenant:</strong> ${escapeHtml(tenant)}</p>
+          <p style="margin:0;font-size:0.85rem"><strong>Guest:</strong> ${escapeHtml(tenant)}</p>
           <p style="margin:0.15rem 0 0;font-size:0.85rem"><strong>Lot:</strong> ${escapeHtml(lotId)}</p>
         </div>
         <div style="text-align:right">
@@ -287,7 +287,7 @@ async function textLotToTenant(lotId) {
   let tenants;
   try { tenants = await API.get('/tenants'); } catch { tenants = []; }
   const tenant = (tenants || []).find(t => t.lot_id === lotId);
-  const tenantName = tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Tenant';
+  const tenantName = tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Guest';
   const tenantPhone = tenant?.phone || '(no phone on file)';
 
   const lastReading = data.readings[0];

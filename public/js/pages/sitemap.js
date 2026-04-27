@@ -97,7 +97,7 @@ async function showLotDetail(lotId) {
 
   const tabs = `
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchLotTab(event,'tab-tenant')">Tenant</button>
+      <button class="tab-btn active" onclick="switchLotTab(event,'tab-tenant')">Guest</button>
       <button class="tab-btn" onclick="switchLotTab(event,'tab-billing')">Billing</button>
       <button class="tab-btn" onclick="switchLotTab(event,'tab-history')">History</button>
       <button class="tab-btn" onclick="switchLotTab(event,'tab-notices')">Notices</button>

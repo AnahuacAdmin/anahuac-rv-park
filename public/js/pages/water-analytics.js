@@ -36,7 +36,7 @@ async function loadWaterAnalytics() {
     '<div class="card">' +
       '<h3>All Lot Usage — ' + (data.currentMonth || '') + '</h3>' +
       '<div class="table-container"><table>' +
-        '<thead><tr><th>Lot</th><th>Tenant</th><th>This Month</th><th>3-Month Avg</th>' +
+        '<thead><tr><th>Lot</th><th>Guest</th><th>This Month</th><th>3-Month Avg</th>' +
           (data.allowance ? '<th>vs Allowance</th>' : '') +
           '<th>Status</th></tr></thead><tbody>' +
         (data.lotStats || []).map(function(l) {
