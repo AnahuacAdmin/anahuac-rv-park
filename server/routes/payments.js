@@ -90,6 +90,34 @@ router.use(authenticate);
 const { blockStaff } = require('../middleware');
 router.use(blockStaff);
 
+// Diagnostic: detailed invoice breakdown for investigation
+router.get('/invoice-audit', (req, res) => {
+  const month = req.query.month || new Date().toISOString().slice(0, 7); // YYYY-MM
+  const invoices = db.prepare(`
+    SELECT i.id, i.invoice_number, i.invoice_date, i.status, i.rent_amount, i.electric_amount,
+      i.late_fee, COALESCE(i.mailbox_fee,0) AS mailbox_fee, COALESCE(i.misc_fee,0) AS misc_fee,
+      COALESCE(i.refund_amount,0) AS refund_amount, i.subtotal, i.total_amount, i.amount_paid,
+      i.balance_due, COALESCE(i.credit_applied,0) AS credit_applied, COALESCE(i.deleted,0) AS deleted,
+      t.first_name, t.last_name, t.lot_id, t.flat_rate, t.monthly_rent
+    FROM invoices i
+    JOIN tenants t ON i.tenant_id = t.id
+    WHERE i.invoice_date LIKE ? || '%'
+    ORDER BY t.lot_id
+  `).all(month);
+  const totals = {
+    rent: invoices.filter(i=>!i.deleted).reduce((s,i)=>s+i.rent_amount,0),
+    electric: invoices.filter(i=>!i.deleted).reduce((s,i)=>s+i.electric_amount,0),
+    late_fees: invoices.filter(i=>!i.deleted).reduce((s,i)=>s+i.late_fee,0),
+    mailbox: invoices.filter(i=>!i.deleted).reduce((s,i)=>s+i.mailbox_fee,0),
+    misc: invoices.filter(i=>!i.deleted).reduce((s,i)=>s+i.misc_fee,0),
+    refunds: invoices.filter(i=>!i.deleted).reduce((s,i)=>s+i.refund_amount,0),
+    total: invoices.filter(i=>!i.deleted).reduce((s,i)=>s+i.total_amount,0),
+    count: invoices.filter(i=>!i.deleted).length,
+    deleted_count: invoices.filter(i=>i.deleted).length,
+  };
+  res.json({ month, invoices, totals });
+});
+
 router.get('/summary', (req, res) => {
   // Revenue breakdown from paid/partial invoices
   const inv = db.prepare(`
