@@ -8,7 +8,9 @@ async function loadPayments() {
   const payments = await API.get('/payments');
   if (!payments) return;
 
-  const totalCollected = payments.reduce((s, p) => s + p.amount, 0);
+  const totalCollected = payments.filter(p => p.amount > 0).reduce((s, p) => s + p.amount, 0);
+  const totalRefunded = payments.filter(p => p.amount < 0).reduce((s, p) => s + p.amount, 0);
+  const netCollected = totalCollected + totalRefunded;
 
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('payments')}
@@ -17,26 +19,31 @@ async function loadPayments() {
       <button class="btn btn-primary" onclick="showRecordPayment()">+ Record Payment</button>
     </div>
     <div class="stats-grid">
-      <div class="stat-card success"><div class="stat-value">${formatMoney(totalCollected)}</div><div class="stat-label">Total Collected</div></div>
-      <div class="stat-card"><div class="stat-value">${payments.length}</div><div class="stat-label">Total Payments</div></div>
+      <div class="stat-card success"><div class="stat-value">${formatMoney(totalCollected)}</div><div class="stat-label">Collected</div></div>
+      ${totalRefunded < 0 ? `<div class="stat-card" style="border-left-color:#dc2626"><div class="stat-value" style="color:#dc2626">${formatMoney(totalRefunded)}</div><div class="stat-label">Refunded</div></div>` : ''}
+      <div class="stat-card"><div class="stat-value">${formatMoney(netCollected)}</div><div class="stat-label">Net</div></div>
+      <div class="stat-card"><div class="stat-value">${payments.length}</div><div class="stat-label">Transactions</div></div>
     </div>
     <div class="card scrollable-table-card">
       <div class="table-container">
         <table>
           <thead><tr><th>Date</th><th>Lot</th><th>Guest</th><th>Amount</th><th>Method</th><th>Invoice</th><th>Reference</th><th>Actions</th></tr></thead>
           <tbody>
-            ${payments.length ? payments.map(p => `
-              <tr>
+            ${payments.length ? payments.map(p => {
+              var isRefund = p.amount < 0;
+              var isSettlement = (p.notes || '').toLowerCase().includes('settlement') || (p.reference_number || '').toUpperCase() === 'CHECKOUT';
+              var typeLabel = isRefund ? '<span style="color:#dc2626;font-weight:600">Refund</span>' : isSettlement ? '<span style="color:#0284c7;font-weight:600">Settlement</span>' : '';
+              return `<tr${isRefund ? ' style="background:#fef2f2"' : isSettlement ? ' style="background:#eff6ff"' : ''}>
                 <td>${formatDate(p.payment_date)}</td>
                 <td><strong>${p.lot_id}</strong></td>
                 <td>${p.first_name} ${p.last_name}</td>
-                <td><strong>${formatMoney(p.amount)}</strong></td>
+                <td><strong style="color:${isRefund ? '#dc2626' : '#16a34a'}">${formatMoney(p.amount)}</strong></td>
                 <td>${p.payment_method || '—'}</td>
-                <td>${p.invoice_number || '—'}</td>
+                <td>${p.invoice_number || (typeLabel || '—')}</td>
                 <td>${p.reference_number || '—'}</td>
                 <td><button class="btn btn-sm btn-danger" onclick="deletePayment(${p.id})">Del</button></td>
-              </tr>
-            `).join('') : '<tr><td colspan="8" class="text-center">No payments recorded</td></tr>'}
+              </tr>`;
+            }).join('') : '<tr><td colspan="8" class="text-center">No payments recorded</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -45,7 +52,9 @@ async function loadPayments() {
 }
 
 async function showRecordPayment() {
-  const [tenants, invoices] = await Promise.all([API.get('/tenants'), API.get('/invoices')]);
+  const [allTenants, invoices] = await Promise.all([API.get('/tenants/all'), API.get('/invoices')]);
+  const activeTenants = allTenants.filter(t => t.is_active);
+  const inactiveTenants = allTenants.filter(t => !t.is_active);
   const pendingInvoices = invoices.filter(i => i.status !== 'paid');
 
   showModal('Record Payment', `
@@ -54,27 +63,35 @@ async function showRecordPayment() {
         <label>Guest</label>
         <select name="tenant_id" required onchange="filterPaymentInvoices(this.value)">
           <option value="">Select guest...</option>
-          ${tenants.map(t => `<option value="${t.id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
+          <optgroup label="Current Guests">
+            ${activeTenants.map(t => `<option value="${t.id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
+          </optgroup>
+          ${inactiveTenants.length ? `<optgroup label="Checked-Out Guests">
+            ${inactiveTenants.map(t => `<option value="${t.id}">${t.lot_id} - ${t.first_name} ${t.last_name} (moved out)</option>`).join('')}
+          </optgroup>` : ''}
         </select>
       </div>
       <div class="form-group">
         <label>Link to Invoice (optional)</label>
         <select name="invoice_id" id="payment-invoice-select">
-          <option value="">No invoice link</option>
+          <option value="">No invoice link (settlement/refund/other)</option>
           ${pendingInvoices.map(i => `<option value="${i.id}" data-tenant="${i.tenant_id}">${i.invoice_number} - ${formatMoney(i.balance_due)} due</option>`).join('')}
         </select>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Payment Date</label><input name="payment_date" type="date" value="${new Date().toISOString().split('T')[0]}" required></div>
-        <div class="form-group"><label>Amount</label><input name="amount" type="number" step="0.01" required></div>
+        <div class="form-group"><label>Amount</label><input name="amount" type="number" step="0.01" required>
+          <span style="font-size:0.75rem;color:var(--gray-500)">Use negative for refunds (e.g. -120.20)</span>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Payment Method</label>
           <select name="payment_method">
             <option value="cash">Cash</option>
-            <option value="check">Check</option>
+            <option value="check" selected>Check</option>
             <option value="money_order">Money Order</option>
+            <option value="zelle">Zelle</option>
             <option value="card">Credit/Debit Card</option>
           </select>
         </div>
@@ -85,7 +102,7 @@ async function showRecordPayment() {
       <div class="form-group">
         <label style="display:flex;align-items:center;gap:0.5rem;font-weight:500">
           <input type="checkbox" name="send_sms_receipt" value="1">
-          Send SMS receipt to tenant
+          Send SMS receipt to guest
         </label>
       </div>
       <button type="submit" class="btn btn-success btn-full mt-2">Record Payment</button>
@@ -169,7 +186,7 @@ async function savePayment(e) {
     const r = await API.post('/payments', data);
     closeModal();
     if (r?.held_as_credit > 0) {
-      showCelebration('💚🏦', `${formatMoney(r.held_as_credit)} held as tenant credit!`);
+      showCelebration('💚🏦', `${formatMoney(r.held_as_credit)} held as guest credit!`);
     } else if (r?.overpayment > 0) {
       showCelebration('🎉💚', `Overpayment of ${formatMoney(r.overpayment)} added as credit!`);
     } else {
