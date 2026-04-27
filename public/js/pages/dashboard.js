@@ -182,6 +182,7 @@ async function loadDashboard() {
       ${isAdmin() ? `<button class="dash-action-btn" onclick="navigateTo('reports')"><span class="dash-action-icon">📊</span>Monthly Report</button>` : ''}
       ${isAdmin() ? `<button class="dash-action-btn" onclick="navigateTo('payments')"><span class="dash-action-icon">💰</span>Payments</button>` : ''}
       <button class="dash-action-btn" onclick="navigateTo('checkins')"><span class="dash-action-icon">🏕️</span>Check In</button>
+      <button class="dash-action-btn" onclick="showApplicationPicker()"><span class="dash-action-icon">📋</span>Guest Application</button>
       <button class="dash-action-btn" onclick="navigateTo('reservations')"><span class="dash-action-icon">📅</span>Reservations${data.pendingReservations ? `<span class="dash-action-badge">${data.pendingReservations}</span>` : ''}</button>
       <button class="dash-action-btn" onclick="navigateTo('messages')"><span class="dash-action-icon">📱</span>Messaging</button>
       <a class="dash-action-btn dash-portal-btn" href="/portal.html" target="_blank" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#0d1a50;border:2px solid #d97706;text-decoration:none">

@@ -99,7 +99,10 @@ var _baseFontSize = 92;
 function changeFontSize(dir) {
   if (dir === 0) _baseFontSize = 92;
   else _baseFontSize = Math.max(70, Math.min(130, _baseFontSize + dir * 8));
-  document.querySelector('.rules-list').style.fontSize = (_baseFontSize / 100) + 'rem';
+  var sz = (_baseFontSize / 100) + 'rem';
+  document.querySelector('.rules-list').style.fontSize = sz;
+  var items = document.querySelectorAll('.rules-list li');
+  for (var i = 0; i < items.length; i++) items[i].style.fontSize = sz;
 }
 </script>
 </body>

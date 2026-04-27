@@ -293,4 +293,39 @@ router.post('/broadcast-advanced', async (req, res) => {
   }
 });
 
+// Send SMS to a raw phone number (for prospective guests not yet in system)
+router.post('/send-raw-sms', async (req, res) => {
+  const { to, body } = req.body;
+  if (!to || !body) return res.status(400).json({ error: 'to and body required' });
+  const phone = to.replace(/\D/g, '');
+  if (phone.length < 10) return res.status(400).json({ error: 'Invalid phone number' });
+  try {
+    await sendSms(phone, `${PARK_PREFIX}${body}`);
+    res.json({ sent: true });
+  } catch (err) {
+    console.error('[messages] send-raw-sms failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send email to a raw address (for prospective guests not yet in system)
+router.post('/send-raw-email', async (req, res) => {
+  const { to, subject, body } = req.body;
+  if (!to || !body) return res.status(400).json({ error: 'to and body required' });
+  try {
+    await resend.emails.send({
+      from: FROM_ADDRESS,
+      reply_to: REPLY_TO,
+      to,
+      subject: subject || 'Anahuac RV Park',
+      text: body + EMAIL_FOOTER_TEXT,
+      html: `<p>${body.replace(/\n/g, '<br>')}</p>${EMAIL_FOOTER_HTML}`,
+    });
+    res.json({ sent: true });
+  } catch (err) {
+    console.error('[messages] send-raw-email failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -25,6 +25,7 @@ async function loadCheckins() {
     <div class="page-header">
       <h2>Check-In / Check-Out</h2>
       <div class="btn-group">
+        <button class="btn btn-primary" onclick="showApplicationPicker()">&#128203; New Application</button>
         <button class="btn btn-success" id="btn-checkin">Check-In</button>
         <button class="btn btn-warning" id="btn-checkout">Check-Out</button>
       </div>
@@ -510,15 +511,11 @@ async function processCheckIn(e) {
       </button>
 
       <div style="border-top:1px solid var(--gray-200);margin:1rem 0 0.75rem;padding-top:0.75rem">
-        <p style="font-weight:700;margin-bottom:0.5rem">Check-In Forms & Rules</p>
+        <p style="font-weight:700;margin-bottom:0.5rem">Park Rules</p>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center">
-          <button class="btn btn-outline" style="flex:1;min-width:130px" onclick="openCheckinFormShort(window._lastCheckinTenant)">Short Form<br><span style="font-size:0.7rem;font-weight:400">1 month or less</span></button>
-          <button class="btn btn-outline" style="flex:1;min-width:130px" onclick="openCheckinFormLong(window._lastCheckinTenant)">Long Application<br><span style="font-size:0.7rem;font-weight:400">Extended stay</span></button>
-          <button class="btn btn-outline" style="flex:1;min-width:130px" onclick="openRules()">Park Rules<br><span style="font-size:0.7rem;font-weight:400">Print or view</span></button>
-        </div>
-        <div style="display:flex;gap:0.5rem;margin-top:0.5rem;justify-content:center">
-          ${phone ? `<button class="btn btn-sm btn-outline" onclick="smsRulesToGuest(${tenant.id})">SMS Rules Link</button>` : ''}
-          ${data.email ? `<button class="btn btn-sm btn-outline" onclick="emailRulesToGuest(${tenant.id})">Email Rules Link</button>` : ''}
+          <button class="btn btn-outline" style="flex:1;min-width:130px" onclick="openRules()">&#128220; Print Rules<br><span style="font-size:0.7rem;font-weight:400">View or print</span></button>
+          ${phone ? `<button class="btn btn-outline" style="flex:1;min-width:130px" onclick="smsRulesToGuest(${tenant.id})">&#128241; SMS Rules<br><span style="font-size:0.7rem;font-weight:400">Send link</span></button>` : ''}
+          ${data.email ? `<button class="btn btn-outline" style="flex:1;min-width:130px" onclick="emailRulesToGuest(${tenant.id})">&#128231; Email Rules<br><span style="font-size:0.7rem;font-weight:400">Send link</span></button>` : ''}
         </div>
       </div>
 
@@ -707,7 +704,7 @@ async function checkoutSelected(sel) {
       <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
         ${['Cash','Check','Mailed Check','Zelle','Credit Card','Other'].map(function(m) {
           return '<label style="display:flex;align-items:center;gap:0.35rem;padding:0.5rem 0.75rem;border:1px solid var(--gray-300);border-radius:8px;cursor:pointer;min-height:48px;font-size:0.9rem">' +
-            '<input type="radio" name="settlement_method" value="' + m + '"' + (m === 'Cash' ? ' checked' : '') + '> ' + m + '</label>';
+            '<input type="radio" name="settlement_method" value="' + m + '"' + (m === 'Check' ? ' checked' : '') + '> ' + m + '</label>';
         }).join('')}
       </div>
       <div class="form-group" style="margin-top:0.5rem">
@@ -1046,7 +1043,7 @@ function printMoveOutPreview() {
     other_total: otherTotal,
     credit_applied: credit,
     net_settlement: net,
-    settlement_method: document.querySelector('input[name="settlement_method"]:checked')?.value || 'Cash',
+    settlement_method: document.querySelector('input[name="settlement_method"]:checked')?.value || 'Check',
     settlement_reference: document.querySelector('input[name="settlement_reference"]')?.value || '',
   };
 
@@ -1283,6 +1280,70 @@ async function sendReviewRequest(tenantId, tenantName) {
     showStatusToast('⚠️', 'Review request failed: ' + (err.message || 'unknown error'));
   }
   loadCheckins();
+}
+
+// === GUEST APPLICATION PICKER ===
+function showApplicationPicker(tenantData) {
+  var hasData = tenantData && (tenantData.first_name || tenantData.last_name);
+  var title = hasData ? 'Guest Application — ' + ((tenantData.first_name || '') + ' ' + (tenantData.last_name || '')).trim() : 'New Guest Application';
+  showModal(title, `
+    <div style="text-align:center;padding:1rem 0">
+      <p style="color:var(--gray-600);margin-bottom:1.5rem">How long will this guest be staying?</p>
+      <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary" style="flex:1;min-width:180px;padding:1.25rem 1rem" onclick="openCheckinFormShort(${hasData ? 'window._appPickerData' : 'null'});closeModal()">
+          <span style="display:block;font-size:1.5rem;margin-bottom:0.25rem">&#128203;</span>
+          <strong>1 Month or Less</strong><br>
+          <span style="font-size:0.78rem;font-weight:400;opacity:0.8">Short-term check-in form</span>
+        </button>
+        <button class="btn btn-primary" style="flex:1;min-width:180px;padding:1.25rem 1rem" onclick="openCheckinFormLong(${hasData ? 'window._appPickerData' : 'null'});closeModal()">
+          <span style="display:block;font-size:1.5rem;margin-bottom:0.25rem">&#128196;</span>
+          <strong>Extended Stay</strong><br>
+          <span style="font-size:0.78rem;font-weight:400;opacity:0.8">Monthly rental application</span>
+        </button>
+      </div>
+      <div style="border-top:1px solid var(--gray-200);margin-top:1.5rem;padding-top:1rem">
+        <p style="font-size:0.82rem;color:var(--gray-500);margin-bottom:0.75rem">Or send a blank application to the guest:</p>
+        <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-sm btn-outline" onclick="smsApplicationToGuest('short')">&#128241; SMS Short Form</button>
+          <button class="btn btn-sm btn-outline" onclick="smsApplicationToGuest('long')">&#128241; SMS Long Form</button>
+          <button class="btn btn-sm btn-outline" onclick="emailApplicationToGuest('short')">&#128231; Email Short Form</button>
+          <button class="btn btn-sm btn-outline" onclick="emailApplicationToGuest('long')">&#128231; Email Long Form</button>
+        </div>
+      </div>
+    </div>
+  `);
+  if (hasData) window._appPickerData = tenantData;
+}
+
+async function smsApplicationToGuest(formType) {
+  var phone = prompt('Enter guest phone number (10 digits):');
+  if (!phone) return;
+  phone = phone.replace(/\D/g, '');
+  if (phone.length === 11 && phone[0] === '1') phone = phone.slice(1);
+  if (phone.length !== 10) { alert('Please enter a valid 10-digit phone number.'); return; }
+  var appUrl = window.location.origin;
+  var formUrl = formType === 'long' ? appUrl + '/checkin-form-long.html' : appUrl + '/checkin-form-short.html';
+  var formLabel = formType === 'long' ? 'Monthly Rental Application' : 'Check-In Form';
+  try {
+    await API.post('/messages/send-raw-sms', { to: phone, body: 'Anahuac RV Park — Please fill out your ' + formLabel + ': ' + formUrl + ' — Thank you!' });
+    showStatusToast('✅', 'Application link sent via SMS');
+  } catch (err) {
+    showStatusToast('❌', 'Failed to send SMS: ' + (err.message || 'unknown'));
+  }
+}
+
+async function emailApplicationToGuest(formType) {
+  var email = prompt('Enter guest email address:');
+  if (!email || !email.includes('@')) { if (email) alert('Please enter a valid email address.'); return; }
+  var appUrl = window.location.origin;
+  var formUrl = formType === 'long' ? appUrl + '/checkin-form-long.html' : appUrl + '/checkin-form-short.html';
+  var formLabel = formType === 'long' ? 'Monthly Rental Application' : 'Check-In Form';
+  try {
+    await API.post('/messages/send-raw-email', { to: email, subject: 'Anahuac RV Park — ' + formLabel, body: 'Please fill out your ' + formLabel + ' at the link below:\n\n' + formUrl + '\n\nThank you!\nAnahuac RV Park Management' });
+    showStatusToast('✅', 'Application link emailed');
+  } catch (err) {
+    showStatusToast('❌', 'Failed to send email: ' + (err.message || 'unknown'));
+  }
 }
 
 // === CHECK-IN FORMS ===
