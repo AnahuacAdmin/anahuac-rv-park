@@ -24,7 +24,7 @@ function injectMainApp() {
           <button id="menu-toggle" class="menu-btn">&#9776;</button>
         </div>
         <div class="sidebar-search" onclick="event.stopPropagation()">
-          <input type="text" id="global-search" placeholder="\u{1F50D} Search tenants, lots, invoices..." autocomplete="off" oninput="onSearchInput(this.value)" onkeydown="searchKeydown(event)">
+          <input type="text" id="global-search" placeholder="\u{1F50D} Search guests, lots, invoices..." autocomplete="off" oninput="onSearchInput(this.value)" onkeydown="searchKeydown(event)">
           <div id="search-results" class="search-results"></div>
         </div>
         <ul class="nav-menu">
@@ -34,7 +34,7 @@ function injectMainApp() {
           <li class="nav-group open">
             <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">\u{1F465} Guests <span class="nav-caret">&#9662;</span></a>
             <ul class="nav-sub">
-              <li><a href="#" data-page="tenants" class="nav-link">\u{1F464} Tenants</a></li>
+              <li><a href="#" data-page="tenants" class="nav-link">\u{1F464} Guests</a></li>
               <li><a href="#" data-page="checkins" class="nav-link">\u2705 Check-In/Out</a></li>
               <li><a href="#" data-page="reservations" class="nav-link">\u{1F4C5} Reservations</a></li>
             </ul>
@@ -315,18 +315,18 @@ function getTimeGreeting() {
 
 const DAILY_TIPS = [
   '💡 Use Mobile Entry mode on the Meter Readings page to speed up monthly readings.',
-  '💡 Click any lot on the Site Map to see tenant details and billing history.',
-  '💡 Set recurring fees on a tenant to auto-apply them on every invoice.',
+  '💡 Click any lot on the Site Map to see guest details and billing history.',
+  '💡 Set recurring fees on a guest to auto-apply them on every invoice.',
   '💡 Use the Tax Reports button on the Reports page for a year-end financial summary.',
   '💡 Back up your database regularly from the Admin page.',
   '💡 The Check Late Fees button auto-applies $25 fees to invoices 3+ days old.',
   '💡 Export invoices to Excel for easy spreadsheet analysis.',
-  '💡 Send payment reminders via SMS to all unpaid tenants with one click.',
-  '💡 Use the QR code on invoices so tenants can pay online instantly.',
-  '💡 The Recurring Fees Summary on the Tenants page shows all auto-charges at a glance.',
+  '💡 Send payment reminders via SMS to all unpaid guests with one click.',
+  '💡 Use the QR code on invoices so guests can pay online instantly.',
+  '💡 The Recurring Fees Summary on the Guests page shows all auto-charges at a glance.',
   '🐊 Did you know? Anahuac is the Alligator Capital of Texas!',
   '🎣 Great fishing at Lake Anahuac — bass, catfish and more!',
-  '🦆 Please remind tenants to be kind to our resident ducks!',
+  '🦆 Please remind guests to be kind to our resident ducks!',
   '🐊 Keep an eye out for alligators near the water!',
   '🌊 Trinity Bay is just minutes away from the park!',
   '🦅 Anahuac National Wildlife Refuge is nearby — great bird watching!',
@@ -354,7 +354,7 @@ async function doGlobalSearch(q) {
     const r = await API.get('/search?q=' + encodeURIComponent(q));
     let html = '';
     const groups = [
-      { key: 'tenants', icon: '👤', label: 'Tenants', items: (r.tenants || []).map(t => ({ title: `${t.first_name} ${t.last_name}`, sub: `Lot ${t.lot_id}${t.phone ? ' · ' + t.phone : ''}`, action: `navigateTo('tenants')` })) },
+      { key: 'tenants', icon: '👤', label: 'Guests', items: (r.tenants || []).map(t => ({ title: `${t.first_name} ${t.last_name}`, sub: `Lot ${t.lot_id}${t.phone ? ' · ' + t.phone : ''}`, action: `navigateTo('tenants')` })) },
       { key: 'checkins', icon: '🏕️', label: 'Check-ins', items: (r.checkins || []).map(c => ({ title: `${c.first_name} ${c.last_name}`, sub: `Lot ${c.lot_id} · ${c.status} · ${c.check_in_date || ''}`, action: `navigateTo('checkins')` })) },
       { key: 'reservations', icon: '📅', label: 'Reservations', items: (r.reservations || []).map(rv => ({ title: rv.guest_name, sub: `${rv.confirmation_number} · Lot ${rv.lot_id || '?'} · ${rv.status}`, action: `navigateTo('reservations')` })) },
       { key: 'invoices', icon: '🧾', label: 'Invoices', items: (r.invoices || []).map(i => ({ title: `${i.invoice_number} — ${i.first_name} ${i.last_name}`, sub: `Lot ${i.lot_id} · $${Number(i.total_amount).toFixed(2)} · ${i.status}`, action: `navigateTo('billing')` })) },
@@ -642,12 +642,12 @@ const HELP_CONTENT = {
   <p><strong>Reports:</strong> Monthly expense totals show at the top. Export to CSV for your accountant. Combined with income on the Reports page for P&L.</p>
   <p>💡 <strong>TIP:</strong> Upload receipt photos immediately — makes tax time much easier!</p>`,
   documents: `<p><strong>📄 Document Management</strong></p><ul>
-    <li>Upload and manage tenant documents: lease agreements, IDs, vehicle registration, insurance, etc.</li>
-    <li><strong>Upload:</strong> Click <em>📤 Upload Document</em>, select the tenant, document type, name the file, and attach.</li>
-    <li><strong>Search:</strong> Find documents by tenant name, lot number, or filename.</li>
+    <li>Upload and manage guest documents: lease agreements, IDs, vehicle registration, insurance, etc.</li>
+    <li><strong>Upload:</strong> Click <em>📤 Upload Document</em>, select the guest, document type, name the file, and attach.</li>
+    <li><strong>Search:</strong> Find documents by guest name, lot number, or filename.</li>
     <li><strong>Filter:</strong> Use the type dropdown to show only specific document types.</li>
-    <li><strong>Missing Docs:</strong> Click <em>⚠️ Missing Docs</em> to see tenants with no documents on file.</li>
-    <li>Documents are linked to both tenant ID and lot ID so they're findable even after a lot move.</li>
+    <li><strong>Missing Docs:</strong> Click <em>⚠️ Missing Docs</em> to see guests with no documents on file.</li>
+    <li>Documents are linked to both guest ID and lot ID so they're findable even after a lot move.</li>
   </ul>`,
   lotmgmt: `<p><strong>🏕️ What is Lot Management?</strong></p>
   <p>Lot Management allows you to add, edit, and organize all the lots in your RV park. Changes made here automatically update everywhere — Site Map, Meter Readings, Check-In, and all dropdowns.</p>
@@ -675,9 +675,9 @@ const HELP_CONTENT = {
   <p><strong>💡 Tips:</strong></p><ul>
     <li>Lot IDs must be unique (no two lots can have the same ID).</li>
     <li>Adding a new row letter automatically creates that row on the Site Map.</li>
-    <li>Default rates auto-fill when checking in a new tenant to that lot.</li>
+    <li>Default rates auto-fill when checking in a new guest to that lot.</li>
     <li>Owner Reserved lots show as reserved on the Site Map and cannot be checked in.</li>
-    <li><strong>Renaming a lot:</strong> Click Edit → 🏷️ Rename/Relabel to change a lot's ID. All tenant records, invoices, meter readings, and reservations are updated automatically. Type CONFIRM to proceed.</li>
+    <li><strong>Renaming a lot:</strong> Click Edit → 🏷️ Rename/Relabel to change a lot's ID. All guest records, invoices, meter readings, and reservations are updated automatically. Type CONFIRM to proceed.</li>
   </ul>`,
   vendors: `<p><strong>📒 Vendor Directory</strong></p><ul>
     <li>Add plumbers, electricians, suppliers, and other contacts you call regularly.</li>
@@ -710,7 +710,7 @@ function showKeyboardShortcuts() {
       <tbody>
         <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">D</kbd></td><td>Dashboard</td></tr>
         <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">S</kbd></td><td>Site Map</td></tr>
-        <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">T</kbd></td><td>Tenants</td></tr>
+        <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">T</kbd></td><td>Guests</td></tr>
         <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">M</kbd></td><td>Meter Readings</td></tr>
         <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">B</kbd></td><td>Billing</td></tr>
         <tr><td style="padding:0.3rem 0.5rem"><kbd style="background:var(--gray-100);padding:2px 8px;border-radius:4px;border:1px solid var(--gray-300);font-family:monospace">R</kbd></td><td>Reports</td></tr>
@@ -1123,8 +1123,8 @@ function navigateTo(page, skipHistory) {
     dashboard: ['💡', 'Bookmark this page for quick access! Use the Quick Action buttons to jump to any section.'],
     billing: ['💡', 'Generate invoices on the 1st of each month. Click any fee cell to edit it inline!'],
     meters: ['💡', 'Use Mobile Entry mode when walking the property with your phone — much faster!'],
-    sitemap: ['💡', 'Click any lot card to quickly see that tenant\'s full details, billing, and history.'],
-    checkins: ['💡', 'After check-in, send a Welcome Text and print a Welcome Card for your new tenant.'],
+    sitemap: ['💡', 'Click any lot card to quickly see that guest\'s full details, billing, and history.'],
+    checkins: ['💡', 'After check-in, send a Welcome Text and print a Welcome Card for your new guest.'],
   };
   if (_tips[page]) setTimeout(() => showFirstVisitTip(page, _tips[page][0], _tips[page][1]), 2000);
 
