@@ -795,17 +795,19 @@ function recalcSettlement() {
 
   // Electric
   var electricCharge = 0;
-  var elPrev = parseFloat(document.getElementById('electric-prev').value) || 0;
-  var elCur = parseFloat(document.getElementById('electric-current').value) || 0;
+  var elPrevVal = document.getElementById('electric-prev').value?.trim();
+  var elCurVal = document.getElementById('electric-current').value?.trim();
+  var elPrev = elPrevVal !== '' && elPrevVal != null ? parseFloat(elPrevVal) : null;
+  var elCur = elCurVal !== '' && elCurVal != null ? parseFloat(elCurVal) : null;
   var elRate = d.electricRate || 0.15;
-  if (elCur > 0 && elCur >= elPrev) {
+  if (elCur != null && elPrev != null && elCur >= elPrev) {
     var kwh = elCur - elPrev;
     electricCharge = +(kwh * elRate).toFixed(2);
     var eCalc = document.getElementById('electric-calc');
     if (eCalc) eCalc.innerHTML = 'kWh used: <strong>' + kwh + '</strong> x $' + elRate.toFixed(2) + '/kWh = <strong style="color:#dc2626">' + formatMoney(electricCharge) + '</strong>';
   } else {
     var eCalc = document.getElementById('electric-calc');
-    if (eCalc) eCalc.innerHTML = elCur > 0 && elCur < elPrev ? '<span style="color:#dc2626">Current reading must be >= previous</span>' : '';
+    if (eCalc) eCalc.innerHTML = elCur != null && elPrev != null && elCur < elPrev ? '<span style="color:#dc2626">Current reading must be >= previous</span>' : '';
   }
 
   // Deposit
@@ -836,7 +838,7 @@ function recalcSettlement() {
   if (otherTotal > 0) lines.push(sLine('Other charges', -otherTotal, false));
   if (credit > 0) lines.push(sLine('Existing credit', credit, true));
   lines.push('<tr style="border-top:2px solid var(--gray-900)"><td style="padding:0.5rem 0;font-weight:700;font-size:1.05rem">' +
-    (net >= 0 ? 'NET DUE TO TENANT' : 'NET DUE FROM TENANT') +
+    (net >= 0 ? 'NET DUE TO GUEST' : 'NET DUE FROM GUEST') +
     '</td><td style="padding:0.5rem 0;text-align:right;font-weight:700;font-size:1.1rem;color:' + (net >= 0 ? '#16a34a' : '#dc2626') + '">' +
     (net >= 0 ? '+' : '') + formatMoney(Math.abs(net)) + '</td></tr>');
   summary.innerHTML = '<table style="width:100%;border-collapse:collapse">' + lines.join('') + '</table>';
@@ -875,7 +877,7 @@ function renderMoveOutStatementHtml(s) {
     '</div>' +
 
     '<div style="display:grid;grid-template-columns:auto 1fr;gap:0.15rem 1rem;font-size:0.82rem;margin-bottom:1rem">' +
-      '<strong>Tenant Name:</strong><span>' + escapeHtml(s.tenant_name) + '</span>' +
+      '<strong>Guest Name:</strong><span>' + escapeHtml(s.tenant_name) + '</span>' +
       '<strong>Lot:</strong><span>' + escapeHtml(s.lot_id) + '</span>' +
       (s.move_in_date ? '<strong>Move-In Date:</strong><span>' + formatDate(s.move_in_date) + '</span>' : '') +
       '<strong>Move-Out Date:</strong><span>' + formatDate(s.checkout_date) + '</span>' +
@@ -924,7 +926,7 @@ function renderMoveOutStatementHtml(s) {
             '<tr><td>&nbsp;&nbsp;Credit Applied</td>' + amtCell(s.credit_applied, true) + '</tr>'
           : '') +
 
-          '<tr class="total-row"><td style="font-size:1rem;padding:0.5rem 0.5rem">' + (s.net_settlement >= 0 ? 'NET DUE TO TENANT' : 'NET DUE FROM TENANT') + '</td>' +
+          '<tr class="total-row"><td style="font-size:1rem;padding:0.5rem 0.5rem">' + (s.net_settlement >= 0 ? 'NET DUE TO GUEST' : 'NET DUE FROM GUEST') + '</td>' +
             '<td class="text-right" style="font-size:1.1rem;padding:0.5rem 0.5rem;color:' + (s.net_settlement >= 0 ? '#16a34a' : '#dc2626') + '">' +
             (s.net_settlement >= 0 ? '+' : '\u2212') + formatMoney(Math.abs(s.net_settlement)) + '</td></tr>' +
         '</tbody>' +
@@ -935,7 +937,7 @@ function renderMoveOutStatementHtml(s) {
 
     '<div style="margin-top:2rem;font-size:0.82rem">' +
       '<div style="display:flex;gap:2rem;margin-bottom:1.5rem">' +
-        '<div style="flex:1"><p style="margin-bottom:0.75rem">Tenant Signature:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
+        '<div style="flex:1"><p style="margin-bottom:0.75rem">Guest Signature:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
         '<div style="width:120px"><p style="margin-bottom:0.75rem">Date:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
       '</div>' +
       '<div style="display:flex;gap:2rem">' +
@@ -962,7 +964,9 @@ function printMoveOutPreview() {
   var coDate = document.getElementById('checkout-date-input').value;
   var prorateCb = document.getElementById('prorate-checkbox');
   var elPrev = parseFloat(document.getElementById('electric-prev')?.value) || 0;
-  var elCur = parseFloat(document.getElementById('electric-current')?.value) || 0;
+  var elCurVal = document.getElementById('electric-current')?.value?.trim();
+  var elCur = elCurVal !== '' && elCurVal != null ? parseFloat(elCurVal) : null;
+  var hasElectric = elCur !== null && !isNaN(elCur);
   var depAction = document.getElementById('deposit-action-select');
 
   var daysMonth = parseInt(document.getElementById('prorate-days-month')?.value) || 30;
@@ -973,7 +977,7 @@ function printMoveOutPreview() {
   var rentRefund = prorateRent ? Math.max(0, +(rent - proratedRent).toFixed(2)) : 0;
 
   var elRate = d.electricRate || 0.15;
-  var kwh = elCur > elPrev ? elCur - elPrev : 0;
+  var kwh = hasElectric && elCur >= elPrev ? elCur - elPrev : 0;
   var electricCharge = +(kwh * elRate).toFixed(2);
 
   var depositRefund = 0;
@@ -1007,8 +1011,8 @@ function printMoveOutPreview() {
     days_in_month: daysMonth,
     prorated_rent: proratedRent,
     rent_refund: rentRefund,
-    electric_previous: elCur > 0 ? elPrev : null,
-    electric_current: elCur > 0 ? elCur : null,
+    electric_previous: hasElectric ? elPrev : null,
+    electric_current: hasElectric ? elCur : null,
     electric_kwh: kwh,
     electric_rate: elRate,
     electric_charge: electricCharge,
@@ -1057,11 +1061,16 @@ async function processCheckOut(e) {
     var t = d ? d.tenant : null;
     var deposit = t ? Number(t.deposit_amount) || 0 : 0;
     var prorateCb = document.getElementById('prorate-checkbox');
-    var elPrev = parseFloat(document.getElementById('electric-prev')?.value) || 0;
-    var elCur = parseFloat(document.getElementById('electric-current')?.value) || 0;
+    var elPrevEl = document.getElementById('electric-prev');
+    var elCurEl = document.getElementById('electric-current');
+    var elPrev = parseFloat(elPrevEl?.value) || 0;
+    var elCurVal = elCurEl?.value?.trim();
+    var elCur = elCurVal !== '' && elCurVal != null ? parseFloat(elCurVal) : null;
     var depAction = document.getElementById('deposit-action-select');
 
     var charges = _checkoutOtherCharges.filter(function(c) { return c && c.amount > 0; });
+
+    var hasElectric = elCur !== null && !isNaN(elCur);
 
     var body = {
       tenant_id: parseInt(form.get('tenant_id')),
@@ -1071,8 +1080,8 @@ async function processCheckOut(e) {
       prorate_rent: prorateCb && prorateCb.checked,
       days_occupied: prorateCb && prorateCb.checked ? parseInt(document.getElementById('prorate-days-occupied').value) || 0 : null,
       days_in_month: prorateCb && prorateCb.checked ? parseInt(document.getElementById('prorate-days-month').value) || 30 : null,
-      electric_previous: elCur > 0 ? elPrev : null,
-      electric_current: elCur > 0 ? elCur : null,
+      electric_previous: hasElectric ? elPrev : null,
+      electric_current: hasElectric ? elCur : null,
       electric_rate: d ? d.electricRate : 0.15,
       deposit_action: depAction && deposit > 0 ? depAction.value : null,
       deposit_deduction: depAction && depAction.value === 'partial' ? (parseFloat(document.getElementById('deposit-deduction-input')?.value) || 0) : 0,
@@ -1084,7 +1093,7 @@ async function processCheckOut(e) {
 
     var result = await API.post('/checkins/checkout', body);
     closeModal();
-    showStatusToast('✅', 'Tenant checked out! Settlement recorded.');
+    showStatusToast('✅', 'Guest checked out! Settlement recorded.');
 
     // Show Move-Out Statement
     var s = result.statement;

@@ -12,7 +12,7 @@
   <meta name="theme-color" content="#1a5c32">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
-  <title>Tenant Portal - Anahuac RV Park</title>
+  <title>Guest Portal - Anahuac RV Park</title>
   <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     html { scroll-behavior:smooth; -webkit-tap-highlight-color:transparent; }
@@ -290,7 +290,7 @@
 <div id="login-wrapper" class="login-overlay" style="opacity:0;transition:opacity 0.4s ease 0.1s">
   <div id="login-screen" class="card">
     <img src="/park_Logo.png" alt="Anahuac RV Park" class="logo">
-    <h1>Tenant Portal</h1>
+    <h1>Guest Portal</h1>
     <p class="subtitle">Anahuac RV Park 🐊</p>
     <div id="login-error" class="msg-error hidden"></div>
     <form id="login-form">
@@ -2632,7 +2632,7 @@ async function loadLatestCommunityBanner() {
     var posts = await r.json();
     if (!posts || !posts.length) { el.style.display = 'none'; return; }
     var p = posts[0];
-    var author = (p.first_name || 'Tenant') + (p.lot_id ? ' (Lot ' + p.lot_id + ')' : '');
+    var author = (p.first_name || 'Guest') + (p.lot_id ? ' (Lot ' + p.lot_id + ')' : '');
     el.textContent = '📋 ' + author + ' \u00B7 ' + (p.title || p.message || 'New post');
     el.style.display = '';
   } catch { el.style.display = 'none'; }
@@ -3074,7 +3074,7 @@ async function loadPreviewTenantList() {
       return; // success
     } catch {}
   }
-  sel.innerHTML = '<option>Tenant list unavailable</option>';
+  sel.innerHTML = '<option>Guest list unavailable</option>';
 }
 
 async function switchPreviewTenant(tenantId) {

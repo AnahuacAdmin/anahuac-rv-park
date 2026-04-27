@@ -80,7 +80,7 @@ function checkBirthdays() {
   console.log('[birthday-job] ' + tenants.length + ' birthday(s) today!');
 
   tenants.forEach(function(t) {
-    var name = t.first_name || 'Tenant';
+    var name = t.first_name || 'Guest';
     var subject = 'Happy Birthday, ' + name + '!';
     var msg = 'Happy Birthday ' + name + '! Wishing you a wonderful day from all of us here at ' +
       parkName + '. We hope your special day is filled with joy!\n\nSincerely,\nPark Management';
