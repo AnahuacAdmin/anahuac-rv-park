@@ -26,10 +26,65 @@ async function loadExpenses() {
 
     // Summary cards
     '<div class="dash-top-bar" style="margin-bottom:1rem">' +
-      '<div class="dash-top-item dash-border-red"><div class="dash-top-icon">💸</div><span class="dash-top-val">' + formatMoney(summary?.total || 0) + '</span><span class="dash-top-label">This Month</span></div>' +
-      '<div class="dash-top-item dash-border-purple"><div class="dash-top-icon">📅</div><span class="dash-top-val">' + formatMoney(summary?.yearTotal || 0) + '</span><span class="dash-top-label">This Year</span></div>' +
+      '<div class="dash-top-item dash-border-red"><div class="dash-top-icon">💸</div><span class="dash-top-val">' + formatMoney((summary?.total || 0) + (summary?.electricMonth || 0)) + '</span><span class="dash-top-label">Total Expenses (Month)</span></div>' +
+      '<div class="dash-top-item dash-border-purple"><div class="dash-top-icon">📅</div><span class="dash-top-val">' + formatMoney((summary?.yearTotal || 0) + (summary?.electricYear || 0)) + '</span><span class="dash-top-label">Total Expenses (Year)</span></div>' +
       '<div class="dash-top-item dash-border-blue"><div class="dash-top-icon">📊</div><span class="dash-top-val">' + escapeHtml(topCat ? topCat.category : '—') + '</span><span class="dash-top-label">Biggest Category</span></div>' +
       '<div class="dash-top-item"><div class="dash-top-icon">🧾</div><span class="dash-top-val">' + (summary?.receiptCount || 0) + '</span><span class="dash-top-label">Receipts on File</span></div>' +
+    '</div>' +
+
+    // P&L Summary
+    (function() {
+      var revMonth = summary?.revenueMonth || 0;
+      var refMonth = summary?.refundsMonth || 0;
+      var netRevMonth = revMonth + refMonth;
+      var elecMonth = summary?.electricMonth || 0;
+      var manualExpMonth = summary?.total || 0;
+      var totalExpMonth = elecMonth + manualExpMonth;
+      var profitMonth = netRevMonth - totalExpMonth;
+
+      var revYear = summary?.revenueYear || 0;
+      var refYear = summary?.refundsYear || 0;
+      var netRevYear = revYear + refYear;
+      var elecYear = summary?.electricYear || 0;
+      var manualExpYear = summary?.yearTotal || 0;
+      var totalExpYear = elecYear + manualExpYear;
+      var profitYear = netRevYear - totalExpYear;
+
+      return '<div class="card" style="margin-bottom:1rem;padding:1rem;background:linear-gradient(135deg,#fefce8,#fef9c3);border:1px solid #fde68a">' +
+        '<h3 style="font-size:0.95rem;color:#92400e;margin:0 0 0.75rem">Profit & Loss Summary</h3>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:0.88rem">' +
+          // Monthly column
+          '<div>' +
+            '<div style="font-weight:700;margin-bottom:0.5rem;color:var(--gray-600);font-size:0.8rem;text-transform:uppercase">This Month</div>' +
+            '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Park Revenue:</span><strong style="color:#166534">' + formatMoney(revMonth) + '</strong></div>' +
+            (refMonth < 0 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Refunds:</span><strong style="color:#dc2626">' + formatMoney(refMonth) + '</strong></div>' : '') +
+            '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Electric (pass-through):</span><strong style="color:#b45309">-' + formatMoney(elecMonth) + '</strong></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Other Expenses:</span><strong style="color:#dc2626">-' + formatMoney(manualExpMonth) + '</strong></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:0.35rem 0;margin-top:0.25rem;border-top:2px solid #92400e;font-size:0.95rem"><span style="font-weight:700">Net Profit:</span><strong style="color:' + (profitMonth >= 0 ? '#166534' : '#dc2626') + ';font-size:1.05rem">' + formatMoney(profitMonth) + '</strong></div>' +
+          '</div>' +
+          // Year column
+          '<div>' +
+            '<div style="font-weight:700;margin-bottom:0.5rem;color:var(--gray-600);font-size:0.8rem;text-transform:uppercase">This Year</div>' +
+            '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Park Revenue:</span><strong style="color:#166534">' + formatMoney(revYear) + '</strong></div>' +
+            (refYear < 0 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Refunds:</span><strong style="color:#dc2626">' + formatMoney(refYear) + '</strong></div>' : '') +
+            '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Electric (pass-through):</span><strong style="color:#b45309">-' + formatMoney(elecYear) + '</strong></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Other Expenses:</span><strong style="color:#dc2626">-' + formatMoney(manualExpYear) + '</strong></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:0.35rem 0;margin-top:0.25rem;border-top:2px solid #92400e;font-size:0.95rem"><span style="font-weight:700">Net Profit:</span><strong style="color:' + (profitYear >= 0 ? '#166534' : '#dc2626') + ';font-size:1.05rem">' + formatMoney(profitYear) + '</strong></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    })() +
+
+    // Electric pass-through auto-entry
+    '<div class="card" style="margin-bottom:1rem;padding:0.75rem;background:#fffbeb;border:1px solid #fde68a">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<div><strong style="color:#b45309">&#9889; Electric Pass-Through</strong>' +
+          '<span style="font-size:0.78rem;color:var(--gray-500);margin-left:0.5rem">Auto-calculated from guest electric billing</span></div>' +
+        '<div style="text-align:right">' +
+          '<div style="font-size:1.1rem;font-weight:700;color:#b45309">' + formatMoney(summary?.electricMonth || 0) + '</div>' +
+          '<div style="font-size:0.75rem;color:var(--gray-500)">This month &bull; ' + formatMoney(summary?.electricYear || 0) + ' YTD</div>' +
+        '</div>' +
+      '</div>' +
     '</div>' +
 
     // Monthly chart + top vendors

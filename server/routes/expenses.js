@@ -49,7 +49,18 @@ router.get('/summary', (req, res) => {
     monthlyHistory.push({ month: m, total: t });
   }
 
-  res.json({ month, total, byCategory, yearTotal, receiptCount, topVendors, monthlyHistory });
+  // Electric pass-through from invoices (auto-calculated, not a manual expense)
+  var electricMonth = db.prepare("SELECT COALESCE(SUM(electric_amount),0) as t FROM invoices WHERE status IN ('paid','partial') AND COALESCE(deleted,0)=0 AND invoice_date LIKE ?").get(month + '%').t;
+  var electricYear = db.prepare("SELECT COALESCE(SUM(electric_amount),0) as t FROM invoices WHERE status IN ('paid','partial') AND COALESCE(deleted,0)=0 AND invoice_date LIKE ?").get(year + '%').t;
+
+  // Park revenue for P&L
+  var revenueMonth = db.prepare("SELECT COALESCE(SUM(rent_amount + COALESCE(mailbox_fee,0) + COALESCE(misc_fee,0) + COALESCE(late_fee,0)),0) as t FROM invoices WHERE status IN ('paid','partial') AND COALESCE(deleted,0)=0 AND invoice_date LIKE ?").get(month + '%').t;
+  var revenueYear = db.prepare("SELECT COALESCE(SUM(rent_amount + COALESCE(mailbox_fee,0) + COALESCE(misc_fee,0) + COALESCE(late_fee,0)),0) as t FROM invoices WHERE status IN ('paid','partial') AND COALESCE(deleted,0)=0 AND invoice_date LIKE ?").get(year + '%').t;
+  var refundsMonth = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM payments WHERE amount < 0 AND payment_date LIKE ?").get(month + '%').t;
+  var refundsYear = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM payments WHERE amount < 0 AND payment_date LIKE ?").get(year + '%').t;
+
+  res.json({ month, total, byCategory, yearTotal, receiptCount, topVendors, monthlyHistory,
+    electricMonth, electricYear, revenueMonth, revenueYear, refundsMonth, refundsYear });
 });
 
 // Get receipt image

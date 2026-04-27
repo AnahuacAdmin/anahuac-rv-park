@@ -20,7 +20,6 @@ async function loadPayments() {
     </div>
     <div class="stats-grid">
       <div class="stat-card success"><div class="stat-value">${formatMoney(parkRevenue)}</div><div class="stat-label">Park Revenue</div></div>
-      <div class="stat-card" style="border-left-color:#f59e0b"><div class="stat-value" style="color:#b45309">${formatMoney(s.electric || 0)}</div><div class="stat-label">Electric (pass-through)</div></div>
       ${(s.refunded || 0) < 0 ? `<div class="stat-card" style="border-left-color:#dc2626"><div class="stat-value" style="color:#dc2626">${formatMoney(s.refunded)}</div><div class="stat-label">Refunded</div></div>` : ''}
       <div class="stat-card" style="border-left-color:#166534"><div class="stat-value" style="color:#166534">${formatMoney(netRevenue)}</div><div class="stat-label">Net Revenue</div></div>
       <div class="stat-card"><div class="stat-value">${s.transactions || payments.length}</div><div class="stat-label">Transactions</div></div>
@@ -33,12 +32,11 @@ async function loadPayments() {
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.5rem;font-size:0.88rem">
         <div><span style="color:var(--gray-500)">Rent:</span> <strong>${formatMoney(s.rent || 0)}</strong></div>
-        <div><span style="color:var(--gray-500)">Electric:</span> <strong style="color:#b45309">${formatMoney(s.electric || 0)}</strong> <span style="font-size:0.7rem;color:var(--gray-400)">(pass-through)</span></div>
         <div><span style="color:var(--gray-500)">Late Fees:</span> <strong>${formatMoney(s.late_fees || 0)}</strong></div>
         <div><span style="color:var(--gray-500)">Mailbox:</span> <strong>${formatMoney(s.mailbox || 0)}</strong></div>
         ${(s.misc || 0) > 0 ? `<div><span style="color:var(--gray-500)">Misc:</span> <strong>${formatMoney(s.misc || 0)}</strong></div>` : ''}
         <div><span style="color:var(--gray-500)">Refunds:</span> <strong style="color:#dc2626">${formatMoney(s.refunded || 0)}</strong></div>
-        <div style="border-top:2px solid #166534;padding-top:0.25rem;grid-column:1/-1;font-size:0.95rem"><span style="color:#166534;font-weight:700">Net Park Revenue:</span> <strong style="color:#166534;font-size:1.05rem">${formatMoney(netRevenue)}</strong> <span style="font-size:0.75rem;color:var(--gray-400)">(excludes electric pass-through)</span></div>
+        <div style="border-top:2px solid #166534;padding-top:0.25rem;grid-column:1/-1;font-size:0.95rem"><span style="color:#166534;font-weight:700">Net Park Revenue:</span> <strong style="color:#166534;font-size:1.05rem">${formatMoney(netRevenue)}</strong></div>
       </div>
     </div>
     <div class="card scrollable-table-card">
