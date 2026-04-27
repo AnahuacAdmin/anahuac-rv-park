@@ -90,6 +90,29 @@ router.use(authenticate);
 const { blockStaff } = require('../middleware');
 router.use(blockStaff);
 
+router.get('/summary', (req, res) => {
+  // Revenue breakdown from paid/partial invoices
+  const inv = db.prepare(`
+    SELECT
+      COALESCE(SUM(rent_amount), 0) AS rent,
+      COALESCE(SUM(electric_amount), 0) AS electric,
+      COALESCE(SUM(late_fee), 0) AS late_fees,
+      COALESCE(SUM(mailbox_fee), 0) AS mailbox,
+      COALESCE(SUM(misc_fee), 0) AS misc
+    FROM invoices WHERE status IN ('paid','partial') AND COALESCE(deleted, 0) = 0
+  `).get();
+  // Refunds from payments table (negative amounts)
+  const ref = db.prepare(`SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE amount < 0`).get();
+  // Total actually collected (positive payments)
+  const col = db.prepare(`SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE amount > 0`).get();
+  const txn = db.prepare(`SELECT COUNT(*) AS count FROM payments`).get();
+  res.json({
+    rent: inv.rent, electric: inv.electric, late_fees: inv.late_fees,
+    mailbox: inv.mailbox, misc: inv.misc,
+    refunded: ref.total, collected: col.total, transactions: txn.count,
+  });
+});
+
 router.get('/', (req, res) => {
   const payments = db.prepare(`
     SELECT p.*, t.first_name, t.last_name, t.lot_id, i.invoice_number
