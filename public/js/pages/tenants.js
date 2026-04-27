@@ -149,12 +149,19 @@ function tenantForm(lots, tenant = {}) {
       </label>
 
       ${tenant.id ? `
-        <div class="form-group">
+        <div class="form-group" style="display:flex;flex-wrap:wrap;gap:0.5rem">
           <button type="button" class="btn btn-warning" onclick="showMoveTenant(${tenant.id}, '${tenant.lot_id}', \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Move to Different Lot</button>
           <button type="button" class="btn btn-outline" onclick="resetTenantPin(${tenant.id})">Reset Portal PIN</button>
           <button type="button" class="btn btn-outline" style="color:#f59e0b;border-color:#f59e0b" onclick="promptTenantReview(${tenant.id}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">⭐ Request Review</button>
           <button type="button" class="btn btn-outline" onclick="showApplicationPicker({first_name:'${(tenant.first_name||'').replace(/'/g,"\\'")}',last_name:'${(tenant.last_name||'').replace(/'/g,"\\'")}',phone:'${tenant.phone||''}',email:'${tenant.email||''}',lot_id:'${tenant.lot_id||''}',id_number:'${tenant.id_number||''}',date_of_birth:'${tenant.date_of_birth||''}',rv_year:'${tenant.rv_year||''}',rv_make:'${(tenant.rv_make||'').replace(/'/g,"\\'")}',rv_model:'${(tenant.rv_model||'').replace(/'/g,"\\'")}',license_plate:'${tenant.license_plate||''}',license_plate_state:'${tenant.license_plate_state||''}',emergency_contact:'${(tenant.emergency_contact||'').replace(/'/g,"\\'")}',emergency_phone:'${tenant.emergency_phone||''}'})">&#128203; Print Application</button>
         </div>
+        ${tenant.last_move_old_lot_id ? `
+        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:0.6rem;margin:0.5rem 0;font-size:0.85rem">
+          <strong>&#128205; Lot History:</strong>
+          Lot ${tenant.last_move_old_lot_id} (${tenant.move_in_date ? formatDate(tenant.move_in_date) : '?'} – ${tenant.last_move_date ? formatDate(tenant.last_move_date) : '?'})
+          &rarr; Lot ${tenant.lot_id} (${tenant.last_move_date ? formatDate(tenant.last_move_date) : '?'} – present)
+          ${tenant.mid_month_move_notes ? '<br><span style="color:var(--gray-500);font-size:0.8rem">' + tenant.mid_month_move_notes.replace(/</g,'&lt;') + '</span>' : ''}
+        </div>` : ''}
       ` : ''}
 
       ${tenant.id ? `
@@ -273,14 +280,25 @@ async function saveTenant(e, id) {
 }
 
 async function showMoveTenant(tenantId, currentLot, tenantName) {
-  const lots = await API.get('/lots');
+  const [lots, meterData] = await Promise.all([
+    API.get('/lots'),
+    currentLot ? API.get('/meters/lot/' + currentLot).catch(() => []) : Promise.resolve([])
+  ]);
   const vacantLots = (lots || []).filter(l => l.status === 'vacant');
   if (!vacantLots.length) {
-    alert('There are no vacant lots available to move this tenant to.');
+    alert('There are no vacant lots available to move this guest to.');
     return;
   }
-  showModal(`Move ${tenantName}`, `
-    <p>Currently on lot <strong>${currentLot || '(none)'}</strong>.</p>
+  // Find the most recent reading for this tenant on this lot
+  var prevReading = (meterData || []).find(r => r.tenant_id === tenantId);
+  var prevValue = prevReading ? Number(prevReading.current_reading) : 0;
+  var prevDate = prevReading ? prevReading.reading_date : '—';
+
+  showModal(`Move ${tenantName} to Different Lot`, `
+    <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem;margin-bottom:1rem">
+      <strong>Current Lot:</strong> ${currentLot || '(none)'}
+      ${prevReading ? `<br><strong>Last Meter Reading:</strong> ${prevValue.toLocaleString()} kWh on ${formatDate(prevDate)}` : '<br><span style="color:#dc2626">No previous meter reading found</span>'}
+    </div>
     <form onsubmit="submitMoveTenant(event, ${tenantId})">
       <div class="form-row">
         <div class="form-group">
@@ -295,25 +313,64 @@ async function showMoveTenant(tenantId, currentLot, tenantName) {
           <input name="move_date" type="date" value="${new Date().toISOString().split('T')[0]}" required>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Old Lot Final Meter Reading</label>
-          <input name="old_meter_reading" type="number" step="0.01" placeholder="e.g. 57884">
+
+      <div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:0.75rem;margin:0.75rem 0">
+        <p style="font-weight:700;margin-bottom:0.5rem;font-size:0.9rem">&#9889; Electric Meter Handoff</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Final Reading — ${currentLot} (old lot)</label>
+            <input name="old_meter_reading" id="move-old-meter" type="number" step="1" required placeholder="Enter meter face value" oninput="calcMoveElectric()">
+            ${prevReading ? `<span style="font-size:0.75rem;color:var(--gray-500)">Previous: ${prevValue.toLocaleString()}</span>` : ''}
+            <input type="hidden" id="move-prev-value" value="${prevValue}">
+          </div>
+          <div class="form-group">
+            <label>Opening Reading — new lot</label>
+            <input name="new_meter_reading" id="move-new-meter" type="number" step="1" required placeholder="Enter meter face value">
+          </div>
         </div>
-        <div class="form-group">
-          <label>New Lot Opening Meter Reading</label>
-          <input name="new_meter_reading" type="number" step="0.01" placeholder="e.g. 21000">
-        </div>
+        <div id="move-electric-calc" style="display:none;margin-top:0.5rem;padding:0.5rem;background:#fff;border-radius:6px;font-size:0.88rem"></div>
       </div>
+
       <div class="form-group">
-        <label>Mid-Month Move Notes</label>
-        <textarea name="mid_month_move_notes" placeholder="Reason for move, condition of lots, special arrangements..."></textarea>
+        <label>Reason for Move <span style="font-weight:400;color:var(--gray-400)">(optional)</span></label>
+        <textarea name="mid_month_move_notes" placeholder="Maintenance, flooding, preference, RV size change..."></textarea>
       </div>
-      <p><small>This will: move the guest, mark <strong>${currentLot}</strong> vacant, mark the new lot occupied, record the final electric reading on the old lot and the opening reading on the new lot. Rent for the next monthly invoice will be prorated by days at each lot.</small></p>
+
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.75rem;margin:0.75rem 0;font-size:0.82rem;color:#166534">
+        <strong>What happens:</strong>
+        <ul style="margin:0.25rem 0 0 1.25rem;padding:0">
+          <li>${currentLot} marked vacant, new lot marked occupied</li>
+          <li>Final electric reading recorded on ${currentLot}</li>
+          <li>Electric carry-over charge added to next invoice</li>
+          <li>Opening meter reading set on new lot</li>
+          <li>Rent prorated by days at each lot on next invoice</li>
+          <li>All billing history, payments, credits stay intact</li>
+        </ul>
+      </div>
+
       <button type="submit" class="btn btn-primary btn-full mt-2">Move Guest</button>
       <p id="move-tenant-error" class="error-text" style="display:none"></p>
     </form>
   `);
+}
+
+function calcMoveElectric() {
+  var finalEl = document.getElementById('move-old-meter');
+  var prevEl = document.getElementById('move-prev-value');
+  var calcDiv = document.getElementById('move-electric-calc');
+  if (!finalEl || !prevEl || !calcDiv) return;
+  var final = parseFloat(finalEl.value) || 0;
+  var prev = parseFloat(prevEl.value) || 0;
+  if (final <= 0) { calcDiv.style.display = 'none'; return; }
+  var kwh = Math.max(0, final - prev);
+  var charge = +(kwh * 0.15).toFixed(2);
+  calcDiv.style.display = '';
+  if (final < prev) {
+    calcDiv.innerHTML = '<span style="color:#dc2626">&#9888; Final reading is less than previous reading. Please verify.</span>';
+  } else {
+    calcDiv.innerHTML = '<strong>Usage:</strong> ' + kwh.toLocaleString() + ' kWh &times; $0.15 = <strong style="color:#166534">$' + charge.toFixed(2) + '</strong>' +
+      '<br><span style="font-size:0.78rem;color:var(--gray-500)">This will be included as electric on the next invoice.</span>';
+  }
 }
 
 async function submitMoveTenant(e, tenantId) {
@@ -332,14 +389,20 @@ async function submitMoveTenant(e, tenantId) {
       mid_month_move_notes: form.get('mid_month_move_notes') || undefined,
     });
     closeModal();
-    alert(`${result.tenant} moved from ${result.from || '(none)'} to ${result.to}.`);
+    var msg = `${result.tenant} moved from ${result.from || '(none)'} to ${result.to}`;
+    if (result.electric_kwh > 0) {
+      msg += `\n\nElectric carry-over from ${result.from}: ${result.electric_kwh} kWh = $${result.electric_charge.toFixed(2)}`;
+      msg += '\nThis will appear on the next invoice.';
+    }
+    showStatusToast('✅', `${result.tenant} moved to Lot ${result.to}`);
+    setTimeout(() => alert(msg), 500);
     loadTenants();
   } catch (err) {
     if (errEl) {
-      errEl.textContent = err.message || 'Failed to move tenant';
+      errEl.textContent = err.message || 'Failed to move guest';
       errEl.style.display = '';
     } else {
-      alert('Failed to move tenant: ' + (err.message || 'unknown error'));
+      alert('Failed to move guest: ' + (err.message || 'unknown error'));
     }
   }
 }

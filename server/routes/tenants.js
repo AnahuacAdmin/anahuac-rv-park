@@ -145,6 +145,7 @@ router.post('/:id/move', (req, res) => {
     const rate = parseFloat(rateRow?.value || 0.15);
 
     // 1. Final meter reading on old lot (if provided + tenant had a lot).
+    let electricKwh = 0, electricCharge = 0;
     if (oldLotId && (old_meter_reading !== undefined && old_meter_reading !== null && old_meter_reading !== '')) {
       const oldFinal = Number(old_meter_reading) || 0;
       // previous reading = the most recent prior reading on the old lot for this tenant
@@ -154,13 +155,13 @@ router.post('/:id/move', (req, res) => {
         ORDER BY reading_date DESC, id DESC LIMIT 1
       `).get(tenant.id, oldLotId, moveDate);
       const prev = Number(prior?.current_reading) || 0;
-      const kwh = Math.max(0, oldFinal - prev);
-      const charge = +(kwh * rate).toFixed(2);
+      electricKwh = Math.max(0, oldFinal - prev);
+      electricCharge = +(electricKwh * rate).toFixed(2);
       db.prepare(`
         INSERT INTO meter_readings
           (lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, notes)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(oldLotId, tenant.id, moveDate, prev, oldFinal, kwh, rate, charge, 'Final reading at move-out');
+      `).run(oldLotId, tenant.id, moveDate, prev, oldFinal, electricKwh, rate, electricCharge, `Final reading — lot move to ${new_lot_id}`);
     }
 
     // 2. Move the tenant + flip the lot statuses.
@@ -176,9 +177,13 @@ router.post('/:id/move', (req, res) => {
       INSERT INTO meter_readings
         (lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, notes)
       VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
-    `).run(new_lot_id, tenant.id, moveDate, opening, opening, rate, 'Opening reading at move-in');
+    `).run(new_lot_id, tenant.id, moveDate, opening, opening, rate, `Opening reading — moved from ${oldLotId}`);
 
     // 4. Save move metadata on the tenant for proration on next invoice generation.
+    const moveNotes = [
+      mid_month_move_notes || '',
+      electricCharge > 0 ? `Electric carry-over from ${oldLotId}: ${electricKwh} kWh = $${electricCharge.toFixed(2)}` : ''
+    ].filter(Boolean).join(' — ') || null;
     db.prepare(`
       UPDATE tenants
       SET mid_month_move_notes = ?,
@@ -186,7 +191,14 @@ router.post('/:id/move', (req, res) => {
           last_move_old_lot_id = ?,
           last_move_old_rent = ?
       WHERE id = ?
-    `).run(mid_month_move_notes || null, moveDate, oldLotId, tenant.monthly_rent, tenant.id);
+    `).run(moveNotes, moveDate, oldLotId, tenant.monthly_rent, tenant.id);
+
+    // 5. Log the move in checkins notes for activity history.
+    try {
+      db.prepare(`
+        UPDATE checkins SET notes = COALESCE(notes, '') || ? WHERE tenant_id = ? AND status = 'checked_in'
+      `).run(`\nLOT MOVE ${moveDate}: ${oldLotId} → ${new_lot_id}${electricCharge > 0 ? ' | Electric carry-over: $' + electricCharge.toFixed(2) : ''}`, tenant.id);
+    } catch (_) { /* non-critical */ }
 
     res.json({
       success: true,
@@ -194,6 +206,8 @@ router.post('/:id/move', (req, res) => {
       from: oldLotId,
       to: new_lot_id,
       move_date: moveDate,
+      electric_kwh: electricKwh,
+      electric_charge: electricCharge,
     });
   } catch (err) {
     console.error('[tenants] move failed:', err);
