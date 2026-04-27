@@ -874,102 +874,103 @@ function renderMoveOutStatementHtml(s) {
   };
   var depLabel = s.deposit_action === 'forfeit' ? 'Forfeited' : s.deposit_action === 'partial' ? 'Partial Refund' : 'Full Refund';
 
-  return '<div class="invoice-print" id="printable-moveout">' +
-    '<div class="invoice-header">' +
-      '<div style="display:flex;align-items:center;gap:1rem">' +
-        '<img src="/park_Logo.png" alt="Anahuac RV Park" style="height:70px;width:auto" crossorigin="anonymous">' +
+  return '<div class="invoice-print" id="printable-moveout" style="font-size:0.78rem;line-height:1.3">' +
+    '<div class="invoice-header" style="margin-bottom:0.4rem;padding-bottom:0.3rem">' +
+      '<div style="display:flex;align-items:center;gap:0.6rem">' +
+        '<img src="/park_Logo.png" alt="Anahuac RV Park" style="height:50px;width:auto" crossorigin="anonymous">' +
         '<div>' +
-          '<h2 style="color:#166534">Anahuac RV Park, LLC</h2>' +
-          '<p>1003 Davis Ave, Anahuac, TX 77514</p>' +
-          '<p>(409) 267-6603 &bull; anrvpark@gmail.com</p>' +
+          '<h2 style="color:#166534;font-size:0.95rem">Anahuac RV Park, LLC</h2>' +
+          '<p style="font-size:0.72rem">1003 Davis Ave, Anahuac, TX 77514</p>' +
+          '<p style="font-size:0.72rem">(409) 267-6603 &bull; support@anrvpark.com</p>' +
         '</div>' +
       '</div>' +
       '<div style="text-align:right">' +
-        '<h3 style="color:#166534;font-size:1rem">MOVE-OUT<br>SETTLEMENT</h3>' +
-        '<p><strong>' + escapeHtml(s.statement_number || '') + '</strong></p>' +
-        '<p>Date: ' + formatDate(s.statement_date || s.checkout_date) + '</p>' +
+        '<h3 style="color:#166534;font-size:0.85rem">MOVE-OUT<br>SETTLEMENT</h3>' +
+        '<p style="font-size:0.75rem"><strong>' + escapeHtml(s.statement_number || '') + '</strong></p>' +
+        '<p style="font-size:0.75rem">Date: ' + formatDate(s.statement_date || s.checkout_date) + '</p>' +
       '</div>' +
     '</div>' +
 
-    '<div style="display:grid;grid-template-columns:auto 1fr;gap:0.15rem 1rem;font-size:0.82rem;margin-bottom:1rem">' +
+    '<div style="display:grid;grid-template-columns:auto 1fr;gap:0.1rem 0.75rem;font-size:0.78rem;margin-bottom:0.4rem">' +
       '<strong>Guest Name:</strong><span>' + escapeHtml(s.tenant_name) + '</span>' +
       '<strong>Lot:</strong><span>' + escapeHtml(s.lot_id) + '</span>' +
       (s.move_in_date ? '<strong>Move-In Date:</strong><span>' + formatDate(s.move_in_date) + '</span>' : '') +
       '<strong>Move-Out Date:</strong><span>' + formatDate(s.checkout_date) + '</span>' +
     '</div>' +
 
-    '<div class="line-items">' +
-      '<table>' +
-        '<thead><tr><th style="text-align:left;color:#166534">Description</th><th class="text-right" style="color:#166534">Amount</th></tr></thead>' +
+    '<div class="line-items" style="margin:0.3rem 0">' +
+      '<table style="font-size:0.78rem">' +
+        '<thead><tr><th style="text-align:left;color:#166534;padding:0.15rem 0.3rem">Description</th><th class="text-right" style="color:#166534;padding:0.15rem 0.3rem">Amount</th></tr></thead>' +
         '<tbody>' +
-          '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.4rem 0.5rem">RENT SETTLEMENT</td></tr>' +
-          '<tr><td>&nbsp;&nbsp;Monthly Rate</td><td class="text-right">' + formatMoney(s.monthly_rent) + '</td></tr>' +
+          '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.2rem 0.3rem;font-size:0.75rem">RENT SETTLEMENT</td></tr>' +
+          '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Monthly Rate</td><td class="text-right" style="padding:0.1rem 0.3rem">' + formatMoney(s.monthly_rent) + '</td></tr>' +
           (s.prorate_rent ?
-            '<tr><td>&nbsp;&nbsp;Days Occupied</td><td class="text-right">' + s.days_occupied + ' of ' + s.days_in_month + ' days</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Prorated Rent Owed</td><td class="text-right">' + formatMoney(s.prorated_rent) + '</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Rent Refund</td>' + amtCell(s.rent_refund, true) + '</tr>'
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Days Occupied</td><td class="text-right" style="padding:0.1rem 0.3rem">' + s.days_occupied + ' of ' + s.days_in_month + ' days</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Prorated Rent Owed</td><td class="text-right" style="padding:0.1rem 0.3rem">' + formatMoney(s.prorated_rent) + '</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Rent Refund</td>' + amtCell(s.rent_refund, true) + '</tr>'
           :
-            '<tr><td>&nbsp;&nbsp;Prorated Days Used</td><td class="text-right" style="color:#9ca3af">n/a</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Rent Refund</td><td class="text-right" style="color:#9ca3af">$0.00</td></tr>'
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Prorated</td><td class="text-right" style="padding:0.1rem 0.3rem;color:#9ca3af">n/a</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Rent Refund</td><td class="text-right" style="padding:0.1rem 0.3rem;color:#9ca3af">$0.00</td></tr>'
           ) +
 
           (s.electric_current != null ?
-            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.4rem 0.5rem">FINAL ELECTRIC USAGE</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Previous Reading</td><td class="text-right">' + fmtNum(s.electric_previous) + '</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Final Reading</td><td class="text-right">' + fmtNum(s.electric_current) + '</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;kWh Used</td><td class="text-right">' + fmtNum(s.electric_kwh) + '</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Rate per kWh</td><td class="text-right">$' + Number(s.electric_rate).toFixed(3) + '</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Electric Charge</td>' + amtCell(-s.electric_charge, false) + '</tr>'
+            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.2rem 0.3rem;font-size:0.75rem">FINAL ELECTRIC USAGE</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Previous Reading</td><td class="text-right" style="padding:0.1rem 0.3rem">' + fmtNum(s.electric_previous) + '</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Final Reading</td><td class="text-right" style="padding:0.1rem 0.3rem">' + fmtNum(s.electric_current) + '</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;kWh Used</td><td class="text-right" style="padding:0.1rem 0.3rem">' + fmtNum(s.electric_kwh) + '</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Rate per kWh</td><td class="text-right" style="padding:0.1rem 0.3rem">$' + Number(s.electric_rate).toFixed(3) + '</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Electric Charge</td>' + amtCell(-s.electric_charge, false) + '</tr>'
           : '') +
 
           (s.deposit > 0 ?
-            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.4rem 0.5rem">DEPOSIT</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Deposit on File</td><td class="text-right">' + formatMoney(s.deposit) + '</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Disposition</td><td class="text-right">' + depLabel + (s.deposit_deduction > 0 ? ' (' + escapeHtml(s.deposit_deduction_reason || 'deductions') + ': ' + formatMoney(s.deposit_deduction) + ')' : '') + '</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Deposit Refund</td>' + amtCell(s.deposit_refund, true) + '</tr>'
+            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.2rem 0.3rem;font-size:0.75rem">DEPOSIT</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Deposit on File</td><td class="text-right" style="padding:0.1rem 0.3rem">' + formatMoney(s.deposit) + '</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Disposition</td><td class="text-right" style="padding:0.1rem 0.3rem">' + depLabel + (s.deposit_deduction > 0 ? ' (' + escapeHtml(s.deposit_deduction_reason || 'deductions') + ': ' + formatMoney(s.deposit_deduction) + ')' : '') + '</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Deposit Refund</td>' + amtCell(s.deposit_refund, true) + '</tr>'
           : '') +
 
           (s.other_total > 0 ?
-            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.4rem 0.5rem">OTHER CHARGES</td></tr>' +
+            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.2rem 0.3rem;font-size:0.75rem">OTHER CHARGES</td></tr>' +
             (s.other_charges || []).map(function(c) {
-              return '<tr><td>&nbsp;&nbsp;' + escapeHtml(c.description || 'Charge') + '</td>' + amtCell(-Number(c.amount), false) + '</tr>';
+              return '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;' + escapeHtml(c.description || 'Charge') + '</td>' + amtCell(-Number(c.amount), false) + '</tr>';
             }).join('')
           : '') +
 
           (s.credit_applied > 0 ?
-            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.4rem 0.5rem">ACCOUNT CREDIT</td></tr>' +
-            '<tr><td>&nbsp;&nbsp;Credit Applied</td>' + amtCell(s.credit_applied, true) + '</tr>'
+            '<tr><td colspan="2" style="background:#f0fdf4;font-weight:700;color:#166534;padding:0.2rem 0.3rem;font-size:0.75rem">ACCOUNT CREDIT</td></tr>' +
+            '<tr><td style="padding:0.1rem 0.3rem">&nbsp;&nbsp;Credit Applied</td>' + amtCell(s.credit_applied, true) + '</tr>'
           : '') +
 
-          '<tr class="total-row"><td style="font-size:1rem;padding:0.5rem 0.5rem">' + (s.net_settlement >= 0 ? 'NET DUE TO GUEST' : 'NET DUE FROM GUEST') + '</td>' +
-            '<td class="text-right" style="font-size:1.1rem;padding:0.5rem 0.5rem;color:' + (s.net_settlement >= 0 ? '#16a34a' : '#dc2626') + '">' +
+          '<tr class="total-row"><td style="font-size:0.88rem;padding:0.3rem">' + (s.net_settlement >= 0 ? 'NET DUE TO GUEST' : 'NET DUE FROM GUEST') + '</td>' +
+            '<td class="text-right" style="font-size:0.92rem;padding:0.3rem;color:' + (s.net_settlement >= 0 ? '#16a34a' : '#dc2626') + '">' +
             (s.net_settlement >= 0 ? '+' : '\u2212') + formatMoney(Math.abs(s.net_settlement)) + '</td></tr>' +
         '</tbody>' +
       '</table>' +
     '</div>' +
 
-    (s.settlement_method ? '<div style="margin-top:0.75rem;padding:0.6rem 0.75rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:0.88rem">' +
+    (s.settlement_method ? '<div style="margin-top:0.3rem;padding:0.3rem 0.5rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;font-size:0.78rem">' +
       '<strong>Final Payment Recorded:</strong> ' + escapeHtml(s.settlement_method) +
       ' &mdash; ' + (s.net_settlement >= 0 ? '+' : '') + formatMoney(Math.abs(s.net_settlement)) +
       ' ' + (s.net_settlement >= 0 ? '(refunded to guest)' : '(collected from guest)') +
       (s.settlement_reference ? ' &bull; Ref: ' + escapeHtml(s.settlement_reference) : '') +
     '</div>' : '') +
 
-    '<div style="margin-top:2rem;font-size:0.82rem">' +
-      '<div style="display:flex;gap:2rem;margin-bottom:1.5rem">' +
-        '<div style="flex:1"><p style="margin-bottom:0.75rem">Guest Signature:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
-        '<div style="width:120px"><p style="margin-bottom:0.75rem">Date:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
+    '<div style="margin-top:0.75rem;font-size:0.75rem">' +
+      '<div style="display:flex;gap:1.5rem;margin-bottom:0.6rem">' +
+        '<div style="flex:1"><p style="margin-bottom:0.4rem">Guest Signature:</p><div style="border-bottom:1px dotted #374151;height:1rem"></div></div>' +
+        '<div style="width:100px"><p style="margin-bottom:0.4rem">Date:</p><div style="border-bottom:1px dotted #374151;height:1rem"></div></div>' +
       '</div>' +
-      '<div style="display:flex;gap:2rem">' +
-        '<div style="flex:1"><p style="margin-bottom:0.75rem">Admin Signature:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
-        '<div style="width:120px"><p style="margin-bottom:0.75rem">Date:</p><div style="border-bottom:1px dotted #374151;height:1.5rem"></div></div>' +
+      '<div style="display:flex;gap:1.5rem">' +
+        '<div style="flex:1"><p style="margin-bottom:0.4rem">Admin Signature:</p><div style="border-bottom:1px dotted #374151;height:1rem"></div></div>' +
+        '<div style="width:100px"><p style="margin-bottom:0.4rem">Date:</p><div style="border-bottom:1px dotted #374151;height:1rem"></div></div>' +
       '</div>' +
     '</div>' +
 
-    '<div style="margin-top:1.5rem;padding-top:0.75rem;border-top:1px solid #ccc;text-align:center;font-size:0.78rem;color:#374151;line-height:1.5">' +
-      '<p style="margin:0.2rem 0">Thank you for staying at Anahuac RV Park!</p>' +
-      '<p style="margin:0.2rem 0;font-style:italic">Welcome back anytime to the Gator Capital of Texas!</p>' +
-      '<p style="margin:0.5rem 0 0;font-size:0.72rem;color:#78716c">Anahuac RV Park, LLC &bull; 1003 Davis Ave, Anahuac, TX 77514 &bull; (409) 267-6603 &bull; anrvpark@gmail.com</p>' +
+    '<div style="margin-top:0.6rem;padding-top:0.4rem;border-top:1px solid #ccc;text-align:center;font-size:0.72rem;color:#374151;line-height:1.4">' +
+      '<p style="margin:0.1rem 0">Thank you for staying at Anahuac RV Park!</p>' +
+      '<p style="margin:0.1rem 0;font-style:italic">If you enjoyed your stay, please leave us a Google review! Your feedback helps us grow.</p>' +
+      '<p style="margin:0.1rem 0"><a href="https://search.google.com/local/writereview?placeid=ChIJgTxw3Pk-P4YRs2t_UMVRVa4" style="color:#166534;font-size:0.7rem">Leave a Google Review</a></p>' +
+      '<p style="margin:0.3rem 0 0;font-size:0.68rem;color:#78716c">Anahuac RV Park, LLC &bull; 1003 Davis Ave, Anahuac, TX 77514 &bull; (409) 267-6603 &bull; support@anrvpark.com</p>' +
     '</div>' +
   '</div>';
 }
@@ -1052,17 +1053,18 @@ function printMoveOutPreview() {
   var w = window.open('', '_blank', 'width=700,height=900');
   w.document.write('<!DOCTYPE html><html><head><title>Move-Out Statement — ' + escapeHtml(previewData.tenant_name) + '</title>');
   w.document.write('<style>');
-  w.document.write('body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:1.5rem;color:#111827;font-size:13px;line-height:1.4}');
-  w.document.write('.invoice-print{max-width:700px;margin:0 auto;font-size:0.82rem;line-height:1.4}');
-  w.document.write('.invoice-header{display:flex;justify-content:space-between;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:2px solid #111827}');
-  w.document.write('.invoice-header img{max-height:70px;width:auto}');
-  w.document.write('h2{font-size:1.1rem;margin:0 0 0.2rem} h3{font-size:1rem;margin:0 0 0.2rem} p{margin:0.15rem 0}');
-  w.document.write('.line-items{margin:0.75rem 0} .line-items table{width:100%;border-collapse:collapse;font-size:0.82rem}');
-  w.document.write('.line-items th,.line-items td{padding:0.3rem 0.5rem;border-bottom:1px solid #e5e7eb}');
+  w.document.write('body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:0.75rem;color:#111827;font-size:11px;line-height:1.3}');
+  w.document.write('.invoice-print{max-width:700px;margin:0 auto;font-size:0.78rem;line-height:1.3}');
+  w.document.write('.invoice-header{display:flex;justify-content:space-between;margin-bottom:0.4rem;padding-bottom:0.3rem;border-bottom:2px solid #111827}');
+  w.document.write('.invoice-header img{max-height:50px;width:auto}');
+  w.document.write('h2{font-size:0.95rem;margin:0 0 0.1rem} h3{font-size:0.85rem;margin:0 0 0.1rem} p{margin:0.1rem 0}');
+  w.document.write('.line-items{margin:0.3rem 0} .line-items table{width:100%;border-collapse:collapse;font-size:0.78rem}');
+  w.document.write('.line-items th,.line-items td{padding:0.1rem 0.3rem;border-bottom:1px solid #e5e7eb}');
   w.document.write('.text-right{text-align:right}');
   w.document.write('.total-row{font-weight:700;border-top:2px solid #111827!important}');
   w.document.write('.total-row td{border-bottom:2px solid #111827!important}');
-  w.document.write('@media print{.no-print{display:none!important} @page{margin:0.5in;size:letter portrait}}');
+  w.document.write('a{color:#166534}');
+  w.document.write('@media print{.no-print{display:none!important} @page{margin:0.4in;size:letter portrait}}');
   w.document.write('</style></head><body>');
   w.document.write(renderMoveOutStatementHtml(previewData));
   w.document.write('<div class="no-print" style="text-align:center;margin-top:1rem"><button onclick="window.print()" style="padding:0.5rem 2rem;font-size:1rem;cursor:pointer;background:#166534;color:#fff;border:none;border-radius:6px">Print Statement</button></div>');
@@ -1140,17 +1142,18 @@ function printMoveOutFromModal() {
   var w = window.open('', '_blank', 'width=700,height=900');
   w.document.write('<!DOCTYPE html><html><head><title>Move-Out Settlement Statement</title>');
   w.document.write('<style>');
-  w.document.write('body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:1.5rem;color:#111827;font-size:13px;line-height:1.4}');
-  w.document.write('.invoice-print{max-width:700px;margin:0 auto;font-size:0.82rem;line-height:1.4}');
-  w.document.write('.invoice-header{display:flex;justify-content:space-between;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:2px solid #111827}');
-  w.document.write('.invoice-header img{max-height:70px;width:auto}');
-  w.document.write('h2{font-size:1.1rem;margin:0 0 0.2rem} h3{font-size:1rem;margin:0 0 0.2rem} p{margin:0.15rem 0}');
-  w.document.write('.line-items{margin:0.75rem 0} .line-items table{width:100%;border-collapse:collapse;font-size:0.82rem}');
-  w.document.write('.line-items th,.line-items td{padding:0.3rem 0.5rem;border-bottom:1px solid #e5e7eb}');
+  w.document.write('body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:0.75rem;color:#111827;font-size:11px;line-height:1.3}');
+  w.document.write('.invoice-print{max-width:700px;margin:0 auto;font-size:0.78rem;line-height:1.3}');
+  w.document.write('.invoice-header{display:flex;justify-content:space-between;margin-bottom:0.4rem;padding-bottom:0.3rem;border-bottom:2px solid #111827}');
+  w.document.write('.invoice-header img{max-height:50px;width:auto}');
+  w.document.write('h2{font-size:0.95rem;margin:0 0 0.1rem} h3{font-size:0.85rem;margin:0 0 0.1rem} p{margin:0.1rem 0}');
+  w.document.write('.line-items{margin:0.3rem 0} .line-items table{width:100%;border-collapse:collapse;font-size:0.78rem}');
+  w.document.write('.line-items th,.line-items td{padding:0.1rem 0.3rem;border-bottom:1px solid #e5e7eb}');
   w.document.write('.text-right{text-align:right}');
   w.document.write('.total-row{font-weight:700;border-top:2px solid #111827!important}');
   w.document.write('.total-row td{border-bottom:2px solid #111827!important}');
-  w.document.write('@media print{.no-print{display:none!important} @page{margin:0.5in;size:letter portrait}}');
+  w.document.write('a{color:#166534}');
+  w.document.write('@media print{.no-print{display:none!important} @page{margin:0.4in;size:letter portrait}}');
   w.document.write('</style></head><body>');
   w.document.write(el.outerHTML);
   w.document.write('<div class="no-print" style="text-align:center;margin-top:1rem"><button onclick="window.print()" style="padding:0.5rem 2rem;font-size:1rem;cursor:pointer;background:#166534;color:#fff;border:none;border-radius:6px">Print Statement</button></div>');

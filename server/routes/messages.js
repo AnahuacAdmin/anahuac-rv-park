@@ -15,15 +15,14 @@ router.use(authenticate);
 const PARK_PREFIX = 'Anahuac RV Park: ';
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 const FROM_ADDRESS = 'Anahuac RV Park <invoices@anrvpark.com>';
-// TODO: Replace anrvpark@gmail.com with a professional domain email (e.g. admin@anrvpark.com) once DNS/domain email is set up
-const REPLY_TO = 'anrvpark@gmail.com';
-const EMAIL_FOOTER_TEXT = '\n\n—\nAnahuac RV Park, LLC\n1003 Davis Ave, Anahuac, TX 77514\n409-267-6603\n\nYou are receiving this because you are a tenant at Anahuac RV Park LLC. Call 409-267-6603 to opt out of email communications.';
+const REPLY_TO = 'anrvpark@gmail.com'; // Keep Gmail as reply-to so replies go to inbox
+const EMAIL_FOOTER_TEXT = '\n\n—\nAnahuac RV Park, LLC\n1003 Davis Ave, Anahuac, TX 77514\n409-267-6603\n\nYou are receiving this because you are a guest at Anahuac RV Park LLC. Call 409-267-6603 to opt out of email communications.';
 const EMAIL_FOOTER_HTML = `
   <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e7e5e4;font-size:12px;color:#78716c;line-height:1.6">
     <p style="margin:0"><strong>Anahuac RV Park, LLC</strong></p>
     <p style="margin:2px 0">1003 Davis Ave, Anahuac, TX 77514</p>
-    <p style="margin:2px 0">Phone: <a href="tel:4092676603" style="color:#1a5c32">409-267-6603</a> | Email: <a href="mailto:anrvpark@gmail.com" style="color:#1a5c32">anrvpark@gmail.com</a></p>
-    <p style="margin:8px 0 0;font-size:11px;color:#a8a29e">You are receiving this because you are a tenant at Anahuac RV Park LLC, 1003 Davis Ave, Anahuac TX 77514. Call 409-267-6603 to opt out of email communications.</p>
+    <p style="margin:2px 0">Phone: <a href="tel:4092676603" style="color:#1a5c32">409-267-6603</a> | Email: <a href="mailto:support@anrvpark.com" style="color:#1a5c32">support@anrvpark.com</a></p>
+    <p style="margin:8px 0 0;font-size:11px;color:#a8a29e">You are receiving this because you are a guest at Anahuac RV Park LLC, 1003 Davis Ave, Anahuac TX 77514. Call 409-267-6603 to opt out of email communications.</p>
   </div>`;
 
 let _resend = null;
@@ -55,7 +54,7 @@ async function sendEmailToTenant(tenant, subject, bodyText) {
       subject: emailSubject,
       text: bodyText + EMAIL_FOOTER_TEXT,
       html: `<p>${bodyText.replace(/\n/g, '<br>')}</p>${EMAIL_FOOTER_HTML}`,
-      headers: { 'List-Unsubscribe': '<mailto:anrvpark@gmail.com?subject=unsubscribe>' },
+      headers: { 'List-Unsubscribe': '<mailto:support@anrvpark.com?subject=unsubscribe>' },
     });
     return { sent: true };
   } catch (e) {
@@ -274,7 +273,7 @@ router.post('/broadcast-advanced', async (req, res) => {
               subject: emailSubject,
               text: personalMsg + EMAIL_FOOTER_TEXT,
               html: `<p>${personalMsg.replace(/\n/g, '<br>')}</p>${EMAIL_FOOTER_HTML}`,
-              headers: { 'List-Unsubscribe': '<mailto:anrvpark@gmail.com?subject=unsubscribe>' },
+              headers: { 'List-Unsubscribe': '<mailto:support@anrvpark.com?subject=unsubscribe>' },
             });
             emailSent++;
           } catch (e) { emailFailed++; errors.push(`Email ${t.lot_id}: ${e.message}`); }

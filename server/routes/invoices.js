@@ -14,17 +14,17 @@ router.use(authenticate);
 router.use(blockStaff);
 
 const FROM_ADDRESS = 'Anahuac RV Park <invoices@anrvpark.com>';
-const REPLY_TO = 'anrvpark@gmail.com';
+const REPLY_TO = 'anrvpark@gmail.com'; // Keep Gmail as reply-to so replies go to inbox
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
-const EMAIL_FOOTER_TEXT = '\n\n—\nAnahuac RV Park, LLC\n1003 Davis Ave, Anahuac, TX 77514\n409-267-6603\n\nYou are receiving this because you are a tenant at Anahuac RV Park LLC. Call 409-267-6603 to opt out of email communications.';
+const EMAIL_FOOTER_TEXT = '\n\n—\nAnahuac RV Park, LLC\n1003 Davis Ave, Anahuac, TX 77514\n409-267-6603\n\nYou are receiving this because you are a guest at Anahuac RV Park LLC. Call 409-267-6603 to opt out of email communications.';
 
 const EMAIL_FOOTER_HTML = `
   <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e7e5e4;font-size:12px;color:#78716c;line-height:1.6">
     <p style="margin:0"><strong>Anahuac RV Park, LLC</strong></p>
     <p style="margin:2px 0">1003 Davis Ave, Anahuac, TX 77514</p>
-    <p style="margin:2px 0">Phone: <a href="tel:4092676603" style="color:#1a5c32">409-267-6603</a> | Email: <a href="mailto:anrvpark@gmail.com" style="color:#1a5c32">anrvpark@gmail.com</a></p>
-    <p style="margin:8px 0 0;font-size:11px;color:#a8a29e">You are receiving this because you are a tenant at Anahuac RV Park LLC, 1003 Davis Ave, Anahuac TX 77514. Call 409-267-6603 to opt out of email communications.</p>
+    <p style="margin:2px 0">Phone: <a href="tel:4092676603" style="color:#1a5c32">409-267-6603</a> | Email: <a href="mailto:support@anrvpark.com" style="color:#1a5c32">support@anrvpark.com</a></p>
+    <p style="margin:8px 0 0;font-size:11px;color:#a8a29e">You are receiving this because you are a guest at Anahuac RV Park LLC, 1003 Davis Ave, Anahuac TX 77514. Call 409-267-6603 to opt out of email communications.</p>
   </div>`;
 
 // Sequential invoice number: finds the last INV-NNNN and increments.
@@ -144,7 +144,7 @@ Thank you for being part of our community. If you have any questions about this 
       }],
       headers: {
         'X-Entity-Ref-ID': `invoice-${invoice.id}-${Date.now()}`,
-        'List-Unsubscribe': `<mailto:anrvpark@gmail.com?subject=unsubscribe>`,
+        'List-Unsubscribe': `<mailto:support@anrvpark.com?subject=unsubscribe>`,
       },
     }, { idempotencyKey: `invoice-email-${invoice.id}-${Math.floor(Date.now() / 60000)}` });
     if (error) {
@@ -243,7 +243,7 @@ function runLateFeeCheck() {
           try { sendSms(tenant.phone, evictionMsg); } catch (e) { console.error('[eviction] tenant SMS failed:', e.message); }
         }
         if (autoEmail && tenant.email && resend) {
-          try { resend.emails.send({ from: FROM_ADDRESS, reply_to: REPLY_TO, to: tenant.email, subject: `Hi ${tenant.first_name} — Important notice about your Anahuac RV Park account`, text: evictionMsg + EMAIL_FOOTER_TEXT, html: `<p>${evictionMsg.replace(/\n/g, '<br>')}</p><div style="text-align:center;margin:1rem 0"><a href="${APP_URL}/portal.html" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none">LOG IN TO PAY NOW</a></div>${EMAIL_FOOTER_HTML}`, headers: { 'List-Unsubscribe': '<mailto:anrvpark@gmail.com?subject=unsubscribe>' } }); } catch (e) { console.error('[eviction] tenant email failed:', e.message); }
+          try { resend.emails.send({ from: FROM_ADDRESS, reply_to: REPLY_TO, to: tenant.email, subject: `Hi ${tenant.first_name} — Important notice about your Anahuac RV Park account`, text: evictionMsg + EMAIL_FOOTER_TEXT, html: `<p>${evictionMsg.replace(/\n/g, '<br>')}</p><div style="text-align:center;margin:1rem 0"><a href="${APP_URL}/portal.html" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none">LOG IN TO PAY NOW</a></div>${EMAIL_FOOTER_HTML}`, headers: { 'List-Unsubscribe': '<mailto:support@anrvpark.com?subject=unsubscribe>' } }); } catch (e) { console.error('[eviction] guest email failed:', e.message); }
         }
         db.prepare('UPDATE tenants SET eviction_notified = 1 WHERE id = ?').run(tid);
       }

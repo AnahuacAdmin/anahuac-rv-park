@@ -226,7 +226,7 @@ function showEmailReport() {
   const monthName = now.toLocaleString('default', { month: 'long', year: 'numeric' });
   showModal('📧 Send Financial Report', `
     <form onsubmit="sendEmailReport(event)">
-      <div class="form-group"><label>To</label><input name="to" type="email" value="anrvpark@gmail.com" required></div>
+      <div class="form-group"><label>To</label><input name="to" type="email" value="support@anrvpark.com" required></div>
       <div class="form-group"><label>Subject</label><input name="subject" value="Anahuac RV Park — Financial Report — ${monthName}"></div>
       <div class="form-row">
         <div class="form-group"><label>Month</label>

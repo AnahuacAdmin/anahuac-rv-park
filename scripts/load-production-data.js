@@ -234,7 +234,7 @@ async function main() {
     park_name: 'Anahuac RV Park, LLC',
     park_address: '1003 Davis Ave, Anahuac, TX 77514',
     park_phone: '409-267-6603',
-    park_email: 'anrvpark@gmail.com',
+    park_email: 'support@anrvpark.com',
     days_in_april: '30',
   };
 

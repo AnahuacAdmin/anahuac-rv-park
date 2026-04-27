@@ -15,7 +15,7 @@ const NWS_URL = `https://api.weather.gov/alerts/active?zone=${NWS_ZONE}`;
 // Fetch active NWS alerts for Chambers County
 async function fetchNWSAlerts() {
   const res = await fetch(NWS_URL, {
-    headers: { 'User-Agent': 'AnahuacRVPark/1.0 (anrvpark@gmail.com)', Accept: 'application/geo+json' },
+    headers: { 'User-Agent': 'AnahuacRVPark/1.0 (support@anrvpark.com)', Accept: 'application/geo+json' },
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`NWS API returned ${res.status}`);
