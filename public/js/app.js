@@ -234,71 +234,76 @@ function celebrateTenantCheckIn(firstName, lotId) {
 
 let _toastTimer = null;
 let _toastSafetyTimer = null;
+let _toastCounter = 0;
+
+function _getToastContainer() {
+  var c = document.getElementById('toast-container');
+  if (!c) {
+    c = document.createElement('div');
+    c.id = 'toast-container';
+    c.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:2500;display:flex;flex-direction:column;gap:0.5rem;max-width:90vw;pointer-events:none';
+    document.body.appendChild(c);
+  }
+  return c;
+}
 
 function showStatusToast(emoji, text, autoDismissMs = 8000) {
-  let el = document.getElementById('status-toast');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'status-toast';
-    el.className = 'status-toast';
-    document.body.appendChild(el);
+  var container = _getToastContainer();
+  var id = 'toast-' + (++_toastCounter);
+  var el = document.createElement('div');
+  el.id = id;
+  el.className = 'status-toast stacked visible';
+  el.innerHTML = '<span class="status-toast-content">' + emoji + ' ' + escapeHtml(text) + '</span><button class="status-toast-close" onclick="dismissToastById(\'' + id + '\')" aria-label="Close">&times;</button>';
+  container.appendChild(el);
+
+  var timer = null;
+  var safetyTimer = null;
+  function remove() {
+    clearTimeout(timer);
+    clearTimeout(safetyTimer);
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(-1rem)';
+    el.style.pointerEvents = 'none';
+    setTimeout(function() { el.remove(); }, 400);
   }
-  clearTimeout(_toastTimer);
-  clearTimeout(_toastSafetyTimer);
-  // Reset state completely
-  el.style.transition = 'none';
-  el.classList.remove('toast-fade-out');
-  el.classList.add('visible');
-  el.style.opacity = '1';
-  el.style.transform = 'translateX(-50%) translateY(0)';
-  // Force reflow then restore transition
-  void el.offsetHeight;
-  el.style.transition = '';
-  el.innerHTML = `<span class="status-toast-content">${emoji} ${escapeHtml(text)}</span><button class="status-toast-close" onclick="dismissToast()" aria-label="Close">&times;</button>`;
-  // Auto-dismiss
+  el._dismiss = remove;
+
   if (autoDismissMs >= 0) {
-    _toastTimer = setTimeout(function() { dismissToast(); }, autoDismissMs);
+    timer = setTimeout(remove, autoDismissMs);
   }
-  // SAFETY NET: no toast survives longer than 12 seconds, period
-  _toastSafetyTimer = setTimeout(function() { dismissToast(); }, 12000);
+  safetyTimer = setTimeout(remove, 12000);
+
   return {
     update: function(newEmoji, newText, resetTimer) {
       if (resetTimer === undefined) resetTimer = true;
       var content = el.querySelector('.status-toast-content');
-      if (content) content.innerHTML = `${newEmoji} ${escapeHtml(newText)}`;
+      if (content) content.innerHTML = newEmoji + ' ' + escapeHtml(newText);
       if (resetTimer) {
-        clearTimeout(_toastTimer);
-        clearTimeout(_toastSafetyTimer);
-        _toastTimer = setTimeout(function() { dismissToast(); }, autoDismissMs >= 0 ? autoDismissMs : 8000);
-        _toastSafetyTimer = setTimeout(function() { dismissToast(); }, 12000);
+        clearTimeout(timer);
+        clearTimeout(safetyTimer);
+        timer = setTimeout(remove, autoDismissMs >= 0 ? autoDismissMs : 8000);
+        safetyTimer = setTimeout(remove, 12000);
       }
     },
     hide: function(delay) {
       if (delay === undefined) delay = 0;
-      clearTimeout(_toastTimer);
-      clearTimeout(_toastSafetyTimer);
-      if (delay > 0) { _toastTimer = setTimeout(function() { dismissToast(); }, delay); } else { dismissToast(); }
+      clearTimeout(timer);
+      clearTimeout(safetyTimer);
+      if (delay > 0) { timer = setTimeout(remove, delay); } else { remove(); }
     },
   };
 }
 
+function dismissToastById(id) {
+  var el = document.getElementById(id);
+  if (el && el._dismiss) el._dismiss();
+}
+
 function dismissToast() {
-  clearTimeout(_toastTimer);
-  clearTimeout(_toastSafetyTimer);
-  _toastTimer = null;
-  _toastSafetyTimer = null;
-  var el = document.getElementById('status-toast');
-  if (!el) return;
-  // Force hide immediately via inline styles — no CSS race conditions
-  el.style.opacity = '0';
-  el.style.transform = 'translateX(-50%) translateY(-120%)';
-  el.style.pointerEvents = 'none';
-  setTimeout(function() {
-    el.classList.remove('visible', 'toast-fade-out');
-    el.style.opacity = '';
-    el.style.transform = '';
-    el.style.pointerEvents = '';
-  }, 400);
+  var container = document.getElementById('toast-container');
+  if (!container) return;
+  var toasts = container.querySelectorAll('.status-toast');
+  toasts.forEach(function(el) { if (el._dismiss) el._dismiss(); });
 }
 
 function getTimeGreeting() {

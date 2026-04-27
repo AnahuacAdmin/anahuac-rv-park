@@ -728,15 +728,14 @@ a { text-decoration: none; color: inherit; }
 
 /* === STATUS TOAST === */
 .status-toast {
-  position: fixed; top: 1rem; left: 50%; transform: translateX(-50%) translateY(-120%);
   background: var(--gray-900); color: #fff; padding: 0.7rem 1rem 0.7rem 1.5rem; border-radius: var(--radius);
-  font-size: 0.95rem; font-weight: 600; z-index: 2500;
+  font-size: 0.95rem; font-weight: 600;
   box-shadow: var(--shadow-xl); transition: transform 0.35s ease, opacity 0.35s ease;
   opacity: 0; pointer-events: none;
   display: flex; align-items: center; gap: 0.5rem; max-width: 90vw;
+  transform: translateY(-1rem);
 }
-.status-toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
-.status-toast.toast-fade-out { opacity: 0; transform: translateX(-50%) translateY(-120%); pointer-events: none; }
+.status-toast.stacked.visible { transform: translateY(0); opacity: 1; pointer-events: auto; }
 .status-toast-content { flex: 1; }
 .status-toast-close {
   background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.2rem; cursor: pointer;
@@ -1372,7 +1371,7 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
 
   .page-header .btn-group { width: 100%; }
   .page-header .btn-group .btn { flex: 1; justify-content: center; text-align: center; }
-  .status-toast { bottom: 70px; }
+  #toast-container { top: auto; bottom: 70px; flex-direction: column-reverse; }
 }
 
 @media (max-width: 768px) {

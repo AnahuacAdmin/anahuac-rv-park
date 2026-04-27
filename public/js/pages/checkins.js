@@ -690,7 +690,7 @@ async function checkoutSelected(sel) {
     <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
       <legend><strong>Refund / Payment Method</strong></legend>
       <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
-        ${['Cash','Check','Mailed Check','Zelle','Other'].map(function(m) {
+        ${['Cash','Check','Mailed Check','Zelle','Credit Card','Other'].map(function(m) {
           return '<label style="display:flex;align-items:center;gap:0.35rem;padding:0.5rem 0.75rem;border:1px solid var(--gray-300);border-radius:8px;cursor:pointer;min-height:48px;font-size:0.9rem">' +
             '<input type="radio" name="settlement_method" value="' + m + '"' + (m === 'Cash' ? ' checked' : '') + '> ' + m + '</label>';
         }).join('')}
@@ -933,7 +933,12 @@ function renderMoveOutStatementHtml(s) {
       '</table>' +
     '</div>' +
 
-    (s.settlement_method ? '<p style="margin-top:0.5rem"><strong>Refund Method:</strong> ' + escapeHtml(s.settlement_method) + (s.settlement_reference ? ' (Ref: ' + escapeHtml(s.settlement_reference) + ')' : '') + '</p>' : '') +
+    (s.settlement_method ? '<div style="margin-top:0.75rem;padding:0.6rem 0.75rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:0.88rem">' +
+      '<strong>Final Payment Recorded:</strong> ' + escapeHtml(s.settlement_method) +
+      ' &mdash; ' + (s.net_settlement >= 0 ? '+' : '') + formatMoney(Math.abs(s.net_settlement)) +
+      ' ' + (s.net_settlement >= 0 ? '(refunded to guest)' : '(collected from guest)') +
+      (s.settlement_reference ? ' &bull; Ref: ' + escapeHtml(s.settlement_reference) : '') +
+    '</div>' : '') +
 
     '<div style="margin-top:2rem;font-size:0.82rem">' +
       '<div style="display:flex;gap:2rem;margin-bottom:1.5rem">' +
