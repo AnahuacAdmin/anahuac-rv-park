@@ -34,6 +34,8 @@ function injectMainApp() {
           <li><a href="#" data-page="tenants" class="nav-link">\u{1F464} Guests</a></li>
           <li><a href="#" data-page="checkins" class="nav-link">\u2705 Check-In/Out</a></li>
           <li><a href="#" data-page="reservations" class="nav-link">\u{1F4C5} Reservations</a></li>
+          <li><a href="#" data-page="waitlist" class="nav-link">\u{1F4CB} Waitlist</a></li>
+          <li><a href="#" data-page="messages" class="nav-link">\u{1F4E8} Messaging</a></li>
           <li><a href="#" data-page="lotmgmt" class="nav-link" id="nav-lotmgmt" style="display:none">\u{1F3D7}\u{FE0F} Lot Management</a></li>
           <li><a href="#" data-page="inspections" class="nav-link" id="nav-inspections" style="display:none">\u{1F4F8} Lot Inspections</a></li>
           <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Operations</li>
@@ -50,9 +52,6 @@ function injectMainApp() {
           <li><a href="#" data-page="billing" class="nav-link">\u{1F4B0} Billing & Invoices</a></li>
           <li><a href="#" data-page="payments" class="nav-link">\u{1F4B3} Payments</a></li>
           <li><a href="#" data-page="expenses" class="nav-link" id="nav-expenses" style="display:none">\u{1F9FE} Expenses</a></li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Communication</li>
-          <li><a href="#" data-page="messages" class="nav-link">\u{1F4E8} Messaging</a></li>
-          <li><a href="#" data-page="waitlist" class="nav-link">\u{1F4CB} Waitlist</a></li>
           <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600;display:none" id="nav-admin-divider">Administration</li>
           <li><a href="#" data-page="reports" class="nav-link" id="nav-reports" style="display:none">\u{1F4CA} Reports</a></li>
           <li><a href="#" data-page="users" class="nav-link" id="nav-users" style="display:none">\u{1F465} Users</a></li>
