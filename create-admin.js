@@ -12,7 +12,7 @@ const bcrypt = require('bcryptjs');
 const { db, initializeDatabase } = require('./server/database');
 
 const USERNAME = 'admin';
-const PASSWORD = 'anahuac2026';
+const PASSWORD = process.env.ADMIN_PASSWORD || 'changeme123'; // Set ADMIN_PASSWORD env var or change via Admin dashboard
 
 (async () => {
   try {

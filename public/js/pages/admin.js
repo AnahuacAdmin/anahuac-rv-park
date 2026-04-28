@@ -203,6 +203,27 @@ async function loadAdmin() {
       <p class="mt-2"><small>The backup is the complete SQLite database file. Restoring will replace ALL current data — download a fresh backup first.</small></p>
     </div>
 
+    <div class="card" style="border-left:4px solid #dc2626">
+      <h3>🔒 Change Password</h3>
+      <p><small>Change your admin login password. Must be at least 8 characters.</small></p>
+      <div class="form-group mt-1">
+        <label>Current Password</label>
+        <input type="password" id="pw-current" autocomplete="current-password">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" id="pw-new" autocomplete="new-password" minlength="8">
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" id="pw-confirm" autocomplete="new-password" minlength="8">
+        </div>
+      </div>
+      <button class="btn btn-danger mt-1" onclick="changeAdminPassword()">Change Password</button>
+      <div id="pw-change-msg" style="margin-top:0.5rem;font-size:0.85rem"></div>
+    </div>
+
     <div class="card">
       <h3>Spreadsheet Backup</h3>
       <p>Export every table to a single Excel file with one sheet per table. Useful for keeping a human-readable copy alongside the SQLite backup.</p>
@@ -741,4 +762,24 @@ async function saveDailyReminderSettings() {
     });
     showStatusToast('✅', 'Daily reminder settings saved!');
   } catch (err) { alert('Failed to save: ' + (err.message || 'unknown')); }
+}
+
+async function changeAdminPassword() {
+  var msgEl = document.getElementById('pw-change-msg');
+  var current = document.getElementById('pw-current')?.value || '';
+  var newPw = document.getElementById('pw-new')?.value || '';
+  var confirmPw = document.getElementById('pw-confirm')?.value || '';
+  msgEl.innerHTML = '';
+  if (!current) { msgEl.innerHTML = '<span style="color:#dc2626">Enter your current password.</span>'; return; }
+  if (newPw.length < 8) { msgEl.innerHTML = '<span style="color:#dc2626">New password must be at least 8 characters.</span>'; return; }
+  if (newPw !== confirmPw) { msgEl.innerHTML = '<span style="color:#dc2626">New passwords do not match.</span>'; return; }
+  try {
+    await API.post('/auth/change-password', { currentPassword: current, newPassword: newPw });
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+    msgEl.innerHTML = '<span style="color:#16a34a;font-weight:600">Password changed successfully!</span>';
+  } catch (err) {
+    msgEl.innerHTML = '<span style="color:#dc2626">' + (err.message || 'Failed to change password') + '</span>';
+  }
 }
