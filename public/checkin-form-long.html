@@ -49,6 +49,7 @@
       .field-group { break-inside:avoid; }
       .occ-table { break-inside:avoid; }
       .disclaimer, .sig-section { break-inside:avoid; }
+      .form-section { break-inside:avoid; }
       @page { margin:0.4in 0.35in 0.6in 0.35in; size:letter portrait;
         @bottom-center { content:"Page " counter(page) " of 3"; font-size:8px; color:#6b7280; }
       }
@@ -152,6 +153,7 @@
     <div class="field"><label>Relationship</label><input type="text" id="f-ec-rel"></div>
   </div>
 
+  <div class="form-section">
   <div class="section-title">PET INFORMATION</div>
   <div class="field-group" style="grid-template-columns:1fr 1fr 1fr 1fr">
     <div class="field"><label>Pet Name</label><input type="text"></div>
@@ -159,7 +161,9 @@
     <div class="field"><label>Age</label><input type="text"></div>
     <div class="field"><label>Weight</label><input type="text"></div>
   </div>
+  </div>
 
+  <div class="form-section">
   <div class="section-title">VEHICLE / RV DETAILS</div>
   <div class="field-group" style="grid-template-columns:1fr 1fr 1fr">
     <div class="field"><label>RV Size / Length</label><input type="text"></div>
@@ -175,6 +179,7 @@
     <div class="field"><label>Year / Make / Model</label><input type="text" id="f-vehicle"></div>
     <div class="field"><label>Color</label><input type="text"></div>
     <div class="field"><label>License Plate</label><input type="text"></div>
+  </div>
   </div>
 
   <div class="section-title">PERSONAL REFERENCES (2 Required)</div>
@@ -192,6 +197,7 @@
   <div class="section-title">HOW DID YOU HEAR ABOUT US?</div>
   <div class="field"><input type="text" id="f-referral" style="width:100%"></div>
 
+  <div class="form-section">
   <div class="section-title">OCCUPANT QUESTIONNAIRE</div>
   <p style="font-size:0.7rem;color:#6b7280;margin-bottom:0.2rem">Answer Yes or No. If Yes, please explain on the line provided.</p>
 
@@ -206,6 +212,7 @@
   <div class="q-row">
     <span class="q-text">3. Have you ever been asked to move out by a landlord?</span>
     <span class="q-answer"><label><input type="radio" name="q3" value="yes"> Yes</label><label><input type="radio" name="q3" value="no"> No</label></span>
+  </div>
   </div>
   <div class="q-row">
     <span class="q-text">4. Have you ever breached a lease or rental contract?</span>
@@ -232,6 +239,7 @@
     <textarea style="min-height:2.5rem;width:100%"></textarea>
   </div>
 
+  <div class="form-section">
   <div class="disclaimer">
     <p><strong>THIS AGREEMENT DOES NOT CREATE A LANDLORD/TENANT RELATIONSHIP.</strong></p>
     <p><strong>BY SIGNING THIS APPLICATION, APPLICANT/LICENSEE HAS VERIFIED THAT ALL INFORMATION PROVIDED IS CORRECT. GUESTS ARE CONSIDERED LICENSEES AND HAVE NO EXCLUSIVE POSSESSION, VESTED INTEREST OR CONTROL OF THE PREMISES&hellip;THERE IS NO TENANT/LANDLORD AGREEMENT.</strong></p>
@@ -248,6 +256,7 @@
   <div class="sig-section" style="margin-top:0.4rem">
     <div class="sig-block"><div class="sig-line"></div><label>Park Management Signature</label></div>
     <div class="sig-block" style="max-width:120px"><div class="sig-line"></div><label>Date</label></div>
+  </div>
   </div>
 </div>
 
