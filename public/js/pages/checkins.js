@@ -32,7 +32,7 @@ async function loadCheckins() {
     </div>
     <div class="stats-grid">
       <div class="stat-card success"><div class="stat-value">${activeTenants.length}</div><div class="stat-label">Currently Checked In</div></div>
-      <div class="stat-card"><div class="stat-value">${vacantLots.length}</div><div class="stat-label">Available Lots</div><div style="font-size:0.8rem;color:#6b7280;margin-top:0.3rem">${vacantLots.map(l => l.name).sort((a,b) => a.localeCompare(b, undefined, {numeric:true})).join(', ') || 'None'}</div></div>
+      <div class="stat-card"><div class="stat-value">${vacantLots.length}</div><div class="stat-label">Available Lots</div><div style="font-size:0.82rem;color:#374151;font-weight:600;margin-top:0.3rem">${vacantLots.map(l => l.id).sort((a,b) => a.localeCompare(b, undefined, {numeric:true})).join(', ') || 'None'}</div></div>
     </div>
     <div class="card">
       <h3 class="mb-1">Activity Log</h3>
