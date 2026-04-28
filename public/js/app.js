@@ -30,15 +30,12 @@ function injectMainApp() {
         <ul class="nav-menu">
           <li><a href="#" data-page="dashboard" class="nav-link active">\u{1F40A} Dashboard</a></li>
           <li><a href="#" data-page="sitemap" class="nav-link">\u{1F5FA}\u{FE0F} Site Map</a></li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Guest Management</li>
-          <li class="nav-group open">
-            <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">\u{1F465} Guests <span class="nav-caret">&#9662;</span></a>
-            <ul class="nav-sub">
-              <li><a href="#" data-page="tenants" class="nav-link">\u{1F464} Guests</a></li>
-              <li><a href="#" data-page="checkins" class="nav-link">\u2705 Check-In/Out</a></li>
-              <li><a href="#" data-page="reservations" class="nav-link">\u{1F4C5} Reservations</a></li>
-            </ul>
-          </li>
+          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Lot & Guest Management</li>
+          <li><a href="#" data-page="tenants" class="nav-link">\u{1F464} Guests</a></li>
+          <li><a href="#" data-page="checkins" class="nav-link">\u2705 Check-In/Out</a></li>
+          <li><a href="#" data-page="reservations" class="nav-link">\u{1F4C5} Reservations</a></li>
+          <li><a href="#" data-page="lotmgmt" class="nav-link" id="nav-lotmgmt" style="display:none">\u{1F3D7}\u{FE0F} Lot Management</a></li>
+          <li><a href="#" data-page="inspections" class="nav-link" id="nav-inspections" style="display:none">\u{1F4F8} Lot Inspections</a></li>
           <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Operations</li>
           <li class="nav-group">
             <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">\u{1F4CA} Utility Meters <span class="nav-caret">&#9662;</span></a>
@@ -62,7 +59,6 @@ function injectMainApp() {
           <li><a href="#" data-page="admin" class="nav-link" id="nav-admin" style="display:none">\u{1F527} Admin</a></li>
           <li><a href="#" data-page="message-log" class="nav-link" id="nav-message-log" style="display:none">\u{1F4CB} Message Log</a></li>
           <li><a href="#" data-page="branding" class="nav-link" id="nav-branding" style="display:none">\u{1F3A8} Park Branding</a></li>
-          <li><a href="#" data-page="lotmgmt" class="nav-link" id="nav-lotmgmt" style="display:none">\u{1F3D7}\u{FE0F} Lot Management</a></li>
           <li><a href="#" data-page="vendors" class="nav-link" id="nav-vendors" style="display:none">\u{1F4D2} Vendor Directory</a></li>
           <li><a href="#" data-page="documents" class="nav-link" id="nav-documents" style="display:none">\u{1F4C4} Documents</a></li>
           <li><a href="#" data-page="community" class="nav-link" id="nav-community" style="display:none">\u{1F4CB} Community Board</a></li>
@@ -70,7 +66,6 @@ function injectMainApp() {
           <li><a href="#" data-page="birding" class="nav-link" id="nav-birding" style="display:none">\u{1F426} Bird Sightings</a></li>
           <li><a href="#" data-page="hunting-fishing" class="nav-link" id="nav-hunting-fishing" style="display:none">\u{1F3A3} Hunting & Fishing</a></li>
           <li><a href="#" data-page="maintenance" class="nav-link" id="nav-maintenance" style="display:none">\u{1F527} Maintenance</a></li>
-          <li><a href="#" data-page="inspections" class="nav-link" id="nav-inspections" style="display:none">\u{1F4F8} Lot Inspections</a></li>
         </ul>
         <div class="sidebar-footer">
           <div id="sidebar-user-info" style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem;padding:0.5rem;background:rgba(255,255,255,0.05);border-radius:10px">
