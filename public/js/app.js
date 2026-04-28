@@ -38,6 +38,7 @@ function injectMainApp() {
           <li><a href="#" data-page="messages" class="nav-link">\u{1F4E8} Messaging</a></li>
           <li><a href="#" data-page="lotmgmt" class="nav-link" id="nav-lotmgmt" style="display:none">\u{1F3D7}\u{FE0F} Lot Management</a></li>
           <li><a href="#" data-page="inspections" class="nav-link" id="nav-inspections" style="display:none">\u{1F4F8} Lot Inspections</a></li>
+          <li><a href="#" data-page="documents" class="nav-link" id="nav-documents" style="display:none">\u{1F4C4} Documents</a></li>
           <li class="nav-section">Operations</li>
           <li class="nav-group">
             <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">\u{1F4CA} Utility Meters <span class="nav-caret">&#9662;</span></a>
@@ -59,7 +60,6 @@ function injectMainApp() {
           <li><a href="#" data-page="message-log" class="nav-link" id="nav-message-log" style="display:none">\u{1F4CB} Message Log</a></li>
           <li><a href="#" data-page="branding" class="nav-link" id="nav-branding" style="display:none">\u{1F3A8} Park Branding</a></li>
           <li><a href="#" data-page="vendors" class="nav-link" id="nav-vendors" style="display:none">\u{1F4D2} Vendor Directory</a></li>
-          <li><a href="#" data-page="documents" class="nav-link" id="nav-documents" style="display:none">\u{1F4C4} Documents</a></li>
           <li><a href="#" data-page="community" class="nav-link" id="nav-community" style="display:none">\u{1F4CB} Community Board</a></li>
           <li><a href="#" data-page="lost-found" class="nav-link" id="nav-lost-found" style="display:none">\u{1F43E} Lost & Found Pets</a></li>
           <li><a href="#" data-page="birding" class="nav-link" id="nav-birding" style="display:none">\u{1F426} Bird Sightings</a></li>
