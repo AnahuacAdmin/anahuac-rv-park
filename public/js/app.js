@@ -30,7 +30,7 @@ function injectMainApp() {
         <ul class="nav-menu">
           <li><a href="#" data-page="dashboard" class="nav-link active">\u{1F40A} Dashboard</a></li>
           <li><a href="#" data-page="sitemap" class="nav-link">\u{1F5FA}\u{FE0F} Site Map</a></li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Lot & Guest Management</li>
+          <li style="padding:0.5rem 1rem 0.3rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:#f59e0b;font-weight:800;margin-top:0.2rem">Lot & Guest Management</li>
           <li><a href="#" data-page="tenants" class="nav-link">\u{1F464} Guests</a></li>
           <li><a href="#" data-page="checkins" class="nav-link">\u2705 Check-In/Out</a></li>
           <li><a href="#" data-page="reservations" class="nav-link">\u{1F4C5} Reservations</a></li>
@@ -38,7 +38,7 @@ function injectMainApp() {
           <li><a href="#" data-page="messages" class="nav-link">\u{1F4E8} Messaging</a></li>
           <li><a href="#" data-page="lotmgmt" class="nav-link" id="nav-lotmgmt" style="display:none">\u{1F3D7}\u{FE0F} Lot Management</a></li>
           <li><a href="#" data-page="inspections" class="nav-link" id="nav-inspections" style="display:none">\u{1F4F8} Lot Inspections</a></li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Operations</li>
+          <li style="padding:0.5rem 1rem 0.3rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:#f59e0b;font-weight:800;margin-top:0.2rem">Operations</li>
           <li class="nav-group">
             <a href="#" class="nav-link nav-group-toggle" onclick="event.preventDefault(); this.parentElement.classList.toggle('open')">\u{1F4CA} Utility Meters <span class="nav-caret">&#9662;</span></a>
             <ul class="nav-sub">
@@ -48,12 +48,12 @@ function injectMainApp() {
               <li><a href="#" data-page="water-analytics" class="nav-link">\u{1F4A7} Water Analytics</a></li>
             </ul>
           </li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600">Financial</li>
+          <li style="padding:0.5rem 1rem 0.3rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:#f59e0b;font-weight:800;margin-top:0.2rem">Financial</li>
           <li><a href="#" data-page="billing" class="nav-link">\u{1F4B0} Billing & Invoices</a></li>
           <li><a href="#" data-page="payments" class="nav-link">\u{1F4B3} Payments</a></li>
           <li><a href="#" data-page="expenses" class="nav-link" id="nav-expenses" style="display:none">\u{1F9FE} Expenses</a></li>
           <li><a href="#" data-page="reports" class="nav-link" id="nav-reports" style="display:none">\u{1F4CA} Performance Metrics</a></li>
-          <li style="padding:0.5rem 1rem 0.25rem;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);font-weight:600;display:none" id="nav-admin-divider">Administration</li>
+          <li style="padding:0.5rem 1rem 0.3rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:#f59e0b;font-weight:800;margin-top:0.2rem;display:none" id="nav-admin-divider">Administration</li>
           <li><a href="#" data-page="users" class="nav-link" id="nav-users" style="display:none">\u{1F465} Users</a></li>
           <li><a href="#" data-page="admin" class="nav-link" id="nav-admin" style="display:none">\u{1F527} Admin</a></li>
           <li><a href="#" data-page="message-log" class="nav-link" id="nav-message-log" style="display:none">\u{1F4CB} Message Log</a></li>
