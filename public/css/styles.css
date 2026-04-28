@@ -661,7 +661,7 @@ a { text-decoration: none; color: inherit; }
 .nav-section {
   color: #fbbf24 !important;
   font-weight: 900;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 0.5rem 1rem;
@@ -675,7 +675,7 @@ a { text-decoration: none; color: inherit; }
   padding: 0.7rem 1rem;
   color: rgba(255,255,255,0.75);
   transition: var(--transition);
-  font-size: 0.88rem;
+  font-size: 0.78rem;
   position: relative;
   border-radius: var(--radius);
   margin: 1px 0;
