@@ -805,6 +805,23 @@ async function initializeDatabase() {
     }
   }
 
+  // Backfill checkin records for tenants loaded via seed/import that skipped the checkins table
+  const checkinCount = dbWrapper.prepare('SELECT COUNT(*) as c FROM checkins').get().c;
+  const activeCount = dbWrapper.prepare('SELECT COUNT(*) as c FROM tenants WHERE is_active = 1').get().c;
+  if (checkinCount < activeCount) {
+    const backfilled = dbWrapper.prepare(`
+      INSERT OR IGNORE INTO checkins (tenant_id, lot_id, check_in_date, status)
+      SELECT id, lot_id, COALESCE(move_in_date, date('now')), 'checked_in'
+      FROM tenants WHERE is_active = 1 AND id NOT IN (SELECT tenant_id FROM checkins WHERE tenant_id IS NOT NULL)
+    `).run();
+    const backfilledOut = dbWrapper.prepare(`
+      INSERT OR IGNORE INTO checkins (tenant_id, lot_id, check_in_date, check_out_date, status)
+      SELECT id, lot_id, COALESCE(move_in_date, date('now')), move_out_date, 'checked_out'
+      FROM tenants WHERE is_active = 0 AND move_out_date IS NOT NULL AND id NOT IN (SELECT tenant_id FROM checkins WHERE tenant_id IS NOT NULL)
+    `).run();
+    console.log(`[database] Backfilled ${backfilled.changes} active + ${backfilledOut.changes} checked-out checkin records`);
+  }
+
   saveDb();
   console.log('Database initialized successfully');
 }
