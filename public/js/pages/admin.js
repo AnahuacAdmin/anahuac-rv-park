@@ -249,6 +249,11 @@ async function loadAdmin() {
     var btn = document.getElementById('btn-add-restaurant');
     if (btn) btn.addEventListener('click', showAddRestaurant);
   }, 50);
+
+  // Password eyeball toggles
+  addPasswordToggle('pw-current');
+  addPasswordToggle('pw-new');
+  addPasswordToggle('pw-confirm');
 }
 
 async function saveEvictionSettings() {

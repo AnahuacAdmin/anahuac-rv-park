@@ -107,8 +107,8 @@ function renderWizardStep() {
       '<p style="color:var(--gray-500);font-size:0.85rem;margin-bottom:1.25rem">Set a strong password. If you don\'t change it now, you can always change it later from the sidebar.</p>' +
       '<div class="form-group"><label>Your Full Name</label><input id="wiz-admin-name" value="' + _escWiz(_wizardData.admin_name || '') + '" placeholder="e.g. John Smith"></div>' +
       '<div class="form-row">' +
-        '<div class="form-group"><label>New Password <span style="color:var(--gray-400)">(optional)</span></label><input id="wiz-password" type="password" placeholder="Leave blank to keep current" minlength="6"></div>' +
-        '<div class="form-group"><label>Confirm Password</label><input id="wiz-password-confirm" type="password" placeholder="Confirm new password"></div>' +
+        '<div class="form-group"><label>New Password <span style="color:var(--gray-400)">(optional)</span></label><div class="password-wrap"><input id="wiz-password" type="password" placeholder="Leave blank to keep current" minlength="6"><button type="button" class="password-toggle" aria-label="Show password" onclick="this.previousElementSibling.type=this.previousElementSibling.type===\'password\'?\'text\':\'password\';this.classList.toggle(\'active\')">&#128065;</button></div></div>' +
+        '<div class="form-group"><label>Confirm Password</label><div class="password-wrap"><input id="wiz-password-confirm" type="password" placeholder="Confirm new password"><button type="button" class="password-toggle" aria-label="Show password" onclick="this.previousElementSibling.type=this.previousElementSibling.type===\'password\'?\'text\':\'password\';this.classList.toggle(\'active\')">&#128065;</button></div></div>' +
       '</div>' +
       '<div id="wiz-pw-error" class="error-text" style="display:none"></div>';
     nav = wizardNav(true);

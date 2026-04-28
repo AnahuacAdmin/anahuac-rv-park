@@ -277,6 +277,10 @@
       /* Report problem / message forms */
       .card input, .card select, .card textarea { width:100%;min-height:44px;padding:0.6rem }
     }
+    .password-wrap { position:relative; }
+    .password-wrap input { padding-right:2.5rem; }
+    .password-toggle { position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;color:#9ca3af;padding:0.25rem; }
+    .password-toggle:hover,.password-toggle.active { color:#16a34a; }
   </style>
 </head>
 <body>
@@ -304,7 +308,7 @@
       </div>
       <div id="pin-field" class="form-group hidden">
         <label>4-Digit PIN</label>
-        <input id="pin-input" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="****" autocomplete="off" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem">
+        <div class="password-wrap"><input id="pin-input" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="****" autocomplete="off" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem"><button type="button" class="password-toggle" onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password';this.classList.toggle('active')" aria-label="Show PIN">&#128065;</button></div>
       </div>
       <button type="submit" class="btn btn-green" id="login-btn">Sign In</button>
     </form>
@@ -319,11 +323,11 @@
     <form id="pin-setup-form">
       <div class="form-group">
         <label>Create PIN</label>
-        <input id="pin-new" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="****" required autocomplete="off" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem">
+        <div class="password-wrap"><input id="pin-new" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="****" required autocomplete="off" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem"><button type="button" class="password-toggle" onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password';this.classList.toggle('active')" aria-label="Show PIN">&#128065;</button></div>
       </div>
       <div class="form-group">
         <label>Confirm PIN</label>
-        <input id="pin-confirm" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="****" required autocomplete="off" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem">
+        <div class="password-wrap"><input id="pin-confirm" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="****" required autocomplete="off" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem"><button type="button" class="password-toggle" onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password';this.classList.toggle('active')" aria-label="Show PIN">&#128065;</button></div>
       </div>
       <button type="submit" class="btn btn-green">Save PIN & Sign In</button>
     </form>

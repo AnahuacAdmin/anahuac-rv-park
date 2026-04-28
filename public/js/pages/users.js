@@ -53,7 +53,7 @@ function showAddUser() {
   showModal('New User', `
     <form onsubmit="createUser(event)">
       <div class="form-group"><label>Username</label><input name="username" required></div>
-      <div class="form-group"><label>Password</label><input name="password" type="password" minlength="6" required></div>
+      <div class="form-group"><label>Password</label><div class="password-wrap"><input name="password" type="password" minlength="6" required><button type="button" class="password-toggle" aria-label="Show password" onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password';this.classList.toggle('active')">&#128065;</button></div></div>
       <div class="form-group">
         <label>Role</label>
         <select name="role">
@@ -119,7 +119,7 @@ async function updateUser(e, id) {
 function showResetUserPassword(id, username) {
   showModal(`Reset Password — ${username}`, `
     <form onsubmit="resetUserPassword(event, ${id})">
-      <div class="form-group"><label>New Password</label><input name="newPassword" type="password" minlength="6" required></div>
+      <div class="form-group"><label>New Password</label><div class="password-wrap"><input name="newPassword" type="password" minlength="6" required><button type="button" class="password-toggle" aria-label="Show password" onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password';this.classList.toggle('active')">&#128065;</button></div></div>
       <button type="submit" class="btn btn-primary btn-full mt-2">Reset Password</button>
       <p id="user-form-error" class="error-text" style="display:none"></p>
     </form>
@@ -154,9 +154,9 @@ async function deleteUser(id, username) {
 function showChangeMyPassword() {
   showModal('Change My Password', `
     <form onsubmit="submitChangeMyPassword(event)">
-      <div class="form-group"><label>Current Password</label><input name="currentPassword" type="password" required></div>
-      <div class="form-group"><label>New Password</label><input name="newPassword" type="password" minlength="6" required></div>
-      <div class="form-group"><label>Confirm New Password</label><input name="confirmPassword" type="password" minlength="6" required></div>
+      <div class="form-group"><label>Current Password</label><div class="password-wrap"><input name="currentPassword" type="password" required><button type="button" class="password-toggle" aria-label="Show password" onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password';this.classList.toggle('active')">&#128065;</button></div></div>
+      <div class="form-group"><label>New Password</label><div class="password-wrap"><input name="newPassword" type="password" minlength="6" required><button type="button" class="password-toggle" aria-label="Show password" onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password';this.classList.toggle('active')">&#128065;</button></div></div>
+      <div class="form-group"><label>Confirm New Password</label><div class="password-wrap"><input name="confirmPassword" type="password" minlength="6" required><button type="button" class="password-toggle" aria-label="Show password" onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password';this.classList.toggle('active')">&#128065;</button></div></div>
       <button type="submit" class="btn btn-primary btn-full mt-2">Change Password</button>
       <p id="user-form-error" class="error-text" style="display:none"></p>
     </form>

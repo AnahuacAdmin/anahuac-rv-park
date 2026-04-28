@@ -466,6 +466,37 @@ async function installPwa() {
   _deferredInstallPrompt = null;
 }
 
+// Password show/hide toggle — global helper
+// Wraps an input in .password-wrap and adds an eyeball button if not already wrapped.
+// Works by ID or by passing the input element directly.
+function wirePasswordToggle(btnOrId, inputOrId) {
+  var btn = typeof btnOrId === 'string' ? document.getElementById(btnOrId) : btnOrId;
+  var input = typeof inputOrId === 'string' ? document.getElementById(inputOrId) : inputOrId;
+  if (!btn || !input) return;
+  var show = function() { input.type = 'text'; btn.classList.add('active'); };
+  var hide = function() { input.type = 'password'; btn.classList.remove('active'); };
+  btn.addEventListener('mousedown', show);
+  btn.addEventListener('touchstart', function(e) { e.preventDefault(); show(); }, { passive: false });
+  ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(function(ev) { btn.addEventListener(ev, hide); });
+  btn.addEventListener('click', function(e) { e.preventDefault(); if (input.type === 'password') show(); else hide(); });
+}
+// Auto-wrap: find a password input by ID, wrap it in .password-wrap, add eyeball button, wire toggle.
+function addPasswordToggle(inputId) {
+  var input = document.getElementById(inputId);
+  if (!input || input.closest('.password-wrap')) return; // already wrapped
+  var wrap = document.createElement('div');
+  wrap.className = 'password-wrap';
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input);
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'password-toggle';
+  btn.setAttribute('aria-label', 'Show password');
+  btn.innerHTML = '&#128065;';
+  wrap.appendChild(btn);
+  wirePasswordToggle(btn, input);
+}
+
 // Format helpers
 function formatMoney(n) { return '$' + (Number(n) || 0).toFixed(2); }
 function formatDate(d) { if (!d) return '—'; return new Date(d + 'T00:00:00').toLocaleDateString(); }
@@ -1193,23 +1224,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Password show/hide toggle (press-and-hold OR click to toggle)
-  function wirePasswordToggle(btnId, inputId) {
-    const btn = document.getElementById(btnId);
-    const input = document.getElementById(inputId);
-    if (!btn || !input) return;
-    const show = () => { input.type = 'text'; btn.classList.add('active'); };
-    const hide = () => { input.type = 'password'; btn.classList.remove('active'); };
-    // Press-and-hold (mouse + touch)
-    btn.addEventListener('mousedown', show);
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); show(); }, { passive: false });
-    ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(ev => btn.addEventListener(ev, hide));
-    // Click toggles (in case the user just taps)
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (input.type === 'password') show(); else hide();
-    });
-  }
+  // Password show/hide toggle (login page — already has .password-wrap in HTML)
   wirePasswordToggle('toggle-password', 'password');
 
   // Forgot password — show contact info
