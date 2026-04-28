@@ -49,22 +49,23 @@ function injectMainApp() {
               <li><a href="#" data-page="water-analytics" class="nav-link">\u{1F4A7} Water Analytics</a></li>
             </ul>
           </li>
+          <li><a href="#" data-page="maintenance" class="nav-link" id="nav-maintenance" style="display:none">\u{1F527} Maintenance</a></li>
+          <li><a href="#" data-page="vendors" class="nav-link" id="nav-vendors" style="display:none">\u{1F4D2} Vendor Directory</a></li>
           <li class="nav-section">Financial</li>
           <li><a href="#" data-page="billing" class="nav-link">\u{1F4B0} Billing & Invoices</a></li>
           <li><a href="#" data-page="payments" class="nav-link">\u{1F4B3} Payments</a></li>
           <li><a href="#" data-page="expenses" class="nav-link" id="nav-expenses" style="display:none">\u{1F9FE} Expenses</a></li>
           <li><a href="#" data-page="reports" class="nav-link" id="nav-reports" style="display:none">\u{1F4CA} Performance Metrics</a></li>
+          <li class="nav-section" style="display:none" id="nav-community-divider">Community</li>
+          <li><a href="#" data-page="community" class="nav-link" id="nav-community" style="display:none">\u{1F4CB} Community Board</a></li>
+          <li><a href="#" data-page="lost-found" class="nav-link" id="nav-lost-found" style="display:none">\u{1F43E} Lost & Found Pets</a></li>
+          <li><a href="#" data-page="birding" class="nav-link" id="nav-birding" style="display:none">\u{1F426} Bird Sightings</a></li>
+          <li><a href="#" data-page="hunting-fishing" class="nav-link" id="nav-hunting-fishing" style="display:none">\u{1F3A3} Hunting & Fishing</a></li>
           <li class="nav-section" style="display:none" id="nav-admin-divider">Administration</li>
           <li><a href="#" data-page="users" class="nav-link" id="nav-users" style="display:none">\u{1F465} Users</a></li>
           <li><a href="#" data-page="admin" class="nav-link" id="nav-admin" style="display:none">\u{1F527} Admin</a></li>
           <li><a href="#" data-page="message-log" class="nav-link" id="nav-message-log" style="display:none">\u{1F4CB} Message Log</a></li>
           <li><a href="#" data-page="branding" class="nav-link" id="nav-branding" style="display:none">\u{1F3A8} Park Branding</a></li>
-          <li><a href="#" data-page="vendors" class="nav-link" id="nav-vendors" style="display:none">\u{1F4D2} Vendor Directory</a></li>
-          <li><a href="#" data-page="community" class="nav-link" id="nav-community" style="display:none">\u{1F4CB} Community Board</a></li>
-          <li><a href="#" data-page="lost-found" class="nav-link" id="nav-lost-found" style="display:none">\u{1F43E} Lost & Found Pets</a></li>
-          <li><a href="#" data-page="birding" class="nav-link" id="nav-birding" style="display:none">\u{1F426} Bird Sightings</a></li>
-          <li><a href="#" data-page="hunting-fishing" class="nav-link" id="nav-hunting-fishing" style="display:none">\u{1F3A3} Hunting & Fishing</a></li>
-          <li><a href="#" data-page="maintenance" class="nav-link" id="nav-maintenance" style="display:none">\u{1F527} Maintenance</a></li>
         </ul>
         <div class="sidebar-footer">
           <div id="sidebar-user-info" style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem;padding:0.5rem;background:rgba(255,255,255,0.05);border-radius:10px">
@@ -93,6 +94,8 @@ function refreshUsersNavVisibility() {
   document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses, #nav-community, #nav-inspections, #nav-branding, #nav-lost-found, #nav-birding, #nav-hunting-fishing, #nav-message-log').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
   const adminDiv = document.getElementById('nav-admin-divider');
   if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
+  const communityDiv = document.getElementById('nav-community-divider');
+  if (communityDiv) communityDiv.style.display = isAdmin ? '' : 'none';
   document.querySelectorAll('[data-page="billing"], [data-page="payments"]').forEach(el => {
     const li = el.closest('li');
     if (li) li.style.display = isStaff ? 'none' : '';
