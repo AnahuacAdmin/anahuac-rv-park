@@ -151,7 +151,7 @@ function tenantForm(lots, tenant = {}) {
       ${tenant.id ? `
         <div class="form-group" style="display:flex;flex-wrap:wrap;gap:0.5rem">
           <button type="button" class="btn btn-warning" onclick="showMoveTenant(${tenant.id}, '${tenant.lot_id}', \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">Move to Different Lot</button>
-          <button type="button" class="btn btn-outline" onclick="resetTenantPin(${tenant.id})">Reset Portal PIN</button>
+          <button type="button" class="btn btn-outline" style="color:#d97706;border-color:#d97706" onclick="resetTenantPin(${tenant.id}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">🔑 Reset PIN</button>
           <button type="button" class="btn btn-outline" style="color:#f59e0b;border-color:#f59e0b" onclick="promptTenantReview(${tenant.id}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">⭐ Request Review</button>
           <button type="button" class="btn btn-outline" onclick="showApplicationPicker({first_name:'${(tenant.first_name||'').replace(/'/g,"\\'")}',last_name:'${(tenant.last_name||'').replace(/'/g,"\\'")}',phone:'${tenant.phone||''}',email:'${tenant.email||''}',lot_id:'${tenant.lot_id||''}',id_number:'${tenant.id_number||''}',date_of_birth:'${tenant.date_of_birth||''}',rv_year:'${tenant.rv_year||''}',rv_make:'${(tenant.rv_make||'').replace(/'/g,"\\'")}',rv_model:'${(tenant.rv_model||'').replace(/'/g,"\\'")}',license_plate:'${tenant.license_plate||''}',license_plate_state:'${tenant.license_plate_state||''}',emergency_contact:'${(tenant.emergency_contact||'').replace(/'/g,"\\'")}',emergency_phone:'${tenant.emergency_phone||''}'})">&#128203; Print Application</button>
         </div>
@@ -407,11 +407,11 @@ async function submitMoveTenant(e, tenantId) {
   }
 }
 
-async function resetTenantPin(id) {
-  if (!confirm('Reset this tenant\'s portal PIN? They will need to set a new one on next login.')) return;
+async function resetTenantPin(id, name) {
+  if (!confirm('Reset portal PIN for ' + (name || 'this tenant') + '? They will need to create a new PIN next time they log into the portal.')) return;
   try {
     await API.post(`/tenants/${id}/reset-pin`, {});
-    alert('Portal PIN has been reset.');
+    showStatusToast('✅', 'PIN reset. ' + (name || 'Tenant') + ' will set a new PIN on their next portal login.');
   } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
 }
 
