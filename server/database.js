@@ -118,6 +118,7 @@ async function initializeDatabase() {
   addCol("ALTER TABLE meter_readings ADD COLUMN photo TEXT");
   addCol("ALTER TABLE meter_readings ADD COLUMN notes TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN credit_balance REAL DEFAULT 0");
+  addCol("ALTER TABLE checkins ADD COLUMN move_out_statement TEXT");
   db.run(`CREATE TABLE IF NOT EXISTS reservation_groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_name TEXT NOT NULL,

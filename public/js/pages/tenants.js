@@ -154,6 +154,7 @@ function tenantForm(lots, tenant = {}) {
           <button type="button" class="btn btn-outline" style="color:#d97706;border-color:#d97706" onclick="resetTenantPin(${tenant.id}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">🔑 Reset PIN</button>
           <button type="button" class="btn btn-outline" style="color:#f59e0b;border-color:#f59e0b" onclick="promptTenantReview(${tenant.id}, \`${(tenant.first_name + ' ' + tenant.last_name).replace(/`/g, '')}\`)">⭐ Request Review</button>
           <button type="button" class="btn btn-outline" onclick="showApplicationPicker({first_name:'${(tenant.first_name||'').replace(/'/g,"\\'")}',last_name:'${(tenant.last_name||'').replace(/'/g,"\\'")}',phone:'${tenant.phone||''}',email:'${tenant.email||''}',lot_id:'${tenant.lot_id||''}',id_number:'${tenant.id_number||''}',date_of_birth:'${tenant.date_of_birth||''}',rv_year:'${tenant.rv_year||''}',rv_make:'${(tenant.rv_make||'').replace(/'/g,"\\'")}',rv_model:'${(tenant.rv_model||'').replace(/'/g,"\\'")}',license_plate:'${tenant.license_plate||''}',license_plate_state:'${tenant.license_plate_state||''}',emergency_contact:'${(tenant.emergency_contact||'').replace(/'/g,"\\'")}',emergency_phone:'${tenant.emergency_phone||''}'})">&#128203; Print Application</button>
+          ${!tenant.is_active ? `<button type="button" class="btn btn-outline" style="color:#6366f1;border-color:#6366f1" onclick="viewMoveOutStatement(${tenant.id})">📄 Move-Out Statement</button>` : ''}
         </div>
         ${tenant.last_move_old_lot_id ? `
         <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:0.6rem;margin:0.5rem 0;font-size:0.85rem">
@@ -413,6 +414,17 @@ async function resetTenantPin(id, name) {
     await API.post(`/tenants/${id}/reset-pin`, {});
     showStatusToast('✅', 'PIN reset. ' + (name || 'Tenant') + ' will set a new PIN on their next portal login.');
   } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
+}
+
+async function viewMoveOutStatement(tenantId) {
+  try {
+    var s = await API.get('/checkins/statement/' + tenantId);
+    var html = renderMoveOutStatementHtml(s);
+    showModal('Move-Out Statement', '<div id="move-out-statement-view">' + html + '</div>' +
+      '<div style="text-align:center;margin-top:1rem"><button class="btn btn-primary" onclick="var w=window.open(\'\',\'_blank\');w.document.write(\'<html><head><title>Move-Out Statement</title></head><body>\'+document.getElementById(\\\'move-out-statement-view\\\').innerHTML+\'</body></html>\');w.document.close();w.print()">🖨️ Print Statement</button></div>');
+  } catch (err) {
+    showModal('Move-Out Statement', '<div style="text-align:center;padding:2rem;color:#6b7280"><p style="font-size:2rem;margin-bottom:1rem">📄</p><p>Statement not available — generated before this feature was added.</p></div>');
+  }
 }
 
 async function showTenantHistory(tenantId, name) {

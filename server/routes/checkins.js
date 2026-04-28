@@ -62,6 +62,12 @@ router.get('/', (req, res) => {
   res.json(checkins);
 });
 
+router.get('/statement/:tenantId', (req, res) => {
+  const row = db.prepare("SELECT move_out_statement FROM checkins WHERE tenant_id = ? AND status = 'checked_out' AND move_out_statement IS NOT NULL ORDER BY check_out_date DESC LIMIT 1").get(req.params.tenantId);
+  if (!row) return res.status(404).json({ error: 'No saved statement found' });
+  try { res.json(JSON.parse(row.move_out_statement)); } catch { res.status(500).json({ error: 'Failed to parse statement' }); }
+});
+
 router.post('/checkin', (req, res) => {
   try {
     const { tenant_id, lot_id, check_in_date, notes } = req.body;
@@ -247,6 +253,10 @@ router.post('/checkout', async (req, res) => {
     settlement_method: settlement_method || null,
     settlement_reference: settlement_reference || null,
   };
+
+  // Save statement to checkins record for later retrieval
+  db.prepare("UPDATE checkins SET move_out_statement = ? WHERE tenant_id = ? AND lot_id = ? AND status = 'checked_out'")
+    .run(JSON.stringify(statement), tenant_id, lot_id);
 
   res.json({
     success: true,
