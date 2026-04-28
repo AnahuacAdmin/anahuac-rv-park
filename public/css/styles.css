@@ -658,6 +658,18 @@ a { text-decoration: none; color: inherit; }
 .nav-menu::-webkit-scrollbar { width: 6px !important; height: 6px !important; }
 .nav-menu::-webkit-scrollbar-track { background: transparent !important; border: none !important; }
 .nav-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15) !important; border: none !important; }
+.nav-section {
+  color: #fbbf24 !important;
+  font-weight: 900;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.5rem 1rem;
+  margin-top: 1.2rem;
+  margin-bottom: 0.2rem;
+  border-left: 3px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+}
 .nav-link {
   display: block;
   padding: 0.7rem 1rem;
