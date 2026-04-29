@@ -402,10 +402,10 @@
 
   <!-- ===== 3. QUICK ACTIONS ===== -->
   <div class="quick-actions" data-tab-section="home" style="margin-bottom:0.6rem">
-    <a class="qa-btn" href="#maint-form" onclick="event.preventDefault();document.getElementById('maint-form')?.scrollIntoView({behavior:'smooth'})">
+    <a class="qa-btn" href="#maint-form" onclick="event.preventDefault();switchPortalTab('maint-tab');setTimeout(function(){document.getElementById('maint-form')?.scrollIntoView({behavior:'smooth'})},100)">
       <span class="qa-icon">🔧</span><span class="qa-label">Report Problem</span>
     </a>
-    <a class="qa-btn" href="#msg-form" onclick="event.preventDefault();document.getElementById('msg-form')?.scrollIntoView({behavior:'smooth'})">
+    <a class="qa-btn" href="#msg-form" onclick="event.preventDefault();switchPortalTab('contact');setTimeout(function(){document.getElementById('msg-form')?.scrollIntoView({behavior:'smooth'})},100)">
       <span class="qa-icon">💬</span><span class="qa-label">Message Us</span>
     </a>
     <a class="qa-btn" href="#portal-community-feed" onclick="event.preventDefault();document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth'})">
@@ -1057,7 +1057,7 @@ async function showPortal() {
       _tabOrigDisplay[i] = el.style.display || '';
       el.setAttribute('data-tab-idx', i);
     });
-    function switchPortalTab(tab) {
+    window.switchPortalTab = function switchPortalTab(tab) {
       navBtns.forEach(function(b) { b.classList.remove('active'); });
       var activeBtn = document.querySelector('.portal-nav-btn[data-tab="' + tab + '"]');
       if (activeBtn) activeBtn.classList.add('active');
