@@ -45,21 +45,34 @@ async function loadMessages() {
         <div class="messaging-btn-wrap"><button class="btn btn-success" onclick="showSharePortal()">Share Guest Portal</button><span class="messaging-btn-sub">Send portal login link</span></div>
         <div class="messaging-btn-wrap"><button class="btn btn-danger" onclick="showEmergencyBroadcast()">Emergency Alert</button><span class="messaging-btn-sub">Hurricane · Tornado · Flood · Fire · Power · Custom</span></div>
       </div>
-      <div style="text-align:center;margin-top:12px;font-size:12px;color:#666;font-style:italic">In-app notifications and email are free. SMS messages incur Twilio charges per text.</div>
+      <div class="msg-twilio-note">In-app notifications and email are free. SMS messages incur Twilio charges per text.</div>
     </div>
     <style>
       .messaging-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
       .messaging-btn-wrap { display: flex; flex-direction: column; align-items: center; }
       .messaging-btn-wrap .btn { min-width: 140px; }
       .messaging-btn-sub { font-size: 11px; color: #555; font-weight: 500; margin-top: 3px; text-align: center; max-width: 160px; line-height: 1.3; }
+      .msg-twilio-note { text-align:center; margin-top:12px; font-size:12px; color:#666; font-style:italic; }
+      .msg-card-list { display:none; }
       @media (max-width: 768px) {
-        .messaging-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .messaging-btn-wrap { align-items: stretch; }
-        .messaging-btn-wrap .btn { width: 100%; min-width: 0; }
-        .messaging-btn-sub { align-self: center; }
+        .messaging-buttons { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .messaging-btn-wrap { flex-direction: row; align-items: center; gap: 0.75rem; }
+        .messaging-btn-wrap .btn { width: 100%; min-width: 0; flex-shrink: 0; flex: 0 0 auto; width: auto; min-width: 130px; }
+        .messaging-btn-sub { text-align: left; max-width: none; font-size: 10.5px; }
+        .msg-twilio-note { margin-top: 8px; padding: 0 0.5rem; }
+        .msg-desktop-table { display: none !important; }
+        .msg-card-list { display: block !important; }
+        .msg-card { background: #fff; border: 1px solid var(--gray-200, #e5e7eb); border-radius: 10px; padding: 0.75rem; margin-bottom: 0.5rem; }
+        .msg-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; }
+        .msg-card-guest { font-weight: 700; font-size: 0.88rem; }
+        .msg-card-date { font-size: 0.7rem; color: #78716c; }
+        .msg-card-subject { font-size: 0.82rem; color: #44403c; margin-bottom: 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .msg-card-bottom { display: flex; justify-content: space-between; align-items: center; }
+        .msg-card-badges { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+        .msg-card-actions { display: flex; gap: 0.35rem; }
       }
     </style>
-    <div class="card">
+    <div class="card msg-desktop-table">
       <div class="table-container">
         <table>
           <thead><tr><th>Date</th><th>Guest</th><th>Lot</th><th>Subject</th><th>Type</th><th>Actions</th></tr></thead>
@@ -78,10 +91,31 @@ async function loadMessages() {
                   <button class="btn btn-sm btn-danger" onclick="deleteMessage(${m.id})">Del</button>
                 </td>
               </tr>
-            `).join('') : '<tr><td colspan="6" class="text-center">No messages sent</td></tr>'}
+            `).join('') : '<tr><td colspan="6" class="text-center" style="padding:2rem;color:#78716c">No messages sent</td></tr>'}
           </tbody>
         </table>
       </div>
+    </div>
+    <div class="card msg-card-list">
+      ${messages.length ? messages.map(m => `
+        <div class="msg-card">
+          <div class="msg-card-top">
+            <span class="msg-card-guest">${m.first_name ? m.first_name + ' ' + m.last_name : 'All Tenants'}${m.lot_id ? ' <span style="font-weight:400;color:#78716c;font-size:0.72rem">Lot ' + m.lot_id + '</span>' : ''}</span>
+            <span class="msg-card-date">${new Date(m.sent_date).toLocaleDateString()}</span>
+          </div>
+          <div class="msg-card-subject">${m.subject || '(no subject)'}</div>
+          <div class="msg-card-bottom">
+            <div class="msg-card-badges">
+              <span class="badge badge-${m.message_type === 'urgent' ? 'danger' : m.message_type === 'reminder' ? 'warning' : 'info'}">${m.message_type}</span>
+              ${m.is_broadcast ? '<span class="badge badge-gray">broadcast</span>' : ''}
+            </div>
+            <div class="msg-card-actions">
+              <button class="btn btn-sm btn-outline" onclick="viewMessageById(${m.id})">View</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteMessage(${m.id})">Del</button>
+            </div>
+          </div>
+        </div>
+      `).join('') : '<div style="text-align:center;padding:2rem;color:#78716c">No messages sent</div>'}
     </div>
   `;
 }
