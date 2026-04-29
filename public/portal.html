@@ -408,7 +408,7 @@
     <a class="qa-btn" href="#msg-form" onclick="event.preventDefault();switchPortalTab('contact');setTimeout(function(){document.getElementById('msg-form')?.scrollIntoView({behavior:'smooth'})},100)">
       <span class="qa-icon">💬</span><span class="qa-label">Message Us</span>
     </a>
-    <a class="qa-btn" href="#portal-community-feed" onclick="event.preventDefault();document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth'})">
+    <a class="qa-btn" href="#portal-community-feed" onclick="event.preventDefault();switchPortalTab('community');setTimeout(function(){document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth'})},100)">
       <span class="qa-icon">🏘️</span><span class="qa-label">Community Chat</span>
     </a>
     <a class="qa-btn" href="#" onclick="event.preventDefault();openChomperChat()" style="border-color:#1a5c32;border-width:2px;background:linear-gradient(135deg,#f0fdf4,#dcfce7)">
@@ -433,6 +433,7 @@
 
   <!-- ===== 4. COMMUNITY CHAT STRIP — slim banner ===== -->
   <div class="card" data-tab-section="community" style="padding:0.4rem 0.75rem;margin-bottom:0.5rem">
+    <a href="#" onclick="event.preventDefault();switchPortalTab('home')" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;font-weight:600;color:#1a5c32;text-decoration:none;margin-bottom:0.4rem">← Back to Home</a>
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div class="card-title" style="margin:0;font-size:0.75rem;flex-shrink:0">🏘️ Community</div>
       <div id="portal-community-feed" style="flex:1;margin:0 0.6rem;font-size:0.78rem;color:#44403c;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-height:40px">Loading...</div>
@@ -614,6 +615,7 @@
 
   <!-- ===== SECTION 5: MAINTENANCE (Report a Problem) ===== -->
   <div class="card" data-tab-section="maint-tab" style="animation-delay:0.18s">
+    <a href="#" onclick="event.preventDefault();switchPortalTab('home')" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;font-weight:600;color:#1a5c32;text-decoration:none;margin-bottom:0.6rem">← Back to Home</a>
     <div class="card-title" style="font-size:0.85rem">🔧 Report a Problem</div>
     <p style="font-size:0.82rem;color:#78716c;margin-bottom:0.75rem;line-height:1.5">Submit a request and we'll get right on it. For emergencies call <a href="tel:4092676603" style="color:#1a5c32;font-weight:700">409-267-6603</a>.</p>
     <div id="maint-status"></div>
@@ -643,6 +645,7 @@
 
   <!-- ===== CONTACT / MESSAGE ===== -->
   <div class="card" data-tab-section="contact" style="animation-delay:0.2s">
+    <a href="#" onclick="event.preventDefault();switchPortalTab('home')" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;font-weight:600;color:#1a5c32;text-decoration:none;margin-bottom:0.6rem">← Back to Home</a>
     <div class="card-title" style="font-size:0.85rem">💬 Message Management</div>
     <div id="msg-status"></div>
     <form id="msg-form">
