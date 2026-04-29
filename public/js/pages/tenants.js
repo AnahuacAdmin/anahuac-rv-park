@@ -13,44 +13,51 @@ function recurringSummary(t) {
   return parts.length ? `<small>${parts.join('<br>')}</small>` : '<small style="color:#999">—</small>';
 }
 
-async function loadTenants() {
-  const tenants = await API.get('/tenants');
-  if (!tenants) return;
+var _tenantFilter = 'active';
+var _allTenantsCache = null;
 
-  document.getElementById('page-content').innerHTML = `
-    ${helpPanel('tenants')}
-    <div class="page-header">
-      <h2>Guest Management</h2>
-      <div class="btn-group">
-        ${API.user?.role === 'admin' ? '<button class="btn btn-outline" onclick="showImportTenants()">📥 Import Tenants</button>' : ''}
-        <button class="btn btn-outline" onclick="showRecurringFeesSummary()">Recurring Fees Summary</button>
-      </div>
-    </div>
-    ${API.user?.role === 'admin' ? importHelpPanelHtml() : ''}
-    <div class="card scrollable-table-card">
-      <div class="table-container">
-        <table>
-          <thead><tr><th>Lot</th><th>Name</th><th>Rent</th><th>Type</th><th>Recurring Fees</th><th>Move-In</th><th>Actions</th></tr></thead>
-          <tbody>
-            ${tenants.map(t => `
-              <tr style="${t.balance_due > 0 ? 'background:#fff0f0' : ''}">
-                <td><strong>${t.lot_id}</strong></td>
-                <td>${t.first_name} ${t.last_name}${t.credit_balance > 0 ? ` <span class="badge badge-success" title="Account credit">Credit: ${formatMoney(t.credit_balance)}</span>` : ''}</td>
-                <td>${formatMoney(t.monthly_rent)}</td>
-                <td><span class="badge badge-${t.rent_type === 'daily' ? 'info' : t.rent_type === 'weekly' ? 'info' : t.rent_type === 'premium' ? 'warning' : t.rent_type === 'electric_only' ? 'info' : 'gray'}">${t.rent_type}</span>${t.flat_rate ? '<span class="badge badge-success" style="margin-left:4px">FLAT</span>' : ''}${t.deposit_waived ? '<span class="badge badge-gray" style="margin-left:4px;font-size:0.6rem">DEP WAIVED</span>' : ''}</td>
-                <td>${recurringSummary(t)}</td>
-                <td>${formatDate(t.move_in_date)}</td>
-                <td class="btn-group">
-                  <button class="btn btn-sm btn-outline" onclick="showEditTenant(${t.id})">Edit</button>
-                  <button class="btn btn-sm btn-outline" onclick="showTenantHistory(${t.id}, '${(t.first_name + ' ' + t.last_name).replace(/'/g, "\\'")}')">History</button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
+async function loadTenants(filter) {
+  if (filter) _tenantFilter = filter;
+  if (!_allTenantsCache) {
+    _allTenantsCache = await API.get('/tenants/all');
+    if (!_allTenantsCache) return;
+  }
+  var tenants = _allTenantsCache;
+  if (_tenantFilter === 'active') tenants = tenants.filter(function(t) { return t.is_active; });
+  else if (_tenantFilter === 'out') tenants = tenants.filter(function(t) { return !t.is_active; });
+
+  function filterBtn(val, label) {
+    var active = _tenantFilter === val;
+    return '<button class="btn btn-sm ' + (active ? 'btn-primary' : 'btn-outline') + '" onclick="_allTenantsCache=null;loadTenants(\'' + val + '\')">' + label + '</button>';
+  }
+
+  document.getElementById('page-content').innerHTML =
+    helpPanel('tenants') +
+    '<div class="page-header"><h2>Guest Management</h2><div class="btn-group">' +
+      (API.user?.role === 'admin' ? '<button class="btn btn-outline" onclick="showImportTenants()">📥 Import Tenants</button>' : '') +
+      '<button class="btn btn-outline" onclick="showRecurringFeesSummary()">Recurring Fees Summary</button>' +
+    '</div></div>' +
+    (API.user?.role === 'admin' ? importHelpPanelHtml() : '') +
+    '<div style="display:flex;gap:0.5rem;margin-bottom:1rem">' + filterBtn('active', 'Active') + filterBtn('out', 'Checked Out') + filterBtn('all', 'All') + '</div>' +
+    '<div class="card scrollable-table-card"><div class="table-container"><table>' +
+    '<thead><tr><th>Lot</th><th>Name</th><th>Rent</th><th>Type</th><th>Recurring Fees</th><th>Move-In</th><th>Actions</th></tr></thead><tbody>' +
+    (tenants.length ? tenants.map(function(t) {
+      var inactive = !t.is_active;
+      var rowStyle = inactive ? 'opacity:0.6;background:#f9fafb' : (t.balance_due > 0 ? 'background:#fff0f0' : '');
+      var badge = inactive ? ' <span class="badge badge-gray">Checked Out</span>' : '';
+      return '<tr style="' + rowStyle + '">' +
+        '<td><strong>' + (t.lot_id || '—') + '</strong></td>' +
+        '<td>' + t.first_name + ' ' + t.last_name + badge + (t.credit_balance > 0 ? ' <span class="badge badge-success" title="Account credit">Credit: ' + formatMoney(t.credit_balance) + '</span>' : '') + '</td>' +
+        '<td>' + formatMoney(t.monthly_rent) + '</td>' +
+        '<td><span class="badge badge-' + (t.rent_type === 'daily' ? 'info' : t.rent_type === 'weekly' ? 'info' : t.rent_type === 'premium' ? 'warning' : t.rent_type === 'electric_only' ? 'info' : 'gray') + '">' + t.rent_type + '</span>' + (t.flat_rate ? '<span class="badge badge-success" style="margin-left:4px">FLAT</span>' : '') + (t.deposit_waived ? '<span class="badge badge-gray" style="margin-left:4px;font-size:0.6rem">DEP WAIVED</span>' : '') + '</td>' +
+        '<td>' + recurringSummary(t) + '</td>' +
+        '<td>' + formatDate(t.move_in_date) + '</td>' +
+        '<td class="btn-group">' +
+          '<button class="btn btn-sm btn-outline" onclick="showEditTenant(' + t.id + ')">Edit</button>' +
+          '<button class="btn btn-sm btn-outline" onclick="showTenantHistory(' + t.id + ', \'' + (t.first_name + ' ' + t.last_name).replace(/'/g, "\\'") + '\')">History</button>' +
+        '</td></tr>';
+    }).join('') : '<tr><td colspan="7" class="text-center">No guests found</td></tr>') +
+    '</tbody></table></div></div>';
 }
 
 async function showAddTenant() {
