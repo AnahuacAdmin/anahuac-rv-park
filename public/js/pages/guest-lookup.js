@@ -4,6 +4,10 @@
  * Guest Lookup & History
  */
 
+var _glDebounce = null;
+var _glHighlight = -1;
+var _glResults = [];
+
 async function loadGuestLookup() {
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('guest-lookup')}
@@ -11,8 +15,11 @@ async function loadGuestLookup() {
       <h2>🔍 Guest Lookup</h2>
     </div>
     <div class="card" style="margin-bottom:1.5rem">
-      <div style="display:flex;gap:0.75rem;align-items:center">
-        <input type="text" id="guest-search-input" placeholder="Search by name, phone, or email..." style="flex:1;padding:0.65rem 1rem;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem">
+      <div style="display:flex;gap:0.75rem;align-items:center;position:relative">
+        <div style="flex:1;position:relative" id="guest-search-wrap">
+          <input type="text" id="guest-search-input" placeholder="Search by name, phone, or email..." autocomplete="off" style="width:100%;padding:0.65rem 1rem;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem">
+          <div id="guest-ac-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-top:none;border-radius:0 0 8px 8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:9999;max-height:420px;overflow-y:auto"></div>
+        </div>
         <button class="btn btn-primary" id="guest-search-btn">Search</button>
       </div>
     </div>
@@ -23,8 +30,125 @@ async function loadGuestLookup() {
   const input = document.getElementById('guest-search-input');
   const btn = document.getElementById('guest-search-btn');
   btn.addEventListener('click', () => doGuestSearch());
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doGuestSearch(); });
+
+  input.addEventListener('input', () => {
+    clearTimeout(_glDebounce);
+    const q = input.value.trim();
+    if (q.length < 2) { hideAcDropdown(); return; }
+    _glDebounce = setTimeout(() => fetchAutocomplete(q), 300);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const dd = document.getElementById('guest-ac-dropdown');
+    if (dd && dd.style.display !== 'none') {
+      if (e.key === 'ArrowDown') { e.preventDefault(); moveAcHighlight(1); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); moveAcHighlight(-1); return; }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (_glHighlight >= 0 && _glHighlight < _glResults.length) {
+          hideAcDropdown();
+          openGuestProfile(_glResults[_glHighlight].id);
+        } else {
+          hideAcDropdown();
+          doGuestSearch();
+        }
+        return;
+      }
+      if (e.key === 'Escape') { hideAcDropdown(); return; }
+    } else if (e.key === 'Enter') {
+      doGuestSearch();
+    }
+  });
+
+  document.addEventListener('click', function _glOutside(ev) {
+    const wrap = document.getElementById('guest-search-wrap');
+    if (wrap && !wrap.contains(ev.target)) hideAcDropdown();
+    if (!document.getElementById('guest-search-wrap')) document.removeEventListener('click', _glOutside);
+  });
+
   input.focus();
+}
+
+async function fetchAutocomplete(q) {
+  try {
+    const data = await API.get('/tenants/lookup?q=' + encodeURIComponent(q));
+    _glResults = (data || []).slice(0, 10);
+    _glHighlight = -1;
+    renderAcDropdown(q);
+  } catch (e) {
+    _glResults = [];
+    renderAcDropdown(q);
+  }
+}
+
+function renderAcDropdown(q) {
+  const dd = document.getElementById('guest-ac-dropdown');
+  if (!dd) return;
+
+  if (_glResults.length === 0) {
+    dd.innerHTML = '<div style="padding:0.75rem 1rem;color:#78716c;font-size:0.85rem">No guests found</div>';
+    dd.style.display = '';
+    return;
+  }
+
+  const ql = q.toLowerCase();
+  dd.innerHTML = _glResults.map((t, i) => {
+    const fullName = t.first_name + ' ' + t.last_name;
+    const highlighted = boldMatch(fullName, ql);
+    const statusColor = t.is_active ? '#16a34a' : '#78716c';
+    const statusLabel = t.is_active ? 'Active' : 'Checked Out';
+    const ratingColor = t.guest_rating === 'red' ? '#ef4444' : t.guest_rating === 'yellow' ? '#eab308' : '#22c55e';
+    return `<div class="gl-ac-item${i === _glHighlight ? ' gl-ac-active' : ''}" data-idx="${i}" style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 1rem;cursor:pointer;border-bottom:1px solid #f3f4f6;transition:background 0.1s">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${ratingColor};flex-shrink:0"></span>
+      <div style="flex:1;min-width:0">
+        <span style="font-size:0.9rem">${highlighted}</span>
+        <span style="font-size:0.75rem;color:#a8a29e;margin-left:0.4rem">${t.lot_id ? 'Lot ' + t.lot_id : ''} ${t.phone || ''}</span>
+      </div>
+      <span style="font-size:0.65rem;font-weight:600;padding:0.15rem 0.4rem;border-radius:10px;background:${statusColor}15;color:${statusColor};white-space:nowrap">${statusLabel}</span>
+    </div>`;
+  }).join('');
+  dd.style.display = '';
+
+  dd.querySelectorAll('.gl-ac-item').forEach(item => {
+    item.addEventListener('mouseenter', () => {
+      _glHighlight = parseInt(item.dataset.idx);
+      updateAcHighlight();
+    });
+    item.addEventListener('click', () => {
+      const idx = parseInt(item.dataset.idx);
+      if (_glResults[idx]) { hideAcDropdown(); openGuestProfile(_glResults[idx].id); }
+    });
+  });
+}
+
+function boldMatch(text, query) {
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('(' + escaped + ')', 'gi');
+  return text.replace(/</g, '&lt;').replace(re, '<strong style="color:#1a5c32">$1</strong>');
+}
+
+function moveAcHighlight(dir) {
+  if (_glResults.length === 0) return;
+  _glHighlight += dir;
+  if (_glHighlight < 0) _glHighlight = _glResults.length - 1;
+  if (_glHighlight >= _glResults.length) _glHighlight = 0;
+  updateAcHighlight();
+}
+
+function updateAcHighlight() {
+  const dd = document.getElementById('guest-ac-dropdown');
+  if (!dd) return;
+  dd.querySelectorAll('.gl-ac-item').forEach((el, i) => {
+    el.style.background = i === _glHighlight ? '#f3f4f6' : '';
+  });
+  const active = dd.querySelector('.gl-ac-item[data-idx="' + _glHighlight + '"]');
+  if (active) active.scrollIntoView({ block: 'nearest' });
+}
+
+function hideAcDropdown() {
+  const dd = document.getElementById('guest-ac-dropdown');
+  if (dd) dd.style.display = 'none';
+  _glHighlight = -1;
 }
 
 async function doGuestSearch() {
