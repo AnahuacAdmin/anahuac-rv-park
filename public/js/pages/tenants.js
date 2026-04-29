@@ -443,11 +443,13 @@ async function showTenantHistory(tenantId, name) {
   const tenantCheckins = (checkins || []).filter(c => c.tenant_id === tenantId);
   const tenantPayments = payments || [];
   const tenantDocs = docs || [];
+  const hasCheckout = tenantCheckins.some(c => c.status === 'checked_out');
   showModal(`History — ${name}`, `
     <h4>Check-In/Out History</h4>
     ${tenantCheckins.length ? `<table><thead><tr><th>Lot</th><th>Check-In</th><th>Check-Out</th><th>Status</th><th>Notes</th></tr></thead><tbody>
       ${tenantCheckins.map(c => `<tr><td>${c.lot_name || c.lot_id}</td><td>${formatDate(c.check_in_date)}</td><td>${c.check_out_date ? formatDate(c.check_out_date) : '—'}</td><td><span class="badge badge-${c.status === 'checked_in' ? 'success' : 'gray'}">${c.status}</span></td><td style="font-size:0.75rem;max-width:200px;white-space:pre-wrap">${c.notes ? escapeHtml(c.notes) : '—'}</td></tr>`).join('')}
     </tbody></table>` : '<p>No check-in records.</p>'}
+    ${hasCheckout ? `<div style="margin:0.75rem 0"><button class="btn btn-outline" style="color:#6366f1;border-color:#6366f1" onclick="viewMoveOutStatement(${tenantId})">📄 View Move-Out Statement</button></div>` : ''}
     <h4 class="mt-2">Payment History</h4>
     ${tenantPayments.length ? `<table><thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Invoice</th></tr></thead><tbody>
       ${tenantPayments.map(p => `<tr><td>${formatDate(p.payment_date)}</td><td>${formatMoney(p.amount)}</td><td>${p.payment_method || '—'}</td><td>${p.invoice_number || '—'}</td></tr>`).join('')}
