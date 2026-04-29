@@ -388,6 +388,37 @@ async function processCheckIn(e) {
     return;
   }
 
+  // Check for red-flagged guests with matching name
+  if (!window._checkinFlagBypass) {
+    try {
+      const matches = await API.get('/tenants/lookup?q=' + encodeURIComponent(data.first_name + ' ' + data.last_name));
+      const flagged = (matches || []).filter(m => m.guest_rating === 'red');
+      if (flagged.length > 0) {
+        window._checkinPendingData = data;
+        let flagNotes = '';
+        try {
+          const hist = await API.get('/tenants/' + flagged[0].id + '/full-history');
+          const flagNote = (hist.notes || []).find(n => n.note_type === 'flag');
+          if (flagNote) flagNotes = flagNote.note_text;
+        } catch(e) {}
+        showModal('\u26A0\uFE0F WARNING: Flagged Guest', `
+          <div style="background:#fef2f2;border:2px solid #ef4444;border-radius:10px;padding:1.5rem;text-align:center">
+            <div style="font-size:2rem;margin-bottom:0.5rem">\u26A0\uFE0F</div>
+            <h3 style="color:#dc2626;margin:0 0 0.5rem">DO NOT RE-RENT</h3>
+            <p style="font-weight:600">${flagged[0].first_name} ${flagged[0].last_name} has been flagged.</p>
+            ${flagNotes ? '<p style="margin:0.75rem 0;padding:0.75rem;background:#fff;border-radius:8px;border:1px solid #fca5a5;font-size:0.9rem;text-align:left">' + flagNotes + '</p>' : ''}
+            <div style="display:flex;gap:0.75rem;justify-content:center;margin-top:1rem">
+              <button class="btn" style="background:#dc2626;color:#fff" onclick="closeModal()">Cancel Check-In</button>
+              <button class="btn" style="background:#78716c;color:#fff" onclick="window._checkinFlagBypass=true;closeModal();proceedCheckinWithData()">Proceed Anyway</button>
+            </div>
+          </div>
+        `);
+        return;
+      }
+    } catch(e) { /* lookup failed, proceed anyway */ }
+  }
+  window._checkinFlagBypass = false;
+
   let tenant;
   try {
     // Create tenant with all intake fields
@@ -538,6 +569,21 @@ async function processCheckIn(e) {
       }
     }, 4000);
   }
+}
+
+async function proceedCheckinWithData() {
+  // Re-open the check-in modal pre-filled and auto-submit with bypass flag
+  const data = window._checkinPendingData;
+  if (!data) return;
+  // Re-create a minimal fake event that processCheckIn can handle
+  const fakeForm = document.createElement('form');
+  Object.keys(data).forEach(k => {
+    const inp = document.createElement('input');
+    inp.name = k; inp.value = data[k] || '';
+    fakeForm.appendChild(inp);
+  });
+  const fakeEvent = { preventDefault: () => {}, target: fakeForm };
+  await processCheckIn(fakeEvent);
 }
 
 async function sendWelcomeText(tenantId, tenantName) {

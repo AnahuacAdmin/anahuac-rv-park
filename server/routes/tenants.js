@@ -33,6 +33,26 @@ router.get('/all', (req, res) => {
   res.json(tenants);
 });
 
+// Search tenants by name, phone, email (active + inactive)
+router.get('/lookup', (req, res) => {
+  const q = req.query.q;
+  if (!q || q.trim().length < 1) return res.json([]);
+  const term = '%' + q.trim() + '%';
+  try {
+    const rows = db.prepare(`
+      SELECT id, first_name, last_name, phone, email, lot_id, is_active, guest_rating
+      FROM tenants
+      WHERE first_name LIKE ? OR last_name LIKE ? OR phone LIKE ? OR email LIKE ?
+         OR (first_name || ' ' || last_name) LIKE ?
+      ORDER BY is_active DESC, last_name ASC
+    `).all(term, term, term, term, term);
+    res.json(rows);
+  } catch (err) {
+    console.error('[tenants] lookup failed:', err);
+    res.status(500).json({ error: 'Lookup failed: ' + err.message });
+  }
+});
+
 router.get('/:id', (req, res) => {
   const tenant = db.prepare(`
     SELECT t.*, l.row_letter, l.lot_number, l.id as lot_id
@@ -458,6 +478,77 @@ router.post('/bulk-flat-rate', (req, res) => {
   }
 
   res.status(400).json({ error: 'Invalid action' });
+});
+
+// === GUEST LOOKUP & HISTORY ===
+
+// Full history for a single tenant
+router.get('/:id/full-history', (req, res) => {
+  try {
+    const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(req.params.id);
+    if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+
+    const checkins = db.prepare('SELECT * FROM checkins WHERE tenant_id = ? ORDER BY check_in_date DESC').all(req.params.id);
+    const payments = db.prepare('SELECT * FROM payments WHERE tenant_id = ? ORDER BY payment_date DESC').all(req.params.id);
+    const invoices = db.prepare(`SELECT * FROM invoices WHERE tenant_id = ? AND COALESCE(deleted,0)=0 ORDER BY invoice_date DESC`).all(req.params.id);
+
+    let notes = [];
+    try { notes = db.prepare('SELECT * FROM guest_notes WHERE tenant_id = ? ORDER BY created_at DESC').all(req.params.id); } catch(e) {}
+    let incidents = [];
+    try { incidents = db.prepare('SELECT * FROM guest_incidents WHERE tenant_id = ? ORDER BY incident_date DESC, created_at DESC').all(req.params.id); } catch(e) {}
+
+    res.json({ tenant, checkins, payments, invoices, notes, incidents });
+  } catch (err) {
+    console.error('[tenants] full-history failed:', err);
+    res.status(500).json({ error: 'Failed to load history: ' + err.message });
+  }
+});
+
+// Add a note
+router.post('/:id/notes', (req, res) => {
+  try {
+    const { note_text, note_type } = req.body || {};
+    if (!note_text) return res.status(400).json({ error: 'Note text is required' });
+    const result = db.prepare('INSERT INTO guest_notes (tenant_id, note_text, note_type) VALUES (?, ?, ?)').run(req.params.id, note_text, note_type || 'general');
+    res.json({ id: result.lastInsertRowid });
+  } catch (err) {
+    console.error('[tenants] add note failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add an incident
+router.post('/:id/incidents', (req, res) => {
+  try {
+    const { incident_date, category, description } = req.body || {};
+    if (!incident_date || !category || !description) return res.status(400).json({ error: 'Date, category, and description are required' });
+    const tenant = db.prepare('SELECT lot_id FROM tenants WHERE id = ?').get(req.params.id);
+    const result = db.prepare('INSERT INTO guest_incidents (tenant_id, incident_date, category, description, lot_id) VALUES (?, ?, ?, ?, ?)').run(req.params.id, incident_date, category, description, tenant ? tenant.lot_id : null);
+    res.json({ id: result.lastInsertRowid });
+  } catch (err) {
+    console.error('[tenants] add incident failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update guest rating
+router.put('/:id/rating', (req, res) => {
+  try {
+    const { rating, reason } = req.body || {};
+    if (!['green', 'yellow', 'red'].includes(rating)) return res.status(400).json({ error: 'Invalid rating' });
+    if (rating === 'red' && !reason) return res.status(400).json({ error: 'Reason is required for red flag' });
+
+    db.prepare('UPDATE tenants SET guest_rating = ? WHERE id = ?').run(rating, req.params.id);
+
+    if (rating === 'red') {
+      db.prepare('INSERT INTO guest_notes (tenant_id, note_text, note_type) VALUES (?, ?, ?)').run(req.params.id, '⚠️ FLAGGED DO NOT RE-RENT: ' + reason, 'flag');
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[tenants] update rating failed:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

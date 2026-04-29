@@ -157,6 +157,27 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN deposit_amount REAL DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN flat_rate INTEGER DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN flat_rate_amount REAL DEFAULT 0");
+  addCol("ALTER TABLE tenants ADD COLUMN guest_rating TEXT DEFAULT 'green'");
+
+  // Guest notes & incidents
+  db.run(`CREATE TABLE IF NOT EXISTS guest_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    note_text TEXT NOT NULL,
+    note_type TEXT DEFAULT 'general',
+    created_by TEXT DEFAULT 'admin',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS guest_incidents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    incident_date TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    lot_id TEXT,
+    created_by TEXT DEFAULT 'admin',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
 
   // Portal restaurants
   db.run(`CREATE TABLE IF NOT EXISTS portal_restaurants (

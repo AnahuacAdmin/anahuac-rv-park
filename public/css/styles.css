@@ -1758,3 +1758,8 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
 .inv-act-red:hover { background: #fecaca; }
 .inv-act-orange { background: #fef3c7; color: #92400e; border-color: #fde68a; }
 .inv-act-orange:hover { background: #fde68a; }
+
+/* Guest Lookup tabs */
+.guest-tab { background: none; border: none; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 600; color: var(--gray-500); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
+.guest-tab:hover { color: var(--gray-800); }
+.guest-tab.active { color: var(--brand-primary, #1a5c32); border-bottom-color: var(--brand-primary, #1a5c32); }

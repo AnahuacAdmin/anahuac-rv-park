@@ -38,6 +38,7 @@ function injectMainApp() {
           <li><a href="#" data-page="messages" class="nav-link">\u{1F4E8} Messaging</a></li>
           <li><a href="#" data-page="lotmgmt" class="nav-link" id="nav-lotmgmt" style="display:none">\u{1F3D7}\u{FE0F} Lot Management</a></li>
           <li><a href="#" data-page="inspections" class="nav-link" id="nav-inspections" style="display:none">\u{1F4F8} Lot Inspections</a></li>
+          <li><a href="#" data-page="guest-lookup" class="nav-link">\u{1F50D} Guest Lookup</a></li>
           <li><a href="#" data-page="documents" class="nav-link" id="nav-documents" style="display:none">\u{1F4C4} Documents</a></li>
           <li class="nav-section">Operations</li>
           <li class="nav-group">
@@ -669,6 +670,13 @@ const HELP_CONTENT = {
   <p><strong>Categories:</strong> Repairs, Utilities, Supplies, Insurance, Equipment, Landscaping, Legal, Fuel, Office, Other.</p>
   <p><strong>Reports:</strong> Monthly expense totals show at the top. Export to CSV for your accountant. Combined with income on the Reports page for P&L.</p>
   <p>💡 <strong>TIP:</strong> Upload receipt photos immediately — makes tax time much easier!</p>`,
+  'guest-lookup': `<p><strong>🔍 Guest Lookup</strong></p><ul>
+    <li>Search for any guest (active or checked out) by name, phone, or email.</li>
+    <li>Click a result to see their full profile: contact info, stay history, payments, notes, and incidents.</li>
+    <li><strong>Rating:</strong> Flag guests as 🟢 Good, 🟡 Caution, or 🔴 Do Not Re-Rent.</li>
+    <li><strong>Notes:</strong> Add timestamped admin notes. Red flags require a reason.</li>
+    <li><strong>Incidents:</strong> Log noise complaints, rule violations, property damage, etc.</li>
+    </ul>`,
   documents: `<p><strong>📄 Document Management</strong></p><ul>
     <li>Upload and manage guest documents: lease agreements, IDs, vehicle registration, insurance, etc.</li>
     <li><strong>Upload:</strong> Click <em>📤 Upload Document</em>, select the guest, document type, name the file, and attach.</li>
@@ -1145,7 +1153,7 @@ function navigateTo(page, skipHistory) {
     meters: loadMeters, electric: loadElectric, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
     users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors, documents: loadDocuments, maintenance: loadMaintenance, expenses: loadExpenses, community: loadCommunity, inspections: loadInspections, branding: loadBranding,
-    'water-meters': loadWaterMeters, 'water-analytics': loadWaterAnalytics, 'lost-found': loadLostFound, birding: loadBirding, 'hunting-fishing': loadHuntingFishing, 'message-log': loadMessageLog };
+    'water-meters': loadWaterMeters, 'water-analytics': loadWaterAnalytics, 'lost-found': loadLostFound, birding: loadBirding, 'hunting-fishing': loadHuntingFishing, 'message-log': loadMessageLog, 'guest-lookup': loadGuestLookup };
   // Contextual first-visit tips
   const _tips = {
     dashboard: ['💡', 'Bookmark this page for quick access! Use the Quick Action buttons to jump to any section.'],
