@@ -461,6 +461,7 @@ async function deleteReading(id) {
 let _mobileReadings = [];
 let _mobileIndex = 0;
 let _mobileCompleted = new Set();
+let _mobileSavedIds = {};  // index → new reading ID (for showing saved photos)
 let _mobilePhoto = null;
 let _mobileRate = 0.15;
 
@@ -470,6 +471,7 @@ async function startMobileEntry() {
   _mobileReadings = readings;
   _mobileIndex = 0;
   _mobileCompleted = new Set();
+  _mobileSavedIds = {};
   _mobilePhoto = null;
   // Fetch current electric rate
   try {
@@ -505,11 +507,17 @@ function renderMobileEntry() {
           ${_mobilePhoto ? `
             <img src="${_mobilePhoto}" class="mobile-meter-preview" alt="Meter photo" onclick="viewMobilePhoto()">
             <button type="button" class="btn btn-sm btn-danger" onclick="clearMobilePhoto()">&#10005; Delete</button>
+          ` : isDone && _mobileSavedIds[_mobileIndex] ? `
+            <img src="/api/meters/${_mobileSavedIds[_mobileIndex]}/photo?t=${Date.now()}" class="mobile-meter-preview" alt="Saved photo" onclick="viewReadingPhoto(${_mobileSavedIds[_mobileIndex]})" onerror="this.style.display='none'">
+            <span style="font-size:0.75rem;color:#16a34a">Photo saved</span>
+          ` : r.photo && !isDone ? `
+            <img src="/api/meters/${r.id}/photo?t=${Date.now()}" class="mobile-meter-preview" alt="Existing photo" onclick="viewReadingPhoto(${r.id})" onerror="this.style.display='none'" style="opacity:0.6">
+            <span style="font-size:0.7rem;color:var(--gray-500)">Previous photo on file</span>
           ` : ''}
-          <label class="btn btn-outline mobile-meter-camera-btn">
+          ${!isDone ? `<label class="btn btn-outline mobile-meter-camera-btn">
             &#128247; ${_mobilePhoto ? 'Retake' : 'Take Photo'}
             <input type="file" accept="image/*" capture="environment" style="display:none" onchange="captureMeterPhoto(this)">
-          </label>
+          </label>` : ''}
         </div>
 
         <div class="form-group">
@@ -611,14 +619,15 @@ async function saveMobileReading() {
     current_reading: curr,
     photo: photoBase64,
   };
+  let result;
   try {
-    await API.post('/meters', data);
+    result = await API.post('/meters', data);
   } catch (err) {
     // Retry without photo if photo might be the issue
     if (photoBase64) {
       try {
         data.photo = null;
-        await API.post('/meters', data);
+        result = await API.post('/meters', data);
         showStatusToast('⚠️', r.lot_id + ' reading saved, but photo failed to upload');
       } catch (err2) {
         alert('Save failed: ' + (err2.message || 'unknown'));
@@ -630,6 +639,7 @@ async function saveMobileReading() {
     }
   }
   _mobileCompleted.add(r.id);
+  if (result?.id && result?.photo) _mobileSavedIds[_mobileIndex] = result.id;
   _mobilePhoto = null;
   r.previous_reading = r.current_reading;
   r.current_reading = curr;

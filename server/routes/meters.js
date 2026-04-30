@@ -110,6 +110,20 @@ router.get('/latest', (req, res) => {
   res.json(results);
 });
 
+// Photo diagnostics — check how many readings have photos
+router.get('/photo-stats', (req, res) => {
+  const total = db.prepare('SELECT COUNT(*) as cnt FROM meter_readings').get().cnt;
+  const withPhoto = db.prepare("SELECT COUNT(*) as cnt FROM meter_readings WHERE photo IS NOT NULL AND photo != ''").get().cnt;
+  const today = new Date().toISOString().split('T')[0];
+  const todayTotal = db.prepare('SELECT COUNT(*) as cnt FROM meter_readings WHERE reading_date = ?').get(today).cnt;
+  const todayWithPhoto = db.prepare("SELECT COUNT(*) as cnt FROM meter_readings WHERE reading_date = ? AND photo IS NOT NULL AND photo != ''").get(today).cnt;
+  const recentWithPhotos = db.prepare("SELECT id, lot_id, reading_date, photo FROM meter_readings WHERE photo IS NOT NULL AND photo != '' ORDER BY id DESC LIMIT 10").all();
+  recentWithPhotos.forEach(r => {
+    r.file_exists = fs.existsSync(path.join(PHOTOS_DIR, r.photo || ''));
+  });
+  res.json({ total, withPhoto, todayTotal, todayWithPhoto, photosDir: PHOTOS_DIR, recentWithPhotos });
+});
+
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB max
 
 // Save a base64 photo to disk, return the filename.
