@@ -12,7 +12,7 @@ const API = {
     const headers = { 'Content-Type': 'application/json' };
     if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
     const res = await fetch(`/api${url}`, { ...options, headers });
-    if (res.status === 401) { this.logout(); return null; }
+    if (res.status === 401) { alert('Session expired — please log in again.'); this.logout(); return null; }
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Request failed'); }
     return res.json();
   },

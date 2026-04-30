@@ -16,7 +16,7 @@ if (!SECRET) {
   console.warn('JWT_SECRET not set — generated an ephemeral dev secret. Tokens will not survive a restart.');
 }
 
-const TOKEN_TTL = '30m';
+const TOKEN_TTL = '8h';
 
 function authenticate(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];

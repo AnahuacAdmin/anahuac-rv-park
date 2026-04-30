@@ -164,10 +164,21 @@ async function showAddReading() {
   `);
 }
 
-function meterTenantSelected(sel) {
+async function meterTenantSelected(sel) {
   const [tid, lid] = sel.value.split('|');
   sel.form.tenant_id.value = tid;
   sel.form.lot_id.value = lid;
+  // Fetch the latest reading for this lot to populate previous_reading
+  try {
+    const readings = await API.get('/meters/lot/' + encodeURIComponent(lid));
+    if (readings && readings.length > 0) {
+      sel.form.previous_reading.value = readings[0].current_reading;
+    } else {
+      sel.form.previous_reading.value = 0;
+    }
+  } catch {
+    sel.form.previous_reading.value = 0;
+  }
 }
 
 async function saveReading(e) {
@@ -267,7 +278,7 @@ function quickPhotoPreview(input) {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      const scale = Math.min(1, 1024 / img.width);
+      const scale = Math.min(1, 1200 / img.width);
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -296,12 +307,27 @@ async function saveQuickUpdate(e, lotId, tenantId) {
   if (photoB64) data.photo = photoB64;
   try {
     await API.post('/meters', data);
-    closeModal();
-    showStatusToast('✅', `${lotId} reading saved!`);
-    loadMeters();
   } catch (err) {
-    alert('Save failed: ' + (err.message || 'unknown'));
+    if (photoB64) {
+      try {
+        data.photo = null;
+        await API.post('/meters', data);
+        closeModal();
+        showStatusToast('⚠️', `${lotId} reading saved, but photo failed to upload`);
+        loadMeters();
+        return;
+      } catch (err2) {
+        alert('Save failed: ' + (err2.message || 'unknown'));
+        return;
+      }
+    } else {
+      alert('Save failed: ' + (err.message || 'unknown'));
+      return;
+    }
   }
+  closeModal();
+  showStatusToast('✅', `${lotId} reading saved!`);
+  loadMeters();
 }
 
 // Quick Add: pick a lot from dropdown, auto-fills previous from last known reading.
@@ -403,7 +429,7 @@ async function autoUploadPhoto(input, readingId, lotId) {
     var img = new Image();
     img.onload = function() {
       var canvas = document.createElement('canvas');
-      var scale = Math.min(1, 1024 / img.width);
+      var scale = Math.min(1, 1200 / img.width);
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -539,7 +565,7 @@ function captureMeterPhoto(input) {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      const maxW = 1024;
+      const maxW = 1200;
       const scale = Math.min(1, maxW / img.width);
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
@@ -577,31 +603,41 @@ async function saveMobileReading() {
     photoBase64 = idx >= 0 ? _mobilePhoto.slice(idx + 1) : _mobilePhoto;
   }
 
+  const data = {
+    tenant_id: r.tenant_id,
+    lot_id: r.lot_id,
+    reading_date: new Date().toISOString().split('T')[0],
+    previous_reading: prev,
+    current_reading: curr,
+    photo: photoBase64,
+  };
   try {
-    const data = {
-      tenant_id: r.tenant_id,
-      lot_id: r.lot_id,
-      reading_date: new Date().toISOString().split('T')[0],
-      previous_reading: prev,
-      current_reading: curr,
-      photo: photoBase64,
-    };
     await API.post('/meters', data);
-    _mobileCompleted.add(r.id);
-    _mobilePhoto = null;
-    // Update the cached reading so if user navigates back, the new value shows.
-    r.previous_reading = r.current_reading;
-    r.current_reading = curr;
-    r.kwh_used = Math.max(0, curr - prev);
-
-    // Auto-advance to next if available.
-    if (_mobileIndex < _mobileReadings.length - 1) {
-      _mobileIndex++;
-    }
-    renderMobileEntry();
   } catch (err) {
-    alert('Save failed: ' + (err.message || 'unknown'));
+    // Retry without photo if photo might be the issue
+    if (photoBase64) {
+      try {
+        data.photo = null;
+        await API.post('/meters', data);
+        showStatusToast('⚠️', r.lot_id + ' reading saved, but photo failed to upload');
+      } catch (err2) {
+        alert('Save failed: ' + (err2.message || 'unknown'));
+        return;
+      }
+    } else {
+      alert('Save failed: ' + (err.message || 'unknown'));
+      return;
+    }
   }
+  _mobileCompleted.add(r.id);
+  _mobilePhoto = null;
+  r.previous_reading = r.current_reading;
+  r.current_reading = curr;
+  r.kwh_used = Math.max(0, curr - prev);
+  if (_mobileIndex < _mobileReadings.length - 1) {
+    _mobileIndex++;
+  }
+  renderMobileEntry();
 }
 
 function mobilePrev() {
