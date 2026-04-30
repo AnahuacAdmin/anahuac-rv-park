@@ -16,6 +16,20 @@ try { checkElectricAnomalies = require('./electric-alerts').checkElectricAnomali
 const PHOTOS_DIR = path.join(path.dirname(DB_PATH), 'uploads', 'meter-photos');
 if (!fs.existsSync(PHOTOS_DIR)) fs.mkdirSync(PHOTOS_DIR, { recursive: true });
 
+// Photo diagnostics — public (no auth), only shows counts
+router.get('/photo-stats', (req, res) => {
+  const total = db.prepare('SELECT COUNT(*) as cnt FROM meter_readings').get().cnt;
+  const withPhoto = db.prepare("SELECT COUNT(*) as cnt FROM meter_readings WHERE photo IS NOT NULL AND photo != ''").get().cnt;
+  const today = new Date().toISOString().split('T')[0];
+  const todayTotal = db.prepare('SELECT COUNT(*) as cnt FROM meter_readings WHERE reading_date = ?').get(today).cnt;
+  const todayWithPhoto = db.prepare("SELECT COUNT(*) as cnt FROM meter_readings WHERE reading_date = ? AND photo IS NOT NULL AND photo != ''").get(today).cnt;
+  const recentWithPhotos = db.prepare("SELECT id, lot_id, reading_date, photo FROM meter_readings WHERE photo IS NOT NULL AND photo != '' ORDER BY id DESC LIMIT 10").all();
+  recentWithPhotos.forEach(r => {
+    r.file_exists = fs.existsSync(path.join(PHOTOS_DIR, r.photo || ''));
+  });
+  res.json({ total, withPhoto, todayTotal, todayWithPhoto, photosDir: PHOTOS_DIR, recentWithPhotos });
+});
+
 router.use(authenticate);
 
 router.get('/', (req, res) => {
@@ -110,20 +124,6 @@ router.get('/latest', (req, res) => {
   res.json(results);
 });
 
-// Photo diagnostics — check how many readings have photos
-router.get('/photo-stats', (req, res) => {
-  const total = db.prepare('SELECT COUNT(*) as cnt FROM meter_readings').get().cnt;
-  const withPhoto = db.prepare("SELECT COUNT(*) as cnt FROM meter_readings WHERE photo IS NOT NULL AND photo != ''").get().cnt;
-  const today = new Date().toISOString().split('T')[0];
-  const todayTotal = db.prepare('SELECT COUNT(*) as cnt FROM meter_readings WHERE reading_date = ?').get(today).cnt;
-  const todayWithPhoto = db.prepare("SELECT COUNT(*) as cnt FROM meter_readings WHERE reading_date = ? AND photo IS NOT NULL AND photo != ''").get(today).cnt;
-  const recentWithPhotos = db.prepare("SELECT id, lot_id, reading_date, photo FROM meter_readings WHERE photo IS NOT NULL AND photo != '' ORDER BY id DESC LIMIT 10").all();
-  recentWithPhotos.forEach(r => {
-    r.file_exists = fs.existsSync(path.join(PHOTOS_DIR, r.photo || ''));
-  });
-  res.json({ total, withPhoto, todayTotal, todayWithPhoto, photosDir: PHOTOS_DIR, recentWithPhotos });
-});
-
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB max
 
 // Save a base64 photo to disk, return the filename.
@@ -138,6 +138,11 @@ function savePhoto(readingId, base64Data) {
 
 router.post('/', (req, res) => {
   const { lot_id, tenant_id, reading_date, previous_reading, current_reading, photo } = req.body;
+  if (photo) {
+    console.log(`[meters] PHOTO RECEIVED: ${photo.length} chars (~${Math.round(photo.length * 0.75 / 1024)}KB) for lot ${lot_id}`);
+  } else {
+    console.log(`[meters] NO PHOTO IN REQUEST for lot ${lot_id}`);
+  }
   const rate = db.prepare("SELECT value FROM settings WHERE key = 'electric_rate'").get();
   const ratePerKwh = parseFloat(rate?.value || 0.15);
   const kwh = current_reading - previous_reading;
