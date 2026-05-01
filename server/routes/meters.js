@@ -120,9 +120,10 @@ router.get('/latest', (req, res) => {
     `SELECT id, lot_id FROM tenants WHERE is_active = 1 AND lot_id IS NOT NULL AND lot_id != ''`
   ).all();
   for (const t of activeTenants) {
+    // Check if ANY reading exists for this lot (regardless of tenant_id)
     const existing = db.prepare(
-      `SELECT id FROM meter_readings WHERE tenant_id = ? AND lot_id = ? LIMIT 1`
-    ).get(t.id, t.lot_id);
+      `SELECT id FROM meter_readings WHERE lot_id = ? LIMIT 1`
+    ).get(t.lot_id);
     if (!existing) {
       db.prepare(`
         INSERT INTO meter_readings

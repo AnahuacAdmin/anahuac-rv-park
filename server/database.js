@@ -907,12 +907,13 @@ async function initializeDatabase() {
   } catch (e) { console.error('[database] tenant_id backfill error:', e.message); }
 
   // --- Data fix: delete zero-use placeholder readings where a real reading exists for the same lot ---
+  // Placeholders have kwh_used=0, current_reading=previous_reading (no actual usage), and no photo.
   try {
     const deleted = dbWrapper.prepare(`
       DELETE FROM meter_readings
-      WHERE kwh_used = 0 AND current_reading = 0 AND previous_reading = 0 AND photo IS NULL
+      WHERE kwh_used = 0 AND current_reading = previous_reading AND photo IS NULL
         AND lot_id IN (
-          SELECT DISTINCT lot_id FROM meter_readings WHERE kwh_used > 0 OR current_reading > 0
+          SELECT DISTINCT lot_id FROM meter_readings WHERE kwh_used > 0 OR current_reading > previous_reading
         )
     `).run();
     if (deleted.changes > 0) console.log(`[database] Deleted ${deleted.changes} zero-use placeholder readings`);
