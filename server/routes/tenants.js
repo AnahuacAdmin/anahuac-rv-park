@@ -83,8 +83,8 @@ router.post('/', (req, res) => {
         rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
         recurring_late_fee, recurring_mailbox_fee, recurring_misc_fee, recurring_misc_description,
         recurring_credit, recurring_credit_description, id_number, date_of_birth, deposit_amount,
-        flat_rate, flat_rate_amount, deposit_waived)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        flat_rate, flat_rate_amount, deposit_waived, ssn_last4, dl_number, dl_state)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
       str(b.emergency_contact), str(b.emergency_phone), str(b.emergency_contact_relationship),
@@ -93,7 +93,8 @@ router.post('/', (req, res) => {
       num(b.recurring_late_fee), num(b.recurring_mailbox_fee), num(b.recurring_misc_fee),
       str(b.recurring_misc_description), num(b.recurring_credit), str(b.recurring_credit_description),
       str(b.id_number), str(b.date_of_birth), num(b.deposit_amount),
-      num(b.flat_rate) ? 1 : 0, num(b.flat_rate_amount), num(b.deposit_waived) ? 1 : 0
+      num(b.flat_rate) ? 1 : 0, num(b.flat_rate_amount), num(b.deposit_waived) ? 1 : 0,
+      str(b.ssn_last4), str(b.dl_number), str(b.dl_state)
     );
     if (b.lot_id) {
       db.prepare('UPDATE lots SET status = ? WHERE id = ?').run('occupied', b.lot_id);
@@ -117,7 +118,8 @@ router.put('/:id', (req, res) => {
       sms_opt_in=?, email_opt_in=?, invoice_delivery=?,
       id_number=?, date_of_birth=?, deposit_amount=?, deposit_waived=?,
       flat_rate=?, flat_rate_amount=?,
-      insurance_expiry=?, registration_expiry=?, loyalty_exclude=?, grace_period_override=?
+      insurance_expiry=?, registration_expiry=?, loyalty_exclude=?, grace_period_override=?,
+      ssn_last4=?, dl_number=?, dl_state=?
     WHERE id = ?
   `).run(
     str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
@@ -133,6 +135,7 @@ router.put('/:id', (req, res) => {
     str(b.id_number), str(b.date_of_birth), Number(b.deposit_amount) || 0, b.deposit_waived ? 1 : 0,
     b.flat_rate ? 1 : 0, Number(b.flat_rate_amount) || 0,
     str(b.insurance_expiry), str(b.registration_expiry), b.loyalty_exclude ? 1 : 0, b.grace_period_override !== undefined ? (Number(b.grace_period_override) || null) : null,
+    str(b.ssn_last4), str(b.dl_number), str(b.dl_state),
     req.params.id
   );
   res.json({ success: true });
@@ -613,8 +616,8 @@ router.post('/:id/occupants', (req, res) => {
     const b = req.body;
     const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
     const result = db.prepare(
-      'INSERT INTO tenant_occupants (tenant_id, name, age_or_dob, relationship) VALUES (?,?,?,?)'
-    ).run(req.params.id, b.name, str(b.age_or_dob), str(b.relationship) || 'other');
+      'INSERT INTO tenant_occupants (tenant_id, name, age_or_dob, relationship, ssn_last4, dl_number, dl_state) VALUES (?,?,?,?,?,?,?)'
+    ).run(req.params.id, b.name, str(b.age_or_dob), str(b.relationship) || 'other', str(b.ssn_last4), str(b.dl_number), str(b.dl_state));
     const feeInfo = recalcOccupancyFee(parseInt(req.params.id));
     res.json({ id: result.lastInsertRowid, ...feeInfo });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -625,8 +628,8 @@ router.put('/:id/occupants/:oid', (req, res) => {
     const b = req.body;
     const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
     db.prepare(
-      'UPDATE tenant_occupants SET name=?, age_or_dob=?, relationship=? WHERE id=? AND tenant_id=?'
-    ).run(b.name, str(b.age_or_dob), str(b.relationship) || 'other', req.params.oid, req.params.id);
+      'UPDATE tenant_occupants SET name=?, age_or_dob=?, relationship=?, ssn_last4=?, dl_number=?, dl_state=? WHERE id=? AND tenant_id=?'
+    ).run(b.name, str(b.age_or_dob), str(b.relationship) || 'other', str(b.ssn_last4), str(b.dl_number), str(b.dl_state), req.params.oid, req.params.id);
     const feeInfo = recalcOccupancyFee(parseInt(req.params.id));
     res.json({ success: true, ...feeInfo });
   } catch (err) { res.status(500).json({ error: err.message }); }

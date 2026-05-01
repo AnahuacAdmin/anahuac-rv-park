@@ -155,10 +155,34 @@ function tenantForm(lots, tenant = {}) {
         <div class="form-group"><label>RV Length</label><input name="rv_length" value="${tenant.rv_length || ''}"></div>
       </div>
       <div class="form-group"><label>License Plate</label><input name="license_plate" value="${tenant.license_plate || ''}"></div>
+      ${API.user?.role === 'admin' ? `
+      <fieldset style="border:1px solid #ef4444;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
+        <legend><strong style="color:#ef4444">&#128274; Sensitive Information</strong></legend>
+        <div class="form-row">
+          <div class="form-group"><label>ID / Driver's License #</label><input name="id_number" value="${tenant.id_number || ''}"></div>
+          <div class="form-group"><label>Date of Birth</label><input name="date_of_birth" type="date" value="${tenant.date_of_birth || ''}"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>SSN (Last 4) <button type="button" class="btn-eye-toggle" onclick="toggleSensitive(this)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;padding:0 4px" title="Show/Hide">&#128065;</button></label>
+            <input name="ssn_last4" type="password" maxlength="4" pattern="[0-9]{0,4}" inputmode="numeric" value="${tenant.ssn_last4 || ''}" style="max-width:100px" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>DL / ID Number <button type="button" class="btn-eye-toggle" onclick="toggleSensitive(this)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;padding:0 4px" title="Show/Hide">&#128065;</button></label>
+            <input name="dl_number" type="password" value="${tenant.dl_number || ''}" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>DL State</label>
+            <input name="dl_state" value="${tenant.dl_state || ''}" maxlength="2" placeholder="TX" style="max-width:60px">
+          </div>
+        </div>
+      </fieldset>
+      ` : `
       <div class="form-row">
         <div class="form-group"><label>ID / Driver's License #</label><input name="id_number" value="${tenant.id_number || ''}"></div>
         <div class="form-group"><label>Date of Birth</label><input name="date_of_birth" type="date" value="${tenant.date_of_birth || ''}"></div>
       </div>
+      `}
       <div class="form-row">
         <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" type="number" step="0.01" value="${tenant.deposit_amount || 0}" ${tenant.deposit_waived ? 'disabled' : ''}></div>
         <div class="form-group" style="display:flex;align-items:flex-end">
@@ -319,6 +343,9 @@ async function saveTenant(e, id) {
   data.deposit_waived = data.deposit_waived === '1' ? 1 : 0;
   data.loyalty_exclude = data.loyalty_exclude === '1' ? 1 : 0;
   data.emergency_contact_relationship = data.emergency_contact_relationship || '';
+  data.ssn_last4 = data.ssn_last4 || '';
+  data.dl_number = data.dl_number || '';
+  data.dl_state = data.dl_state || '';
   data.flat_rate = data.flat_rate === '1' ? 1 : 0;
   data.flat_rate_amount = parseFloat(data.flat_rate_amount) || 0;
 
@@ -1033,6 +1060,25 @@ async function promptTenantReview(tenantId, tenantName) {
   }, 100);
 }
 
+// === SENSITIVE FIELD TOGGLE ===
+
+function toggleSensitive(btn) {
+  var group = btn.closest('.form-group') || btn.parentElement.parentElement;
+  var inp = group.querySelector('input[type="password"], input[data-sensitive]');
+  if (!inp) return;
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    inp.setAttribute('data-sensitive', '1');
+    btn.textContent = '\uD83D\uDE48'; // see-no-evil monkey
+  } else {
+    inp.type = 'password';
+    inp.removeAttribute('data-sensitive');
+    btn.textContent = '\uD83D\uDC41'; // eye
+  }
+}
+
+var US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+
 // === VEHICLES ===
 
 var VEHICLE_TYPES = ['Car', 'Truck', 'Boat', 'Motorcycle', 'Trailer', 'Other'];
@@ -1146,8 +1192,11 @@ async function loadTenantOccupants(tenantId) {
   } else {
     el.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #e5e7eb"><th style="text-align:left;padding:3px 6px">Name</th><th style="text-align:left;padding:3px 6px">Relationship</th><th style="text-align:left;padding:3px 6px">Age/DOB</th><th style="padding:3px 6px"></th></tr></thead><tbody>' +
       occupants.map(function(o) {
+        var idBadges = '';
+        if (o.ssn_last4) idBadges += ' <span class="badge badge-gray" style="font-size:0.55rem" title="SSN on file">SSN</span>';
+        if (o.dl_number) idBadges += ' <span class="badge badge-gray" style="font-size:0.55rem" title="DL/ID on file">DL</span>';
         return '<tr style="border-bottom:1px solid #f3f4f6">' +
-          '<td style="padding:3px 6px">' + escapeHtml(o.name) + '</td>' +
+          '<td style="padding:3px 6px">' + escapeHtml(o.name) + idBadges + '</td>' +
           '<td style="padding:3px 6px">' + escapeHtml(o.relationship || '') + '</td>' +
           '<td style="padding:3px 6px">' + escapeHtml(o.age_or_dob || '') + '</td>' +
           '<td style="padding:3px 6px;white-space:nowrap">' +
@@ -1176,13 +1225,23 @@ async function loadTenantOccupants(tenantId) {
 
 function occupantFormHtml(o) {
   o = o || {};
+  var isAdmin = API.user?.role === 'admin';
   return '<div class="form-group"><label>Name</label><input name="name" value="' + escapeHtml(o.name || '') + '" required></div>' +
     '<div class="form-row">' +
     '<div class="form-group"><label>Relationship</label><select name="relationship">' +
       RELATIONSHIP_OPTIONS.map(function(r) { return '<option value="' + r.toLowerCase() + '"' + ((o.relationship || '') === r.toLowerCase() ? ' selected' : '') + '>' + r + '</option>'; }).join('') +
     '</select></div>' +
     '<div class="form-group"><label>Age or Date of Birth</label><input name="age_or_dob" value="' + escapeHtml(o.age_or_dob || '') + '" placeholder="e.g. 12 or 2014-05-20"></div>' +
-    '</div>';
+    '</div>' +
+    (isAdmin ? '<div style="border-top:1px solid #fee2e2;margin-top:0.5rem;padding-top:0.5rem">' +
+      '<div class="form-row">' +
+      '<div class="form-group"><label>SSN (Last 4) <button type="button" class="btn-eye-toggle" onclick="toggleSensitive(this)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;padding:0 4px" title="Show/Hide">&#128065;</button></label>' +
+      '<input name="ssn_last4" type="password" maxlength="4" pattern="[0-9]{0,4}" inputmode="numeric" value="' + escapeHtml(o.ssn_last4 || '') + '" style="max-width:100px" autocomplete="off"></div>' +
+      '<div class="form-group"><label>DL / ID # <button type="button" class="btn-eye-toggle" onclick="toggleSensitive(this)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;padding:0 4px" title="Show/Hide">&#128065;</button></label>' +
+      '<input name="dl_number" type="password" value="' + escapeHtml(o.dl_number || '') + '" autocomplete="off"></div>' +
+      '<div class="form-group"><label>DL State</label>' +
+      '<input name="dl_state" value="' + escapeHtml(o.dl_state || '') + '" maxlength="2" placeholder="TX" style="max-width:60px"></div>' +
+      '</div></div>' : '');
 }
 
 function showAddOccupant(tenantId) {
