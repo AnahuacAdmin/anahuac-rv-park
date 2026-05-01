@@ -86,7 +86,7 @@ async function loadBilling() {
     <div class="card billing-page-card">
       <div class="billing-scroll">
         <table class="billing-table">
-          <thead><tr><th style="width:90px">Actions</th><th>Invoice #</th><th>Lot</th><th>Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Occupancy</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
+          <thead><tr><th style="width:75px"></th><th>Invoice #</th><th>Lot</th><th>Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Occupancy</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
           <tbody id="invoices-body">
             ${renderInvoiceRows(invoices)}
           </tbody>
@@ -161,18 +161,26 @@ function renderInvoiceRow(inv, rowBg) {
   const _statusColor = _paused ? '#9ca3af' : inv.status === 'paid' ? '#16a34a' : inv.status === 'partial' ? '#f59e0b' : '#dc2626';
   return `
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
-      <td style="padding:0.25rem">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">
-          <button class="inv-act-btn" onclick="event.stopPropagation();viewInvoice(${inv.id})">View</button>
-          <button class="inv-act-btn" onclick="event.stopPropagation();downloadInvoicePdf(${inv.id})">PDF</button>
-          <button class="inv-act-btn" onclick="event.stopPropagation();printInvoice(${inv.id})" title="Print invoice">🖨️</button>
-          <button class="inv-act-btn" onclick="event.stopPropagation();emailInvoice(${inv.id})">Email</button>
-          <button class="inv-act-btn" onclick="event.stopPropagation();smsInvoice(${inv.id})">SMS</button>
-          ${inv.balance_due > 0.005 ? `<button class="inv-act-btn inv-act-green" onclick="event.stopPropagation();payInvoiceWithStripe(${inv.id})">Pay</button>` : ''}
-          ${inv.amount_paid > 0.005 ? `<button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();showRefundModal(${inv.id})" style="border-color:#dc2626;color:#dc2626;background:#fff">Refund</button>` : ''}
-          ${invoicePauseBtnCompact(inv)}
-          <button class="inv-act-btn" onclick="event.stopPropagation();editInvoice(${inv.id})">Edit</button>
-          <button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();deleteInvoice(${inv.id})">Del</button>
+      <td style="padding:0.15rem;white-space:nowrap">
+        <div style="display:flex;align-items:center;gap:2px">
+          <button class="inv-icon-btn" onclick="event.stopPropagation();viewInvoice(${inv.id})" title="View Invoice">👁</button>
+          <button class="inv-icon-btn" onclick="event.stopPropagation();editInvoice(${inv.id})" title="Edit Invoice">✏️</button>
+          <div class="inv-menu-wrap" style="position:relative">
+            <button class="inv-icon-btn" onclick="event.stopPropagation();toggleInvMenu(this)" title="More actions">⋮</button>
+            <div class="inv-dropdown" style="display:none;position:absolute;top:100%;right:0;z-index:100;background:#fff;border:1px solid #e7e5e4;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);min-width:160px;padding:4px 0;font-size:0.78rem">
+              <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();viewInvoice(${inv.id})">👁 View Invoice</button>
+              <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();downloadInvoicePdf(${inv.id})">📄 Download PDF</button>
+              <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();printInvoice(${inv.id})">🖨️ Print</button>
+              <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();emailInvoice(${inv.id})">📧 Email Invoice</button>
+              <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();smsInvoice(${inv.id})">💬 Send SMS</button>
+              ${inv.balance_due > 0.005 ? `<button class="inv-dd-item" style="color:#16a34a;font-weight:700" onclick="event.stopPropagation();closeInvMenus();payInvoiceWithStripe(${inv.id})">💳 Record Payment</button>` : ''}
+              ${inv.amount_paid > 0.005 ? `<button class="inv-dd-item" style="color:#dc2626" onclick="event.stopPropagation();closeInvMenus();showRefundModal(${inv.id})">↩️ Refund</button>` : ''}
+              ${invoicePauseMenuItemCompact(inv)}
+              <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();editInvoice(${inv.id})">✏️ Edit</button>
+              <div style="border-top:1px solid #e7e5e4;margin:2px 0"></div>
+              <button class="inv-dd-item" style="color:#dc2626" onclick="event.stopPropagation();closeInvMenus();deleteInvoice(${inv.id})">🗑️ Delete</button>
+            </div>
+          </div>
         </div>
       </td>
       <td>${inv.invoice_number}${inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.6rem">PRORATED</span>' : ''}${_isFlat ? ' <span class="badge badge-success" style="font-size:0.6rem" title="Flat rate covers all charges including electric">FLAT RATE</span>' : ''}</td>
@@ -260,6 +268,32 @@ function invoicePauseBtnCompact(inv) {
   }
   return '';
 }
+
+function invoicePauseMenuItemCompact(inv) {
+  var t = (window._billingTenants || []).find(function(x) { return x.id === inv.tenant_id; });
+  if (!t) return '';
+  if (t.eviction_warning === 1 && !t.eviction_paused && inv.balance_due > 0) {
+    return '<button class="inv-dd-item" style="color:#92400e" onclick="event.stopPropagation();closeInvMenus();showPauseEviction(' + t.id + ', \'' + (t.first_name + ' ' + t.last_name).replace(/'/g, "\\'") + '\')">⏸️ Pause Eviction</button>';
+  }
+  if (t.eviction_paused) {
+    return '<button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();resumeEviction(' + t.id + ')">▶️ Resume Eviction</button>';
+  }
+  return '';
+}
+
+function toggleInvMenu(btn) {
+  var dd = btn.parentElement.querySelector('.inv-dropdown');
+  var isOpen = dd.style.display !== 'none';
+  closeInvMenus();
+  if (!isOpen) dd.style.display = '';
+}
+
+function closeInvMenus() {
+  document.querySelectorAll('.inv-dropdown').forEach(function(el) { el.style.display = 'none'; });
+}
+
+// Close dropdown menus when clicking outside
+document.addEventListener('click', function() { closeInvMenus(); });
 
 function showPauseEviction(tenantId, name) {
   showModal(`Pause Eviction — ${name}`, `
