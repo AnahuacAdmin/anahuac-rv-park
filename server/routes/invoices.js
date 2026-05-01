@@ -382,6 +382,25 @@ router.get('/:id', (req, res) => {
     `).all(invoice.tenant_id, invoice.billing_period_start, invoice.billing_period_end);
   }
 
+  // Auto-correct: if invoice has electric_amount=0 but meter reading shows usage,
+  // update the invoice with the correct electric amount and recalculate totals.
+  if ((Number(invoice.electric_amount) || 0) === 0 && meter && (Number(meter.kwh_used) || 0) > 0) {
+    const meterCharge = Number(meter.electric_charge) || +(Number(meter.kwh_used) * (Number(meter.rate_per_kwh) || 0.15)).toFixed(2);
+    if (meterCharge > 0) {
+      const newSubtotal = meterCharge + (Number(invoice.rent_amount) || 0) + (Number(invoice.other_charges) || 0)
+        + (Number(invoice.mailbox_fee) || 0) + (Number(invoice.misc_fee) || 0) + (Number(invoice.extra_occupancy_fee) || 0);
+      const newTotal = newSubtotal + (Number(invoice.late_fee) || 0) - (Number(invoice.refund_amount) || 0);
+      const newBalance = newTotal - (Number(invoice.amount_paid) || 0);
+      db.prepare('UPDATE invoices SET electric_amount=?, subtotal=?, total_amount=?, balance_due=? WHERE id=?')
+        .run(meterCharge, newSubtotal, newTotal, Math.max(0, newBalance), invoice.id);
+      invoice.electric_amount = meterCharge;
+      invoice.subtotal = newSubtotal;
+      invoice.total_amount = newTotal;
+      invoice.balance_due = Math.max(0, newBalance);
+      console.log(`[invoices] Auto-corrected electric_amount for ${invoice.invoice_number}: $${meterCharge}`);
+    }
+  }
+
   res.json({ ...invoice, payments, meter, meters });
 });
 
