@@ -1055,15 +1055,16 @@ a { text-decoration: none; color: inherit; }
 }
 .table-container table thead th:first-child { background: var(--gray-50); z-index: 3; }
 
-.billing-table { min-width: 1400px; border-collapse: separate; border-spacing: 0; }
-.billing-table th, .billing-table td { padding: 0.7rem 0.55rem; font-size: 0.78rem; white-space: nowrap; border-bottom: 1px solid #cccccc; }
-.billing-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.billing-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.billing-table th, .billing-table td { padding: 0.45rem 0.4rem; font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid #d6d3d1; }
+.billing-table th { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.billing-table td.bt-guest { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
 
 /* Header row — dark green with white text */
 .billing-table thead th {
   position: sticky; top: 0; z-index: 2;
   background: var(--brand-primary, #1a5c32); color: #fff; font-weight: 700;
-  padding-top: 0.65rem; padding-bottom: 0.65rem;
+  padding-top: 0.55rem; padding-bottom: 0.55rem;
   border-bottom: 3px solid #0d3d1a;
 }
 
@@ -1073,16 +1074,11 @@ a { text-decoration: none; color: inherit; }
 .billing-table tbody tr:hover > td { background: #e8f5e9 !important; }
 
 .billing-scroll {
-  overflow-x: scroll;
+  overflow-x: hidden;
   overflow-y: scroll;
   max-height: calc(100vh - 240px);
   -webkit-overflow-scrolling: touch;
 }
-
-/* Sticky first two data columns (Invoice # and Lot — columns 2 & 3 since Actions is col 1) */
-.billing-table th:nth-child(2), .billing-table td:nth-child(2) { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--gray-200); }
-.billing-table th:nth-child(3), .billing-table td:nth-child(3) { position: sticky; left: 60px; z-index: 1; box-shadow: 1px 0 0 var(--gray-200); }
-.billing-table thead th:nth-child(2), .billing-table thead th:nth-child(3) { z-index: 3; }
 
 table { width: 100%; border-collapse: collapse; }
 th {
@@ -1358,26 +1354,16 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
 
   .pwa-install-btn { bottom: 1rem; right: 1rem; font-size: 0.85rem; padding: 0.65rem 1rem; }
 
-  /* Billing table mobile: hide less important columns */
-  .billing-table th:nth-child(1),  .billing-table td:nth-child(1),
-  .billing-table th:nth-child(4),  .billing-table td:nth-child(4),
-  .billing-table th:nth-child(5),  .billing-table td:nth-child(5),
-  .billing-table th:nth-child(6),  .billing-table td:nth-child(6),
-  .billing-table th:nth-child(7),  .billing-table td:nth-child(7),
-  .billing-table th:nth-child(8),  .billing-table td:nth-child(8),
-  .billing-table th:nth-child(9),  .billing-table td:nth-child(9),
-  .billing-table th:nth-child(10), .billing-table td:nth-child(10),
-  .billing-table th:nth-child(11), .billing-table td:nth-child(11),
-  .billing-table th:nth-child(13), .billing-table td:nth-child(13)
-  { display: none; }
-
-  .billing-table { min-width: 0; }
-  .billing-table th, .billing-table td { padding: 0.3rem 0.35rem; font-size: 0.75rem; white-space: nowrap; }
-
-  .billing-table th:nth-child(2), .billing-table td:nth-child(2) { position: static; box-shadow: none; }
-  .billing-table th:nth-child(3), .billing-table td:nth-child(3) { position: static; left: auto; box-shadow: none; }
-  .billing-table thead th:nth-child(2), .billing-table thead th:nth-child(3) { z-index: auto; }
-
+  /* Billing table mobile: switch to card layout */
+  .billing-table, .billing-table thead, .billing-table tbody, .billing-table tr, .billing-table th, .billing-table td { display: block; }
+  .billing-table thead { display: none; }
+  .billing-table { table-layout: auto; }
+  .billing-table tr.invoice-row { border: 1px solid #d6d3d1; border-radius: 8px; margin-bottom: 0.5rem; padding: 0.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0 0.5rem; position: relative; }
+  .billing-table tr.invoice-row td { border: none; padding: 0.15rem 0.25rem; overflow: visible; white-space: normal; max-width: none; }
+  .billing-table tr.invoice-row td:before { content: attr(data-label); display: block; font-size: 0.6rem; font-weight: 700; color: #78716c; text-transform: uppercase; letter-spacing: 0.04em; }
+  .billing-table tr.invoice-row td.bt-actions { position: absolute; top: 0.4rem; right: 0.4rem; width: auto; }
+  .billing-table tr.invoice-row td.bt-actions:before { display: none; }
+  .billing-table tr.month-header-row td { padding: 0.5rem; }
   .billing-table .btn-group { flex-direction: column; gap: 0.25rem; }
   .billing-table .btn-sm { width: 100%; justify-content: center; }
 
