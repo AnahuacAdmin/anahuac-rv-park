@@ -169,6 +169,7 @@ function renderInvoiceRow(inv, rowBg) {
           <button class="inv-act-btn" onclick="event.stopPropagation();emailInvoice(${inv.id})">Email</button>
           <button class="inv-act-btn" onclick="event.stopPropagation();smsInvoice(${inv.id})">SMS</button>
           ${inv.balance_due > 0.005 ? `<button class="inv-act-btn inv-act-green" onclick="event.stopPropagation();payInvoiceWithStripe(${inv.id})">Pay</button>` : ''}
+          ${inv.amount_paid > 0.005 ? `<button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();showRefundModal(${inv.id})" style="border-color:#dc2626;color:#dc2626;background:#fff">Refund</button>` : ''}
           ${invoicePauseBtnCompact(inv)}
           <button class="inv-act-btn" onclick="event.stopPropagation();editInvoice(${inv.id})">Edit</button>
           <button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();deleteInvoice(${inv.id})">Del</button>
@@ -547,6 +548,16 @@ async function viewInvoice(id) {
       <button class="btn btn-success" onclick="event.stopPropagation(); payInvoiceWithStripe(${inv.id})">Pay Now ($${(Number(inv.balance_due) * 1.03).toFixed(2)} incl. fee)</button>
     </div>
     ` : ''}
+    ${inv.amount_paid > 0.005 ? `
+    <div class="no-print mt-2" style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:0.75rem 1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <strong style="color:#dc2626">Refund Payment</strong>
+        <p style="font-size:0.85rem;color:#991b1b;margin:0.2rem 0 0">Issue a full or partial refund to the guest's card.</p>
+      </div>
+      <button class="btn" style="background:#dc2626;color:#fff;border:none" onclick="event.stopPropagation();closeModal();showRefundModal(${inv.id})">Process Refund</button>
+    </div>
+    ` : ''}
+    <div id="invoice-refund-history" style="margin-top:0.75rem"></div>
     <div class="no-print mt-2 btn-group">
       <button class="btn btn-primary" onclick="event.stopPropagation(); printInvoice(${inv.id})">Print Invoice</button>
       <button class="btn btn-outline" onclick="event.stopPropagation(); downloadInvoicePdfFromView('${inv.invoice_number}')">Download PDF</button>
@@ -560,6 +571,8 @@ async function viewInvoice(id) {
       new QRCode(qrEl, { text: qrEl.dataset.url, width: 120, height: 120, colorDark: '#1f2937', colorLight: '#ffffff' });
     }
   }, 100);
+  // Load refund history
+  loadRefundHistory(inv.id);
 }
 
 // Render the meter / electric line items shown on both the view modal and the PDF.
@@ -1186,6 +1199,174 @@ async function payInvoiceWithStripe(id) {
   } catch (err) {
     alert('Could not start checkout: ' + (err.message || 'unknown error'));
   }
+}
+
+// ========== REFUND SYSTEM ==========
+async function showRefundModal(invoiceId) {
+  const inv = await API.get(`/invoices/${invoiceId}`);
+  if (!inv) return;
+  // Get payments for this invoice
+  const payments = await API.get(`/payments/tenant/${inv.tenant_id}`);
+  const invoicePayments = (payments || []).filter(p => p.invoice_id === inv.id && Number(p.amount) > 0);
+  if (!invoicePayments.length) { alert('No payments found for this invoice.'); return; }
+
+  // Check existing refunds
+  let existingRefunds = [];
+  try { existingRefunds = await API.get(`/payments/invoice-refunds/${invoiceId}`); } catch {}
+  const totalRefunded = existingRefunds.reduce((s, r) => s + Number(r.amount), 0);
+  const maxRefund = Number(inv.amount_paid) - totalRefunded;
+  if (maxRefund < 0.01) { alert('This invoice has already been fully refunded.'); return; }
+
+  const paymentOpts = invoicePayments.map(p =>
+    `<option value="${p.id}" data-amount="${p.amount}" data-method="${p.payment_method}" data-ref="${p.reference_number || ''}">${p.payment_date} — $${Number(p.amount).toFixed(2)} (${p.payment_method})</option>`
+  ).join('');
+
+  showModal('Process Refund', `
+    <div style="margin-bottom:1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.9rem;margin-bottom:1rem;background:#fafaf9;padding:0.75rem;border-radius:8px">
+        <div><strong>Invoice:</strong> ${inv.invoice_number}</div>
+        <div><strong>Tenant:</strong> ${inv.first_name} ${inv.last_name}</div>
+        <div><strong>Amount Paid:</strong> $${Number(inv.amount_paid).toFixed(2)}</div>
+        <div><strong>Already Refunded:</strong> $${totalRefunded.toFixed(2)}</div>
+      </div>
+      <div style="margin-bottom:0.75rem">
+        <label style="font-weight:600;font-size:0.85rem">Select Payment to Refund</label>
+        <select id="refund-payment" style="width:100%;padding:0.5rem;border:1px solid #d6d3d1;border-radius:6px;margin-top:0.25rem">${paymentOpts}</select>
+      </div>
+      <div style="margin-bottom:0.75rem">
+        <label style="font-weight:600;font-size:0.85rem">Refund Type</label>
+        <div style="display:flex;gap:0.5rem;margin-top:0.25rem">
+          <button id="refund-full-btn" onclick="setRefundType('full')" class="btn btn-outline" style="flex:1;padding:0.5rem">Full Refund</button>
+          <button id="refund-partial-btn" onclick="setRefundType('partial')" class="btn btn-outline" style="flex:1;padding:0.5rem">Partial Refund</button>
+        </div>
+      </div>
+      <div id="refund-amount-wrap" style="display:none;margin-bottom:0.75rem">
+        <label style="font-weight:600;font-size:0.85rem">Refund Amount</label>
+        <input id="refund-amount" type="number" step="0.01" min="0.01" max="${maxRefund.toFixed(2)}" placeholder="0.00" style="width:100%;padding:0.5rem;border:1px solid #d6d3d1;border-radius:6px;margin-top:0.25rem">
+        <div style="font-size:0.75rem;color:#78716c;margin-top:0.2rem">Max refundable: $${maxRefund.toFixed(2)}</div>
+      </div>
+      <div style="margin-bottom:0.75rem">
+        <label style="font-weight:600;font-size:0.85rem">Reason (required)</label>
+        <select id="refund-reason" onchange="document.getElementById('refund-other-wrap').style.display=this.value==='Other'?'':'none'" style="width:100%;padding:0.5rem;border:1px solid #d6d3d1;border-radius:6px;margin-top:0.25rem">
+          <option value="">Select a reason...</option>
+          <option value="Customer request">Customer request</option>
+          <option value="Billing error">Billing error</option>
+          <option value="Duplicate payment">Duplicate payment</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div id="refund-other-wrap" style="display:none;margin-bottom:0.75rem">
+        <input id="refund-other-reason" placeholder="Describe the reason..." style="width:100%;padding:0.5rem;border:1px solid #d6d3d1;border-radius:6px">
+      </div>
+      <div id="refund-warning" style="display:none;background:#fef2f2;border:2px solid #dc2626;border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.9rem;color:#dc2626;text-align:center;font-weight:700"></div>
+      <div style="display:flex;gap:0.75rem;margin-top:1rem">
+        <button onclick="closeModal()" style="flex:1.2;padding:0.75rem;font-size:1rem;font-weight:700;background:#e7e5e4;color:#44403c;border:none;border-radius:8px;cursor:pointer">Cancel</button>
+        <button id="refund-submit-btn" onclick="processRefund()" style="flex:1;padding:0.75rem;font-size:1rem;font-weight:700;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer" disabled>Process Refund</button>
+      </div>
+    </div>
+  `);
+  window._refundInvoiceId = invoiceId;
+  window._refundMaxAmount = maxRefund;
+  window._refundType = null;
+}
+
+function setRefundType(type) {
+  window._refundType = type;
+  var fullBtn = document.getElementById('refund-full-btn');
+  var partialBtn = document.getElementById('refund-partial-btn');
+  var amountWrap = document.getElementById('refund-amount-wrap');
+  var warning = document.getElementById('refund-warning');
+  var submitBtn = document.getElementById('refund-submit-btn');
+  fullBtn.style.background = type === 'full' ? '#dc2626' : '';
+  fullBtn.style.color = type === 'full' ? '#fff' : '';
+  partialBtn.style.background = type === 'partial' ? '#dc2626' : '';
+  partialBtn.style.color = type === 'partial' ? '#fff' : '';
+  amountWrap.style.display = type === 'partial' ? '' : 'none';
+
+  var sel = document.getElementById('refund-payment');
+  var opt = sel.options[sel.selectedIndex];
+  var paymentAmount = parseFloat(opt.dataset.amount) || 0;
+  var refundAmt = type === 'full' ? Math.min(paymentAmount, window._refundMaxAmount) : 0;
+  if (type === 'full') {
+    warning.style.display = '';
+    warning.textContent = '⚠️ This will refund $' + refundAmt.toFixed(2) + " to the guest's card. This cannot be undone.";
+    submitBtn.disabled = false;
+  } else {
+    warning.style.display = 'none';
+    submitBtn.disabled = true;
+    var amtInput = document.getElementById('refund-amount');
+    amtInput.addEventListener('input', function() {
+      var v = parseFloat(this.value) || 0;
+      if (v > 0 && v <= window._refundMaxAmount) {
+        warning.style.display = '';
+        warning.textContent = '⚠️ This will refund $' + v.toFixed(2) + " to the guest's card. This cannot be undone.";
+        submitBtn.disabled = false;
+      } else {
+        warning.style.display = 'none';
+        submitBtn.disabled = true;
+      }
+    });
+  }
+}
+
+async function processRefund() {
+  var sel = document.getElementById('refund-payment');
+  var opt = sel.options[sel.selectedIndex];
+  var paymentId = parseInt(sel.value);
+  var paymentAmount = parseFloat(opt.dataset.amount) || 0;
+
+  var amount;
+  if (window._refundType === 'full') {
+    amount = Math.min(paymentAmount, window._refundMaxAmount);
+  } else {
+    amount = parseFloat(document.getElementById('refund-amount').value);
+    if (!amount || amount <= 0 || amount > window._refundMaxAmount) {
+      alert('Please enter a valid refund amount (max $' + window._refundMaxAmount.toFixed(2) + ')');
+      return;
+    }
+  }
+
+  var reasonSel = document.getElementById('refund-reason');
+  var reason = reasonSel.value;
+  if (reason === 'Other') reason = document.getElementById('refund-other-reason').value.trim();
+  if (!reason) { alert('Please select a reason for the refund.'); return; }
+
+  var btn = document.getElementById('refund-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+
+  try {
+    var r = await API.post('/payments/refund', { payment_id: paymentId, amount: amount, reason: reason });
+    closeModal();
+    showStatusToast('✅', 'Refund of $' + amount.toFixed(2) + " processed successfully. It will appear on the guest's card in 5-10 business days.");
+    loadBilling();
+  } catch (err) {
+    alert('Refund failed: ' + (err.message || 'unknown error'));
+    btn.disabled = false;
+    btn.textContent = 'Process Refund';
+  }
+}
+
+async function loadRefundHistory(invoiceId) {
+  var el = document.getElementById('invoice-refund-history');
+  if (!el) return;
+  try {
+    var refunds = await API.get('/payments/invoice-refunds/' + invoiceId);
+    if (!refunds || !refunds.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:0.75rem 1rem;margin-top:0.5rem">' +
+      '<strong style="color:#dc2626;font-size:0.85rem">Refund History</strong>' +
+      '<div style="margin-top:0.5rem;font-size:0.85rem">' +
+      refunds.map(function(r) {
+        return '<div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid #fecaca">' +
+          '<div>' +
+            '<span style="font-weight:600;color:#dc2626">$' + Number(r.amount).toFixed(2) + '</span>' +
+            ' — ' + (r.reason || 'No reason') +
+            '<div style="font-size:0.75rem;color:#78716c">By ' + (r.processed_by || 'admin') + (r.stripe_refund_id ? ' · Stripe: ' + r.stripe_refund_id : '') + '</div>' +
+          '</div>' +
+          '<div style="font-size:0.8rem;color:#78716c;white-space:nowrap">' + (r.created_at || '').split('T')[0] + '</div>' +
+        '</div>';
+      }).join('') + '</div></div>';
+  } catch (e) { el.innerHTML = ''; }
 }
 
 // Bottom-of-screen toast with an Undo action that auto-dismisses after 10s.

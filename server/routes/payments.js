@@ -255,6 +255,99 @@ router.post('/', async (req, res) => {
   res.json({ id: result.lastInsertRowid, smsReceipt: smsResult, overpayment });
 });
 
+// Process a Stripe refund
+router.post('/refund', async (req, res) => {
+  try {
+    const { payment_id, amount, reason } = req.body || {};
+    if (!payment_id) return res.status(400).json({ error: 'payment_id is required' });
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'Valid refund amount is required' });
+    if (!reason) return res.status(400).json({ error: 'Reason is required' });
+
+    const payment = db.prepare('SELECT * FROM payments WHERE id = ?').get(payment_id);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+    if (amount > Number(payment.amount)) return res.status(400).json({ error: 'Refund amount exceeds payment amount' });
+
+    // Check for existing refunds on this payment
+    const existingRefunds = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM refunds WHERE payment_id = ?').get(payment_id);
+    const maxRefund = Number(payment.amount) - (existingRefunds?.total || 0);
+    if (amount > maxRefund + 0.005) return res.status(400).json({ error: `Maximum refundable amount is $${maxRefund.toFixed(2)}` });
+
+    let stripeRefundId = null;
+
+    // If this was a Stripe payment, process via Stripe API
+    if (payment.reference_number && payment.payment_method === 'Credit Card') {
+      const stripe = getStripe();
+      const refAmountCents = Math.round(amount * 100);
+      // The reference_number could be a checkout session ID or a payment intent ID
+      const ref = payment.reference_number;
+
+      try {
+        let paymentIntentId = ref;
+        // If it's a checkout session ID (cs_), retrieve the session to get the payment intent
+        if (ref.startsWith('cs_')) {
+          const session = await stripe.checkout.sessions.retrieve(ref);
+          paymentIntentId = session.payment_intent;
+        }
+        if (!paymentIntentId) throw new Error('No payment intent found for this transaction');
+
+        const refund = await stripe.refunds.create({
+          payment_intent: paymentIntentId,
+          amount: refAmountCents,
+          reason: reason === 'Duplicate payment' ? 'duplicate' : reason === 'Billing error' ? 'requested_by_customer' : 'requested_by_customer',
+        });
+        stripeRefundId = refund.id;
+      } catch (stripeErr) {
+        console.error('[payments] Stripe refund failed:', stripeErr.message);
+        return res.status(400).json({ error: 'Stripe refund failed: ' + stripeErr.message });
+      }
+    }
+
+    // Record the refund
+    const result = db.prepare(
+      'INSERT INTO refunds (payment_id, invoice_id, tenant_id, amount, reason, stripe_refund_id, processed_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(payment.invoice_id, payment.invoice_id, payment.tenant_id, amount, reason, stripeRefundId, req.user?.username || 'admin');
+
+    // Update invoice: reduce amount_paid, increase balance_due
+    if (payment.invoice_id) {
+      const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(payment.invoice_id);
+      if (inv) {
+        const newPaid = Math.max(0, (Number(inv.amount_paid) || 0) - amount);
+        const newBalance = (Number(inv.total_amount) || 0) - newPaid;
+        let newStatus = 'pending';
+        if (newBalance <= 0.005) newStatus = 'paid';
+        else if (newPaid > 0.005) newStatus = 'partial';
+        db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
+          .run(newPaid, Math.max(0, newBalance), newStatus, inv.id);
+      }
+    }
+
+    // Send SMS notification to tenant
+    try {
+      const tenant = db.prepare('SELECT first_name, phone FROM tenants WHERE id = ?').get(payment.tenant_id);
+      if (tenant?.phone) {
+        sendSms(tenant.phone, `Anahuac RV Park: A refund of $${amount.toFixed(2)} has been issued to your card. It will appear in 5-10 business days. Questions? 409-267-6603`).catch(() => {});
+      }
+    } catch {}
+
+    res.json({ success: true, refund_id: result.lastInsertRowid, stripe_refund_id: stripeRefundId });
+  } catch (err) {
+    console.error('[payments] refund error:', err);
+    res.status(500).json({ error: err.message || 'Refund processing failed' });
+  }
+});
+
+// Get refunds for a payment
+router.get('/refunds/:paymentId', (req, res) => {
+  const refunds = db.prepare('SELECT * FROM refunds WHERE payment_id = ? ORDER BY created_at DESC').all(req.params.paymentId);
+  res.json(refunds);
+});
+
+// Get refunds for an invoice
+router.get('/invoice-refunds/:invoiceId', (req, res) => {
+  const refunds = db.prepare('SELECT * FROM refunds WHERE invoice_id = ? ORDER BY created_at DESC').all(req.params.invoiceId);
+  res.json(refunds);
+});
+
 router.delete('/:id', (req, res) => {
   const payment = db.prepare('SELECT invoice_id, amount FROM payments WHERE id = ?').get(req.params.id);
   db.prepare('DELETE FROM payments WHERE id = ?').run(req.params.id);

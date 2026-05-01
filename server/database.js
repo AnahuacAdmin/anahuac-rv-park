@@ -573,6 +573,17 @@ async function initializeDatabase() {
     status TEXT DEFAULT 'sent'
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS refunds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payment_id INTEGER REFERENCES payments(id),
+    invoice_id INTEGER REFERENCES invoices(id),
+    tenant_id INTEGER REFERENCES tenants(id),
+    amount REAL NOT NULL,
+    reason TEXT NOT NULL,
+    stripe_refund_id TEXT,
+    processed_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
   db.run(`CREATE TABLE IF NOT EXISTS credit_transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tenant_id INTEGER NOT NULL,
