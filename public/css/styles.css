@@ -1059,7 +1059,7 @@ a { text-decoration: none; color: inherit; }
 .billing-table th, .billing-table td { padding: 4px 6px; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid #d6d3d1; line-height: 1.3; }
 .billing-table th { font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.03em; }
 .billing-table td.bt-guest { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.billing-table tr.month-header-row td { white-space: normal; overflow: visible; text-overflow: clip; height: auto; min-height: 2rem; }
+.billing-table tr.month-header-row td { white-space: normal; overflow: visible; text-overflow: clip; padding: 0 !important; }
 
 /* Header row — dark green with white text */
 .billing-table thead th {
@@ -1443,8 +1443,8 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
   .billing-table { width: 100% !important; table-layout: auto !important; }
   .billing-table colgroup { display: none; }
   .billing-table thead { display: none; }
-  .billing-table tr.month-header-row { margin-bottom: 0.5rem; }
-  .billing-table tr.month-header-row td { display: flex !important; flex-wrap: wrap; gap: 0.25rem; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; font-size: 0.82rem; }
+  .billing-table tr.month-header-row { margin-bottom: 0.5rem; display: block !important; }
+  .billing-table tr.month-header-row td { display: block !important; padding: 0 !important; }
   .billing-table tr.invoice-row {
     border: 1.5px solid #d6d3d1; border-radius: 10px; margin-bottom: 0.5rem;
     padding: 0.6rem 0.75rem; position: relative;

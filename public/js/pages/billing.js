@@ -145,12 +145,12 @@ function renderInvoiceRows(invoices) {
         monthPaid += Number(invoices[j].amount_paid) || 0;
         if (!invoices[j].deleted) monthIds.push(invoices[j].id);
       }
-      rows += '<tr class="month-header-row" style="background:' + colors.header + '"><td colspan="10" style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.85rem;border-bottom:2px solid ' + colors.border + ';color:#1c1917;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.25rem">' +
+      rows += '<tr class="month-header-row" style="background:' + colors.header + '"><td colspan="10" style="padding:0;border-bottom:2px solid ' + colors.border + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0.75rem;white-space:nowrap;font-size:0.8rem;font-weight:700;color:#1c1917">' +
         '<span>📅 ' + monthLabel +
-        '<span style="font-weight:400;color:#78716c;margin-left:0.75rem;font-size:0.78rem">' + monthCount + ' invoice' + (monthCount !== 1 ? 's' : '') +
-        ' · Total: ' + formatMoney(monthTotal) + ' · Collected: ' + formatMoney(monthPaid) + '</span></span>' +
-        (monthIds.length ? '<button class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.5rem;white-space:nowrap" onclick="event.stopPropagation();printMonthInvoices([' + monthIds.join(',') + '])">🖨️ Print All (' + monthIds.length + ')</button>' : '') +
-        '</td></tr>';
+        ' <span style="font-weight:400;color:#78716c;font-size:0.75rem">· ' + monthCount + ' inv · Total: ' + formatMoney(monthTotal) + ' · Collected: ' + formatMoney(monthPaid) + '</span></span>' +
+        (monthIds.length ? '<button class="btn btn-sm btn-outline" style="font-size:0.68rem;padding:0.15rem 0.5rem;white-space:nowrap;margin-left:0.5rem;flex-shrink:0" onclick="event.stopPropagation();printMonthInvoices([' + monthIds.join(',') + '])">🖨️ Print All (' + monthIds.length + ')</button>' : '') +
+        '</div></td></tr>';
       lastMonthKey = monthKey;
     }
     rows += renderInvoiceRow(inv, currentRowBg);
