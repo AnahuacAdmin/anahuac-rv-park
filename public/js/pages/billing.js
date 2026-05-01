@@ -672,47 +672,68 @@ function meterRowsHtml(inv) {
 // --- PDF generation via html2pdf.js (jsPDF + html2canvas) ---
 function _pdfOptions(invoiceNumber) {
   return {
-    margin:       [0, 0, 0, 0],
-    filename:     `Invoice-${invoiceNumber}.pdf`,
-    image:        { type: 'jpeg', quality: 0.95 },
-    html2canvas:  { scale: 1.5, useCORS: true, backgroundColor: '#ffffff', y: 0, scrollY: 0 },
+    margin:       [0.5, 0.5, 0.5, 0.5],
+    filename:     `${invoiceNumber || 'Invoice'}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, windowWidth: 800 },
     jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
-    pagebreak:    { mode: ['css', 'legacy'], avoid: ['.invoice-qr-section', '.line-items'] },
+    pagebreak:    { mode: ['css', 'legacy'], avoid: ['.inv-qr-section', '.inv-fine-print'] },
   };
+}
+
+// Force-download a blob as a file with proper MIME type
+function _downloadPdfBlob(blob, filename) {
+  const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { a.remove(); URL.revokeObjectURL(url); }, 1000);
 }
 
 async function downloadInvoicePdfFromView(invoiceNumber) {
   const el = document.getElementById('printable-invoice');
   if (!el) return;
-  const origVis = el.style.visibility;
-  el.style.visibility = 'hidden';
+  var filename = `${invoiceNumber || 'Invoice'}.pdf`;
   try {
-    await html2pdf().set(_pdfOptions(invoiceNumber)).from(el).save();
-  } finally {
-    el.style.visibility = origVis;
+    showStatusToast('📄', 'Generating PDF...');
+    var blob = await html2pdf().set(_pdfOptions(invoiceNumber)).from(el).outputPdf('blob');
+    _downloadPdfBlob(blob, filename);
+    dismissToast();
+    showStatusToast('✅', 'PDF downloaded');
+  } catch (err) {
+    dismissToast();
+    console.error('[billing] PDF from view failed:', err);
+    showStatusToast('❌', 'PDF generation failed');
   }
 }
 
 // Generate PDF without opening the modal — renders off-screen.
 async function downloadInvoicePdf(id) {
-  const inv = await API.get(`/invoices/${id}`);
-  if (!inv) return;
-  const wrap = document.createElement('div');
-  wrap.style.position = 'fixed';
-  wrap.style.top = '-99999px';
-  wrap.style.left = '0';
-  wrap.style.width = '800px';
-  wrap.style.background = '#fff';
-  wrap.style.visibility = 'hidden';
-  wrap.style.zIndex = '-9999';
-  wrap.style.pointerEvents = 'none';
-  wrap.innerHTML = await renderInvoiceHtml(inv);
-  document.body.appendChild(wrap);
-  await new Promise(r => setTimeout(r, 500));
   try {
-    await html2pdf().set(_pdfOptions(inv.invoice_number)).from(wrap.firstElementChild).save();
-  } finally {
-    wrap.remove();
+    showStatusToast('📄', 'Generating PDF...');
+    const inv = await API.get(`/invoices/${id}`);
+    if (!inv) { dismissToast(); return; }
+    var filename = `${inv.invoice_number || 'Invoice'}.pdf`;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;top:-99999px;left:0;width:800px;background:#fff;z-index:-9999;pointer-events:none;';
+    wrap.innerHTML = await renderInvoiceHtml(inv);
+    document.body.appendChild(wrap);
+    await new Promise(r => setTimeout(r, 500));
+    try {
+      var blob = await html2pdf().set(_pdfOptions(inv.invoice_number)).from(wrap.firstElementChild).outputPdf('blob');
+      _downloadPdfBlob(blob, filename);
+      dismissToast();
+      showStatusToast('✅', 'PDF downloaded');
+    } finally {
+      wrap.remove();
+    }
+  } catch (err) {
+    dismissToast();
+    console.error('[billing] PDF failed:', err);
+    showStatusToast('❌', 'PDF generation failed');
   }
 }
 
@@ -844,8 +865,8 @@ function _invoicePrintCSS() {
     .no-print { display: none !important; }
     @media print {
       body { margin: 0.5in; padding: 0; }
-      .invoice-print { page-break-after: always; }
-      .invoice-print:last-child { page-break-after: auto; }
+      .invoice-print { page-break-after: auto; page-break-inside: avoid; }
+      .invoice-page-break { page-break-after: always; height: 0; margin: 0; padding: 0; }
       @page { margin: 0; size: letter portrait; }
     }
   `;
@@ -1053,7 +1074,7 @@ async function emailInvoice(id) {
 
     // Generate PDF
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;top:-99999px;left:0;width:800px;background:#fff;visibility:hidden;';
+    wrap.style.cssText = 'position:fixed;top:-99999px;left:0;width:800px;background:#fff;z-index:-9999;pointer-events:none;';
     wrap.innerHTML = await renderInvoiceHtml(inv);
     document.body.appendChild(wrap);
     await new Promise(r => setTimeout(r, 500));
