@@ -26,8 +26,8 @@ async function loadExpenses() {
 
     // Summary cards
     '<div class="dash-top-bar" style="margin-bottom:1rem">' +
-      '<div class="dash-top-item dash-border-red"><div class="dash-top-icon">💸</div><span class="dash-top-val">' + formatMoney(summary?.total || 0) + '</span><span class="dash-top-label">Park Expenses (Month)</span></div>' +
-      '<div class="dash-top-item dash-border-purple"><div class="dash-top-icon">📅</div><span class="dash-top-val">' + formatMoney(summary?.yearTotal || 0) + '</span><span class="dash-top-label">Park Expenses (Year)</span></div>' +
+      '<div class="dash-top-item dash-border-red"><div class="dash-top-icon">💸</div><span class="dash-top-val">' + formatMoney((summary?.total || 0) + (summary?.recurringMonth || 0)) + '</span><span class="dash-top-label">Total Expenses (Month)</span></div>' +
+      '<div class="dash-top-item dash-border-purple"><div class="dash-top-icon">📅</div><span class="dash-top-val">' + formatMoney((summary?.yearTotal || 0) + (summary?.recurringYear || 0)) + '</span><span class="dash-top-label">Total Expenses (Year)</span></div>' +
       '<div class="dash-top-item" style="border-left-color:#b45309"><div class="dash-top-icon">⚡</div><span class="dash-top-val">' + formatMoney(summary?.electricMonth || 0) + '</span><span class="dash-top-label">Electric Pass-Through (Month)</span></div>' +
       '<div class="dash-top-item dash-border-blue"><div class="dash-top-icon">📊</div><span class="dash-top-val">' + escapeHtml(topCat ? topCat.category : '—') + '</span><span class="dash-top-label">Biggest Category</span></div>' +
       '<div class="dash-top-item"><div class="dash-top-icon">🧾</div><span class="dash-top-val">' + (summary?.receiptCount || 0) + '</span><span class="dash-top-label">Receipts on File</span></div>' +
@@ -40,7 +40,8 @@ async function loadExpenses() {
       var netRevMonth = revMonth + refMonth;
       var elecMonth = summary?.electricMonth || 0;
       var manualExpMonth = summary?.total || 0;
-      var totalExpMonth = elecMonth + manualExpMonth;
+      var recMonth = summary?.recurringMonth || 0;
+      var totalExpMonth = elecMonth + manualExpMonth + recMonth;
       var profitMonth = netRevMonth - totalExpMonth;
 
       var revYear = summary?.revenueYear || 0;
@@ -48,7 +49,8 @@ async function loadExpenses() {
       var netRevYear = revYear + refYear;
       var elecYear = summary?.electricYear || 0;
       var manualExpYear = summary?.yearTotal || 0;
-      var totalExpYear = elecYear + manualExpYear;
+      var recYear = summary?.recurringYear || 0;
+      var totalExpYear = elecYear + manualExpYear + recYear;
       var profitYear = netRevYear - totalExpYear;
 
       return '<div class="card" style="margin-bottom:1rem;padding:1rem;background:linear-gradient(135deg,#fefce8,#fef9c3);border:1px solid #fde68a">' +
@@ -61,6 +63,7 @@ async function loadExpenses() {
             (refMonth < 0 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Refunds:</span><strong style="color:#dc2626">' + formatMoney(refMonth) + '</strong></div>' : '') +
             '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Electric (pass-through):</span><strong style="color:#b45309">-' + formatMoney(elecMonth) + '</strong></div>' +
             '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Other Expenses:</span><strong style="color:#dc2626">-' + formatMoney(manualExpMonth) + '</strong></div>' +
+            (recMonth > 0 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Recurring Expenses:</span><strong style="color:#dc2626">-' + formatMoney(recMonth) + '</strong></div>' : '') +
             '<div style="display:flex;justify-content:space-between;padding:0.35rem 0;margin-top:0.25rem;border-top:2px solid #92400e;font-size:0.95rem"><span style="font-weight:700">Net Profit:</span><strong style="color:' + (profitMonth >= 0 ? '#166534' : '#dc2626') + ';font-size:1.05rem">' + formatMoney(profitMonth) + '</strong></div>' +
           '</div>' +
           // Year column
@@ -70,6 +73,7 @@ async function loadExpenses() {
             (refYear < 0 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Refunds:</span><strong style="color:#dc2626">' + formatMoney(refYear) + '</strong></div>' : '') +
             '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Electric (pass-through):</span><strong style="color:#b45309">-' + formatMoney(elecYear) + '</strong></div>' +
             '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Other Expenses:</span><strong style="color:#dc2626">-' + formatMoney(manualExpYear) + '</strong></div>' +
+            (recYear > 0 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Recurring Expenses:</span><strong style="color:#dc2626">-' + formatMoney(recYear) + '</strong></div>' : '') +
             '<div style="display:flex;justify-content:space-between;padding:0.35rem 0;margin-top:0.25rem;border-top:2px solid #92400e;font-size:0.95rem"><span style="font-weight:700">Net Profit:</span><strong style="color:' + (profitYear >= 0 ? '#166534' : '#dc2626') + ';font-size:1.05rem">' + formatMoney(profitYear) + '</strong></div>' +
           '</div>' +
         '</div>' +
@@ -86,6 +90,33 @@ async function loadExpenses() {
           '<div style="font-size:0.75rem;color:var(--gray-500)">This month &bull; ' + formatMoney(summary?.electricYear || 0) + ' YTD</div>' +
         '</div>' +
       '</div>' +
+    '</div>' +
+
+    // Recurring Expenses section
+    '<div class="card" style="margin-bottom:1rem;padding:1rem;border-left:4px solid #7c3aed">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">' +
+        '<h3 style="font-size:0.95rem;color:#7c3aed;margin:0">🔁 Recurring Expenses</h3>' +
+        '<button class="btn btn-sm btn-outline" onclick="showRecurringForm()" style="font-size:0.75rem">+ Add Recurring</button>' +
+      '</div>' +
+      '<div id="recurring-list">' +
+        ((summary?.recurringItems || []).length ? (summary.recurringItems.map(function(r) {
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #e7e5e4">' +
+            '<div style="flex:1">' +
+              '<div style="font-weight:700;font-size:0.88rem">' + escapeHtml(r.name) +
+                (r.is_active ? ' <span class="badge badge-success" style="font-size:0.55rem">Active</span>' : ' <span class="badge badge-gray" style="font-size:0.55rem">Disabled</span>') +
+                ' <span class="badge badge-info" style="font-size:0.55rem">' + escapeHtml(r.frequency) + '</span>' +
+              '</div>' +
+              '<div style="font-size:0.78rem;color:#78716c">' + escapeHtml(r.description || '') + '</div>' +
+              '<div style="font-size:0.82rem;margin-top:0.15rem">' + r.quantity + ' × ' + formatMoney(r.amount_per_unit) + ' = <strong>' + formatMoney(r.total_amount) + '/' + (r.frequency === 'monthly' ? 'mo' : r.frequency === 'quarterly' ? 'qtr' : 'yr') + '</strong></div>' +
+            '</div>' +
+            '<div class="btn-group" style="gap:4px;flex-shrink:0;margin-left:0.5rem">' +
+              '<button class="btn btn-sm btn-outline" onclick="showRecurringForm(' + r.id + ')">Edit</button>' +
+              '<button class="btn btn-sm btn-danger" onclick="deleteRecurring(' + r.id + ')">Del</button>' +
+            '</div>' +
+          '</div>';
+        }).join('')) : '<p style="color:#78716c;font-size:0.85rem">No recurring expenses yet</p>') +
+      '</div>' +
+      (summary?.recurringMonth > 0 ? '<div style="margin-top:0.5rem;font-size:0.85rem;font-weight:700;text-align:right;color:#7c3aed">Monthly Total: ' + formatMoney(summary.recurringMonth) + '</div>' : '') +
     '</div>' +
 
     // Monthly chart + top vendors
@@ -373,5 +404,71 @@ async function deleteExpense(id) {
   if (!confirm('Delete this expense?')) return;
   await API.del('/expenses/' + id);
   showStatusToast('✅', 'Expense deleted');
+  loadExpenses();
+}
+
+// --- Recurring Expenses ---
+async function showRecurringForm(editId) {
+  var existing = null;
+  if (editId) {
+    var all = await API.get('/expenses/recurring');
+    existing = (all || []).find(function(r) { return r.id === editId; });
+  }
+  var cats = EXP_CATS.map(function(c) {
+    return '<option value="' + c + '"' + (existing && existing.category === c ? ' selected' : '') + '>' + c + '</option>';
+  }).join('');
+  showModal(existing ? 'Edit Recurring Expense' : 'Add Recurring Expense', `
+    <form onsubmit="saveRecurring(event, ${editId || 'null'})">
+      <div class="form-group"><label>Name</label><input name="name" required value="${existing ? existing.name : ''}"></div>
+      <div class="form-group"><label>Description</label><input name="description" value="${existing ? (existing.description || '') : ''}"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem">
+        <div class="form-group"><label>Quantity</label><input name="quantity" type="number" step="1" min="1" value="${existing ? existing.quantity : 1}" oninput="recalcRecurring()"></div>
+        <div class="form-group"><label>Cost per Unit ($)</label><input name="amount_per_unit" type="number" step="0.01" min="0" value="${existing ? existing.amount_per_unit : '0.00'}" oninput="recalcRecurring()"></div>
+        <div class="form-group"><label>Total</label><input name="total_display" type="text" readonly style="background:#f5f5f4;font-weight:700" value="$${existing ? existing.total_amount.toFixed(2) : '0.00'}"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="form-group"><label>Frequency</label><select name="frequency">
+          <option value="monthly"${existing && existing.frequency === 'monthly' ? ' selected' : ''}>Monthly</option>
+          <option value="quarterly"${existing && existing.frequency === 'quarterly' ? ' selected' : ''}>Quarterly</option>
+          <option value="annually"${existing && existing.frequency === 'annually' ? ' selected' : ''}>Annually</option>
+        </select></div>
+        <div class="form-group"><label>Category</label><select name="category">${cats}</select></div>
+      </div>
+      ${existing ? '<div class="form-group"><label><input type="checkbox" name="is_active" ' + (existing.is_active ? 'checked' : '') + '> Active</label></div>' : ''}
+      <button type="submit" class="btn btn-green" style="margin-top:0.5rem">${existing ? 'Update' : 'Add'} Recurring Expense</button>
+    </form>
+  `);
+}
+
+function recalcRecurring() {
+  var qty = Number(document.querySelector('[name="quantity"]')?.value) || 0;
+  var unit = Number(document.querySelector('[name="amount_per_unit"]')?.value) || 0;
+  var display = document.querySelector('[name="total_display"]');
+  if (display) display.value = '$' + (qty * unit).toFixed(2);
+}
+
+async function saveRecurring(e, editId) {
+  e.preventDefault();
+  var f = new FormData(e.target);
+  var data = {
+    name: f.get('name'), description: f.get('description'),
+    quantity: Number(f.get('quantity')) || 1, amount_per_unit: Number(f.get('amount_per_unit')) || 0,
+    frequency: f.get('frequency'), category: f.get('category'),
+    is_active: editId ? (e.target.querySelector('[name="is_active"]')?.checked ? 1 : 0) : 1
+  };
+  if (editId) {
+    await API.put('/expenses/recurring/' + editId, data);
+  } else {
+    await API.post('/expenses/recurring', data);
+  }
+  closeModal();
+  showStatusToast('✅', 'Recurring expense saved');
+  loadExpenses();
+}
+
+async function deleteRecurring(id) {
+  if (!confirm('Delete this recurring expense?')) return;
+  await API.del('/expenses/recurring/' + id);
+  showStatusToast('✅', 'Recurring expense deleted');
   loadExpenses();
 }

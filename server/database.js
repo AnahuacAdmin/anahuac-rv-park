@@ -463,6 +463,27 @@ async function initializeDatabase() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Recurring expenses
+  db.run(`CREATE TABLE IF NOT EXISTS recurring_expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    amount_per_unit REAL DEFAULT 0,
+    quantity REAL DEFAULT 1,
+    total_amount REAL DEFAULT 0,
+    frequency TEXT DEFAULT 'monthly',
+    category TEXT DEFAULT 'Other',
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  // Seed WiFi node entry if table is empty
+  var recCount = db.prepare("SELECT COUNT(*) as c FROM recurring_expenses").get().c;
+  if (recCount === 0) {
+    db.prepare("INSERT INTO recurring_expenses (name, description, amount_per_unit, quantity, total_amount, frequency, category) VALUES (?,?,?,?,?,?,?)").run(
+      'WiFi Node Electricity', 'Monthly electricity cost per WiFi node installed around the park', 5.00, 6, 30.00, 'monthly', 'Electric/Utilities'
+    );
+  }
+
   // Community announcements
   db.run(`CREATE TABLE IF NOT EXISTS announcements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

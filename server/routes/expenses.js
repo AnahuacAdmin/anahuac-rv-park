@@ -59,8 +59,20 @@ router.get('/summary', (req, res) => {
   var refundsMonth = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM payments WHERE amount < 0 AND payment_date LIKE ?").get(month + '%').t;
   var refundsYear = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM payments WHERE amount < 0 AND payment_date LIKE ?").get(year + '%').t;
 
+  // Recurring expenses (monthly ones apply each month; quarterly/annually prorated)
+  var recurring = db.prepare("SELECT * FROM recurring_expenses WHERE is_active = 1").all();
+  var recurringMonth = 0, recurringYear = 0;
+  recurring.forEach(function(r) {
+    var monthly = r.frequency === 'monthly' ? r.total_amount : r.frequency === 'quarterly' ? r.total_amount / 3 : r.frequency === 'annually' ? r.total_amount / 12 : r.total_amount;
+    recurringMonth += monthly;
+    // Year: months elapsed so far this year
+    var monthsElapsed = new Date().getMonth() + 1;
+    recurringYear += monthly * monthsElapsed;
+  });
+
   res.json({ month, total, byCategory, yearTotal, receiptCount, topVendors, monthlyHistory,
-    electricMonth, electricYear, revenueMonth, revenueYear, refundsMonth, refundsYear });
+    electricMonth, electricYear, revenueMonth, revenueYear, refundsMonth, refundsYear,
+    recurringMonth, recurringYear, recurringItems: recurring });
 });
 
 // Get receipt image
@@ -173,6 +185,39 @@ router.post('/scan-receipt', async (req, res) => {
 // Delete expense
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM expenses WHERE id=?').run(req.params.id);
+  res.json({ success: true });
+});
+
+// --- Recurring Expenses ---
+router.get('/recurring', (req, res) => {
+  res.json(db.prepare("SELECT * FROM recurring_expenses ORDER BY name").all());
+});
+
+router.post('/recurring', (req, res) => {
+  var b = req.body || {};
+  if (!b.name) return res.status(400).json({ error: 'Name required' });
+  var qty = Number(b.quantity) || 1;
+  var unit = Number(b.amount_per_unit) || 0;
+  var total = qty * unit;
+  var result = db.prepare("INSERT INTO recurring_expenses (name, description, amount_per_unit, quantity, total_amount, frequency, category) VALUES (?,?,?,?,?,?,?)").run(
+    b.name, b.description || '', unit, qty, total, b.frequency || 'monthly', b.category || 'Other'
+  );
+  res.json({ id: result.lastInsertRowid });
+});
+
+router.put('/recurring/:id', (req, res) => {
+  var b = req.body || {};
+  var qty = Number(b.quantity) || 1;
+  var unit = Number(b.amount_per_unit) || 0;
+  var total = qty * unit;
+  db.prepare("UPDATE recurring_expenses SET name=?, description=?, amount_per_unit=?, quantity=?, total_amount=?, frequency=?, category=?, is_active=? WHERE id=?").run(
+    b.name, b.description || '', unit, qty, total, b.frequency || 'monthly', b.category || 'Other', b.is_active !== undefined ? (b.is_active ? 1 : 0) : 1, req.params.id
+  );
+  res.json({ success: true });
+});
+
+router.delete('/recurring/:id', (req, res) => {
+  db.prepare('DELETE FROM recurring_expenses WHERE id=?').run(req.params.id);
   res.json({ success: true });
 });
 
