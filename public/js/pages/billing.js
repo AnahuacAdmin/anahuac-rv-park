@@ -179,7 +179,7 @@ function renderInvoiceRow(inv, rowBg) {
   const otherFees = mailbox + misc + occ + late;
   const refundAmt = Number(inv.refund_amount) || 0;
   const creditAmt = Number(inv.credit_applied) || 0;
-  const balColor = inv.balance_due > 0.005 ? '#dc2626' : '#16a34a';
+  const balColor = (inv.status === 'paid' || inv.balance_due <= 0.005) ? '#16a34a' : '#dc2626';
   const statusLabel = inv.status === 'paid' ? 'Paid' : inv.status === 'partial' ? 'Partial' : 'Unpaid';
   const badges = (inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.55rem">PRO</span>' : '') + (_isFlat ? ' <span class="badge badge-success" style="font-size:0.55rem">FLAT</span>' : '');
   // Fee breakdown label
@@ -206,7 +206,7 @@ function renderInvoiceRow(inv, rowBg) {
       <td data-label="Electric">${formatMoney(inv.electric_amount)}</td>
       <td data-label="Fees" style="white-space:normal">${otherFees > 0.005 ? formatMoney(otherFees) + feeDetail : '<span style="color:#a8a29e">—</span>'}</td>
       <td data-label="Total" title="${totalTip}"><strong>${formatMoney(inv.total_amount)}</strong></td>
-      <td data-label="Balance" style="white-space:normal"><strong style="color:${balColor}">${formatMoney(inv.balance_due)}</strong>${balNote}</td>
+      <td data-label="Balance" style="white-space:normal"><strong style="color:${balColor}">${inv.status === 'paid' ? formatMoney(0) : formatMoney(inv.balance_due)}</strong>${balNote}</td>
       <td data-label="Status"><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${refundBadge}${invoiceEvictionBadge(inv)}</td>
     </tr>
     <tr class="invoice-actions-row" id="inv-actions-${inv.id}" style="display:none">

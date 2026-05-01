@@ -484,6 +484,15 @@ async function initializeDatabase() {
     );
   }
 
+  // Data fix: recalculate balance_due for paid invoices that have stale balance
+  db.prepare(`
+    UPDATE invoices SET balance_due = CASE
+      WHEN amount_paid >= total_amount THEN 0
+      ELSE total_amount - COALESCE(amount_paid, 0)
+    END
+    WHERE status = 'paid' AND balance_due > 0.005
+  `).run();
+
   // Community announcements
   db.run(`CREATE TABLE IF NOT EXISTS announcements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
