@@ -890,6 +890,34 @@ async function initializeDatabase() {
     console.log(`[database] Backfilled ${backfilled.changes} active + ${backfilledOut.changes} checked-out checkin records`);
   }
 
+  // --- Data fix: backfill null tenant_id on meter_readings from lot's active tenant ---
+  try {
+    const nullReadings = dbWrapper.prepare(
+      `SELECT mr.id, mr.lot_id FROM meter_readings mr WHERE mr.tenant_id IS NULL AND mr.lot_id IS NOT NULL`
+    ).all();
+    let fixed = 0;
+    for (const r of nullReadings) {
+      const tenant = dbWrapper.prepare('SELECT id FROM tenants WHERE lot_id = ? AND is_active = 1 LIMIT 1').get(r.lot_id);
+      if (tenant) {
+        dbWrapper.prepare('UPDATE meter_readings SET tenant_id = ? WHERE id = ?').run(tenant.id, r.id);
+        fixed++;
+      }
+    }
+    if (fixed > 0) console.log(`[database] Fixed ${fixed} meter readings with null tenant_id`);
+  } catch (e) { console.error('[database] tenant_id backfill error:', e.message); }
+
+  // --- Data fix: delete zero-use placeholder readings where a real reading exists for the same lot ---
+  try {
+    const deleted = dbWrapper.prepare(`
+      DELETE FROM meter_readings
+      WHERE kwh_used = 0 AND current_reading = 0 AND previous_reading = 0 AND photo IS NULL
+        AND lot_id IN (
+          SELECT DISTINCT lot_id FROM meter_readings WHERE kwh_used > 0 OR current_reading > 0
+        )
+    `).run();
+    if (deleted.changes > 0) console.log(`[database] Deleted ${deleted.changes} zero-use placeholder readings`);
+  } catch (e) { console.error('[database] placeholder cleanup error:', e.message); }
+
   saveDb();
   console.log('Database initialized successfully');
 }

@@ -142,25 +142,27 @@ router.get('/latest', (req, res) => {
     // Find the active tenant on this lot (if any)
     const tenant = db.prepare('SELECT id, first_name, last_name, monthly_rent, rent_type FROM tenants WHERE lot_id = ? AND is_active = 1 LIMIT 1').get(lot.id);
 
-    // Find the latest meter reading for this lot from an active tenant (or any reading if no active tenant)
-    let reading = null;
-    if (tenant) {
-      reading = db.prepare('SELECT * FROM meter_readings WHERE lot_id = ? AND tenant_id = ? ORDER BY id DESC LIMIT 1').get(lot.id, tenant.id);
-    }
-    if (!reading) {
-      reading = db.prepare('SELECT * FROM meter_readings WHERE lot_id = ? ORDER BY id DESC LIMIT 1').get(lot.id);
+    // Find the latest meter reading for this lot — pick the highest id regardless of tenant_id,
+    // so real readings (with photos/kwh) are never hidden behind zero-use placeholders.
+    let reading = db.prepare('SELECT * FROM meter_readings WHERE lot_id = ? ORDER BY id DESC LIMIT 1').get(lot.id);
+    // If there's a reading with actual usage, prefer it over a zero placeholder
+    if (reading && reading.kwh_used === 0 && reading.current_reading === 0) {
+      const realReading = db.prepare(
+        'SELECT * FROM meter_readings WHERE lot_id = ? AND (kwh_used > 0 OR current_reading > 0) ORDER BY id DESC LIMIT 1'
+      ).get(lot.id);
+      if (realReading) reading = realReading;
     }
 
     // Find previous month's reading — must be from a DIFFERENT reading_date (different month).
     // Same-date readings are duplicates from this session, not a previous period.
     var prevReading = null;
-    if (reading && tenant && reading.reading_date) {
+    if (reading && reading.reading_date) {
       prevReading = db.prepare(
         `SELECT id, reading_date, previous_reading, current_reading, kwh_used, electric_charge, photo
          FROM meter_readings
-         WHERE lot_id = ? AND tenant_id = ? AND id < ? AND reading_date != ?
+         WHERE lot_id = ? AND id < ? AND reading_date != ?
          ORDER BY id DESC LIMIT 1`
-      ).get(lot.id, tenant.id, reading.id, reading.reading_date);
+      ).get(lot.id, reading.id, reading.reading_date);
     }
 
     results.push({
@@ -211,11 +213,17 @@ function savePhoto(readingId, base64Data) {
 }
 
 router.post('/', (req, res) => {
-  const { lot_id, tenant_id, reading_date, previous_reading, current_reading, photo } = req.body;
+  const { lot_id, reading_date, previous_reading, current_reading, photo } = req.body;
+  let { tenant_id } = req.body;
   if (photo) {
     console.log(`[meters] PHOTO RECEIVED: ${photo.length} chars (~${Math.round(photo.length * 0.75 / 1024)}KB) for lot ${lot_id}`);
   } else {
     console.log(`[meters] NO PHOTO IN REQUEST for lot ${lot_id}`);
+  }
+  // Always resolve tenant_id from the lot's current active tenant if not provided or null
+  if (!tenant_id && lot_id) {
+    const activeTenant = db.prepare('SELECT id FROM tenants WHERE lot_id = ? AND is_active = 1 LIMIT 1').get(lot_id);
+    if (activeTenant) tenant_id = activeTenant.id;
   }
   const rate = db.prepare("SELECT value FROM settings WHERE key = 'electric_rate'").get();
   const ratePerKwh = parseFloat(rate?.value || 0.15);
@@ -225,7 +233,7 @@ router.post('/', (req, res) => {
   const result = db.prepare(`
     INSERT INTO meter_readings (lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh, ratePerKwh, charge);
+  `).run(lot_id, tenant_id || null, reading_date, previous_reading, current_reading, kwh, ratePerKwh, charge);
 
   // Save photo to disk (not in DB) to keep the database lean.
   let photoFile = null;
