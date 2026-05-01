@@ -45,12 +45,18 @@ async function loadPayments() {
     <div class="card scrollable-table-card">
       <div class="table-container">
         <table>
-          <thead><tr><th>Date</th><th>Lot</th><th>Guest</th><th>Amount</th><th>Method</th><th>Invoice</th><th>Reference</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Date</th><th>Lot</th><th>Guest</th><th>Amount</th><th>Method</th><th>Invoice</th><th style="max-width:120px">Reference</th><th>Actions</th></tr></thead>
           <tbody>
             ${payments.length ? payments.map(p => {
               var isRefund = p.amount < 0;
               var isSettlement = (p.notes || '').toLowerCase().includes('settlement') || (p.reference_number || '').toUpperCase() === 'CHECKOUT';
               var typeLabel = isRefund ? '<span style="color:#dc2626;font-weight:600">Refund</span>' : isSettlement ? '<span style="color:#0284c7;font-weight:600">Settlement</span>' : '';
+              var ref = p.reference_number || '';
+              var cleanRef = '—';
+              if (ref.startsWith('cs_live_') || ref.startsWith('cs_test_')) cleanRef = 'Stripe Payment';
+              else if (ref.startsWith('pi_')) cleanRef = 'Stripe Payment';
+              else if (ref.startsWith('re_')) cleanRef = 'Stripe Refund';
+              else if (ref) cleanRef = ref.length > 20 ? ref.substring(0, 20) + '…' : ref;
               return `<tr${isRefund ? ' style="background:#fef2f2"' : isSettlement ? ' style="background:#eff6ff"' : ''}>
                 <td>${formatDate(p.payment_date)}</td>
                 <td><strong>${p.lot_id}</strong></td>
@@ -58,7 +64,7 @@ async function loadPayments() {
                 <td><strong style="color:${isRefund ? '#dc2626' : '#16a34a'}">${formatMoney(p.amount)}</strong></td>
                 <td>${p.payment_method || '—'}</td>
                 <td>${p.invoice_number || (typeLabel || '—')}</td>
-                <td>${p.reference_number || '—'}</td>
+                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${ref}">${cleanRef}</td>
                 <td><button class="btn btn-sm btn-danger" onclick="deletePayment(${p.id})">Del</button></td>
               </tr>`;
             }).join('') : '<tr><td colspan="8" class="text-center">No payments recorded</td></tr>'}
