@@ -12,7 +12,9 @@ router.use(authenticate);
 
 router.get('/', (req, res) => {
   const lots = db.prepare(`
-    SELECT l.*, t.id as tenant_id, t.first_name, t.last_name, t.monthly_rent, t.rent_type, t.eviction_warning, t.flat_rate, t.deposit_waived, t.deposit_amount
+    SELECT l.*, t.id as tenant_id, t.first_name, t.last_name, t.monthly_rent, t.rent_type, t.eviction_warning, t.flat_rate, t.deposit_waived, t.deposit_amount,
+      (SELECT COUNT(*) FROM tenant_vehicles WHERE tenant_id = t.id) AS vehicle_count,
+      (SELECT COUNT(*) FROM tenant_occupants WHERE tenant_id = t.id) AS occupant_count
     FROM lots l
     LEFT JOIN tenants t ON l.id = t.lot_id AND t.is_active = 1
     GROUP BY l.id

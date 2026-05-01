@@ -9,6 +9,7 @@ function recurringSummary(t) {
   if (t.recurring_late_fee) parts.push(`Late ${formatMoney(t.recurring_late_fee)}`);
   if (t.recurring_mailbox_fee) parts.push(`Mailbox ${formatMoney(t.recurring_mailbox_fee)}`);
   if (t.recurring_misc_fee) parts.push(`${t.recurring_misc_description || 'Misc'} ${formatMoney(t.recurring_misc_fee)}`);
+  if (t.recurring_extra_occupancy_fee) parts.push(`<span style="color:#f97316">Occupancy ${formatMoney(t.recurring_extra_occupancy_fee)}</span>`);
   if (t.recurring_credit) parts.push(`-${formatMoney(t.recurring_credit)} ${t.recurring_credit_description || 'credit'}`);
   return parts.length ? `<small>${parts.join('<br>')}</small>` : '<small style="color:#999">—</small>';
 }
@@ -40,23 +41,31 @@ async function loadTenants(filter) {
     (API.user?.role === 'admin' ? importHelpPanelHtml() : '') +
     '<div style="display:flex;gap:0.5rem;margin-bottom:1rem">' + filterBtn('active', 'Active') + filterBtn('out', 'Checked Out') + filterBtn('all', 'All') + '</div>' +
     '<div class="card scrollable-table-card"><div class="table-container"><table>' +
-    '<thead><tr><th>Lot</th><th>Name</th><th>Rent</th><th>Type</th><th>Recurring Fees</th><th>Move-In</th><th>Actions</th></tr></thead><tbody>' +
+    '<thead><tr><th>Lot</th><th>Name</th><th>Rent</th><th>Type</th><th>Recurring Fees</th><th>Info</th><th>Move-In</th><th>Actions</th></tr></thead><tbody>' +
     (tenants.length ? tenants.map(function(t) {
       var inactive = !t.is_active;
       var rowStyle = inactive ? 'opacity:0.6;background:#f9fafb' : (t.balance_due > 0 ? 'background:#fff0f0' : '');
       var badge = inactive ? ' <span class="badge badge-gray">Checked Out</span>' : '';
+      var vCount = Number(t.vehicle_count) || 0;
+      var oCount = Number(t.occupant_count) || 0;
+      var extraOcc = Number(t.recurring_extra_occupancy_fee) || 0;
+      var infoBadges = '';
+      if (vCount > 0) infoBadges += '<span title="' + vCount + ' vehicle' + (vCount > 1 ? 's' : '') + '" style="font-size:0.75rem;margin-right:4px">&#128663; ' + vCount + '</span>';
+      if (oCount > 0) infoBadges += '<span title="' + oCount + ' occupant' + (oCount > 1 ? 's' : '') + '" style="font-size:0.75rem;margin-right:4px">&#128100; ' + oCount + '</span>';
+      if (extraOcc > 0) infoBadges += '<span class="badge" style="background:#f97316;color:#fff;font-size:0.6rem" title="Extra occupancy fee">+' + formatMoney(extraOcc) + '/mo</span>';
       return '<tr style="' + rowStyle + '">' +
         '<td><strong>' + (t.lot_id || '—') + '</strong></td>' +
         '<td>' + t.first_name + ' ' + t.last_name + badge + (t.credit_balance > 0 ? ' <span class="badge badge-success" title="Account credit">Credit: ' + formatMoney(t.credit_balance) + '</span>' : '') + '</td>' +
         '<td>' + formatMoney(t.monthly_rent) + '</td>' +
         '<td><span class="badge badge-' + (t.rent_type === 'daily' ? 'info' : t.rent_type === 'weekly' ? 'info' : t.rent_type === 'premium' ? 'warning' : t.rent_type === 'electric_only' ? 'info' : 'gray') + '">' + t.rent_type + '</span>' + (t.flat_rate ? '<span class="badge badge-success" style="margin-left:4px">FLAT</span>' : '') + (t.deposit_waived ? '<span class="badge badge-gray" style="margin-left:4px;font-size:0.6rem">DEP WAIVED</span>' : '') + '</td>' +
         '<td>' + recurringSummary(t) + '</td>' +
+        '<td>' + (infoBadges || '<span style="color:#999">—</span>') + '</td>' +
         '<td>' + formatDate(t.move_in_date) + '</td>' +
         '<td class="btn-group">' +
           '<button class="btn btn-sm btn-outline" onclick="showEditTenant(' + t.id + ')">Edit</button>' +
           '<button class="btn btn-sm btn-outline" onclick="showTenantHistory(' + t.id + ', \'' + (t.first_name + ' ' + t.last_name).replace(/'/g, "\\'") + '\')">History</button>' +
         '</td></tr>';
-    }).join('') : '<tr><td colspan="7" class="text-center">No guests found</td></tr>') +
+    }).join('') : '<tr><td colspan="8" class="text-center">No guests found</td></tr>') +
     '</tbody></table></div></div>';
 }
 
@@ -72,6 +81,11 @@ async function showEditTenant(id) {
   const lots = await API.get('/lots');
   const availableLots = lots.filter(l => l.status === 'vacant' || l.id === tenant.lot_id);
   showModal('Edit Guest', tenantForm(availableLots, tenant));
+  setTimeout(function() {
+    loadTenantVehicles(id);
+    loadTenantOccupants(id);
+    loadTenantAuthorizedPersons(id);
+  }, 100);
 }
 
 function tenantForm(lots, tenant = {}) {
@@ -124,6 +138,13 @@ function tenantForm(lots, tenant = {}) {
       <div class="form-row">
         <div class="form-group"><label>Emergency Contact</label><input name="emergency_contact" value="${tenant.emergency_contact || ''}"></div>
         <div class="form-group"><label>Emergency Phone</label><input name="emergency_phone" value="${tenant.emergency_phone || ''}"></div>
+      </div>
+      <div class="form-group" style="margin-top:-0.5rem">
+        <label>Emergency Contact Relationship</label>
+        <select name="emergency_contact_relationship">
+          <option value="">Select...</option>
+          ${['Spouse','Son','Daughter','Parent','Cousin','Friend','Sibling','Grandchild','Other'].map(r => '<option value="' + r.toLowerCase() + '" ' + ((tenant.emergency_contact_relationship || '') === r.toLowerCase() ? 'selected' : '') + '>' + r + '</option>').join('')}
+        </select>
       </div>
       <div class="form-row">
         <div class="form-group"><label>RV Make</label><input name="rv_make" value="${tenant.rv_make || ''}"></div>
@@ -256,6 +277,28 @@ function tenantForm(lots, tenant = {}) {
         </div>
       </fieldset>
 
+      ${tenant.id ? `
+      <fieldset style="border:1px solid #0ea5e9;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
+        <legend><strong style="color:#0ea5e9">&#128663; Vehicles</strong></legend>
+        <div id="tenant-vehicles-list"><em style="color:#999">Loading...</em></div>
+        <button type="button" class="btn btn-sm btn-outline mt-1" onclick="showAddVehicle(${tenant.id})">+ Add Vehicle</button>
+      </fieldset>
+
+      <fieldset style="border:1px solid #8b5cf6;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
+        <legend><strong style="color:#8b5cf6">&#128100; Occupants</strong></legend>
+        <div id="tenant-occupants-list"><em style="color:#999">Loading...</em></div>
+        <div id="occupancy-fee-note" style="display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:0.5rem;margin:0.5rem 0;font-size:0.82rem;color:#9a3412"></div>
+        <button type="button" class="btn btn-sm btn-outline mt-1" onclick="showAddOccupant(${tenant.id})">+ Add Occupant</button>
+      </fieldset>
+
+      <fieldset style="border:1px solid #64748b;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
+        <legend><strong style="color:#64748b">&#128274; Authorized Persons</strong></legend>
+        <p style="font-size:0.78rem;color:var(--gray-500);margin:0 0 0.5rem">People authorized to access this site on behalf of the paying guest.</p>
+        <div id="tenant-authorized-list"><em style="color:#999">Loading...</em></div>
+        <button type="button" class="btn btn-sm btn-outline mt-1" onclick="showAddAuthorizedPerson(${tenant.id})">+ Add Person</button>
+      </fieldset>
+      ` : ''}
+
       <div class="form-group"><label>Notes</label><textarea name="notes">${tenant.notes || ''}</textarea></div>
       <button type="submit" class="btn btn-primary btn-full mt-2">${tenant.id ? 'Update' : 'Add'} Guest</button>
     </form>
@@ -275,6 +318,7 @@ async function saveTenant(e, id) {
   data.deposit_amount = parseFloat(data.deposit_amount) || 0;
   data.deposit_waived = data.deposit_waived === '1' ? 1 : 0;
   data.loyalty_exclude = data.loyalty_exclude === '1' ? 1 : 0;
+  data.emergency_contact_relationship = data.emergency_contact_relationship || '';
   data.flat_rate = data.flat_rate === '1' ? 1 : 0;
   data.flat_rate_amount = parseFloat(data.flat_rate_amount) || 0;
 
@@ -987,6 +1031,296 @@ async function promptTenantReview(tenantId, tenantName) {
       }
     });
   }, 100);
+}
+
+// === VEHICLES ===
+
+var VEHICLE_TYPES = ['Car', 'Truck', 'Boat', 'Motorcycle', 'Trailer', 'Other'];
+var RELATIONSHIP_OPTIONS = ['Spouse', 'Son', 'Daughter', 'Parent', 'Cousin', 'Friend', 'Sibling', 'Grandchild', 'Other'];
+
+async function loadTenantVehicles(tenantId) {
+  var el = document.getElementById('tenant-vehicles-list');
+  if (!el) return;
+  var vehicles = await API.get('/tenants/' + tenantId + '/vehicles');
+  if (!vehicles || !vehicles.length) {
+    el.innerHTML = '<p style="color:#999;font-size:0.82rem;margin:0">No vehicles registered.</p>';
+    return;
+  }
+  el.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #e5e7eb"><th style="text-align:left;padding:3px 6px">Type</th><th style="text-align:left;padding:3px 6px">Vehicle</th><th style="text-align:left;padding:3px 6px">Color</th><th style="text-align:left;padding:3px 6px">Plate</th><th style="padding:3px 6px"></th></tr></thead><tbody>' +
+    vehicles.map(function(v) {
+      return '<tr style="border-bottom:1px solid #f3f4f6">' +
+        '<td style="padding:3px 6px">' + escapeHtml(v.vehicle_type || '') + '</td>' +
+        '<td style="padding:3px 6px">' + [v.year, v.make, v.model].filter(Boolean).join(' ') + '</td>' +
+        '<td style="padding:3px 6px">' + escapeHtml(v.color || '') + '</td>' +
+        '<td style="padding:3px 6px">' + escapeHtml(v.license_plate || '') + (v.state ? ' <small>(' + v.state + ')</small>' : '') + '</td>' +
+        '<td style="padding:3px 6px;white-space:nowrap">' +
+          '<button class="btn btn-sm btn-outline" style="font-size:0.65rem;padding:1px 6px" onclick="showEditVehicle(' + tenantId + ',' + v.id + ')">Edit</button> ' +
+          '<button class="btn btn-sm btn-outline" style="font-size:0.65rem;padding:1px 6px;color:#dc2626;border-color:#dc2626" onclick="deleteVehicle(' + tenantId + ',' + v.id + ')">X</button>' +
+        '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function vehicleFormHtml(v) {
+  v = v || {};
+  return '<div class="form-row">' +
+    '<div class="form-group"><label>Type</label><select name="vehicle_type">' +
+      VEHICLE_TYPES.map(function(t) { return '<option value="' + t.toLowerCase() + '"' + (v.vehicle_type === t.toLowerCase() ? ' selected' : '') + '>' + t + '</option>'; }).join('') +
+    '</select></div>' +
+    '<div class="form-group"><label>Make</label><input name="make" value="' + escapeHtml(v.make || '') + '"></div>' +
+    '<div class="form-group"><label>Model</label><input name="model" value="' + escapeHtml(v.model || '') + '"></div>' +
+  '</div>' +
+  '<div class="form-row">' +
+    '<div class="form-group"><label>Color</label><input name="color" value="' + escapeHtml(v.color || '') + '"></div>' +
+    '<div class="form-group"><label>Year</label><input name="year" value="' + escapeHtml(v.year || '') + '"></div>' +
+  '</div>' +
+  '<div class="form-row">' +
+    '<div class="form-group"><label>License Plate</label><input name="license_plate" value="' + escapeHtml(v.license_plate || '') + '"></div>' +
+    '<div class="form-group"><label>State</label><input name="state" value="' + escapeHtml(v.state || '') + '" maxlength="2" placeholder="TX"></div>' +
+  '</div>';
+}
+
+function showAddVehicle(tenantId) {
+  var overlay = document.createElement('div');
+  overlay.id = 'vehicle-form-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:1.5rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto">' +
+    '<h3 style="margin:0 0 1rem">Add Vehicle</h3>' +
+    '<form id="add-vehicle-form">' + vehicleFormHtml() +
+    '<div class="btn-group mt-2"><button type="button" class="btn btn-outline" onclick="document.getElementById(\'vehicle-form-overlay\').remove()">Cancel</button>' +
+    '<button type="submit" class="btn btn-primary">Add Vehicle</button></div></form></div>';
+  document.body.appendChild(overlay);
+  setTimeout(function() {
+    document.getElementById('add-vehicle-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var fd = new FormData(e.target);
+      await API.post('/tenants/' + tenantId + '/vehicles', Object.fromEntries(fd));
+      overlay.remove();
+      loadTenantVehicles(tenantId);
+      _allTenantsCache = null;
+    });
+  }, 50);
+}
+
+async function showEditVehicle(tenantId, vehicleId) {
+  var vehicles = await API.get('/tenants/' + tenantId + '/vehicles');
+  var v = vehicles.find(function(x) { return x.id === vehicleId; });
+  if (!v) return;
+  var overlay = document.createElement('div');
+  overlay.id = 'vehicle-form-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:1.5rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto">' +
+    '<h3 style="margin:0 0 1rem">Edit Vehicle</h3>' +
+    '<form id="edit-vehicle-form">' + vehicleFormHtml(v) +
+    '<div class="btn-group mt-2"><button type="button" class="btn btn-outline" onclick="document.getElementById(\'vehicle-form-overlay\').remove()">Cancel</button>' +
+    '<button type="submit" class="btn btn-primary">Save</button></div></form></div>';
+  document.body.appendChild(overlay);
+  setTimeout(function() {
+    document.getElementById('edit-vehicle-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var fd = new FormData(e.target);
+      await API.put('/tenants/' + tenantId + '/vehicles/' + vehicleId, Object.fromEntries(fd));
+      overlay.remove();
+      loadTenantVehicles(tenantId);
+      _allTenantsCache = null;
+    });
+  }, 50);
+}
+
+async function deleteVehicle(tenantId, vehicleId) {
+  if (!confirm('Delete this vehicle?')) return;
+  await API.del('/tenants/' + tenantId + '/vehicles/' + vehicleId);
+  loadTenantVehicles(tenantId);
+  _allTenantsCache = null;
+}
+
+// === OCCUPANTS ===
+
+async function loadTenantOccupants(tenantId) {
+  var el = document.getElementById('tenant-occupants-list');
+  if (!el) return;
+  var data = await API.get('/tenants/' + tenantId + '/occupants');
+  if (!data) return;
+  var occupants = data.occupants || [];
+  if (!occupants.length) {
+    el.innerHTML = '<p style="color:#999;font-size:0.82rem;margin:0">No occupants listed.</p>';
+  } else {
+    el.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #e5e7eb"><th style="text-align:left;padding:3px 6px">Name</th><th style="text-align:left;padding:3px 6px">Relationship</th><th style="text-align:left;padding:3px 6px">Age/DOB</th><th style="padding:3px 6px"></th></tr></thead><tbody>' +
+      occupants.map(function(o) {
+        return '<tr style="border-bottom:1px solid #f3f4f6">' +
+          '<td style="padding:3px 6px">' + escapeHtml(o.name) + '</td>' +
+          '<td style="padding:3px 6px">' + escapeHtml(o.relationship || '') + '</td>' +
+          '<td style="padding:3px 6px">' + escapeHtml(o.age_or_dob || '') + '</td>' +
+          '<td style="padding:3px 6px;white-space:nowrap">' +
+            '<button class="btn btn-sm btn-outline" style="font-size:0.65rem;padding:1px 6px" onclick="showEditOccupant(' + tenantId + ',' + o.id + ')">Edit</button> ' +
+            '<button class="btn btn-sm btn-outline" style="font-size:0.65rem;padding:1px 6px;color:#dc2626;border-color:#dc2626" onclick="deleteOccupant(' + tenantId + ',' + o.id + ')">X</button>' +
+          '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+  // Show occupancy fee note
+  var noteEl = document.getElementById('occupancy-fee-note');
+  if (noteEl) {
+    if (data.over8 > 2) {
+      noteEl.style.display = '';
+      noteEl.innerHTML = '<strong>&#9888; ' + data.over8 + ' occupants over 8</strong> = ' + data.extraCount + ' extra &times; $25 = <strong>' + formatMoney(data.fee) + '/mo extra occupancy fee</strong>';
+    } else if (occupants.length > 0) {
+      noteEl.style.display = '';
+      noteEl.style.background = '#f0fdf4';
+      noteEl.style.borderColor = '#bbf7d0';
+      noteEl.style.color = '#166534';
+      noteEl.innerHTML = data.over8 + ' occupant' + (data.over8 !== 1 ? 's' : '') + ' over age 8 (2 included free). No extra charge.';
+    } else {
+      noteEl.style.display = 'none';
+    }
+  }
+}
+
+function occupantFormHtml(o) {
+  o = o || {};
+  return '<div class="form-group"><label>Name</label><input name="name" value="' + escapeHtml(o.name || '') + '" required></div>' +
+    '<div class="form-row">' +
+    '<div class="form-group"><label>Relationship</label><select name="relationship">' +
+      RELATIONSHIP_OPTIONS.map(function(r) { return '<option value="' + r.toLowerCase() + '"' + ((o.relationship || '') === r.toLowerCase() ? ' selected' : '') + '>' + r + '</option>'; }).join('') +
+    '</select></div>' +
+    '<div class="form-group"><label>Age or Date of Birth</label><input name="age_or_dob" value="' + escapeHtml(o.age_or_dob || '') + '" placeholder="e.g. 12 or 2014-05-20"></div>' +
+    '</div>';
+}
+
+function showAddOccupant(tenantId) {
+  var overlay = document.createElement('div');
+  overlay.id = 'occupant-form-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:1.5rem;max-width:420px;width:100%">' +
+    '<h3 style="margin:0 0 1rem">Add Occupant</h3>' +
+    '<form id="add-occupant-form">' + occupantFormHtml() +
+    '<div class="btn-group mt-2"><button type="button" class="btn btn-outline" onclick="document.getElementById(\'occupant-form-overlay\').remove()">Cancel</button>' +
+    '<button type="submit" class="btn btn-primary">Add Occupant</button></div></form></div>';
+  document.body.appendChild(overlay);
+  setTimeout(function() {
+    document.getElementById('add-occupant-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var fd = new FormData(e.target);
+      await API.post('/tenants/' + tenantId + '/occupants', Object.fromEntries(fd));
+      overlay.remove();
+      loadTenantOccupants(tenantId);
+      _allTenantsCache = null;
+    });
+  }, 50);
+}
+
+async function showEditOccupant(tenantId, occId) {
+  var data = await API.get('/tenants/' + tenantId + '/occupants');
+  var o = (data.occupants || []).find(function(x) { return x.id === occId; });
+  if (!o) return;
+  var overlay = document.createElement('div');
+  overlay.id = 'occupant-form-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:1.5rem;max-width:420px;width:100%">' +
+    '<h3 style="margin:0 0 1rem">Edit Occupant</h3>' +
+    '<form id="edit-occupant-form">' + occupantFormHtml(o) +
+    '<div class="btn-group mt-2"><button type="button" class="btn btn-outline" onclick="document.getElementById(\'occupant-form-overlay\').remove()">Cancel</button>' +
+    '<button type="submit" class="btn btn-primary">Save</button></div></form></div>';
+  document.body.appendChild(overlay);
+  setTimeout(function() {
+    document.getElementById('edit-occupant-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var fd = new FormData(e.target);
+      await API.put('/tenants/' + tenantId + '/occupants/' + occId, Object.fromEntries(fd));
+      overlay.remove();
+      loadTenantOccupants(tenantId);
+      _allTenantsCache = null;
+    });
+  }, 50);
+}
+
+async function deleteOccupant(tenantId, occId) {
+  if (!confirm('Remove this occupant?')) return;
+  await API.del('/tenants/' + tenantId + '/occupants/' + occId);
+  loadTenantOccupants(tenantId);
+  _allTenantsCache = null;
+}
+
+// === AUTHORIZED PERSONS ===
+
+async function loadTenantAuthorizedPersons(tenantId) {
+  var el = document.getElementById('tenant-authorized-list');
+  if (!el) return;
+  var persons = await API.get('/tenants/' + tenantId + '/authorized-persons');
+  if (!persons || !persons.length) {
+    el.innerHTML = '<p style="color:#999;font-size:0.82rem;margin:0">No authorized persons listed.</p>';
+    return;
+  }
+  el.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #e5e7eb"><th style="text-align:left;padding:3px 6px">Name</th><th style="text-align:left;padding:3px 6px">Phone</th><th style="text-align:left;padding:3px 6px">Relationship</th><th style="padding:3px 6px"></th></tr></thead><tbody>' +
+    persons.map(function(p) {
+      return '<tr style="border-bottom:1px solid #f3f4f6">' +
+        '<td style="padding:3px 6px">' + escapeHtml(p.name) + '</td>' +
+        '<td style="padding:3px 6px">' + escapeHtml(p.phone || '') + '</td>' +
+        '<td style="padding:3px 6px">' + escapeHtml(p.relationship || '') + '</td>' +
+        '<td style="padding:3px 6px;white-space:nowrap">' +
+          '<button class="btn btn-sm btn-outline" style="font-size:0.65rem;padding:1px 6px" onclick="showEditAuthorizedPerson(' + tenantId + ',' + p.id + ')">Edit</button> ' +
+          '<button class="btn btn-sm btn-outline" style="font-size:0.65rem;padding:1px 6px;color:#dc2626;border-color:#dc2626" onclick="deleteAuthorizedPerson(' + tenantId + ',' + p.id + ')">X</button>' +
+        '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function authorizedPersonFormHtml(p) {
+  p = p || {};
+  return '<div class="form-group"><label>Name</label><input name="name" value="' + escapeHtml(p.name || '') + '" required></div>' +
+    '<div class="form-row">' +
+    '<div class="form-group"><label>Phone</label><input name="phone" value="' + escapeHtml(p.phone || '') + '"></div>' +
+    '<div class="form-group"><label>Relationship</label><select name="relationship">' +
+      RELATIONSHIP_OPTIONS.map(function(r) { return '<option value="' + r.toLowerCase() + '"' + ((p.relationship || '') === r.toLowerCase() ? ' selected' : '') + '>' + r + '</option>'; }).join('') +
+    '</select></div></div>';
+}
+
+function showAddAuthorizedPerson(tenantId) {
+  var overlay = document.createElement('div');
+  overlay.id = 'authperson-form-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:1.5rem;max-width:420px;width:100%">' +
+    '<h3 style="margin:0 0 1rem">Add Authorized Person</h3>' +
+    '<form id="add-authperson-form">' + authorizedPersonFormHtml() +
+    '<div class="btn-group mt-2"><button type="button" class="btn btn-outline" onclick="document.getElementById(\'authperson-form-overlay\').remove()">Cancel</button>' +
+    '<button type="submit" class="btn btn-primary">Add Person</button></div></form></div>';
+  document.body.appendChild(overlay);
+  setTimeout(function() {
+    document.getElementById('add-authperson-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var fd = new FormData(e.target);
+      await API.post('/tenants/' + tenantId + '/authorized-persons', Object.fromEntries(fd));
+      overlay.remove();
+      loadTenantAuthorizedPersons(tenantId);
+    });
+  }, 50);
+}
+
+async function showEditAuthorizedPerson(tenantId, personId) {
+  var persons = await API.get('/tenants/' + tenantId + '/authorized-persons');
+  var p = persons.find(function(x) { return x.id === personId; });
+  if (!p) return;
+  var overlay = document.createElement('div');
+  overlay.id = 'authperson-form-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:1.5rem;max-width:420px;width:100%">' +
+    '<h3 style="margin:0 0 1rem">Edit Authorized Person</h3>' +
+    '<form id="edit-authperson-form">' + authorizedPersonFormHtml(p) +
+    '<div class="btn-group mt-2"><button type="button" class="btn btn-outline" onclick="document.getElementById(\'authperson-form-overlay\').remove()">Cancel</button>' +
+    '<button type="submit" class="btn btn-primary">Save</button></div></form></div>';
+  document.body.appendChild(overlay);
+  setTimeout(function() {
+    document.getElementById('edit-authperson-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var fd = new FormData(e.target);
+      await API.put('/tenants/' + tenantId + '/authorized-persons/' + personId, Object.fromEntries(fd));
+      overlay.remove();
+      loadTenantAuthorizedPersons(tenantId);
+    });
+  }, 50);
+}
+
+async function deleteAuthorizedPerson(tenantId, personId) {
+  if (!confirm('Remove this authorized person?')) return;
+  await API.del('/tenants/' + tenantId + '/authorized-persons/' + personId);
+  loadTenantAuthorizedPersons(tenantId);
 }
 
 // === CREDIT MANAGEMENT MODALS ===

@@ -363,6 +363,44 @@ async function initializeDatabase() {
   }
 
   // Referral tracking
+  // Vehicle tracking per lot
+  db.run(`CREATE TABLE IF NOT EXISTS tenant_vehicles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    vehicle_type TEXT DEFAULT 'car',
+    make TEXT,
+    model TEXT,
+    color TEXT,
+    year TEXT,
+    license_plate TEXT,
+    state TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Occupant tracking
+  db.run(`CREATE TABLE IF NOT EXISTS tenant_occupants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    name TEXT NOT NULL,
+    age_or_dob TEXT,
+    relationship TEXT DEFAULT 'other',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Authorized persons (allowed to access the site)
+  db.run(`CREATE TABLE IF NOT EXISTS tenant_authorized_persons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    name TEXT NOT NULL,
+    phone TEXT,
+    relationship TEXT DEFAULT 'other',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  addCol("ALTER TABLE tenants ADD COLUMN emergency_contact_relationship TEXT");
+  addCol("ALTER TABLE tenants ADD COLUMN recurring_extra_occupancy_fee REAL DEFAULT 0");
+  addCol("ALTER TABLE invoices ADD COLUMN extra_occupancy_fee REAL DEFAULT 0");
+
   addCol("ALTER TABLE tenants ADD COLUMN referred_by INTEGER");
   addCol("ALTER TABLE tenants ADD COLUMN referral_credit REAL DEFAULT 0");
 

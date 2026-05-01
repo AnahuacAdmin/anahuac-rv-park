@@ -515,7 +515,8 @@ router.post('/generate', (req, res) => {
     const misc = tenant.recurring_misc_fee || 0;
     const lateFee = tenant.recurring_late_fee || 0;
     const credit = tenant.recurring_credit || 0;
-    const subtotal = rentAmount + electricAmount + mailbox + misc;
+    const extraOccupancy = tenant.recurring_extra_occupancy_fee || 0;
+    const subtotal = rentAmount + electricAmount + mailbox + misc + extraOccupancy;
     const totalBeforeCredit = subtotal + lateFee - credit;
     const invoiceNum = nextInvoiceNumber();
     const combinedNotes = [moveNote, tenant.mid_month_move_notes].filter(Boolean).join(' — ') || null;
@@ -531,11 +532,11 @@ router.post('/generate', (req, res) => {
 
     const stdInvResult = db.prepare(`
       INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
-        rent_amount, electric_amount, mailbox_fee, misc_fee, misc_description,
+        rent_amount, electric_amount, mailbox_fee, misc_fee, misc_description, extra_occupancy_fee,
         refund_amount, refund_description, late_fee, subtotal, total_amount, balance_due, status, notes, credit_applied)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
     `).run(tenant.id, tenant.lot_id, invoiceNum, startDate, dueDate, startDate, endDate,
-      rentAmount, electricAmount, mailbox, misc, tenant.recurring_misc_description,
+      rentAmount, electricAmount, mailbox, misc, tenant.recurring_misc_description, extraOccupancy,
       credit, tenant.recurring_credit_description, lateFee, subtotal, total, total, combinedNotes, creditApplied);
     if (creditApplied > 0) {
       db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, invoice_id, notes)

@@ -48,7 +48,7 @@ async function loadLotMgmt() {
                 + '<td>' + formatMoney(l.default_rate || 295) + '</td>'
                 + '<td style="text-align:center"><button class="btn btn-sm ' + (l.short_term_only ? 'btn-primary' : 'btn-outline') + '" style="font-size:0.65rem;padding:2px 8px" onclick="toggleShortTerm(\'' + escapeHtml(l.id) + '\')">' + (l.short_term_only ? '⏱️ YES' : '—') + '</button></td>'
                 + '<td><span class="badge badge-' + statusBadge + '">' + l.status + '</span></td>'
-                + '<td>' + (l.tenant_id ? escapeHtml(l.first_name + ' ' + l.last_name) : '—') + '</td>'
+                + '<td>' + (l.tenant_id ? escapeHtml(l.first_name + ' ' + l.last_name) + (l.vehicle_count > 0 ? ' <span title="' + l.vehicle_count + ' vehicle(s)" style="font-size:0.72rem;color:#6b7280">&#128663;' + l.vehicle_count + '</span>' : '') + (l.occupant_count > 0 ? ' <span title="' + l.occupant_count + ' occupant(s)" style="font-size:0.72rem;color:#6b7280">&#128100;' + l.occupant_count + '</span>' : '') : '—') + '</td>'
                 + '<td class="btn-group">' + actions + '</td>'
                 + '</tr>';
             }).join('')}

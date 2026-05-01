@@ -13,7 +13,9 @@ router.use(authenticate);
 router.get('/', (req, res) => {
   const tenants = db.prepare(`
     SELECT t.*, l.row_letter, l.lot_number,
-      COALESCE((SELECT SUM(i.balance_due) FROM invoices i WHERE i.tenant_id = t.id AND i.status IN ('pending','partial') AND COALESCE(i.deleted,0) = 0), 0) AS balance_due
+      COALESCE((SELECT SUM(i.balance_due) FROM invoices i WHERE i.tenant_id = t.id AND i.status IN ('pending','partial') AND COALESCE(i.deleted,0) = 0), 0) AS balance_due,
+      (SELECT COUNT(*) FROM tenant_vehicles WHERE tenant_id = t.id) AS vehicle_count,
+      (SELECT COUNT(*) FROM tenant_occupants WHERE tenant_id = t.id) AS occupant_count
     FROM tenants t
     LEFT JOIN lots l ON t.lot_id = l.id
     WHERE t.is_active = 1
@@ -25,7 +27,9 @@ router.get('/', (req, res) => {
 router.get('/all', (req, res) => {
   const tenants = db.prepare(`
     SELECT t.*, l.row_letter, l.lot_number,
-      COALESCE((SELECT SUM(i.balance_due) FROM invoices i WHERE i.tenant_id = t.id AND i.status IN ('pending','partial') AND COALESCE(i.deleted,0) = 0), 0) AS balance_due
+      COALESCE((SELECT SUM(i.balance_due) FROM invoices i WHERE i.tenant_id = t.id AND i.status IN ('pending','partial') AND COALESCE(i.deleted,0) = 0), 0) AS balance_due,
+      (SELECT COUNT(*) FROM tenant_vehicles WHERE tenant_id = t.id) AS vehicle_count,
+      (SELECT COUNT(*) FROM tenant_occupants WHERE tenant_id = t.id) AS occupant_count
     FROM tenants t
     LEFT JOIN lots l ON t.lot_id = l.id
     ORDER BY t.is_active DESC, t.lot_id
@@ -75,14 +79,15 @@ router.post('/', (req, res) => {
 
     const result = db.prepare(`
       INSERT INTO tenants (lot_id, first_name, last_name, phone, email, emergency_contact, emergency_phone,
+        emergency_contact_relationship,
         rv_make, rv_model, rv_year, rv_length, license_plate, monthly_rent, rent_type, move_in_date, notes,
         recurring_late_fee, recurring_mailbox_fee, recurring_misc_fee, recurring_misc_description,
         recurring_credit, recurring_credit_description, id_number, date_of_birth, deposit_amount,
         flat_rate, flat_rate_amount, deposit_waived)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
-      str(b.emergency_contact), str(b.emergency_phone),
+      str(b.emergency_contact), str(b.emergency_phone), str(b.emergency_contact_relationship),
       str(b.rv_make), str(b.rv_model), str(b.rv_year), str(b.rv_length), str(b.license_plate),
       num(b.monthly_rent) || 295, b.rent_type || 'standard', str(b.move_in_date), str(b.notes),
       num(b.recurring_late_fee), num(b.recurring_mailbox_fee), num(b.recurring_misc_fee),
@@ -105,7 +110,7 @@ router.put('/:id', (req, res) => {
   const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
   db.prepare(`
     UPDATE tenants SET lot_id=?, first_name=?, last_name=?, phone=?, email=?, emergency_contact=?,
-      emergency_phone=?, rv_make=?, rv_model=?, rv_year=?, rv_length=?, license_plate=?,
+      emergency_phone=?, emergency_contact_relationship=?, rv_make=?, rv_model=?, rv_year=?, rv_length=?, license_plate=?,
       monthly_rent=?, rent_type=?, move_in_date=?, notes=?,
       recurring_late_fee=?, recurring_mailbox_fee=?, recurring_misc_fee=?, recurring_misc_description=?,
       recurring_credit=?, recurring_credit_description=?,
@@ -116,7 +121,7 @@ router.put('/:id', (req, res) => {
     WHERE id = ?
   `).run(
     str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
-    str(b.emergency_contact), str(b.emergency_phone),
+    str(b.emergency_contact), str(b.emergency_phone), str(b.emergency_contact_relationship),
     str(b.rv_make), str(b.rv_model), str(b.rv_year), str(b.rv_length), str(b.license_plate),
     b.monthly_rent, b.rent_type, str(b.move_in_date), str(b.notes),
     Number(b.recurring_late_fee) || 0, Number(b.recurring_mailbox_fee) || 0,
@@ -529,6 +534,144 @@ router.post('/:id/incidents', (req, res) => {
     console.error('[tenants] add incident failed:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// === VEHICLES ===
+
+router.get('/:id/vehicles', (req, res) => {
+  try {
+    const vehicles = db.prepare('SELECT * FROM tenant_vehicles WHERE tenant_id = ? ORDER BY id').all(req.params.id);
+    res.json(vehicles);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/:id/vehicles', (req, res) => {
+  try {
+    const b = req.body;
+    const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
+    const result = db.prepare(
+      'INSERT INTO tenant_vehicles (tenant_id, vehicle_type, make, model, color, year, license_plate, state) VALUES (?,?,?,?,?,?,?,?)'
+    ).run(req.params.id, str(b.vehicle_type) || 'car', str(b.make), str(b.model), str(b.color), str(b.year), str(b.license_plate), str(b.state));
+    res.json({ id: result.lastInsertRowid });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/:id/vehicles/:vid', (req, res) => {
+  try {
+    const b = req.body;
+    const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
+    db.prepare(
+      'UPDATE tenant_vehicles SET vehicle_type=?, make=?, model=?, color=?, year=?, license_plate=?, state=? WHERE id=? AND tenant_id=?'
+    ).run(str(b.vehicle_type) || 'car', str(b.make), str(b.model), str(b.color), str(b.year), str(b.license_plate), str(b.state), req.params.vid, req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/:id/vehicles/:vid', (req, res) => {
+  db.prepare('DELETE FROM tenant_vehicles WHERE id = ? AND tenant_id = ?').run(req.params.vid, req.params.id);
+  res.json({ success: true });
+});
+
+// === OCCUPANTS ===
+
+function recalcOccupancyFee(tenantId) {
+  const occupants = db.prepare('SELECT age_or_dob FROM tenant_occupants WHERE tenant_id = ?').all(tenantId);
+  let over8 = 0;
+  for (const occ of occupants) {
+    const val = occ.age_or_dob;
+    if (!val) { over8++; continue; } // unknown age counts as over 8
+    const age = parseInt(val);
+    if (!isNaN(age)) {
+      if (age > 8) over8++;
+    } else {
+      // Try parsing as DOB
+      const dob = new Date(val);
+      if (!isNaN(dob.getTime())) {
+        const ageYears = (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        if (ageYears > 8) over8++;
+      } else {
+        over8++; // unparseable = count as over 8
+      }
+    }
+  }
+  const extraCount = Math.max(0, over8 - 2);
+  const fee = extraCount * 25;
+  db.prepare('UPDATE tenants SET recurring_extra_occupancy_fee = ? WHERE id = ?').run(fee, tenantId);
+  return { over8, extraCount, fee };
+}
+
+router.get('/:id/occupants', (req, res) => {
+  try {
+    const occupants = db.prepare('SELECT * FROM tenant_occupants WHERE tenant_id = ? ORDER BY id').all(req.params.id);
+    const feeInfo = recalcOccupancyFee(parseInt(req.params.id));
+    res.json({ occupants, ...feeInfo });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/:id/occupants', (req, res) => {
+  try {
+    const b = req.body;
+    const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
+    const result = db.prepare(
+      'INSERT INTO tenant_occupants (tenant_id, name, age_or_dob, relationship) VALUES (?,?,?,?)'
+    ).run(req.params.id, b.name, str(b.age_or_dob), str(b.relationship) || 'other');
+    const feeInfo = recalcOccupancyFee(parseInt(req.params.id));
+    res.json({ id: result.lastInsertRowid, ...feeInfo });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/:id/occupants/:oid', (req, res) => {
+  try {
+    const b = req.body;
+    const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
+    db.prepare(
+      'UPDATE tenant_occupants SET name=?, age_or_dob=?, relationship=? WHERE id=? AND tenant_id=?'
+    ).run(b.name, str(b.age_or_dob), str(b.relationship) || 'other', req.params.oid, req.params.id);
+    const feeInfo = recalcOccupancyFee(parseInt(req.params.id));
+    res.json({ success: true, ...feeInfo });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/:id/occupants/:oid', (req, res) => {
+  db.prepare('DELETE FROM tenant_occupants WHERE id = ? AND tenant_id = ?').run(req.params.oid, req.params.id);
+  const feeInfo = recalcOccupancyFee(parseInt(req.params.id));
+  res.json({ success: true, ...feeInfo });
+});
+
+// === AUTHORIZED PERSONS ===
+
+router.get('/:id/authorized-persons', (req, res) => {
+  try {
+    const persons = db.prepare('SELECT * FROM tenant_authorized_persons WHERE tenant_id = ? ORDER BY id').all(req.params.id);
+    res.json(persons);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/:id/authorized-persons', (req, res) => {
+  try {
+    const b = req.body;
+    const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
+    const result = db.prepare(
+      'INSERT INTO tenant_authorized_persons (tenant_id, name, phone, relationship) VALUES (?,?,?,?)'
+    ).run(req.params.id, b.name, str(b.phone), str(b.relationship) || 'other');
+    res.json({ id: result.lastInsertRowid });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/:id/authorized-persons/:pid', (req, res) => {
+  try {
+    const b = req.body;
+    const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
+    db.prepare(
+      'UPDATE tenant_authorized_persons SET name=?, phone=?, relationship=? WHERE id=? AND tenant_id=?'
+    ).run(b.name, str(b.phone), str(b.relationship) || 'other', req.params.pid, req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/:id/authorized-persons/:pid', (req, res) => {
+  db.prepare('DELETE FROM tenant_authorized_persons WHERE id = ? AND tenant_id = ?').run(req.params.pid, req.params.id);
+  res.json({ success: true });
 });
 
 // Update guest rating
