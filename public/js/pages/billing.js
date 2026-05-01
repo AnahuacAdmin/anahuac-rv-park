@@ -532,61 +532,12 @@ async function viewInvoice(id) {
   const inv = await API.get(`/invoices/${id}`);
   if (!inv) return;
 
-  const qrHtml = inv.balance_due > 0.005 ? await invoicePayQrHtml(inv.id) : '';
+  // Use the shared renderInvoiceHtml (which uses forPdf=true for QR).
+  // For the view modal we want the interactive QR, so render it separately.
+  const invoiceBody = await renderInvoiceHtml(inv);
 
   showModal('Invoice ' + inv.invoice_number, `
-    <div class="invoice-print" id="printable-invoice">
-      <div class="invoice-header">
-        <div style="display:flex;align-items:center;gap:1rem">
-          <img src="/park_Logo.png" alt="Anahuac RV Park" style="height:100px;width:auto">
-          <div>
-            <h2>Anahuac RV Park, LLC</h2>
-            <p>1003 Davis Ave, Anahuac, TX 77514</p>
-            <p>409-267-6603</p>
-          </div>
-        </div>
-        <div style="text-align:right">
-          <h3>INVOICE</h3>
-          <p><strong>${inv.invoice_number}</strong></p>
-          <p>Date: ${formatDate(inv.invoice_date)}</p>
-        </div>
-      </div>
-      <div style="margin-bottom:0.5rem">
-        <p><strong>Bill To:</strong></p>
-        <p>${inv.first_name} ${inv.last_name}</p>
-        <p>Lot ${inv.lot_id}</p>
-        ${inv.phone ? `<p>${inv.phone}</p>` : ''}
-      </div>
-      <div class="line-items">
-        <table>
-          <thead><tr><th>Description</th><th class="text-right">Amount</th></tr></thead>
-          <tbody>
-            <tr><td>Monthly Rent</td><td class="text-right">${formatMoney(inv.rent_amount)}</td></tr>
-            ${meterRowsHtml(inv)}
-            ${inv.other_charges ? `<tr><td>${inv.other_description || 'Other Charges'}</td><td class="text-right">${formatMoney(inv.other_charges)}</td></tr>` : ''}
-            ${inv.mailbox_fee ? `<tr><td>Mailbox Fee</td><td class="text-right">${formatMoney(inv.mailbox_fee)}</td></tr>` : ''}
-            ${inv.misc_fee ? `<tr><td>${inv.misc_description || 'Misc Fee'}</td><td class="text-right">${formatMoney(inv.misc_fee)}</td></tr>` : ''}
-            ${inv.extra_occupancy_fee ? `<tr><td>Extra Occupancy Fee</td><td class="text-right">${formatMoney(inv.extra_occupancy_fee)}</td></tr>` : ''}
-            ${inv.late_fee ? `<tr><td>Late Fee</td><td class="text-right">${formatMoney(inv.late_fee)}</td></tr>` : ''}
-            ${inv.refund_amount ? `<tr><td>${inv.refund_description || 'Refund / Credit'}</td><td class="text-right">-${formatMoney(inv.refund_amount)}</td></tr>` : ''}
-            ${inv.credit_applied ? `<tr><td>Account Credit Applied</td><td class="text-right" style="color:#16a34a">-${formatMoney(inv.credit_applied)}</td></tr>` : ''}
-            <tr class="total-row"><td><strong>Total</strong></td><td class="text-right"><strong>${formatMoney(inv.total_amount)}</strong></td></tr>
-            <tr><td>Amount Paid</td><td class="text-right">${formatMoney(inv.amount_paid)}</td></tr>
-            <tr class="total-row"><td><strong>Balance Due</strong></td><td class="text-right"><strong>${formatMoney(inv.balance_due)}</strong></td></tr>
-          </tbody>
-        </table>
-      </div>
-      ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
-      ${qrHtml}
-      ${invoiceStandardNotesHtml()}
-      ${inv.payments?.length ? `
-        <h4 class="mt-2">Payment History</h4>
-        <table>
-          <thead><tr><th>Date</th><th>Amount</th><th>Method</th></tr></thead>
-          <tbody>${inv.payments.map(p => `<tr><td>${formatDate(p.payment_date)}</td><td>${formatMoney(p.amount)}</td><td>${p.payment_method || '—'}</td></tr>`).join('')}</tbody>
-        </table>
-      ` : ''}
-    </div>
+    ${invoiceBody}
     ${inv.balance_due > 0.005 ? `
     <div class="no-print mt-2" style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:0.75rem 1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
       <div style="flex:1;min-width:200px">
@@ -597,12 +548,12 @@ async function viewInvoice(id) {
     </div>
     ` : ''}
     <div class="no-print mt-2 btn-group">
-      <button class="btn btn-primary" onclick="event.stopPropagation(); window.print()">Print Invoice</button>
+      <button class="btn btn-primary" onclick="event.stopPropagation(); printInvoice(${inv.id})">Print Invoice</button>
       <button class="btn btn-outline" onclick="event.stopPropagation(); downloadInvoicePdfFromView('${inv.invoice_number}')">Download PDF</button>
       <button class="btn btn-outline" onclick="event.stopPropagation(); emailInvoice(${inv.id})">Email Invoice</button>
     </div>
   `);
-  // Render QR code in the view modal after DOM mount.
+  // Render interactive QR code in the view modal after DOM mount.
   setTimeout(() => {
     const qrEl = document.getElementById('invoice-pay-qr');
     if (qrEl && typeof QRCode !== 'undefined') {
@@ -715,136 +666,229 @@ async function printMonthInvoices(ids) {
       var inv = await API.get('/invoices/' + ids[i]);
       if (!inv) continue;
       var html = await renderInvoiceHtml(inv);
-      allHtml += (i > 0 ? '<div style="page-break-before:always"></div>' : '') + html;
+      if (i > 0) allHtml += '<div class="invoice-page-break"></div>';
+      allHtml += html;
     }
     if (!allHtml) throw new Error('No invoices to print');
-    _printViaIframe(allHtml);
+    _openPrintWindow(allHtml);
   } catch (err) {
     console.error('[billing] batch print failed:', err);
     showStatusToast('❌', 'Print failed — try printing individually');
   }
 }
 
-// Internal helper: render a single invoice and trigger print via iframe.
+// Internal helper: render a single invoice and trigger print.
 async function _printInvoiceHtml(inv) {
   var html = await renderInvoiceHtml(inv);
-  _printViaIframe(html);
+  _openPrintWindow(html);
 }
 
-// Print HTML content via a hidden iframe (avoids popup blockers).
-// The iframe is fully self-contained with inline styles — no external stylesheet.
-function _printViaIframe(html) {
-  // Remove any previous print iframe
-  var old = document.getElementById('invoice-print-iframe');
-  if (old) old.remove();
-
-  var iframe = document.createElement('iframe');
-  iframe.id = 'invoice-print-iframe';
-  iframe.style.cssText = 'position:fixed;top:-99999px;left:-99999px;width:800px;height:1000px;border:none;visibility:hidden;pointer-events:none';
-  document.body.appendChild(iframe);
-
-  var printCSS = [
-    '*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }',
-    'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11pt; color: #1c1917; background: #fff; padding: 0.5in; }',
-    '.invoice-print { max-width: 7.5in; margin: 0 auto; }',
-    '.invoice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 2px solid #1a5c32; padding-bottom: 0.75rem; }',
-    '.invoice-header img { height: 60px; width: auto; }',
-    '.invoice-header h2 { font-size: 14pt; margin: 0; color: #1a5c32; }',
-    '.invoice-header h3 { font-size: 16pt; margin: 0; color: #1a5c32; }',
-    '.invoice-header p { font-size: 9pt; margin: 0.1rem 0; color: #44403c; }',
-    'p { margin: 0.2rem 0; font-size: 10pt; }',
-    'strong { font-weight: 700; }',
-    'table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 10pt; }',
-    'th, td { padding: 0.3rem 0.5rem; text-align: left; border-bottom: 1px solid #e7e5e4; }',
-    'th { background: #f5f5f4; font-weight: 700; font-size: 9pt; text-transform: uppercase; color: #57534e; }',
-    '.text-right { text-align: right; }',
-    '.total-row td { border-top: 2px solid #1c1917; font-weight: 700; }',
-    '.line-items { margin: 1rem 0; }',
-    '.invoice-qr-section { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; padding: 0.75rem; border: 1px solid #e7e5e4; border-radius: 8px; }',
-    '.invoice-qr-section img { width: 80px; height: 80px; }',
-    '.invoice-standard-notes { font-size: 8pt; color: #78716c; margin-top: 1rem; border-top: 1px solid #e7e5e4; padding-top: 0.5rem; }',
-    '.invoice-standard-notes p { font-size: 8pt; margin: 0.15rem 0; }',
-    '.no-print { display: none !important; }',
-    '@media print {',
-    '  body { padding: 0; }',
-    '  .invoice-print { page-break-after: always; }',
-    '  .invoice-print:last-child { page-break-after: auto; }',
-    '  @page { margin: 0.5in; size: letter portrait; }',
-    '}',
-  ].join('\n');
-
-  var doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>' + printCSS + '</style></head><body>' + html + '</body></html>');
-  doc.close();
-
-  // Wait for images to load, then trigger print
-  var images = doc.querySelectorAll('img');
-  var loaded = 0;
-  var total = images.length;
-  function onReady() {
-    setTimeout(function() {
-      try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) { console.error('[billing] iframe print error:', e); }
-      setTimeout(function() { iframe.remove(); }, 3000);
-    }, 200);
-  }
-  if (total === 0) { onReady(); return; }
-  images.forEach(function(img) {
-    if (img.complete) { loaded++; if (loaded >= total) onReady(); }
-    else {
-      img.onload = img.onerror = function() { loaded++; if (loaded >= total) onReady(); };
+// The full inline CSS for the print window — professional invoice styling.
+function _invoicePrintCSS() {
+  return `
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+      font-size: 11pt; color: #1a1a1a; background: #fff;
+      margin: 0; padding: 0.5in;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
-  });
+    .invoice-print {
+      max-width: 7.5in; margin: 0 auto; page-break-inside: avoid;
+    }
+    .invoice-page-break { page-break-after: always; height: 0; }
+
+    /* Header */
+    .inv-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding-bottom: 14px; margin-bottom: 18px;
+      border-bottom: 3px solid #1a5c32;
+    }
+    .inv-header-left { display: flex; align-items: center; gap: 14px; }
+    .inv-header-left img { height: 80px; width: auto; }
+    .inv-header-left h1 { font-size: 18pt; font-weight: 800; color: #1a5c32; margin: 0; letter-spacing: -0.3px; }
+    .inv-header-left p { font-size: 10pt; color: #44403c; margin: 1px 0; line-height: 1.4; }
+    .inv-header-right { text-align: right; }
+    .inv-header-right .inv-label { font-size: 22pt; font-weight: 800; color: #1a5c32; letter-spacing: 1px; margin: 0; }
+    .inv-header-right p { font-size: 10pt; color: #44403c; margin: 2px 0; }
+
+    /* Bill To */
+    .inv-bill-to { margin-bottom: 18px; }
+    .inv-bill-to .inv-bt-label { font-size: 9pt; font-weight: 700; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .inv-bill-to .inv-bt-name { font-size: 14pt; font-weight: 700; color: #1a1a1a; margin: 0; }
+    .inv-bill-to p { font-size: 10pt; color: #44403c; margin: 1px 0; }
+
+    /* Line items table */
+    .inv-table { width: 100%; border-collapse: collapse; margin: 0 0 6px; font-size: 11pt; }
+    .inv-table th {
+      background: #f5f5f4; font-weight: 700; font-size: 9pt; text-transform: uppercase;
+      color: #57534e; padding: 8px 12px; text-align: left;
+      border-bottom: 2px solid #d6d3d1; letter-spacing: 0.3px;
+    }
+    .inv-table th.text-right { text-align: right; }
+    .inv-table td { padding: 8px 12px; border-bottom: 1px solid #e7e5e4; font-size: 10.5pt; }
+    .inv-table td.text-right { text-align: right; font-variant-numeric: tabular-nums; }
+    .inv-table tr:nth-child(even) td { background: #fafaf9; }
+    .inv-table tr.inv-subtotal td { border-top: 2px solid #1a5c32; font-weight: 700; font-size: 11pt; background: transparent; }
+    .inv-table tr.inv-paid td { background: transparent; color: #44403c; }
+    .inv-table tr.inv-balance td {
+      font-weight: 800; font-size: 12pt; background: transparent; border-top: none;
+    }
+    .inv-table tr.inv-balance-due td {
+      font-weight: 800; font-size: 13pt; background: #fef2f2; color: #b91c1c; border-top: 2px solid #b91c1c;
+    }
+    .inv-table tr.inv-balance-paid td {
+      font-weight: 800; font-size: 13pt; background: #f0fdf4; color: #15803d; border-top: 2px solid #15803d;
+    }
+
+    /* Notes */
+    .inv-notes { font-size: 9.5pt; color: #374151; margin: 10px 0; padding: 8px 12px; background: #fafaf9; border-radius: 4px; border-left: 3px solid #d6d3d1; }
+
+    /* QR section */
+    .inv-qr-section {
+      display: flex; align-items: center; gap: 14px; margin: 14px 0;
+      padding: 12px 16px; border: 1.5px solid #d6d3d1; border-radius: 8px; background: #fafaf9;
+    }
+    .inv-qr-section img { width: 90px; height: 90px; }
+    .inv-qr-section strong { font-size: 11pt; }
+    .inv-qr-section p { font-size: 8.5pt; color: #78716c; margin: 2px 0 0; }
+    .inv-qr-section .inv-pay-url { font-size: 8pt; color: #1a5c32; word-break: break-all; margin-top: 2px; }
+
+    /* Fine print */
+    .inv-fine-print {
+      margin-top: 14px; padding-top: 10px; border-top: 1.5px solid #d6d3d1;
+      font-size: 8.5pt; color: #57534e; line-height: 1.5;
+    }
+    .inv-fine-print p { font-size: 8.5pt; margin: 3px 0; }
+    .inv-fine-print .inv-fp-warn { font-weight: 700; color: #92400e; }
+    .inv-fine-print ul { margin: 4px 0 4px 18px; padding: 0; }
+    .inv-fine-print li { margin: 2px 0; font-size: 8pt; }
+
+    /* Payment history */
+    .inv-payments { margin-top: 12px; }
+    .inv-payments h4 { font-size: 10pt; font-weight: 700; margin-bottom: 4px; color: #374151; }
+    .inv-payments table { font-size: 9.5pt; }
+
+    .no-print { display: none !important; }
+    @media print {
+      body { padding: 0; }
+      .invoice-print { page-break-after: always; }
+      .invoice-print:last-child { page-break-after: auto; }
+      @page { margin: 0.5in; size: letter portrait; }
+    }
+  `;
 }
 
-// Reusable invoice HTML used by both view modal and offscreen PDF render.
+// Open a new window with invoice HTML and trigger print.
+// Falls back to in-page print if popup is blocked.
+function _openPrintWindow(html) {
+  var css = _invoicePrintCSS();
+  var fullDoc = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice</title><style>' + css + '</style></head><body>' + html + '</body></html>';
+
+  // Try window.open first
+  var win = window.open('', '_blank');
+  if (win) {
+    win.document.open();
+    win.document.write(fullDoc);
+    win.document.close();
+    // Wait for images, then print
+    var checkReady = function() {
+      var imgs = win.document.querySelectorAll('img');
+      var allLoaded = true;
+      imgs.forEach(function(img) { if (!img.complete) allLoaded = false; });
+      if (allLoaded) {
+        setTimeout(function() { win.focus(); win.print(); }, 200);
+      } else {
+        setTimeout(checkReady, 100);
+      }
+    };
+    win.document.addEventListener('DOMContentLoaded', function() { checkReady(); });
+    // Fallback in case DOMContentLoaded already fired
+    setTimeout(checkReady, 500);
+    return;
+  }
+
+  // Fallback: hide everything, inject invoice, print, restore
+  console.warn('[billing] popup blocked, using in-page fallback');
+  var overlay = document.createElement('div');
+  overlay.id = 'invoice-print-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;overflow:auto;padding:0.5in';
+  overlay.innerHTML = '<style>' + css + ' #invoice-print-overlay ~ * { display: none !important; }</style>' + html;
+  document.body.appendChild(overlay);
+  setTimeout(function() {
+    window.print();
+    setTimeout(function() { overlay.remove(); }, 500);
+  }, 300);
+}
+
+// Reusable invoice HTML used by view modal, PDF render, and print.
 async function renderInvoiceHtml(inv) {
+  const balanceNum = Number(inv.balance_due) || 0;
+  const isPaid = balanceNum <= 0.005;
+  const balanceClass = isPaid ? 'inv-balance-paid' : 'inv-balance-due';
+  const dueDateStr = inv.due_date ? formatDate(inv.due_date) : '';
+
   return `
     <div class="invoice-print" id="printable-invoice">
-      <div class="invoice-header">
-        <div style="display:flex;align-items:center;gap:1rem">
-          <img src="/park_Logo.png" alt="Anahuac RV Park" style="height:70px;width:auto" crossorigin="anonymous">
+      <div class="inv-header">
+        <div class="inv-header-left">
+          <img src="/park_Logo.png" alt="Anahuac RV Park" crossorigin="anonymous">
           <div>
-            <h2>Anahuac RV Park, LLC</h2>
+            <h1>Anahuac RV Park, LLC</h1>
             <p>1003 Davis Ave, Anahuac, TX 77514</p>
-            <p>409-267-6603</p>
+            <p>Phone: 409-267-6603</p>
           </div>
         </div>
-        <div style="text-align:right">
-          <h3>INVOICE</h3>
+        <div class="inv-header-right">
+          <p class="inv-label">INVOICE</p>
           <p><strong>${inv.invoice_number}</strong></p>
           <p>Date: ${formatDate(inv.invoice_date)}</p>
+          ${dueDateStr ? `<p>Due: ${dueDateStr}</p>` : ''}
         </div>
       </div>
-      <div style="margin-bottom:0.5rem">
-        <p><strong>Bill To:</strong></p>
-        <p>${inv.first_name} ${inv.last_name}</p>
+
+      <div class="inv-bill-to">
+        <p class="inv-bt-label">Bill To</p>
+        <p class="inv-bt-name">${inv.first_name} ${inv.last_name}</p>
         <p>Lot ${inv.lot_id}</p>
         ${inv.phone ? `<p>${inv.phone}</p>` : ''}
+        ${inv.email ? `<p>${inv.email}</p>` : ''}
       </div>
-      <div class="line-items">
-        <table>
-          <thead><tr><th>Description</th><th class="text-right">Amount</th></tr></thead>
-          <tbody>
-            <tr><td>Monthly Rent</td><td class="text-right">${formatMoney(inv.rent_amount)}</td></tr>
-            ${meterRowsHtml(inv)}
-            ${inv.other_charges ? `<tr><td>${inv.other_description || 'Other Charges'}</td><td class="text-right">${formatMoney(inv.other_charges)}</td></tr>` : ''}
-            ${inv.mailbox_fee ? `<tr><td>Mailbox Fee</td><td class="text-right">${formatMoney(inv.mailbox_fee)}</td></tr>` : ''}
-            ${inv.misc_fee ? `<tr><td>${inv.misc_description || 'Misc Fee'}</td><td class="text-right">${formatMoney(inv.misc_fee)}</td></tr>` : ''}
-            ${inv.extra_occupancy_fee ? `<tr><td>Extra Occupancy Fee</td><td class="text-right">${formatMoney(inv.extra_occupancy_fee)}</td></tr>` : ''}
-            ${inv.late_fee ? `<tr><td>Late Fee</td><td class="text-right">${formatMoney(inv.late_fee)}</td></tr>` : ''}
-            ${inv.refund_amount ? `<tr><td>${inv.refund_description || 'Refund / Credit'}</td><td class="text-right">-${formatMoney(inv.refund_amount)}</td></tr>` : ''}
-            ${inv.credit_applied ? `<tr><td>Account Credit Applied</td><td class="text-right" style="color:#16a34a">-${formatMoney(inv.credit_applied)}</td></tr>` : ''}
-            <tr class="total-row"><td><strong>Total</strong></td><td class="text-right"><strong>${formatMoney(inv.total_amount)}</strong></td></tr>
-            <tr><td>Amount Paid</td><td class="text-right">${formatMoney(inv.amount_paid)}</td></tr>
-            <tr class="total-row"><td><strong>Balance Due</strong></td><td class="text-right"><strong>${formatMoney(inv.balance_due)}</strong></td></tr>
-          </tbody>
-        </table>
-      </div>
-      ${inv.notes ? `<p><strong>Notes:</strong> ${inv.notes}</p>` : ''}
-      ${inv.balance_due > 0.005 ? await invoicePayQrHtml(inv.id, true) : ''}
-      ${inv.balance_due > 0.005 ? `<p style="text-align:center;font-size:0.8rem;margin:0.3rem 0"><strong>Pay online at:</strong> <a href="${APP_URL}/pay.html?pay=${inv.id}">${APP_URL}/pay.html?pay=${inv.id}</a></p>` : ''}
+
+      <table class="inv-table">
+        <thead><tr><th>Description</th><th class="text-right" style="width:120px">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>Monthly Rent</td><td class="text-right">${formatMoney(inv.rent_amount)}</td></tr>
+          ${meterRowsHtml(inv)}
+          ${inv.other_charges ? `<tr><td>${inv.other_description || 'Other Charges'}</td><td class="text-right">${formatMoney(inv.other_charges)}</td></tr>` : ''}
+          ${inv.mailbox_fee ? `<tr><td>Mailbox Fee</td><td class="text-right">${formatMoney(inv.mailbox_fee)}</td></tr>` : ''}
+          ${inv.misc_fee ? `<tr><td>${inv.misc_description || 'Miscellaneous Fee'}</td><td class="text-right">${formatMoney(inv.misc_fee)}</td></tr>` : ''}
+          ${inv.extra_occupancy_fee ? `<tr><td>Extra Occupancy Fee</td><td class="text-right">${formatMoney(inv.extra_occupancy_fee)}</td></tr>` : ''}
+          ${inv.late_fee ? `<tr><td>Late Fee</td><td class="text-right">${formatMoney(inv.late_fee)}</td></tr>` : ''}
+          ${inv.refund_amount ? `<tr><td>${inv.refund_description || 'Refund / Credit'}</td><td class="text-right" style="color:#b91c1c">-${formatMoney(inv.refund_amount)}</td></tr>` : ''}
+          ${inv.credit_applied ? `<tr><td>Account Credit Applied</td><td class="text-right" style="color:#15803d">-${formatMoney(inv.credit_applied)}</td></tr>` : ''}
+          <tr class="inv-subtotal"><td>Subtotal</td><td class="text-right">${formatMoney(inv.total_amount)}</td></tr>
+          <tr class="inv-paid"><td>Amount Paid</td><td class="text-right">${formatMoney(inv.amount_paid)}</td></tr>
+          <tr class="${balanceClass}"><td>Balance Due</td><td class="text-right">${formatMoney(inv.balance_due)}</td></tr>
+        </tbody>
+      </table>
+
+      ${inv.notes ? `<div class="inv-notes"><strong>Notes:</strong> ${inv.notes}</div>` : ''}
+
+      ${!isPaid ? await invoicePayQrHtml(inv.id, true) : ''}
+      ${!isPaid ? `<p style="text-align:center;font-size:8.5pt;color:#1a5c32;margin:2px 0 10px"><strong>Pay online:</strong> <a href="${APP_URL}/pay.html?pay=${inv.id}" style="color:#1a5c32">${APP_URL}/pay.html?pay=${inv.id}</a></p>` : ''}
+
       ${invoiceStandardNotesHtml()}
+
+      ${inv.payments?.length ? `
+        <div class="inv-payments">
+          <h4>Payment History</h4>
+          <table class="inv-table">
+            <thead><tr><th>Date</th><th>Amount</th><th>Method</th></tr></thead>
+            <tbody>${inv.payments.map(p => `<tr><td>${formatDate(p.payment_date)}</td><td>${formatMoney(p.amount)}</td><td>${p.payment_method || '—'}</td></tr>`).join('')}</tbody>
+          </table>
+        </div>
+      ` : ''}
     </div>
   `;
 }
@@ -860,21 +904,22 @@ async function invoicePayQrHtml(invoiceId, forPdf) {
     const qrDataUrl = await generateQrDataUrl(payUrl);
     if (!qrDataUrl) return ''; // QRCode.js not loaded; skip silently
     return `
-      <div class="invoice-qr-section" style="page-break-inside:avoid">
+      <div class="inv-qr-section" style="page-break-inside:avoid">
         <img src="${qrDataUrl}" alt="Pay QR code" width="120" height="120">
         <div>
           <strong>Scan to Pay Online</strong>
-          <p style="font-size:0.8rem;color:#555;margin:0.2rem 0 0">A 3% convenience fee applies to card payments.</p>
+          <p>A 3% convenience fee applies to card payments.</p>
+          <p class="inv-pay-url">${payUrl}</p>
         </div>
       </div>
     `;
   }
   return `
-    <div class="invoice-qr-section" style="page-break-inside:avoid">
+    <div class="inv-qr-section" style="page-break-inside:avoid">
       <div id="invoice-pay-qr" data-url="${payUrl}"></div>
       <div>
         <strong>Scan to Pay Online</strong>
-        <p style="font-size:0.8rem;color:#555;margin:0.2rem 0 0">A 3% convenience fee applies to card payments.</p>
+        <p style="font-size:0.8rem;color:#78716c;margin:0.2rem 0 0">A 3% convenience fee applies to card payments.</p>
       </div>
     </div>
   `;
@@ -900,16 +945,16 @@ async function generateQrDataUrl(text) {
 
 function invoiceStandardNotesHtml() {
   return `
-    <div class="invoice-standard-notes" style="margin-top:0.2rem;padding-top:0.2rem;border-top:1px solid #ccc;font-size:0.7rem;line-height:1.25;color:#374151">
-      <p style="margin:0.15rem 0">We would appreciate it if you could make arrangements to complete payment as soon as possible.</p>
-      <p style="margin:0.15rem 0">If payment is not received within 3 days from the date of this invoice a $25.00 fee will be applied.</p>
-      <p style="margin:0.15rem 0">If payment is not received within 5 days of this invoice, an eviction notice will be served.</p>
-      <p style="margin:0.15rem 0">Please do not hesitate to call us if you have any questions about the balance due on your account. If you have already sent us your payment, please disregard.</p>
-      <ul style="margin:0.1rem 0 0.1rem 1rem;padding:0;font-size:0.68rem">
-        <li>Please pay by debit/credit card or deliver payment into night deposit box located at the front of the warehouse, if we are not available to receive payment by phone.</li>
-        <li>If paying with credit card a 3% charge will be applied.</li>
+    <div class="inv-fine-print">
+      <p>Please make arrangements to complete payment as soon as possible.</p>
+      <p class="inv-fp-warn">A $25.00 late fee will be applied if payment is not received within 3 days of the invoice date.</p>
+      <p class="inv-fp-warn">An eviction notice will be served if payment is not received within 5 days.</p>
+      <p>Please do not hesitate to call us if you have any questions about the balance due on your account. If you have already sent your payment, please disregard this notice.</p>
+      <ul>
+        <li>Pay by debit/credit card online, or deliver payment to the night deposit box at the front of the warehouse.</li>
+        <li>A 3% convenience fee applies to all credit/debit card payments.</li>
       </ul>
-      <p style="margin:0.15rem 0">Thank you very much for your attention to this matter and your continued business. We sincerely appreciate your business and hope you have a blessed day!</p>
+      <p>Thank you for your continued business. We sincerely appreciate you and hope you have a blessed day!</p>
     </div>
   `;
 }
