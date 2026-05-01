@@ -48,6 +48,16 @@ require('./stripe-webhook').registerStripeWebhook(app);
 app.use('/api/twilio/incoming-sms', require('./routes/twilio-webhook'));
 
 app.use(express.json({ limit: '5mb' })); // 5mb to allow base64 PDF attachments for emailed invoices
+
+// Prevent browsers from caching HTML pages — always fetch latest version
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path.endsWith('.html')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Rate limit login attempts to prevent brute force

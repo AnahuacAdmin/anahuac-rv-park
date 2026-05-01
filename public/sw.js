@@ -3,7 +3,7 @@
  * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
  * Service Worker — Offline & Caching
  */
-const CACHE_NAME = 'rvpark-v50';
+const CACHE_NAME = 'rvpark-v51';
 
 const APP_SHELL = [
   // NOTE: '/' intentionally excluded — handled separately as network-first to prevent caching stale HTML
@@ -82,8 +82,8 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.method !== 'GET') return;
 
-  // Root page: network-first to prevent caching stale HTML (black screen fix)
-  if (url.pathname === '/' && url.hostname === self.location.hostname) {
+  // HTML pages: network-first to prevent caching stale HTML
+  if ((url.pathname === '/' || url.pathname === '/portal.html' || url.pathname === '/pay.html') && url.hostname === self.location.hostname) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
