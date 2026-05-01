@@ -100,7 +100,41 @@ async function loadBilling() {
 
 function renderInvoiceRows(invoices) {
   if (!invoices.length) return '<tr><td colspan="16" class="text-center" style="padding:2rem">No invoices yet. Generate monthly invoices to get started.</td></tr>';
-  return invoices.map(inv => renderInvoiceRow(inv)).join('');
+
+  // Group invoices by month/year from invoice_date
+  var rows = '';
+  var lastMonthKey = '';
+  var monthIndex = 0;
+  for (var i = 0; i < invoices.length; i++) {
+    var inv = invoices[i];
+    var d = new Date(inv.invoice_date);
+    var monthKey = isNaN(d.getTime()) ? 'Unknown' : d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (monthKey !== lastMonthKey) {
+      var monthLabel = isNaN(d.getTime()) ? 'Unknown' : d.toLocaleString('default', { month: 'long', year: 'numeric' });
+      // Count invoices in this month
+      var monthCount = 0;
+      var monthTotal = 0;
+      var monthPaid = 0;
+      for (var j = i; j < invoices.length; j++) {
+        var d2 = new Date(invoices[j].invoice_date);
+        var mk2 = isNaN(d2.getTime()) ? 'Unknown' : d2.getFullYear() + '-' + String(d2.getMonth() + 1).padStart(2, '0');
+        if (mk2 !== monthKey) break;
+        monthCount++;
+        monthTotal += Number(invoices[j].total_amount) || 0;
+        monthPaid += Number(invoices[j].amount_paid) || 0;
+      }
+      var headerBg = monthIndex % 2 === 0 ? '#f0faf0' : '#eef2f7';
+      rows += '<tr class="month-header-row" style="background:' + headerBg + '"><td colspan="16" style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.85rem;border-bottom:2px solid ' + (monthIndex % 2 === 0 ? '#c6e6c6' : '#cdd5de') + ';color:#1c1917">' +
+        '📅 ' + monthLabel +
+        '<span style="font-weight:400;color:#78716c;margin-left:0.75rem;font-size:0.78rem">' + monthCount + ' invoice' + (monthCount !== 1 ? 's' : '') +
+        ' · Total: ' + formatMoney(monthTotal) + ' · Collected: ' + formatMoney(monthPaid) + '</span></td></tr>';
+      lastMonthKey = monthKey;
+      monthIndex++;
+    }
+    var rowBg = monthIndex % 2 === 0 ? '#fafffe' : '';
+    rows += renderInvoiceRow(inv, rowBg);
+  }
+  return rows;
 }
 
 function toggleShowDeleted(checked) {
@@ -108,8 +142,8 @@ function toggleShowDeleted(checked) {
   loadBilling();
 }
 
-function renderInvoiceRow(inv) {
-  if (inv.deleted) return renderDeletedInvoiceRow(inv);
+function renderInvoiceRow(inv, rowBg) {
+  if (inv.deleted) return renderDeletedInvoiceRow(inv, rowBg);
   const _t = (window._billingTenants || []).find(x => x.id === inv.tenant_id);
   const _rt = _t?.rent_type || 'monthly';
   const _rtColor = { monthly:'#1a5c32', weekly:'#7c3aed', daily:'#f59e0b', prorated:'#eab308', electric_only:'#9ca3af', premium:'#1a5c32', standard:'#1a5c32' }[_rt] || '#1a5c32';
@@ -117,7 +151,7 @@ function renderInvoiceRow(inv) {
   const _paused = _t?.eviction_paused;
   const _statusColor = _paused ? '#9ca3af' : inv.status === 'paid' ? '#16a34a' : inv.status === 'partial' ? '#f59e0b' : '#dc2626';
   return `
-    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_statusColor}">
+    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
       <td style="padding:0.25rem">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">
           <button class="inv-act-btn" onclick="event.stopPropagation();viewInvoice(${inv.id})">View</button>
@@ -149,9 +183,9 @@ function renderInvoiceRow(inv) {
   `;
 }
 
-function renderDeletedInvoiceRow(inv) {
+function renderDeletedInvoiceRow(inv, rowBg) {
   return `
-    <tr class="invoice-row deleted-row" data-id="${inv.id}" style="color:#9ca3af;background:#f3f4f6;font-style:italic">
+    <tr class="invoice-row deleted-row" data-id="${inv.id}" style="color:#9ca3af;background:${rowBg || '#f3f4f6'};font-style:italic">
       <td style="padding:0.25rem"><button class="inv-act-btn inv-act-green" style="width:100%" onclick="restoreInvoice(${inv.id})">Restore</button></td>
       <td>${inv.invoice_number}</td>
       <td>${inv.lot_id}</td>
