@@ -732,25 +732,69 @@ async function _printInvoiceHtml(inv) {
 }
 
 // Print HTML content via a hidden iframe (avoids popup blockers).
+// The iframe is fully self-contained with inline styles — no external stylesheet.
 function _printViaIframe(html) {
+  // Remove any previous print iframe
+  var old = document.getElementById('invoice-print-iframe');
+  if (old) old.remove();
+
   var iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;top:-99999px;left:-99999px;width:800px;height:1000px;border:none;visibility:hidden';
+  iframe.id = 'invoice-print-iframe';
+  iframe.style.cssText = 'position:fixed;top:-99999px;left:-99999px;width:800px;height:1000px;border:none;visibility:hidden;pointer-events:none';
   document.body.appendChild(iframe);
+
+  var printCSS = [
+    '*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }',
+    'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11pt; color: #1c1917; background: #fff; padding: 0.5in; }',
+    '.invoice-print { max-width: 7.5in; margin: 0 auto; }',
+    '.invoice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 2px solid #1a5c32; padding-bottom: 0.75rem; }',
+    '.invoice-header img { height: 60px; width: auto; }',
+    '.invoice-header h2 { font-size: 14pt; margin: 0; color: #1a5c32; }',
+    '.invoice-header h3 { font-size: 16pt; margin: 0; color: #1a5c32; }',
+    '.invoice-header p { font-size: 9pt; margin: 0.1rem 0; color: #44403c; }',
+    'p { margin: 0.2rem 0; font-size: 10pt; }',
+    'strong { font-weight: 700; }',
+    'table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 10pt; }',
+    'th, td { padding: 0.3rem 0.5rem; text-align: left; border-bottom: 1px solid #e7e5e4; }',
+    'th { background: #f5f5f4; font-weight: 700; font-size: 9pt; text-transform: uppercase; color: #57534e; }',
+    '.text-right { text-align: right; }',
+    '.total-row td { border-top: 2px solid #1c1917; font-weight: 700; }',
+    '.line-items { margin: 1rem 0; }',
+    '.invoice-qr-section { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; padding: 0.75rem; border: 1px solid #e7e5e4; border-radius: 8px; }',
+    '.invoice-qr-section img { width: 80px; height: 80px; }',
+    '.invoice-standard-notes { font-size: 8pt; color: #78716c; margin-top: 1rem; border-top: 1px solid #e7e5e4; padding-top: 0.5rem; }',
+    '.invoice-standard-notes p { font-size: 8pt; margin: 0.15rem 0; }',
+    '.no-print { display: none !important; }',
+    '@media print {',
+    '  body { padding: 0; }',
+    '  .invoice-print { page-break-after: always; }',
+    '  .invoice-print:last-child { page-break-after: auto; }',
+    '  @page { margin: 0.5in; size: letter portrait; }',
+    '}',
+  ].join('\n');
+
   var doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
-  doc.write('<html><head>');
-  doc.write('<link rel="stylesheet" href="/css/style.css">');
-  doc.write('<style>body{margin:0;padding:1rem;background:#fff} .invoice-print{max-width:800px;margin:0 auto 1rem} @media print{body{padding:0}}</style>');
-  doc.write('</head><body>' + html + '</body></html>');
+  doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>' + printCSS + '</style></head><body>' + html + '</body></html>');
   doc.close();
-  // Wait for CSS + images to load, then print and clean up
-  iframe.onload = function() {
+
+  // Wait for images to load, then trigger print
+  var images = doc.querySelectorAll('img');
+  var loaded = 0;
+  var total = images.length;
+  function onReady() {
     setTimeout(function() {
-      try { iframe.contentWindow.print(); } catch (e) { console.error('[billing] iframe print error:', e); }
-      // Remove iframe after a delay to let the print dialog finish
-      setTimeout(function() { iframe.remove(); }, 2000);
-    }, 400);
-  };
+      try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) { console.error('[billing] iframe print error:', e); }
+      setTimeout(function() { iframe.remove(); }, 3000);
+    }, 200);
+  }
+  if (total === 0) { onReady(); return; }
+  images.forEach(function(img) {
+    if (img.complete) { loaded++; if (loaded >= total) onReady(); }
+    else {
+      img.onload = img.onerror = function() { loaded++; if (loaded >= total) onReady(); };
+    }
+  });
 }
 
 // Reusable invoice HTML used by both view modal and offscreen PDF render.
