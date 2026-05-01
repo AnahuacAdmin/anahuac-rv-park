@@ -20,14 +20,48 @@ if (!fs.existsSync(PHOTOS_DIR)) fs.mkdirSync(PHOTOS_DIR, { recursive: true });
 router.get('/photo-stats', (req, res) => {
   const total = db.prepare('SELECT COUNT(*) as cnt FROM meter_readings').get().cnt;
   const withPhoto = db.prepare("SELECT COUNT(*) as cnt FROM meter_readings WHERE photo IS NOT NULL AND photo != ''").get().cnt;
-  const today = new Date().toISOString().split('T')[0];
+  // Use CDT (UTC-5) for "today" to match client-side dates
+  const now = new Date();
+  const cdt = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+  const today = cdt.toISOString().split('T')[0];
   const todayTotal = db.prepare('SELECT COUNT(*) as cnt FROM meter_readings WHERE reading_date = ?').get(today).cnt;
   const todayWithPhoto = db.prepare("SELECT COUNT(*) as cnt FROM meter_readings WHERE reading_date = ? AND photo IS NOT NULL AND photo != ''").get(today).cnt;
   const recentWithPhotos = db.prepare("SELECT id, lot_id, reading_date, photo FROM meter_readings WHERE photo IS NOT NULL AND photo != '' ORDER BY id DESC LIMIT 10").all();
   recentWithPhotos.forEach(r => {
     r.file_exists = fs.existsSync(path.join(PHOTOS_DIR, r.photo || ''));
   });
-  res.json({ total, withPhoto, todayTotal, todayWithPhoto, photosDir: PHOTOS_DIR, recentWithPhotos });
+  res.json({ total, withPhoto, todayTotal, todayWithPhoto, todayDate: today, photosDir: PHOTOS_DIR, recentWithPhotos });
+});
+
+// Serve meter photos — public (no auth) so <img> tags can load them directly
+router.get('/:id/photo', (req, res) => {
+  try {
+    const row = db.prepare('SELECT photo FROM meter_readings WHERE id = ?').get(req.params.id);
+    if (!row?.photo) return res.status(404).json({ error: 'No photo for this reading' });
+
+    // New style: photo column holds a filename on disk.
+    const filepath = path.join(PHOTOS_DIR, row.photo);
+    if (fs.existsSync(filepath)) {
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return fs.createReadStream(filepath).pipe(res);
+    }
+
+    // Legacy fallback: photo column holds raw base64 data.
+    try {
+      const buf = Buffer.from(row.photo, 'base64');
+      if (buf.length > 100) {
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.send(buf);
+      }
+    } catch {}
+
+    res.status(404).json({ error: 'Photo file not found' });
+  } catch (err) {
+    console.error('[meters] photo serve error:', err);
+    res.status(500).json({ error: 'Failed to serve photo' });
+  }
 });
 
 router.use(authenticate);
@@ -121,6 +155,9 @@ router.get('/latest', (req, res) => {
     });
   }
 
+  const withPhotos = results.filter(r => r.photo).length;
+  const withPrevPhotos = results.filter(r => r.prev_photo).length;
+  console.log(`[meters/latest] Returning ${results.length} lots, ${withPhotos} with curr photo, ${withPrevPhotos} with prev photo`);
   res.json(results);
 });
 
@@ -189,37 +226,6 @@ router.put('/:id', (req, res) => {
     db.prepare('UPDATE meter_readings SET photo = ? WHERE id = ?').run(photoFile, req.params.id);
   }
   res.json({ success: true });
-});
-
-// Serve a meter reading photo from disk (or from DB for legacy base64 data).
-router.get('/:id/photo', (req, res) => {
-  try {
-  const row = db.prepare('SELECT photo FROM meter_readings WHERE id = ?').get(req.params.id);
-  if (!row?.photo) return res.status(404).json({ error: 'No photo for this reading' });
-
-  // New style: photo column holds a filename on disk.
-  const filepath = path.join(PHOTOS_DIR, row.photo);
-  if (fs.existsSync(filepath)) {
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    return fs.createReadStream(filepath).pipe(res);
-  }
-
-  // Legacy fallback: photo column holds raw base64 data.
-  try {
-    const buf = Buffer.from(row.photo, 'base64');
-    if (buf.length > 100) {
-      res.setHeader('Content-Type', 'image/jpeg');
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-      return res.send(buf);
-    }
-  } catch {}
-
-  res.status(404).json({ error: 'Photo file not found' });
-  } catch (err) {
-    console.error('[meters] photo serve error:', err);
-    res.status(500).json({ error: 'Failed to serve photo' });
-  }
 });
 
 router.delete('/:id', (req, res) => {
