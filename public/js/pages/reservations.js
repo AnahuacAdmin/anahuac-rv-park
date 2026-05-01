@@ -140,7 +140,7 @@ function resForm(lots, r = {}) {
         <div class="form-group"><label for="res-lname">Last Name</label><input id="res-lname" name="last_name" placeholder="Enter last name" value="${r.guest_name ? r.guest_name.split(' ').pop() : ''}" required></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Phone Number</label><input name="phone" value="${r.phone || ''}"></div>
+        <div class="form-group"><label>Phone Number</label><input name="phone" type="tel" placeholder="409-267-6603" value="${typeof _fmtPhone==='function'?_fmtPhone(r.phone):(r.phone||'')}" oninput="if(typeof _fmtPhone==='function')this.value=_fmtPhone(this.value)"></div>
         <div class="form-group"><label>Email Address</label><input name="email" type="email" value="${r.email || ''}"></div>
       </div>
       <div class="form-group">
@@ -400,7 +400,7 @@ async function showGroupReservation() {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Phone Number</label><input name="primary_contact_phone"></div>
+        <div class="form-group"><label>Phone Number</label><input name="primary_contact_phone" type="tel" placeholder="409-267-6603" oninput="if(typeof _fmtPhone==='function')this.value=_fmtPhone(this.value)"></div>
         <div class="form-group"><label>Email Address</label><input name="primary_contact_email" type="email"></div>
       </div>
       <div class="form-row">

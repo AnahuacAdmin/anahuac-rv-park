@@ -4,6 +4,16 @@
  * Proprietary and Confidential.
  * Unauthorized copying, distribution, or use is strictly prohibited.
  */
+// Format phone: 10 digits → (409) 267-6603, auto-format as user types
+function _fmtPhone(v) {
+  if (!v) return '';
+  var d = String(v).replace(/\D/g, '');
+  if (d.length > 10) d = d.slice(0, 10);
+  if (d.length >= 7) return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+  if (d.length >= 4) return '(' + d.slice(0,3) + ') ' + d.slice(3);
+  return d;
+}
+
 function recurringSummary(t) {
   const parts = [];
   if (t.recurring_late_fee) parts.push(`Late ${formatMoney(t.recurring_late_fee)}`);
@@ -132,12 +142,12 @@ function tenantForm(lots, tenant = {}) {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Phone</label><input name="phone" value="${tenant.phone || ''}"></div>
+        <div class="form-group"><label>Phone</label><input name="phone" type="tel" placeholder="409-267-6603" value="${_fmtPhone(tenant.phone)}" oninput="this.value=_fmtPhone(this.value)"></div>
         <div class="form-group"><label>Email</label><input name="email" type="email" value="${tenant.email || ''}"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Emergency Contact</label><input name="emergency_contact" value="${tenant.emergency_contact || ''}"></div>
-        <div class="form-group"><label>Emergency Phone</label><input name="emergency_phone" value="${tenant.emergency_phone || ''}"></div>
+        <div class="form-group"><label>Emergency Phone</label><input name="emergency_phone" type="tel" placeholder="409-267-6603" value="${_fmtPhone(tenant.emergency_phone)}" oninput="this.value=_fmtPhone(this.value)"></div>
       </div>
       <div class="form-group" style="margin-top:-0.5rem">
         <label>Emergency Contact Relationship</label>
@@ -1312,7 +1322,7 @@ async function loadTenantAuthorizedPersons(tenantId) {
     persons.map(function(p) {
       return '<tr style="border-bottom:1px solid #f3f4f6">' +
         '<td style="padding:3px 6px">' + escapeHtml(p.name) + '</td>' +
-        '<td style="padding:3px 6px">' + escapeHtml(p.phone || '') + '</td>' +
+        '<td style="padding:3px 6px">' + escapeHtml(_fmtPhone(p.phone)) + '</td>' +
         '<td style="padding:3px 6px">' + escapeHtml(p.relationship || '') + '</td>' +
         '<td style="padding:3px 6px;white-space:nowrap">' +
           '<button class="btn btn-sm btn-outline" style="font-size:0.65rem;padding:1px 6px" onclick="showEditAuthorizedPerson(' + tenantId + ',' + p.id + ')">Edit</button> ' +
@@ -1325,7 +1335,7 @@ function authorizedPersonFormHtml(p) {
   p = p || {};
   return '<div class="form-group"><label>Name</label><input name="name" value="' + escapeHtml(p.name || '') + '" required></div>' +
     '<div class="form-row">' +
-    '<div class="form-group"><label>Phone</label><input name="phone" value="' + escapeHtml(p.phone || '') + '"></div>' +
+    '<div class="form-group"><label>Phone</label><input name="phone" type="tel" placeholder="409-267-6603" value="' + escapeHtml(_fmtPhone(p.phone)) + '" oninput="this.value=_fmtPhone(this.value)"></div>' +
     '<div class="form-group"><label>Relationship</label><select name="relationship">' +
       RELATIONSHIP_OPTIONS.map(function(r) { return '<option value="' + r.toLowerCase() + '"' + ((p.relationship || '') === r.toLowerCase() ? ' selected' : '') + '>' + r + '</option>'; }).join('') +
     '</select></div></div>';

@@ -498,6 +498,7 @@ function addPasswordToggle(inputId) {
 // Format helpers
 function formatMoney(n) { return '$' + (Number(n) || 0).toFixed(2); }
 function formatDate(d) { if (!d) return '—'; return new Date(d + 'T00:00:00').toLocaleDateString(); }
+function _fmtPhone(v) { if (!v) return ''; var d = String(v).replace(/\D/g, ''); if (d.length > 10) d = d.slice(0, 10); if (d.length >= 7) return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6); if (d.length >= 4) return '(' + d.slice(0,3) + ') ' + d.slice(3); return d; }
 
 // Help/instructions panels for each module
 const HELP_CONTENT = {

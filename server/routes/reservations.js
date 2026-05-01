@@ -10,6 +10,12 @@ const { authenticate } = require('../middleware');
 
 router.use(authenticate);
 
+function cleanPhone(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const digits = String(v).replace(/\D/g, '');
+  return digits || null;
+}
+
 // Sequential reservation number: RES-0001, RES-0002, etc.
 function nextReservationNumber() {
   var last = db.prepare("SELECT confirmation_number FROM reservations WHERE confirmation_number LIKE 'RES-%' ORDER BY id DESC LIMIT 1").get();
@@ -88,7 +94,7 @@ router.post('/', (req, res) => {
          total_amount, deposit_paid, status, notes, confirmation_number)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      b.guest_name, b.phone || null, b.email || null, b.lot_id,
+      b.guest_name, cleanPhone(b.phone), b.email || null, b.lot_id,
       b.arrival_date, b.departure_date, nights, rate, total, deposit,
       b.status || 'pending', b.notes || null, confNum
     );
@@ -126,7 +132,7 @@ router.put('/:id', (req, res) => {
       WHERE id = ?
     `).run(
       b.guest_name || existing.guest_name,
-      b.phone ?? existing.phone,
+      b.phone !== undefined ? cleanPhone(b.phone) : existing.phone,
       b.email ?? existing.email,
       lotId, arrival, departure, nights, rate, total, deposit,
       b.status || existing.status,
@@ -234,7 +240,7 @@ router.post('/group', (req, res) => {
     }
 
     const gResult = db.prepare(`INSERT INTO reservation_groups (group_name, primary_contact_name, primary_contact_phone, primary_contact_email, arrival_date, departure_date, nights, billing_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(b.group_name, b.primary_contact_name || null, b.primary_contact_phone || null, b.primary_contact_email || null, b.arrival_date, b.departure_date, nights, b.billing_type || 'separate', b.notes || null);
+      .run(b.group_name, b.primary_contact_name || null, cleanPhone(b.primary_contact_phone), b.primary_contact_email || null, b.arrival_date, b.departure_date, nights, b.billing_type || 'separate', b.notes || null);
     const groupId = gResult.lastInsertRowid;
 
     const rate = Number(b.rate_per_night) || 30;
@@ -243,7 +249,7 @@ router.post('/group', (req, res) => {
       const confNum = nextReservationNumber();
       const total = +(nights * rate).toFixed(2);
       const rResult = db.prepare(`INSERT INTO reservations (guest_name, phone, email, lot_id, arrival_date, departure_date, nights, rate_per_night, total_amount, deposit_paid, status, notes, confirmation_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'pending', ?, ?)`)
-        .run(lot.occupant_name || b.primary_contact_name || b.group_name, b.primary_contact_phone || null, b.primary_contact_email || null, lot.lot_id, b.arrival_date, b.departure_date, nights, rate, total, `Group: ${b.group_name}`, confNum);
+        .run(lot.occupant_name || b.primary_contact_name || b.group_name, cleanPhone(b.primary_contact_phone), b.primary_contact_email || null, lot.lot_id, b.arrival_date, b.departure_date, nights, rate, total, `Group: ${b.group_name}`, confNum);
       db.prepare('INSERT INTO reservation_group_lots (group_id, lot_id, occupant_name, occupant_notes, reservation_id) VALUES (?, ?, ?, ?, ?)').run(groupId, lot.lot_id, lot.occupant_name || null, lot.occupant_notes || null, rResult.lastInsertRowid);
       lotResults.push({ lot_id: lot.lot_id, reservation_id: rResult.lastInsertRowid, confirmation_number: confNum });
     }

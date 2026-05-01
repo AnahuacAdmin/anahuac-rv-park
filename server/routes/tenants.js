@@ -13,6 +13,13 @@ router.use(authenticate);
 // Never expose the bcrypt PIN hash in API responses
 function stripPin(t) { if (t) delete t.portal_pin; return t; }
 
+// Strip non-digits from phone numbers before saving (keeps SMS compatible)
+function cleanPhone(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const digits = String(v).replace(/\D/g, '');
+  return digits || null;
+}
+
 router.get('/', (req, res) => {
   const tenants = db.prepare(`
     SELECT t.*, l.row_letter, l.lot_number,
@@ -89,8 +96,8 @@ router.post('/', (req, res) => {
         flat_rate, flat_rate_amount, deposit_waived, ssn_last4, dl_number, dl_state)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
-      str(b.emergency_contact), str(b.emergency_phone), str(b.emergency_contact_relationship),
+      str(b.lot_id), b.first_name, b.last_name, cleanPhone(b.phone), str(b.email),
+      str(b.emergency_contact), cleanPhone(b.emergency_phone), str(b.emergency_contact_relationship),
       str(b.rv_make), str(b.rv_model), str(b.rv_year), str(b.rv_length), str(b.license_plate),
       num(b.monthly_rent) || 295, b.rent_type || 'standard', str(b.move_in_date), str(b.notes),
       num(b.recurring_late_fee), num(b.recurring_mailbox_fee), num(b.recurring_misc_fee),
@@ -125,8 +132,8 @@ router.put('/:id', (req, res) => {
       ssn_last4=?, dl_number=?, dl_state=?
     WHERE id = ?
   `).run(
-    str(b.lot_id), b.first_name, b.last_name, str(b.phone), str(b.email),
-    str(b.emergency_contact), str(b.emergency_phone), str(b.emergency_contact_relationship),
+    str(b.lot_id), b.first_name, b.last_name, cleanPhone(b.phone), str(b.email),
+    str(b.emergency_contact), cleanPhone(b.emergency_phone), str(b.emergency_contact_relationship),
     str(b.rv_make), str(b.rv_model), str(b.rv_year), str(b.rv_length), str(b.license_plate),
     b.monthly_rent, b.rent_type, str(b.move_in_date), str(b.notes),
     Number(b.recurring_late_fee) || 0, Number(b.recurring_mailbox_fee) || 0,
@@ -382,7 +389,7 @@ router.post('/import', (req, res) => {
         return;
       }
 
-      const phone = str(raw.phone);
+      const phone = cleanPhone(raw.phone);
       const email = str(raw.email);
       const monthly_rent = num(raw.monthly_rent);
       const move_in_date = parseDate(raw.move_in_date);
@@ -659,7 +666,7 @@ router.post('/:id/authorized-persons', (req, res) => {
     const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
     const result = db.prepare(
       'INSERT INTO tenant_authorized_persons (tenant_id, name, phone, relationship) VALUES (?,?,?,?)'
-    ).run(req.params.id, b.name, str(b.phone), str(b.relationship) || 'other');
+    ).run(req.params.id, b.name, cleanPhone(b.phone), str(b.relationship) || 'other');
     res.json({ id: result.lastInsertRowid });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -670,7 +677,7 @@ router.put('/:id/authorized-persons/:pid', (req, res) => {
     const str = (v) => (v === undefined || v === null || v === '') ? null : String(v);
     db.prepare(
       'UPDATE tenant_authorized_persons SET name=?, phone=?, relationship=? WHERE id=? AND tenant_id=?'
-    ).run(b.name, str(b.phone), str(b.relationship) || 'other', req.params.pid, req.params.id);
+    ).run(b.name, cleanPhone(b.phone), str(b.relationship) || 'other', req.params.pid, req.params.id);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
