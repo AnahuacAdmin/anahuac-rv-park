@@ -198,16 +198,16 @@ function renderInvoiceRow(inv, rowBg) {
   const totalTip = `Rent: ${formatMoney(inv.rent_amount)} + Electric: ${formatMoney(inv.electric_amount)} + Fees: ${formatMoney(otherFees)}${refundAmt > 0.005 ? ' - Credit: ' + formatMoney(refundAmt) : ''}${creditAmt > 0.005 ? ' - Applied: ' + formatMoney(creditAmt) : ''}`;
   return `
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" onclick="toggleInvoiceActions(${inv.id})" style="cursor:pointer;border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
-      <td style="text-align:left" title="${inv.invoice_number}">${shortInvNum(inv.invoice_number)}${badges}</td>
-      <td><strong>${inv.lot_id}</strong></td>
-      <td style="text-align:left;overflow:hidden;text-overflow:ellipsis">${inv.first_name} ${inv.last_name}</td>
-      <td>${shortDate(inv.invoice_date)}</td>
-      <td>${formatMoney(inv.rent_amount)}</td>
-      <td>${formatMoney(inv.electric_amount)}</td>
-      <td style="white-space:normal">${otherFees > 0.005 ? formatMoney(otherFees) + feeDetail : '<span style="color:#a8a29e">—</span>'}</td>
-      <td title="${totalTip}"><strong>${formatMoney(inv.total_amount)}</strong></td>
-      <td style="white-space:normal"><strong style="color:${balColor}">${formatMoney(inv.balance_due)}</strong>${balNote}</td>
-      <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${refundBadge}${invoiceEvictionBadge(inv)}</td>
+      <td data-label="Inv #" style="text-align:left" title="${inv.invoice_number}">${shortInvNum(inv.invoice_number)}${badges}</td>
+      <td data-label="Lot"><strong>${inv.lot_id}</strong></td>
+      <td data-label="Guest" style="text-align:left;overflow:hidden;text-overflow:ellipsis">${inv.first_name} ${inv.last_name}</td>
+      <td data-label="Date">${shortDate(inv.invoice_date)}</td>
+      <td data-label="Rent">${formatMoney(inv.rent_amount)}</td>
+      <td data-label="Electric">${formatMoney(inv.electric_amount)}</td>
+      <td data-label="Fees" style="white-space:normal">${otherFees > 0.005 ? formatMoney(otherFees) + feeDetail : '<span style="color:#a8a29e">—</span>'}</td>
+      <td data-label="Total" title="${totalTip}"><strong>${formatMoney(inv.total_amount)}</strong></td>
+      <td data-label="Balance" style="white-space:normal"><strong style="color:${balColor}">${formatMoney(inv.balance_due)}</strong>${balNote}</td>
+      <td data-label="Status"><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${refundBadge}${invoiceEvictionBadge(inv)}</td>
     </tr>
     <tr class="invoice-actions-row" id="inv-actions-${inv.id}" style="display:none">
       <td colspan="10" style="padding:4px 8px;background:#f5f5f5;border-bottom:2px solid #d6d3d1">
@@ -232,16 +232,16 @@ function renderDeletedInvoiceRow(inv, rowBg) {
   const otherFees = (Number(inv.mailbox_fee) || 0) + (Number(inv.misc_fee) || 0) + (Number(inv.extra_occupancy_fee) || 0) + (Number(inv.late_fee) || 0);
   return `
     <tr class="invoice-row deleted-row" data-id="${inv.id}" onclick="toggleInvoiceActions(${inv.id})" style="cursor:pointer;color:#9ca3af;background:${rowBg || '#f3f4f6'};font-style:italic">
-      <td>${shortInvNum(inv.invoice_number)}</td>
-      <td>${inv.lot_id}</td>
-      <td>${inv.first_name} ${inv.last_name}</td>
-      <td>${shortDate(inv.invoice_date)}</td>
-      <td>${formatMoney(inv.rent_amount)}</td>
-      <td>${formatMoney(inv.electric_amount)}</td>
-      <td>${otherFees > 0.005 ? formatMoney(otherFees) : '—'}</td>
-      <td>${formatMoney(inv.total_amount)}</td>
-      <td>${formatMoney(inv.balance_due)}</td>
-      <td><span class="badge badge-gray" style="font-size:0.65rem">Deleted</span></td>
+      <td data-label="Inv #">${shortInvNum(inv.invoice_number)}</td>
+      <td data-label="Lot">${inv.lot_id}</td>
+      <td data-label="Guest">${inv.first_name} ${inv.last_name}</td>
+      <td data-label="Date">${shortDate(inv.invoice_date)}</td>
+      <td data-label="Rent">${formatMoney(inv.rent_amount)}</td>
+      <td data-label="Electric">${formatMoney(inv.electric_amount)}</td>
+      <td data-label="Fees">${otherFees > 0.005 ? formatMoney(otherFees) : '—'}</td>
+      <td data-label="Total">${formatMoney(inv.total_amount)}</td>
+      <td data-label="Balance">${formatMoney(inv.balance_due)}</td>
+      <td data-label="Status"><span class="badge badge-gray" style="font-size:0.65rem">Deleted</span></td>
     </tr>
     <tr class="invoice-actions-row" id="inv-actions-${inv.id}" style="display:none">
       <td colspan="10" style="padding:4px 8px;background:#f5f5f5;border-bottom:2px solid #d6d3d1">

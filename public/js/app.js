@@ -1117,8 +1117,12 @@ function showModal(title, bodyHtml) {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHtml;
   document.getElementById('modal-overlay').style.display = '';
+  var pqb = document.getElementById('portalQuickBtn'); if (pqb) pqb.style.display = 'none';
 }
-function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+  var pqb = document.getElementById('portalQuickBtn'); if (pqb) pqb.style.display = '';
+}
 
 function navigateTo(page, skipHistory) {
   if (!page) return; // guard against group-toggle clicks with no data-page

@@ -1435,7 +1435,25 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
 
   /* Floating buttons — avoid overlap with bottom nav or each other */
   #supportBtn { bottom: 15px !important; left: 10px !important; width: 40px; height: 40px; font-size: 1rem; }
-  #portalQuickBtn { bottom: 70px !important; right: 10px !important; padding: 10px 14px !important; font-size: 0.8rem !important; }
+  #portalQuickBtn { bottom: 70px !important; right: 10px !important; padding: 10px 14px !important; font-size: 0.8rem !important; z-index: 999 !important; }
+
+  /* Billing table → mobile card layout */
+  .billing-table, .billing-table thead, .billing-table tbody, .billing-table tr, .billing-table th, .billing-table td { display: block; width: 100% !important; }
+  .billing-table { width: 100% !important; table-layout: auto !important; }
+  .billing-table colgroup { display: none; }
+  .billing-table thead { display: none; }
+  .billing-table tr.month-header-row { margin-bottom: 0.5rem; }
+  .billing-table tr.month-header-row td { display: flex !important; flex-wrap: wrap; gap: 0.25rem; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; font-size: 0.82rem; }
+  .billing-table tr.invoice-row {
+    border: 1.5px solid #d6d3d1; border-radius: 10px; margin-bottom: 0.5rem;
+    padding: 0.6rem 0.75rem; position: relative;
+    display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.1rem 0.5rem;
+  }
+  .billing-table tr.invoice-row td { border: none !important; padding: 0.15rem 0 !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+  .billing-table tr.invoice-row td::before { content: attr(data-label); display: block; font-size: 0.6rem; font-weight: 700; color: #78716c; text-transform: uppercase; letter-spacing: 0.04em; }
+  .billing-table tr.invoice-actions-row { margin-bottom: 0.75rem; margin-top: -0.5rem; }
+  .billing-table tr.invoice-actions-row td { border: none !important; padding: 0.5rem !important; background: #f5f5f5; border-radius: 0 0 10px 10px; }
+  .billing-scroll { overflow-x: hidden !important; }
 
   /* Community strip — wrap gracefully */
   #dash-community-strip > div { font-size: 0.75rem; }
