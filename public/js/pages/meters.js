@@ -30,9 +30,9 @@ async function loadMeters() {
               var prevPhotoCell = r.prev_id && r.prev_photo
                 ? '<img src="/api/meters/' + r.prev_id + '/photo" class="meter-thumb" onclick="showDualPhotoLightbox(' + (r.prev_id||0) + ',' + r.id + ',\'' + lotId + '\',\'' + tenantName + '\')" onerror="this.outerHTML=\'<span style=color:#d6d3d1;font-size:0.7rem>—</span>\'">'
                 : '<span style="color:#d6d3d1;font-size:0.7rem">—</span>';
-              // Current month photo
+              // Current month photo — with delete/retake option
               var currPhotoCell = r.photo
-                ? '<img src="/api/meters/' + r.id + '/photo" class="meter-thumb" onclick="showDualPhotoLightbox(' + (r.prev_id||0) + ',' + r.id + ',\'' + lotId + '\',\'' + tenantName + '\')" onerror="this.outerHTML=\'<span style=color:#a8a29e;font-size:0.7rem>📷</span>\'">'
+                ? '<div style="position:relative;display:inline-block"><img src="/api/meters/' + r.id + '/photo" class="meter-thumb" onclick="showDualPhotoLightbox(' + (r.prev_id||0) + ',' + r.id + ',\'' + lotId + '\',\'' + tenantName + '\')" onerror="this.outerHTML=\'<span style=color:#a8a29e;font-size:0.7rem>📷</span>\'"><button onclick="deleteMeterPhoto(' + r.id + ',\'' + lotId + '\')" style="position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:10px;line-height:16px;text-align:center;cursor:pointer;padding:0" title="Delete photo">&times;</button></div>'
                 : '<label style="cursor:pointer;display:inline-flex;align-items:center;gap:2px;font-size:0.7rem;color:#a8a29e" title="Take photo"><input type="file" accept="image/*" capture="environment" style="display:none" onchange="autoUploadPhoto(this,' + r.id + ',\'' + lotId + '\')">📷+</label>';
               return `
               <tr data-meter-id="${r.id}" data-prev="${r.previous_reading}" data-rate="${r.rate_per_kwh}">
@@ -159,6 +159,14 @@ async function showAddReading() {
         <div class="form-group"><label>Previous Reading</label><input name="previous_reading" type="number" step="0.01" value="0" required></div>
         <div class="form-group"><label>Current Reading</label><input name="current_reading" type="number" step="0.01" required></div>
       </div>
+      <div class="form-group">
+        <label class="btn btn-outline" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer">
+          &#128247; Take Photo
+          <input type="file" accept="image/*" capture="environment" style="display:none" name="photo_file" onchange="quickPhotoPreview(this)">
+        </label>
+        <img id="quick-photo-preview" style="display:none;width:80px;height:60px;object-fit:cover;border-radius:6px;margin-left:0.5rem;vertical-align:middle">
+      </div>
+      <input type="hidden" name="photo_base64" id="quick-photo-b64">
       <button type="submit" class="btn btn-primary btn-full mt-2">Save Reading</button>
     </form>
   `);
@@ -181,16 +189,27 @@ async function meterTenantSelected(sel) {
   }
 }
 
-async function saveReading(e) {
-  e.preventDefault();
-  const form = new FormData(e.target);
+async function saveReading(e, skipPhotoCheck) {
+  if (e && e.preventDefault) e.preventDefault();
+  var formEl = e && e.target ? e.target : document.querySelector('#modal-body form');
+  const form = new FormData(formEl);
+  const lotId = form.get('lot_id');
+  const photoB64 = form.get('photo_base64');
   const data = {
     tenant_id: parseInt(form.get('tenant_id')),
-    lot_id: form.get('lot_id'),
+    lot_id: lotId,
     reading_date: form.get('reading_date'),
     previous_reading: parseFloat(form.get('previous_reading')),
     current_reading: parseFloat(form.get('current_reading'))
   };
+  if (photoB64) data.photo = photoB64;
+
+  // Warn if no photo taken
+  if (!skipPhotoCheck && !photoB64) {
+    showNoPhotoWarning(lotId || 'this meter', function() { saveReading(null, true); });
+    return;
+  }
+
   await API.post('/meters', data);
   closeModal();
   loadMeters();
@@ -293,9 +312,10 @@ function quickPhotoPreview(input) {
   reader.readAsDataURL(file);
 }
 
-async function saveQuickUpdate(e, lotId, tenantId) {
-  e.preventDefault();
-  const form = new FormData(e.target);
+async function saveQuickUpdate(e, lotId, tenantId, skipPhotoCheck) {
+  if (e && e.preventDefault) e.preventDefault();
+  var formEl = e && e.target ? e.target : document.querySelector('#modal-body form');
+  const form = new FormData(formEl);
   const data = {
     tenant_id: tenantId,
     lot_id: lotId,
@@ -305,6 +325,12 @@ async function saveQuickUpdate(e, lotId, tenantId) {
   };
   const photoB64 = form.get('photo_base64');
   if (photoB64) data.photo = photoB64;
+
+  // Warn if no photo taken (unless user already confirmed)
+  if (!skipPhotoCheck && !photoB64) {
+    showNoPhotoWarning(lotId, function() { saveQuickUpdate(null, lotId, tenantId, true); });
+    return;
+  }
   try {
     await API.post('/meters', data);
   } catch (err) {
@@ -384,6 +410,42 @@ function qaSelected(sel) {
   const prev = parseFloat(parts[2]) || 0;
   document.getElementById('qa-prev').value = prev;
   document.getElementById('qa-prev-hidden').value = prev;
+}
+
+// --- No-Photo Warning Overlay ---
+// Stacks on top of existing modal/page without destroying the form underneath.
+// onConfirm is called if user chooses to save without photo.
+function showNoPhotoWarning(lotId, onConfirm) {
+  var overlay = document.createElement('div');
+  overlay.id = 'no-photo-warning';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:1.5rem;box-shadow:0 20px 60px rgba(0,0,0,0.3)">' +
+    '<div style="text-align:center">' +
+      '<div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:12px;padding:1.25rem;margin-bottom:1.25rem">' +
+        '<div style="font-size:2rem;margin-bottom:0.5rem">📷</div>' +
+        '<p style="font-size:1.05rem;font-weight:700;color:#92400e;margin-bottom:0.5rem">No photo taken for ' + escapeHtml(lotId) + '</p>' +
+        '<p style="font-size:0.88rem;color:#78350f">Meter photos are required as proof of reading.<br>Are you sure you want to save without one?</p>' +
+      '</div>' +
+      '<div style="display:flex;gap:0.75rem;flex-direction:column">' +
+        '<button class="btn btn-primary btn-full" style="font-size:1.05rem;padding:0.85rem" id="nophoto-goback">Go Back & Take Photo</button>' +
+        '<button class="btn btn-outline btn-full" style="font-size:0.9rem;color:#92400e;border-color:#f59e0b" id="nophoto-save">Save Without Photo</button>' +
+      '</div>' +
+    '</div></div>';
+  document.body.appendChild(overlay);
+  document.getElementById('nophoto-goback').onclick = function() { overlay.remove(); };
+  document.getElementById('nophoto-save').onclick = function() { overlay.remove(); onConfirm(); };
+}
+
+// --- Delete meter photo ---
+async function deleteMeterPhoto(readingId, lotId) {
+  if (!confirm('Delete this meter photo? You can retake it after.')) return;
+  try {
+    await API.put('/meters/' + readingId, { photo: '' });
+    showStatusToast('✅', lotId + ' photo deleted');
+    loadMeters();
+  } catch (err) {
+    alert('Delete failed: ' + (err.message || 'unknown'));
+  }
 }
 
 function viewReadingPhoto(id) {
@@ -598,11 +660,17 @@ function viewMobilePhoto() {
   showModal('Meter Photo', `<img src="${_mobilePhoto}" style="width:100%;border-radius:8px">`);
 }
 
-async function saveMobileReading() {
+async function saveMobileReading(skipPhotoCheck) {
   const r = _mobileReadings[_mobileIndex];
   const prev = parseFloat(document.getElementById('mobile-prev').value) || 0;
   const curr = parseFloat(document.getElementById('mobile-curr').value);
   if (isNaN(curr)) { alert('Please enter the current reading.'); return; }
+
+  // Warn if no photo taken (unless user already confirmed)
+  if (!skipPhotoCheck && !_mobilePhoto) {
+    showNoPhotoWarning(r.lot_id, function() { saveMobileReading(true); });
+    return;
+  }
 
   // Strip the data:image/jpeg;base64, prefix for storage.
   let photoBase64 = null;

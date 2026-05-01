@@ -234,6 +234,16 @@ router.put('/:id', (req, res) => {
 
   // Photo-only update (no reading data)
   if (photo !== undefined && previous_reading === undefined && current_reading === undefined) {
+    // Empty string = delete photo
+    if (photo === '' || photo === null) {
+      const existing = db.prepare('SELECT photo FROM meter_readings WHERE id = ?').get(req.params.id);
+      if (existing?.photo) {
+        const filepath = path.join(PHOTOS_DIR, existing.photo);
+        try { if (fs.existsSync(filepath)) fs.unlinkSync(filepath); } catch (e) { console.error('[meters] photo delete error:', e); }
+      }
+      db.prepare('UPDATE meter_readings SET photo = NULL WHERE id = ?').run(req.params.id);
+      return res.json({ success: true, deleted: true });
+    }
     const photoFile = savePhoto(req.params.id, photo);
     db.prepare('UPDATE meter_readings SET photo = ? WHERE id = ?').run(photoFile, req.params.id);
     return res.json({ success: true });
