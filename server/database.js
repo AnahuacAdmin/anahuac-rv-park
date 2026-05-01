@@ -162,6 +162,9 @@ async function initializeDatabase() {
   // Rename rent_type 'standard' to 'monthly' for consistency
   try { db.run("UPDATE tenants SET rent_type = 'monthly' WHERE rent_type = 'standard'"); } catch (e) { /* ignore */ }
 
+  // Stripe customer ID for saved cards
+  addCol("ALTER TABLE tenants ADD COLUMN stripe_customer_id TEXT");
+
   // Guest notes & incidents
   db.run(`CREATE TABLE IF NOT EXISTS guest_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

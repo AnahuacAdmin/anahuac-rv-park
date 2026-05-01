@@ -50,6 +50,66 @@ function registerStripeWebhook(app) {
       }
 
       try {
+        // Handle saved-card payments via PaymentIntent
+        if (event.type === 'payment_intent.succeeded') {
+          const pi = event.data.object;
+          const invoiceId = parseInt(pi.metadata?.invoice_id);
+          const tenantId = parseInt(pi.metadata?.tenant_id);
+          const balanceAmount = parseFloat(pi.metadata?.balance_amount);
+          if (!invoiceId || !tenantId || isNaN(balanceAmount)) {
+            return res.json({ received: true, ignored: 'missing metadata' });
+          }
+          // Idempotency check
+          const already = db.prepare("SELECT id FROM payments WHERE reference_number = ? LIMIT 1").get(pi.id);
+          if (already) return res.json({ received: true, ignored: 'already recorded' });
+
+          const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId);
+          if (!inv) return res.json({ received: true, ignored: 'invoice not found' });
+
+          const today = new Date().toISOString().split('T')[0];
+          db.prepare(`INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes)
+            VALUES (?, ?, ?, ?, 'Credit Card', ?, ?)`)
+            .run(tenantId, inv.id, today, balanceAmount, pi.id,
+              `Stripe saved card, charged $${(pi.amount / 100).toFixed(2)} (incl. 3% convenience fee)`);
+
+          const newPaid = (Number(inv.amount_paid) || 0) + balanceAmount;
+          const newBalance = (Number(inv.total_amount) || 0) - newPaid;
+          const newStatus = newBalance <= 0.005 ? 'paid' : 'partial';
+          db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
+            .run(newPaid, Math.max(0, newBalance), newStatus, inv.id);
+
+          if (newBalance <= 0.005) {
+            const unpaid = db.prepare("SELECT COUNT(*) as cnt FROM invoices WHERE tenant_id = ? AND balance_due > 0.005 AND status IN ('pending','partial') AND COALESCE(deleted,0) = 0").get(tenantId);
+            if (!unpaid || unpaid.cnt === 0) {
+              db.prepare('UPDATE tenants SET eviction_warning = 0, eviction_notified = 0, eviction_paused = 0, eviction_pause_note = NULL WHERE id = ?').run(tenantId);
+            }
+          }
+
+          console.log(`[stripe] saved-card payment recorded for invoice ${inv.invoice_number}`);
+
+          // Send confirmations (non-blocking)
+          const tenant = db.prepare('SELECT first_name, last_name, email, phone, lot_id FROM tenants WHERE id = ?').get(tenantId);
+          const remainingBalance = Math.max(0, newBalance).toFixed(2);
+          if (tenant) {
+            try {
+              const resend = getResend();
+              if (resend && tenant.email) {
+                resend.emails.send({
+                  from: FROM_ADDRESS, to: tenant.email,
+                  subject: 'Payment Received — Anahuac RV Park',
+                  text: `Thank you, ${tenant.first_name}!\n\nYour payment of $${balanceAmount.toFixed(2)} for Invoice ${inv.invoice_number} has been received on ${today}.\n\nRemaining balance: $${remainingBalance}\n\nIf you have questions, call us at 409-267-6603 or visit ${APP_URL}/portal.html\n\nAnahuac RV Park\n1003 Davis Ave, Anahuac, TX 77514\n409-267-6603`,
+                }).catch(e => console.error('[stripe] confirmation email failed:', e.message));
+              }
+            } catch (e) {}
+            try {
+              if (tenant.phone) {
+                sendSms(tenant.phone, `Anahuac RV Park: Payment of $${balanceAmount.toFixed(2)} received for Invoice ${inv.invoice_number}. Thank you! Balance: $${remainingBalance}. Questions? 409-267-6603`).catch(() => {});
+              }
+            } catch (e) {}
+          }
+          return res.json({ received: true });
+        }
+
         if (event.type === 'checkout.session.completed') {
           const session = event.data.object;
           const invoiceId = parseInt(session.metadata?.invoice_id);

@@ -282,6 +282,7 @@
     .password-toggle { position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;color:#9ca3af;padding:0.25rem; }
     .password-toggle:hover,.password-toggle.active { color:#16a34a; }
   </style>
+  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
 <div id="splash" class="splash">
@@ -392,7 +393,7 @@
     </div>
   </div>
 
-  <!-- Payment Confirmation Overlay -->
+  <!-- Payment Confirmation Overlay (post-payment success) -->
   <div id="payment-confirmation" data-tab-section="home" style="display:none;width:100%;max-width:800px;margin-bottom:0.6rem">
     <div class="card" style="border-top:4px solid #16a34a;text-align:center;padding:1.5rem 1.25rem">
       <div style="font-size:3rem;margin-bottom:0.5rem">✅</div>
@@ -404,6 +405,87 @@
         <button class="btn btn-outline" onclick="printPaymentConfirmation()" style="font-size:0.95rem">🖨️ Print Receipt</button>
       </div>
     </div>
+  </div>
+
+  <!-- Multi-Step Payment Flow Overlay -->
+  <div id="payment-flow" data-tab-section="home" style="display:none;width:100%;max-width:800px;margin-bottom:0.6rem">
+    <div class="card" style="border-top:4px solid #1a5c32;padding:1.25rem">
+      <!-- Progress Indicator -->
+      <div id="pay-progress" style="display:flex;justify-content:center;gap:0.5rem;margin-bottom:1.25rem">
+        <div class="pay-step-dot" id="pay-dot-1" style="width:10px;height:10px;border-radius:50%;background:#1a5c32"></div>
+        <div class="pay-step-dot" id="pay-dot-2" style="width:10px;height:10px;border-radius:50%;background:#d6d3d1"></div>
+        <div class="pay-step-dot" id="pay-dot-3" style="width:10px;height:10px;border-radius:50%;background:#d6d3d1"></div>
+      </div>
+      <div id="pay-step-label" style="text-align:center;font-size:0.8rem;color:#78716c;margin-bottom:1rem;font-weight:600">Step 1 of 3</div>
+
+      <!-- STEP 1: Review Invoice -->
+      <div id="pay-step-1">
+        <h3 style="text-align:center;font-size:1.2rem;font-weight:800;color:#1c1917;margin-bottom:1rem">Review Your Invoice</h3>
+        <div id="pay-invoice-breakdown" style="background:#fafaf9;border-radius:10px;padding:1rem;border:1px solid #e7e5e4;margin-bottom:1rem;font-size:0.95rem;line-height:2"></div>
+        <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:0.75rem;margin-bottom:1.25rem;font-size:0.85rem;color:#92400e;text-align:center">
+          Does this look correct? If you see any errors, contact the office at <strong>409-267-6603</strong>
+        </div>
+        <div style="display:flex;gap:0.75rem">
+          <button onclick="closePaymentFlow()" style="flex:1;padding:0.9rem;font-size:1.05rem;font-weight:700;background:#e7e5e4;color:#44403c;border:none;border-radius:10px;cursor:pointer">Go Back</button>
+          <button onclick="payFlowStep(2)" style="flex:1;padding:0.9rem;font-size:1.05rem;font-weight:700;background:#1a5c32;color:#fff;border:none;border-radius:10px;cursor:pointer">Continue to Payment</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Choose Payment Method -->
+      <div id="pay-step-2" style="display:none">
+        <h3 style="text-align:center;font-size:1.2rem;font-weight:800;color:#1c1917;margin-bottom:0.5rem">Choose Payment Method</h3>
+        <p style="text-align:center;font-size:0.85rem;color:#78716c;margin-bottom:1.25rem">You will NOT be charged until you confirm on the next screen</p>
+        <div id="pay-saved-cards" style="margin-bottom:1rem"></div>
+        <button id="pay-new-card-btn" onclick="selectPayMethod('new')" style="width:100%;padding:1rem;font-size:1.05rem;font-weight:700;background:#fff;color:#1c1917;border:2px solid #d6d3d1;border-radius:10px;cursor:pointer;margin-bottom:0.75rem;text-align:left;display:flex;align-items:center;gap:0.75rem">
+          <span style="font-size:1.5rem">💳</span>
+          <span>Pay with a new card</span>
+        </button>
+        <button onclick="selectPayMethod('save-only')" style="width:100%;padding:1rem;font-size:1.05rem;font-weight:700;background:#fff;color:#1c1917;border:2px solid #d6d3d1;border-radius:10px;cursor:pointer;margin-bottom:1.25rem;text-align:left;display:flex;align-items:center;gap:0.75rem">
+          <span style="font-size:1.5rem">💾</span>
+          <span>Save a card for later (don't pay now)</span>
+        </button>
+        <button onclick="payFlowStep(1)" style="width:100%;padding:0.9rem;font-size:1.05rem;font-weight:700;background:#e7e5e4;color:#44403c;border:none;border-radius:10px;cursor:pointer">Go Back</button>
+      </div>
+
+      <!-- STEP 3: Confirm Payment -->
+      <div id="pay-step-3" style="display:none">
+        <h3 style="text-align:center;font-size:1.2rem;font-weight:800;color:#1c1917;margin-bottom:1rem">Confirm Payment</h3>
+        <div style="background:#fafaf9;border-radius:10px;padding:1rem;border:1px solid #e7e5e4;margin-bottom:1rem;font-size:1.05rem;text-align:center;line-height:2">
+          <div style="font-size:1.3rem;font-weight:800;color:#1c1917" id="pay-confirm-summary"></div>
+          <div style="font-size:0.9rem;color:#78716c" id="pay-confirm-fee"></div>
+          <div style="font-size:1.4rem;font-weight:900;color:#1a5c32;margin-top:0.25rem" id="pay-confirm-total"></div>
+          <div style="font-size:0.85rem;color:#78716c;margin-top:0.25rem" id="pay-confirm-card"></div>
+        </div>
+        <div style="background:#fef2f2;border:2px solid #dc2626;border-radius:8px;padding:0.75rem;margin-bottom:1.25rem;font-size:0.9rem;color:#dc2626;text-align:center;font-weight:700">
+          ⚠️ This payment is final. Your card will be charged immediately when you tap "Pay Now."
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.75rem">
+          <button onclick="payFlowStep(2)" style="width:100%;padding:1.1rem;font-size:1.15rem;font-weight:800;background:#e7e5e4;color:#44403c;border:none;border-radius:10px;cursor:pointer">❌ Cancel — Go Back</button>
+          <button id="pay-now-btn" onclick="executePayment()" style="width:100%;padding:0.9rem;font-size:1rem;font-weight:700;background:#1a5c32;color:#fff;border:none;border-radius:10px;cursor:pointer">💳 Pay Now — <span id="pay-now-amount"></span></button>
+        </div>
+      </div>
+
+      <!-- Save Card Only Flow (Stripe Elements) -->
+      <div id="pay-step-save" style="display:none">
+        <h3 style="text-align:center;font-size:1.2rem;font-weight:800;color:#1c1917;margin-bottom:0.5rem">Save Your Card</h3>
+        <p style="text-align:center;font-size:0.85rem;color:#78716c;margin-bottom:1rem">Your card will NOT be charged. It will be saved for future payments.</p>
+        <div id="card-element" style="padding:1rem;border:2px solid #d6d3d1;border-radius:10px;margin-bottom:0.5rem;background:#fff"></div>
+        <div id="card-errors" style="color:#dc2626;font-size:0.85rem;min-height:1.2rem;margin-bottom:1rem;text-align:center"></div>
+        <div style="display:flex;gap:0.75rem">
+          <button onclick="payFlowStep(2)" style="flex:1;padding:0.9rem;font-size:1.05rem;font-weight:700;background:#e7e5e4;color:#44403c;border:none;border-radius:10px;cursor:pointer">Go Back</button>
+          <button id="save-card-btn" onclick="executeSaveCard()" style="flex:1;padding:0.9rem;font-size:1.05rem;font-weight:700;background:#1a5c32;color:#fff;border:none;border-radius:10px;cursor:pointer">💾 Save Card</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Saved Cards (Manage Cards) -->
+  <div class="card" data-tab-section="home" style="margin-bottom:0.6rem;padding:1rem 1.25rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <div class="card-title" style="font-size:0.72rem;margin:0">Saved Cards</div>
+      <button onclick="startSaveCardOnly()" style="background:#1a5c32;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;font-weight:600;cursor:pointer">+ Add Card</button>
+    </div>
+    <div id="p-saved-cards" style="font-size:0.88rem;color:#a8a29e">Loading...</div>
   </div>
 
   <!-- Payment History -->
@@ -1140,6 +1222,7 @@ async function showPortal() {
 
     // Load payment history
     loadPaymentHistory();
+    loadSavedCardsDisplay();
 
     const invEl = document.getElementById('p-invoices');
     invEl.innerHTML = (data.invoices || []).map(i =>
@@ -3040,12 +3123,311 @@ async function loadAnnouncements() {
   } catch {}
 }
 
+// ========== MULTI-STEP PAYMENT FLOW ==========
+var _payData = { invoices: [], totalBalance: 0, selectedMethod: null, selectedCard: null, savedCards: [], stripeInstance: null, elements: null, cardElement: null };
+
 async function portalPay() {
+  // Start the multi-step payment flow instead of going straight to Stripe
   try {
-    const r = await portalFetch('/pay', { method: 'POST', body: '{}' });
-    if (r?.url) window.location.href = r.url;
-    else alert('Could not start payment. Please call 409-267-6603.');
-  } catch (err) { alert('Payment error: ' + (err.message || 'unknown')); }
+    document.getElementById('payment-flow').style.display = '';
+    // Load invoice details
+    var detail = await portalFetch('/invoice-detail');
+    if (!detail || !detail.invoices || !detail.invoices.length) {
+      alert('No balance due. If you think this is an error, call 409-267-6603.');
+      closePaymentFlow();
+      return;
+    }
+    _payData.invoices = detail.invoices;
+    _payData.totalBalance = detail.totalBalance;
+    // Build invoice breakdown for Step 1
+    var html = '';
+    detail.invoices.forEach(function(inv) {
+      html += '<div style="border-bottom:1px solid #e7e5e4;padding-bottom:0.5rem;margin-bottom:0.5rem">';
+      html += '<div style="font-weight:700;color:#1a5c32;margin-bottom:0.25rem">' + inv.invoice_number + ' — ' + inv.invoice_date + '</div>';
+      if (inv.rent_amount > 0) html += '<div style="display:flex;justify-content:space-between"><span>Rent</span><span>$' + Number(inv.rent_amount).toFixed(2) + '</span></div>';
+      if (inv.electric_amount > 0) html += '<div style="display:flex;justify-content:space-between"><span>Electric</span><span>$' + Number(inv.electric_amount).toFixed(2) + '</span></div>';
+      if (inv.mailbox_fee > 0) html += '<div style="display:flex;justify-content:space-between"><span>Mailbox</span><span>$' + Number(inv.mailbox_fee).toFixed(2) + '</span></div>';
+      if (inv.late_fee > 0) html += '<div style="display:flex;justify-content:space-between"><span>Late Fee</span><span style="color:#dc2626">$' + Number(inv.late_fee).toFixed(2) + '</span></div>';
+      if (inv.other_charges > 0) html += '<div style="display:flex;justify-content:space-between"><span>' + (inv.other_description || 'Other Charges') + '</span><span>$' + Number(inv.other_charges).toFixed(2) + '</span></div>';
+      if (inv.misc_fee > 0) html += '<div style="display:flex;justify-content:space-between"><span>' + (inv.misc_description || 'Misc Fee') + '</span><span>$' + Number(inv.misc_fee).toFixed(2) + '</span></div>';
+      if (inv.extra_occupancy_fee > 0) html += '<div style="display:flex;justify-content:space-between"><span>Extra Occupancy</span><span>$' + Number(inv.extra_occupancy_fee).toFixed(2) + '</span></div>';
+      if (inv.credit_applied > 0) html += '<div style="display:flex;justify-content:space-between"><span>Credit Applied</span><span style="color:#16a34a">-$' + Number(inv.credit_applied).toFixed(2) + '</span></div>';
+      if (inv.amount_paid > 0) html += '<div style="display:flex;justify-content:space-between"><span>Already Paid</span><span style="color:#16a34a">-$' + Number(inv.amount_paid).toFixed(2) + '</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;font-weight:800;font-size:1.05rem;margin-top:0.25rem"><span>Balance Due</span><span style="color:#dc2626">$' + Number(inv.balance_due).toFixed(2) + '</span></div>';
+      html += '</div>';
+    });
+    if (detail.invoices.length > 1) {
+      html += '<div style="display:flex;justify-content:space-between;font-weight:900;font-size:1.15rem;color:#1c1917;padding-top:0.25rem"><span>Total Due</span><span>$' + Number(detail.totalBalance).toFixed(2) + '</span></div>';
+    }
+    document.getElementById('pay-invoice-breakdown').innerHTML = html;
+    payFlowStep(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (err) {
+    alert('Could not load invoice details: ' + (err.message || 'unknown') + '. Call 409-267-6603.');
+    closePaymentFlow();
+  }
+}
+
+function closePaymentFlow() {
+  document.getElementById('payment-flow').style.display = 'none';
+  _payData.selectedMethod = null;
+  _payData.selectedCard = null;
+}
+
+function payFlowStep(step) {
+  ['pay-step-1','pay-step-2','pay-step-3','pay-step-save'].forEach(function(id) {
+    document.getElementById(id).style.display = 'none';
+  });
+  // Update progress dots
+  for (var i = 1; i <= 3; i++) {
+    var dot = document.getElementById('pay-dot-' + i);
+    dot.style.background = i <= step ? '#1a5c32' : '#d6d3d1';
+  }
+  var labels = { 1: 'Step 1 of 3 — Review Invoice', 2: 'Step 2 of 3 — Payment Method', 3: 'Step 3 of 3 — Confirm Payment' };
+  document.getElementById('pay-step-label').textContent = labels[step] || '';
+
+  if (step === 1) {
+    document.getElementById('pay-step-1').style.display = '';
+  } else if (step === 2) {
+    document.getElementById('pay-step-2').style.display = '';
+    loadSavedCardsForPayment();
+  } else if (step === 3) {
+    document.getElementById('pay-step-3').style.display = '';
+    buildConfirmScreen();
+  }
+}
+
+async function loadSavedCardsForPayment() {
+  var container = document.getElementById('pay-saved-cards');
+  container.innerHTML = '<p style="color:#a8a29e;font-size:0.85rem;text-align:center">Loading saved cards...</p>';
+  try {
+    var result = await portalFetch('/saved-cards');
+    _payData.savedCards = result?.cards || [];
+    if (!_payData.savedCards.length) {
+      container.innerHTML = '';
+      return;
+    }
+    var html = '';
+    _payData.savedCards.forEach(function(card) {
+      var brand = (card.brand || 'card').charAt(0).toUpperCase() + (card.brand || 'card').slice(1);
+      var isDefault = card.is_default ? ' (Default)' : '';
+      html += '<button onclick="selectPayMethod(\'saved\', \'' + card.id + '\')" style="width:100%;padding:1rem;font-size:1.05rem;font-weight:700;background:#fff;color:#1c1917;border:2px solid #d6d3d1;border-radius:10px;cursor:pointer;margin-bottom:0.75rem;text-align:left;display:flex;align-items:center;gap:0.75rem" data-card-id="' + card.id + '">';
+      html += '<span style="font-size:1.5rem">💳</span>';
+      html += '<span>' + brand + ' ending in ' + card.last4 + ' <span style="font-size:0.8rem;color:#78716c">' + String(card.exp_month).padStart(2, '0') + '/' + card.exp_year + isDefault + '</span></span>';
+      html += '</button>';
+    });
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '';
+  }
+}
+
+function selectPayMethod(method, cardId) {
+  _payData.selectedMethod = method;
+  _payData.selectedCard = cardId || null;
+  if (method === 'save-only') {
+    showSaveCardForm();
+  } else {
+    payFlowStep(3);
+  }
+}
+
+function buildConfirmScreen() {
+  var bal = _payData.totalBalance;
+  var fee = bal * 0.03;
+  var total = bal + fee;
+  document.getElementById('pay-confirm-summary').textContent = 'You are about to pay $' + bal.toFixed(2);
+  if (_payData.invoices.length === 1) {
+    document.getElementById('pay-confirm-summary').textContent += ' for ' + _payData.invoices[0].invoice_number;
+  } else {
+    document.getElementById('pay-confirm-summary').textContent += ' for ' + _payData.invoices.length + ' invoices';
+  }
+  document.getElementById('pay-confirm-fee').textContent = 'A 3% convenience fee ($' + fee.toFixed(2) + ') will be added for card payments';
+  document.getElementById('pay-confirm-total').textContent = 'Total charge to your card: $' + total.toFixed(2);
+
+  // Show which card
+  if (_payData.selectedMethod === 'saved' && _payData.selectedCard) {
+    var card = _payData.savedCards.find(function(c) { return c.id === _payData.selectedCard; });
+    if (card) {
+      var brand = (card.brand || 'card').charAt(0).toUpperCase() + (card.brand || 'card').slice(1);
+      document.getElementById('pay-confirm-card').textContent = 'Paying with: ' + brand + ' ending in ' + card.last4;
+    }
+  } else {
+    document.getElementById('pay-confirm-card').textContent = 'Paying with: New card (you will enter details on the next screen)';
+  }
+  document.getElementById('pay-now-amount').textContent = '$' + total.toFixed(2);
+}
+
+async function executePayment() {
+  var btn = document.getElementById('pay-now-btn');
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+  try {
+    if (_payData.selectedMethod === 'saved' && _payData.selectedCard) {
+      // Pay with saved card via PaymentIntent
+      var result = await portalFetch('/pay-with-card', {
+        method: 'POST',
+        body: JSON.stringify({ payment_method_id: _payData.selectedCard })
+      });
+      if (result?.success && result.status === 'succeeded') {
+        closePaymentFlow();
+        sessionStorage.setItem('portal_paid', '1');
+        showPortal();
+        return;
+      } else if (result?.status === 'requires_action' && result.client_secret) {
+        // 3D Secure authentication needed
+        var stripe = await getStripeInstance();
+        var confirmResult = await stripe.confirmCardPayment(result.client_secret);
+        if (confirmResult.error) {
+          alert('Payment failed: ' + confirmResult.error.message);
+        } else {
+          closePaymentFlow();
+          sessionStorage.setItem('portal_paid', '1');
+          showPortal();
+          return;
+        }
+      } else {
+        alert(result?.error || 'Payment failed. Please try again or call 409-267-6603.');
+      }
+    } else {
+      // New card — redirect to Stripe Checkout
+      var r = await portalFetch('/pay', { method: 'POST', body: '{}' });
+      if (r?.url) {
+        window.location.href = r.url;
+        return;
+      }
+      alert('Could not start payment. Please call 409-267-6603.');
+    }
+  } catch (err) {
+    alert('Payment error: ' + (err.message || 'unknown') + '. Call 409-267-6603 for help.');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '💳 Pay Now — <span id="pay-now-amount">$' + (_payData.totalBalance * 1.03).toFixed(2) + '</span>';
+}
+
+// === STRIPE ELEMENTS FOR SAVE CARD ===
+async function getStripeInstance() {
+  if (_payData.stripeInstance) return _payData.stripeInstance;
+  try {
+    var keyResult = await portalFetch('/stripe-key');
+    if (!keyResult?.publishableKey) throw new Error('No key');
+    _payData.stripeInstance = Stripe(keyResult.publishableKey);
+    return _payData.stripeInstance;
+  } catch (e) {
+    throw new Error('Payment system not available');
+  }
+}
+
+async function showSaveCardForm() {
+  ['pay-step-1','pay-step-2','pay-step-3'].forEach(function(id) {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('pay-step-save').style.display = '';
+  document.getElementById('pay-step-label').textContent = 'Save Card for Later';
+  // Initialize Stripe Elements
+  try {
+    var stripe = await getStripeInstance();
+    _payData.elements = stripe.elements();
+    _payData.cardElement = _payData.elements.create('card', {
+      style: {
+        base: { fontSize: '18px', color: '#1c1917', fontFamily: 'system-ui, sans-serif', '::placeholder': { color: '#a8a29e' } },
+        invalid: { color: '#dc2626' }
+      }
+    });
+    _payData.cardElement.mount('#card-element');
+    _payData.cardElement.on('change', function(event) {
+      document.getElementById('card-errors').textContent = event.error ? event.error.message : '';
+    });
+  } catch (e) {
+    document.getElementById('card-errors').textContent = 'Could not load card form. Please try again.';
+  }
+}
+
+async function executeSaveCard() {
+  var btn = document.getElementById('save-card-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  try {
+    // Get SetupIntent client secret from backend
+    var setup = await portalFetch('/save-card', { method: 'POST', body: '{}' });
+    if (!setup?.client_secret) throw new Error('Could not start card setup');
+
+    var stripe = await getStripeInstance();
+    var result = await stripe.confirmCardSetup(setup.client_secret, {
+      payment_method: { card: _payData.cardElement }
+    });
+    if (result.error) {
+      document.getElementById('card-errors').textContent = result.error.message;
+    } else {
+      alert('Card saved successfully! You can use it for future payments.');
+      closePaymentFlow();
+      loadSavedCardsDisplay();
+      showPortal();
+      return;
+    }
+  } catch (e) {
+    document.getElementById('card-errors').textContent = e.message || 'Could not save card. Please try again.';
+  }
+  btn.disabled = false;
+  btn.textContent = '💾 Save Card';
+}
+
+function startSaveCardOnly() {
+  document.getElementById('payment-flow').style.display = '';
+  document.getElementById('pay-step-label').textContent = 'Save Card for Later';
+  for (var i = 1; i <= 3; i++) document.getElementById('pay-dot-' + i).style.background = '#d6d3d1';
+  showSaveCardForm();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// === SAVED CARDS DISPLAY (Manage section) ===
+async function loadSavedCardsDisplay() {
+  var el = document.getElementById('p-saved-cards');
+  if (!el) return;
+  try {
+    var result = await portalFetch('/saved-cards');
+    var cards = result?.cards || [];
+    if (!cards.length) {
+      el.innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">No saved cards. Tap "Add Card" to save one for quick payments.</p>';
+      return;
+    }
+    el.innerHTML = '<div style="display:flex;flex-direction:column;gap:0.4rem">' +
+      cards.map(function(card) {
+        var brand = (card.brand || 'card').charAt(0).toUpperCase() + (card.brand || 'card').slice(1);
+        var exp = String(card.exp_month).padStart(2, '0') + '/' + card.exp_year;
+        var defaultBadge = card.is_default ? '<span style="background:#1a5c32;color:#fff;padding:1px 6px;border-radius:4px;font-size:0.65rem;font-weight:700;margin-left:0.3rem">DEFAULT</span>' : '';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem;background:#fafaf9;border-radius:8px;border:1px solid #e7e5e4">' +
+          '<div style="display:flex;align-items:center;gap:0.5rem">' +
+            '<span style="font-size:1.2rem">💳</span>' +
+            '<div>' +
+              '<div style="font-weight:600;font-size:0.88rem">' + brand + ' ····' + card.last4 + defaultBadge + '</div>' +
+              '<div style="font-size:0.75rem;color:#78716c">Expires ' + exp + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:0.35rem">' +
+            (!card.is_default ? '<button onclick="setDefaultCard(\'' + card.id + '\')" style="background:none;border:1px solid #d6d3d1;border-radius:6px;padding:2px 6px;font-size:0.7rem;cursor:pointer;color:#78716c" title="Set Default">Set Default</button>' : '') +
+            '<button onclick="removeCard(\'' + card.id + '\')" style="background:none;border:1px solid #fca5a5;border-radius:6px;padding:2px 6px;font-size:0.7rem;cursor:pointer;color:#dc2626" title="Remove">Remove</button>' +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+  } catch (e) {
+    el.innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">Could not load saved cards</p>';
+  }
+}
+
+async function removeCard(pmId) {
+  if (!confirm('Remove this card? This cannot be undone.')) return;
+  try {
+    await portalFetch('/remove-card', { method: 'POST', body: JSON.stringify({ payment_method_id: pmId }) });
+    loadSavedCardsDisplay();
+  } catch (e) { alert('Could not remove card: ' + (e.message || 'unknown')); }
+}
+
+async function setDefaultCard(pmId) {
+  try {
+    await portalFetch('/default-card', { method: 'POST', body: JSON.stringify({ payment_method_id: pmId }) });
+    loadSavedCardsDisplay();
+  } catch (e) { alert('Could not set default: ' + (e.message || 'unknown')); }
 }
 
 async function loadPaymentHistory() {

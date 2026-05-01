@@ -116,6 +116,13 @@ router.get('/restaurants', (req, res) => {
   res.json(db.prepare('SELECT id, name, emoji, url FROM portal_restaurants WHERE is_active=1 ORDER BY display_order, id').all());
 });
 
+// Stripe publishable key for frontend
+router.get('/stripe-key', (req, res) => {
+  const key = process.env.STRIPE_PUBLISHABLE_KEY || '';
+  if (!key) return res.status(500).json({ error: 'Payment system not configured' });
+  res.json({ publishableKey: key });
+});
+
 // Tenant login — lot number + last name + PIN
 router.post('/login', (req, res) => {
   const { lot_id, last_name, pin } = req.body || {};
@@ -212,8 +219,58 @@ router.get('/me', tenantAuth, (req, res) => {
   res.json({ ...tenant, balance: balance?.total || 0, invoices });
 });
 
-// Pay — creates Stripe checkout for the tenant's total balance
-router.post('/pay', tenantAuth, (req, res) => {
+// Helper: get or create Stripe instance
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) throw new Error('Payment system not configured');
+  return require('stripe')(process.env.STRIPE_SECRET_KEY, { apiVersion: '2022-11-15' });
+}
+
+// Helper: get or create Stripe Customer for tenant
+async function getOrCreateCustomer(tenantId) {
+  const stripe = getStripe();
+  const tenant = db.prepare('SELECT id, first_name, last_name, email, phone, lot_id, stripe_customer_id FROM tenants WHERE id = ?').get(tenantId);
+  if (!tenant) throw new Error('Tenant not found');
+  if (tenant.stripe_customer_id) {
+    try {
+      const cust = await stripe.customers.retrieve(tenant.stripe_customer_id);
+      if (!cust.deleted) return cust.id;
+    } catch {}
+  }
+  const cust = await stripe.customers.create({
+    name: `${tenant.first_name} ${tenant.last_name}`,
+    email: tenant.email || undefined,
+    phone: tenant.phone || undefined,
+    metadata: { tenant_id: String(tenant.id), lot_id: tenant.lot_id },
+  });
+  db.prepare('UPDATE tenants SET stripe_customer_id = ? WHERE id = ?').run(cust.id, tenant.id);
+  return cust.id;
+}
+
+// Invoice detail for payment review (Step 1)
+router.get('/invoice-detail', tenantAuth, (req, res) => {
+  try {
+    const invoices = db.prepare(`
+      SELECT id, invoice_number, invoice_date, rent_amount, electric_amount,
+        COALESCE(mailbox_fee,0) as mailbox_fee, COALESCE(late_fee,0) as late_fee,
+        COALESCE(other_charges,0) as other_charges, other_description,
+        COALESCE(misc_fee,0) as misc_fee, misc_description,
+        COALESCE(extra_occupancy_fee,0) as extra_occupancy_fee,
+        COALESCE(credit_applied,0) as credit_applied,
+        COALESCE(refund_amount,0) as refund_amount,
+        total_amount, amount_paid, balance_due, status
+      FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0
+      ORDER BY invoice_date ASC
+    `).all(req.tenant.id);
+    const totalBalance = invoices.reduce((s, i) => s + (Number(i.balance_due) || 0), 0);
+    res.json({ invoices, totalBalance });
+  } catch (err) {
+    console.error('[portal] invoice-detail error:', err);
+    res.status(500).json({ error: 'Could not load invoice details' });
+  }
+});
+
+// Pay — creates Stripe checkout for the tenant's total balance (new card flow)
+router.post('/pay', tenantAuth, async (req, res) => {
   try {
     const balance = db.prepare(`
       SELECT COALESCE(SUM(balance_due), 0) as total
@@ -222,37 +279,198 @@ router.post('/pay', tenantAuth, (req, res) => {
     const amount = balance?.total || 0;
     if (amount <= 0) return res.status(400).json({ error: 'No balance due' });
 
-    // Find the first unpaid invoice to link the payment to
     const invoice = db.prepare("SELECT id, invoice_number, lot_id FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0 ORDER BY invoice_date ASC LIMIT 1").get(req.tenant.id);
 
     const balanceCents = Math.round(amount * 100);
     const feeCents = Math.round(balanceCents * 0.03);
 
-    if (!process.env.STRIPE_SECRET_KEY) return res.status(500).json({ error: 'Payment system not configured' });
-    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2022-11-15',
-    });
-    const origin = APP_URL;
+    const stripe = getStripe();
+    const customerId = await getOrCreateCustomer(req.tenant.id);
 
-    stripe.checkout.sessions.create({
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
       payment_method_types: ['card'],
       mode: 'payment',
       line_items: [
-        { price_data: { currency: 'usd', product_data: { name: `Anahuac RV Park — Balance Due`, description: `Lot ${req.tenant.lot_id}` }, unit_amount: balanceCents }, quantity: 1 },
+        { price_data: { currency: 'usd', product_data: { name: 'Anahuac RV Park — Balance Due', description: `Lot ${req.tenant.lot_id}` }, unit_amount: balanceCents }, quantity: 1 },
         { price_data: { currency: 'usd', product_data: { name: 'Convenience Fee (3%)' }, unit_amount: feeCents }, quantity: 1 },
       ],
       metadata: { invoice_id: String(invoice?.id || ''), tenant_id: String(req.tenant.id) },
-      success_url: `${origin}/portal.html?paid=1`,
-      cancel_url: `${origin}/portal.html?cancelled=1`,
-    }).then(session => {
-      res.json({ url: session.url });
-    }).catch(err => {
-      console.error('[portal] stripe error:', err);
-      res.status(500).json({ error: 'Payment system error' });
+      success_url: `${APP_URL}/portal.html?paid=1`,
+      cancel_url: `${APP_URL}/portal.html?cancelled=1`,
     });
+    res.json({ url: session.url });
   } catch (err) {
     console.error('[portal] pay error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Payment system error' });
+  }
+});
+
+// Pay with saved card via PaymentIntent
+router.post('/pay-with-card', tenantAuth, async (req, res) => {
+  try {
+    const { payment_method_id } = req.body || {};
+    if (!payment_method_id) return res.status(400).json({ error: 'No card selected' });
+
+    const balance = db.prepare(`
+      SELECT COALESCE(SUM(balance_due), 0) as total
+      FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0
+    `).get(req.tenant.id);
+    const amount = balance?.total || 0;
+    if (amount <= 0) return res.status(400).json({ error: 'No balance due' });
+
+    const invoice = db.prepare("SELECT id, invoice_number, lot_id FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0 ORDER BY invoice_date ASC LIMIT 1").get(req.tenant.id);
+
+    const balanceCents = Math.round(amount * 100);
+    const feeCents = Math.round(balanceCents * 0.03);
+    const totalCents = balanceCents + feeCents;
+
+    const stripe = getStripe();
+    const customerId = await getOrCreateCustomer(req.tenant.id);
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: totalCents,
+      currency: 'usd',
+      customer: customerId,
+      payment_method: payment_method_id,
+      off_session: false,
+      confirm: true,
+      return_url: `${APP_URL}/portal.html?paid=1`,
+      metadata: {
+        invoice_id: String(invoice?.id || ''),
+        tenant_id: String(req.tenant.id),
+        balance_amount: String(amount),
+        fee_amount: String((feeCents / 100).toFixed(2)),
+      },
+      description: `Anahuac RV Park — Lot ${req.tenant.lot_id} — Invoice ${invoice?.invoice_number || 'N/A'}`,
+    });
+
+    if (paymentIntent.status === 'succeeded') {
+      // Record payment immediately (webhook also handles this as backup)
+      recordPaymentFromIntent(paymentIntent, invoice, req.tenant.id, amount);
+      res.json({ success: true, status: 'succeeded' });
+    } else if (paymentIntent.status === 'requires_action') {
+      res.json({ success: false, status: 'requires_action', client_secret: paymentIntent.client_secret });
+    } else {
+      res.json({ success: false, status: paymentIntent.status, error: 'Payment was not completed' });
+    }
+  } catch (err) {
+    console.error('[portal] pay-with-card error:', err);
+    const msg = err.type === 'StripeCardError' ? err.message : 'Payment failed. Please try again or use a different card.';
+    res.status(400).json({ error: msg });
+  }
+});
+
+// Helper: record payment from a PaymentIntent (for saved-card flow)
+function recordPaymentFromIntent(pi, invoice, tenantId, balanceAmount) {
+  if (!invoice) return;
+  const already = db.prepare("SELECT id FROM payments WHERE reference_number = ? LIMIT 1").get(pi.id);
+  if (already) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const paymentAmount = Number(balanceAmount) || 0;
+  db.prepare(`INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes)
+    VALUES (?, ?, ?, ?, 'Credit Card', ?, ?)`)
+    .run(tenantId, invoice.id, today, paymentAmount, pi.id,
+      `Stripe saved card, charged $${(pi.amount / 100).toFixed(2)} (incl. 3% convenience fee)`);
+
+  const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(invoice.id);
+  if (inv) {
+    const newPaid = (Number(inv.amount_paid) || 0) + paymentAmount;
+    const newBalance = (Number(inv.total_amount) || 0) - newPaid;
+    const newStatus = newBalance <= 0.005 ? 'paid' : 'partial';
+    db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
+      .run(newPaid, Math.max(0, newBalance), newStatus, inv.id);
+
+    if (newBalance <= 0.005) {
+      const unpaid = db.prepare("SELECT COUNT(*) as cnt FROM invoices WHERE tenant_id = ? AND balance_due > 0.005 AND status IN ('pending','partial') AND COALESCE(deleted,0) = 0").get(tenantId);
+      if (!unpaid || unpaid.cnt === 0) {
+        db.prepare('UPDATE tenants SET eviction_warning = 0, eviction_notified = 0, eviction_paused = 0, eviction_pause_note = NULL WHERE id = ?').run(tenantId);
+      }
+    }
+
+    // Send confirmation email + SMS (non-blocking)
+    try {
+      const tenant = db.prepare('SELECT first_name, last_name, email, phone, lot_id FROM tenants WHERE id = ?').get(tenantId);
+      const remaining = Math.max(0, newBalance).toFixed(2);
+      if (tenant?.phone) {
+        sendSms(tenant.phone, `Anahuac RV Park: Payment of $${paymentAmount.toFixed(2)} received for Invoice ${inv.invoice_number}. Thank you! Balance: $${remaining}. Questions? 409-267-6603`).catch(() => {});
+      }
+    } catch {}
+  }
+}
+
+// Saved cards — list
+router.get('/saved-cards', tenantAuth, async (req, res) => {
+  try {
+    const tenant = db.prepare('SELECT stripe_customer_id FROM tenants WHERE id = ?').get(req.tenant.id);
+    if (!tenant?.stripe_customer_id) return res.json({ cards: [], default_pm: null });
+
+    const stripe = getStripe();
+    const methods = await stripe.paymentMethods.list({ customer: tenant.stripe_customer_id, type: 'card' });
+    const customer = await stripe.customers.retrieve(tenant.stripe_customer_id);
+    const defaultPm = customer.invoice_settings?.default_payment_method || null;
+
+    const cards = methods.data.map(pm => ({
+      id: pm.id,
+      brand: pm.card.brand,
+      last4: pm.card.last4,
+      exp_month: pm.card.exp_month,
+      exp_year: pm.card.exp_year,
+      is_default: pm.id === defaultPm,
+    }));
+    res.json({ cards, default_pm: defaultPm });
+  } catch (err) {
+    console.error('[portal] saved-cards error:', err);
+    res.json({ cards: [], default_pm: null });
+  }
+});
+
+// Save card — create SetupIntent for Stripe Elements
+router.post('/save-card', tenantAuth, async (req, res) => {
+  try {
+    const stripe = getStripe();
+    const customerId = await getOrCreateCustomer(req.tenant.id);
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customerId,
+      payment_method_types: ['card'],
+    });
+    res.json({ client_secret: setupIntent.client_secret });
+  } catch (err) {
+    console.error('[portal] save-card error:', err);
+    res.status(500).json({ error: 'Could not start card setup' });
+  }
+});
+
+// Remove saved card
+router.post('/remove-card', tenantAuth, async (req, res) => {
+  try {
+    const { payment_method_id } = req.body || {};
+    if (!payment_method_id) return res.status(400).json({ error: 'No card specified' });
+    const stripe = getStripe();
+    await stripe.paymentMethods.detach(payment_method_id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[portal] remove-card error:', err);
+    res.status(500).json({ error: 'Could not remove card' });
+  }
+});
+
+// Set default card
+router.post('/default-card', tenantAuth, async (req, res) => {
+  try {
+    const { payment_method_id } = req.body || {};
+    if (!payment_method_id) return res.status(400).json({ error: 'No card specified' });
+    const tenant = db.prepare('SELECT stripe_customer_id FROM tenants WHERE id = ?').get(req.tenant.id);
+    if (!tenant?.stripe_customer_id) return res.status(400).json({ error: 'No customer record' });
+    const stripe = getStripe();
+    await stripe.customers.update(tenant.stripe_customer_id, {
+      invoice_settings: { default_payment_method: payment_method_id },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[portal] default-card error:', err);
+    res.status(500).json({ error: 'Could not set default card' });
   }
 });
 
