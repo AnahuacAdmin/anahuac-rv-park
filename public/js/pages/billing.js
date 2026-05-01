@@ -173,9 +173,14 @@ function renderInvoiceRow(inv, rowBg) {
   const _paused = _t?.eviction_paused;
   const _statusColor = _paused ? '#9ca3af' : inv.status === 'paid' ? '#16a34a' : inv.status === 'partial' ? '#f59e0b' : '#dc2626';
   const otherFees = (Number(inv.mailbox_fee) || 0) + (Number(inv.misc_fee) || 0) + (Number(inv.extra_occupancy_fee) || 0) + (Number(inv.late_fee) || 0);
+  const refundAmt = Number(inv.refund_amount) || 0;
+  const creditAmt = Number(inv.credit_applied) || 0;
   const balColor = inv.balance_due > 0.005 ? '#dc2626' : '#16a34a';
   const statusLabel = inv.status === 'paid' ? 'Paid' : inv.status === 'partial' ? 'Partial' : 'Unpaid';
   const badges = (inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.55rem">PRO</span>' : '') + (_isFlat ? ' <span class="badge badge-success" style="font-size:0.55rem">FLAT</span>' : '');
+  const totalTip = `Rent: ${formatMoney(inv.rent_amount)} + Electric: ${formatMoney(inv.electric_amount)} + Fees: ${formatMoney(otherFees)}${refundAmt > 0.005 ? ' - Credit: ' + formatMoney(refundAmt) + (inv.refund_description ? ' (' + inv.refund_description + ')' : '') : ''}${creditAmt > 0.005 ? ' - Applied: ' + formatMoney(creditAmt) : ''}`;
+  const refundBadge = refundAmt > 0.005 ? ' <span class="badge badge-info" style="font-size:0.55rem">CREDIT</span>' : '';
+  const balNote = (refundAmt > 0.005 || creditAmt > 0.005) ? '<div style="font-size:0.6rem;color:#78716c;line-height:1.1">' + (refundAmt > 0.005 ? '-' + formatMoney(refundAmt) + ' credit' : '') + (refundAmt > 0.005 && creditAmt > 0.005 ? ', ' : '') + (creditAmt > 0.005 ? '-' + formatMoney(creditAmt) + ' applied' : '') + '</div>' : '';
   return `
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" onclick="toggleInvoiceActions(${inv.id})" style="cursor:pointer;border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
       <td style="text-align:left" title="${inv.invoice_number}">${shortInvNum(inv.invoice_number)}${badges}</td>
@@ -185,9 +190,9 @@ function renderInvoiceRow(inv, rowBg) {
       <td>${formatMoney(inv.rent_amount)}</td>
       <td>${formatMoney(inv.electric_amount)}</td>
       <td title="Mailbox: ${formatMoney(inv.mailbox_fee)} | Misc: ${formatMoney(inv.misc_fee)} | Occ: ${formatMoney(inv.extra_occupancy_fee)} | Late: ${formatMoney(inv.late_fee)}">${otherFees > 0.005 ? formatMoney(otherFees) : '<span style="color:#a8a29e">—</span>'}</td>
-      <td><strong>${formatMoney(inv.total_amount)}</strong></td>
-      <td><strong style="color:${balColor}">${formatMoney(inv.balance_due)}</strong></td>
-      <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${invoiceEvictionBadge(inv)}</td>
+      <td title="${totalTip}"><strong>${formatMoney(inv.total_amount)}</strong></td>
+      <td><strong style="color:${balColor}">${formatMoney(inv.balance_due)}</strong>${balNote}</td>
+      <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${refundBadge}${invoiceEvictionBadge(inv)}</td>
     </tr>
     <tr class="invoice-actions-row" id="inv-actions-${inv.id}" style="display:none">
       <td colspan="10" style="padding:4px 8px;background:#f5f5f5;border-bottom:2px solid #d6d3d1">
@@ -198,9 +203,9 @@ function renderInvoiceRow(inv, rowBg) {
           <button class="inv-act-btn" onclick="event.stopPropagation();emailInvoice(${inv.id})">Email</button>
           <button class="inv-act-btn" onclick="event.stopPropagation();smsInvoice(${inv.id})">SMS</button>
           ${inv.balance_due > 0.005 ? `<button class="inv-act-btn inv-act-green" onclick="event.stopPropagation();payInvoiceWithStripe(${inv.id})">Pay</button>` : ''}
-          ${inv.amount_paid > 0.005 ? `<button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();showRefundModal(${inv.id})">Refund</button>` : ''}
           ${invoicePauseBtnCompact(inv)}
           <button class="inv-act-btn" onclick="event.stopPropagation();editInvoice(${inv.id})">Edit</button>
+          ${inv.amount_paid > 0.005 ? `<button class="inv-act-btn inv-act-orange" onclick="event.stopPropagation();showRefundModal(${inv.id})">Refund</button>` : ''}
           <button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();deleteInvoice(${inv.id})">Delete</button>
         </div>
       </td>
