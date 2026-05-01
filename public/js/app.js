@@ -419,7 +419,7 @@ let _deferredInstallPrompt = null;
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('/sw2.js')
       .then((reg) => console.log('[pwa] service worker registered, scope:', reg.scope))
       .catch((err) => console.warn('[pwa] service worker registration failed:', err));
   });
