@@ -10,6 +10,9 @@ const { authenticate } = require('../middleware');
 
 router.use(authenticate);
 
+// Never expose the bcrypt PIN hash in API responses
+function stripPin(t) { if (t) delete t.portal_pin; return t; }
+
 router.get('/', (req, res) => {
   const tenants = db.prepare(`
     SELECT t.*, l.row_letter, l.lot_number,
@@ -21,7 +24,7 @@ router.get('/', (req, res) => {
     WHERE t.is_active = 1
     ORDER BY t.lot_id
   `).all();
-  res.json(tenants);
+  res.json(tenants.map(stripPin));
 });
 
 router.get('/all', (req, res) => {
@@ -34,7 +37,7 @@ router.get('/all', (req, res) => {
     LEFT JOIN lots l ON t.lot_id = l.id
     ORDER BY t.is_active DESC, t.lot_id
   `).all();
-  res.json(tenants);
+  res.json(tenants.map(stripPin));
 });
 
 // Search tenants by name, phone, email (active + inactive)
@@ -65,7 +68,7 @@ router.get('/:id', (req, res) => {
     WHERE t.id = ?
   `).get(req.params.id);
   if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
-  res.json(tenant);
+  res.json(stripPin(tenant));
 });
 
 router.post('/', (req, res) => {
@@ -493,7 +496,7 @@ router.post('/bulk-flat-rate', (req, res) => {
 // Full history for a single tenant
 router.get('/:id/full-history', (req, res) => {
   try {
-    const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(req.params.id);
+    const tenant = stripPin(db.prepare('SELECT * FROM tenants WHERE id = ?').get(req.params.id));
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
 
     const checkins = db.prepare('SELECT * FROM checkins WHERE tenant_id = ? ORDER BY check_in_date DESC').all(req.params.id);
