@@ -87,16 +87,16 @@ async function loadBilling() {
       <div class="billing-scroll">
         <table class="billing-table">
           <colgroup>
-            <col style="width:70px">
-            <col style="width:40px">
-            <col>
+            <col style="width:60px">
+            <col style="width:35px">
+            <col style="width:150px">
+            <col style="width:50px">
+            <col style="width:65px">
+            <col style="width:60px">
             <col style="width:55px">
             <col style="width:65px">
             <col style="width:65px">
-            <col style="width:65px">
-            <col style="width:70px">
-            <col style="width:70px">
-            <col style="width:70px">
+            <col style="width:60px">
           </colgroup>
           <thead><tr><th style="text-align:left">Inv #</th><th>Lot</th><th style="text-align:left">Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Fees</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
           <tbody id="invoices-body">
