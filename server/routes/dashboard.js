@@ -29,10 +29,11 @@ router.get('/', (req, res) => {
     WHERE strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')
   `).get().total;
 
-  const pendingInvoices = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'pending' AND COALESCE(deleted,0)=0").get().count;
-  const partialInvoices = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'partial' AND COALESCE(deleted,0)=0").get().count;
-  const paidInvoices = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'paid' AND COALESCE(deleted,0)=0").get().count;
-  const totalOutstanding = db.prepare("SELECT COALESCE(SUM(balance_due), 0) as total FROM invoices WHERE status IN ('pending', 'partial') AND COALESCE(deleted,0)=0").get().total;
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const pendingInvoices = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'pending' AND COALESCE(deleted,0)=0 AND strftime('%Y-%m', invoice_date) = ?").get(currentMonth).count;
+  const partialInvoices = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'partial' AND COALESCE(deleted,0)=0 AND strftime('%Y-%m', invoice_date) = ?").get(currentMonth).count;
+  const paidInvoices = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'paid' AND COALESCE(deleted,0)=0 AND strftime('%Y-%m', invoice_date) = ?").get(currentMonth).count;
+  const totalOutstanding = db.prepare("SELECT COALESCE(SUM(balance_due), 0) as total FROM invoices WHERE status IN ('pending', 'partial') AND COALESCE(deleted,0)=0 AND strftime('%Y-%m', invoice_date) = ?").get(currentMonth).total;
 
   // Last month revenue for trend comparison
   const lastMonthRevenue = db.prepare(`
@@ -78,7 +79,7 @@ router.get('/', (req, res) => {
 
   res.json({
     totalLots, occupied, vacant, reserved, activeTenants, waitlistCount, pendingReservations,
-    monthlyRevenue, lastMonthRevenue, pendingInvoices, partialInvoices, paidInvoices,
+    monthlyRevenue, lastMonthRevenue, pendingInvoices, partialInvoices, paidInvoices, invoiceMonth: currentMonth,
     totalOutstanding, recentPayments, totalKwh, revenueHistory,
     activity: activity.slice(0, 10), upcomingReservations,
     occupancyRate: totalLots - reserved > 0 ? Math.round((occupied / (totalLots - reserved)) * 100) : 0,

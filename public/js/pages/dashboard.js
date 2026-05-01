@@ -158,7 +158,7 @@ async function loadDashboard() {
         </div>
       </div>
       <div class="card dash-chart-card dash-chart-small dash-fade-in" style="animation-delay:0.4s">
-        <h3>Invoice Status</h3>
+        <h3>Invoice Status (${data.invoiceMonth ? new Date(data.invoiceMonth + '-15').toLocaleDateString('en-US', {month:'long',year:'numeric'}) : 'This Month'})</h3>
         <div style="position:relative;height:200px">
           <div class="dash-donut-center">${data.paidInvoices + data.pendingInvoices + data.partialInvoices}</div>
           <canvas id="invoiceChart"></canvas>
