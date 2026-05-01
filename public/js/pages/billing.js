@@ -101,15 +101,23 @@ async function loadBilling() {
 function renderInvoiceRows(invoices) {
   if (!invoices.length) return '<tr><td colspan="17" class="text-center" style="padding:2rem">No invoices yet. Generate monthly invoices to get started.</td></tr>';
 
-  // Group invoices by month/year from invoice_date
+  // Group invoices by month/year and alternate background colors per month group
   var rows = '';
   var lastMonthKey = '';
-  var monthIndex = 0;
+  var monthIndex = -1;
+  var currentRowBg = '';
+  var monthColors = [
+    { header: '#dff0df', row: '#f0faf0', border: '#b8dab8' },  // green
+    { header: '#dce4ed', row: '#eef2f7', border: '#bcc8d6' },  // blue
+  ];
   for (var i = 0; i < invoices.length; i++) {
     var inv = invoices[i];
     var d = new Date(inv.invoice_date);
     var monthKey = isNaN(d.getTime()) ? 'Unknown' : d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     if (monthKey !== lastMonthKey) {
+      monthIndex++;
+      var colors = monthColors[monthIndex % 2];
+      currentRowBg = colors.row;
       var monthLabel = isNaN(d.getTime()) ? 'Unknown' : d.toLocaleString('default', { month: 'long', year: 'numeric' });
       // Count invoices in this month
       var monthCount = 0;
@@ -123,16 +131,13 @@ function renderInvoiceRows(invoices) {
         monthTotal += Number(invoices[j].total_amount) || 0;
         monthPaid += Number(invoices[j].amount_paid) || 0;
       }
-      var headerBg = monthIndex % 2 === 0 ? '#f0faf0' : '#eef2f7';
-      rows += '<tr class="month-header-row" style="background:' + headerBg + '"><td colspan="17" style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.85rem;border-bottom:2px solid ' + (monthIndex % 2 === 0 ? '#c6e6c6' : '#cdd5de') + ';color:#1c1917">' +
+      rows += '<tr class="month-header-row" style="background:' + colors.header + '"><td colspan="17" style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.85rem;border-bottom:2px solid ' + colors.border + ';color:#1c1917">' +
         '📅 ' + monthLabel +
         '<span style="font-weight:400;color:#78716c;margin-left:0.75rem;font-size:0.78rem">' + monthCount + ' invoice' + (monthCount !== 1 ? 's' : '') +
         ' · Total: ' + formatMoney(monthTotal) + ' · Collected: ' + formatMoney(monthPaid) + '</span></td></tr>';
       lastMonthKey = monthKey;
-      monthIndex++;
     }
-    var rowBg = monthIndex % 2 === 0 ? '#fafffe' : '';
-    rows += renderInvoiceRow(inv, rowBg);
+    rows += renderInvoiceRow(inv, currentRowBg);
   }
   return rows;
 }
