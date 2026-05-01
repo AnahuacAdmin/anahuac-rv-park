@@ -670,7 +670,7 @@ async function printMonthInvoices(ids) {
       allHtml += html;
     }
     if (!allHtml) throw new Error('No invoices to print');
-    _openPrintWindow(allHtml);
+    _openPrintWindow(allHtml, 'Invoices - Anahuac RV Park');
   } catch (err) {
     console.error('[billing] batch print failed:', err);
     showStatusToast('❌', 'Print failed — try printing individually');
@@ -680,7 +680,7 @@ async function printMonthInvoices(ids) {
 // Internal helper: render a single invoice and trigger print.
 async function _printInvoiceHtml(inv) {
   var html = await renderInvoiceHtml(inv);
-  _openPrintWindow(html);
+  _openPrintWindow(html, 'Invoice ' + (inv.invoice_number || ''));
 }
 
 // The full inline CSS for the print window — professional invoice styling.
@@ -781,9 +781,10 @@ function _invoicePrintCSS() {
 
 // Open a new window with invoice HTML and trigger print.
 // Falls back to in-page print if popup is blocked.
-function _openPrintWindow(html) {
+function _openPrintWindow(html, title) {
+  var docTitle = title || 'Invoice';
   var css = _invoicePrintCSS();
-  var fullDoc = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice</title><style>' + css + '</style></head><body>' + html + '</body></html>';
+  var fullDoc = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docTitle + '</title><style>' + css + '</style></head><body>' + html + '</body></html>';
 
   // Try window.open first
   var win = window.open('', '_blank');
@@ -810,6 +811,8 @@ function _openPrintWindow(html) {
 
   // Fallback: hide everything, inject invoice, print, restore
   console.warn('[billing] popup blocked, using in-page fallback');
+  var origTitle = document.title;
+  document.title = docTitle;
   var overlay = document.createElement('div');
   overlay.id = 'invoice-print-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;overflow:auto;padding:0.5in';
@@ -817,7 +820,7 @@ function _openPrintWindow(html) {
   document.body.appendChild(overlay);
   setTimeout(function() {
     window.print();
-    setTimeout(function() { overlay.remove(); }, 500);
+    setTimeout(function() { overlay.remove(); document.title = origTitle; }, 500);
   }, 300);
 }
 
