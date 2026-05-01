@@ -454,18 +454,30 @@ router.post('/generate', (req, res) => {
     // Sum ALL of this tenant's meter readings inside the billing period — when
     // they moved mid-month there will be one row for the old lot (final) and
     // one for the new lot (opening, $0).
+    // Recalculate charge from kwh_used × rate to guard against stale/null electric_charge values.
     const periodReadings = db.prepare(`
-      SELECT lot_id, kwh_used, electric_charge
+      SELECT lot_id, kwh_used, electric_charge, rate_per_kwh
       FROM meter_readings
       WHERE tenant_id = ? AND reading_date BETWEEN ? AND ?
     `).all(tenant.id, startDate, endDate);
-    let electricAmount = periodReadings.reduce((s, r) => s + (Number(r.electric_charge) || 0), 0);
+    let electricAmount = periodReadings.reduce((s, r) => {
+      const storedCharge = Number(r.electric_charge) || 0;
+      const kwh = Number(r.kwh_used) || 0;
+      // Use stored charge if it looks valid, otherwise recalculate from kWh × rate
+      if (storedCharge > 0) return s + storedCharge;
+      if (kwh > 0) return s + +(kwh * ratePerKwh).toFixed(2);
+      return s;
+    }, 0);
     if (electricAmount === 0) {
       // No reading in the period yet — fall back to the most recent reading for this tenant.
       const reading = db.prepare(`
-        SELECT electric_charge FROM meter_readings WHERE tenant_id = ? ORDER BY reading_date DESC LIMIT 1
+        SELECT kwh_used, electric_charge FROM meter_readings WHERE tenant_id = ? ORDER BY reading_date DESC LIMIT 1
       `).get(tenant.id);
-      electricAmount = reading?.electric_charge || 0;
+      if (reading) {
+        const fallbackCharge = Number(reading.electric_charge) || 0;
+        const fallbackKwh = Number(reading.kwh_used) || 0;
+        electricAmount = fallbackCharge > 0 ? fallbackCharge : +(fallbackKwh * ratePerKwh).toFixed(2);
+      }
     }
 
     // Mid-month move proration: if last_move_date falls inside this period,
