@@ -26,8 +26,9 @@ async function loadExpenses() {
 
     // Summary cards
     '<div class="dash-top-bar" style="margin-bottom:1rem">' +
-      '<div class="dash-top-item dash-border-red"><div class="dash-top-icon">💸</div><span class="dash-top-val">' + formatMoney((summary?.total || 0) + (summary?.electricMonth || 0)) + '</span><span class="dash-top-label">Total Expenses (Month)</span></div>' +
-      '<div class="dash-top-item dash-border-purple"><div class="dash-top-icon">📅</div><span class="dash-top-val">' + formatMoney((summary?.yearTotal || 0) + (summary?.electricYear || 0)) + '</span><span class="dash-top-label">Total Expenses (Year)</span></div>' +
+      '<div class="dash-top-item dash-border-red"><div class="dash-top-icon">💸</div><span class="dash-top-val">' + formatMoney(summary?.total || 0) + '</span><span class="dash-top-label">Park Expenses (Month)</span></div>' +
+      '<div class="dash-top-item dash-border-purple"><div class="dash-top-icon">📅</div><span class="dash-top-val">' + formatMoney(summary?.yearTotal || 0) + '</span><span class="dash-top-label">Park Expenses (Year)</span></div>' +
+      '<div class="dash-top-item" style="border-left-color:#b45309"><div class="dash-top-icon">⚡</div><span class="dash-top-val">' + formatMoney(summary?.electricMonth || 0) + '</span><span class="dash-top-label">Electric Pass-Through (Month)</span></div>' +
       '<div class="dash-top-item dash-border-blue"><div class="dash-top-icon">📊</div><span class="dash-top-val">' + escapeHtml(topCat ? topCat.category : '—') + '</span><span class="dash-top-label">Biggest Category</span></div>' +
       '<div class="dash-top-item"><div class="dash-top-icon">🧾</div><span class="dash-top-val">' + (summary?.receiptCount || 0) + '</span><span class="dash-top-label">Receipts on File</span></div>' +
     '</div>' +
