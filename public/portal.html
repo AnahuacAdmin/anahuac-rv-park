@@ -283,6 +283,7 @@
     .password-toggle:hover,.password-toggle.active { color:#16a34a; }
   </style>
   <script src="https://js.stripe.com/v3/"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 <div id="splash" class="splash">
@@ -3492,6 +3493,7 @@ async function loadPaymentHistory() {
           '<div style="display:flex;align-items:center;gap:0.5rem">' +
             '<span style="font-weight:700;color:#16a34a;font-size:0.95rem">$' + Number(p.amount).toFixed(2) + '</span>' +
             '<button onclick="printReceipt(' + p.id + ')" style="background:none;border:1px solid #d6d3d1;border-radius:6px;padding:2px 6px;font-size:0.7rem;cursor:pointer;color:#78716c" title="Print Receipt">🖨️</button>' +
+            '<button onclick="downloadReceiptPdf(' + p.id + ')" style="background:none;border:1px solid #d6d3d1;border-radius:6px;padding:2px 6px;font-size:0.7rem;cursor:pointer;color:#78716c" title="Download PDF">📄</button>' +
           '</div>' +
         '</div>';
       }).join('') + '</div>';
@@ -3535,6 +3537,68 @@ async function printReceipt(paymentId) {
     w.document.close();
     setTimeout(function() { w.print(); }, 300);
   } catch (e) { alert('Could not load receipt'); }
+}
+
+function _receiptElement(data) {
+  var date = data.payment_date || new Date().toISOString().split('T')[0];
+  var method = (data.payment_method || 'N/A');
+  var inv = data.invoice_number || 'N/A';
+  var amount = Number(data.amount).toFixed(2);
+  var guest = (data.first_name && data.last_name) ? data.first_name + ' ' + data.last_name : (_portalTenant ? _portalTenant.first_name + ' ' + _portalTenant.last_name : '');
+  var lot = data.lot_id || (_portalTenant ? _portalTenant.lot_id : '');
+  var balance = data.balance_after != null ? '$' + Number(data.balance_after).toFixed(2) : '';
+
+  var el = document.createElement('div');
+  el.style.cssText = 'width:700px;padding:0.75in;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;color:#1c1917;font-size:14px;line-height:1.6;background:#fff;';
+  el.innerHTML =
+    '<div style="text-align:center;border-bottom:3px solid #1a5c32;padding-bottom:14px;margin-bottom:20px">' +
+      '<div style="color:#1a5c32;font-size:20px;font-weight:800;margin-bottom:2px">Anahuac RV Park</div>' +
+      '<div style="color:#666;font-size:12px">1003 Davis Ave, Anahuac, TX 77514</div>' +
+      '<div style="color:#666;font-size:12px">Phone: 409-267-6603</div>' +
+    '</div>' +
+    '<div style="text-align:center;font-size:22px;font-weight:800;color:#1a5c32;letter-spacing:1px;margin:20px 0">PAYMENT RECEIPT</div>' +
+    '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Date</span><span style="font-weight:700">' + date + '</span></div>' +
+    (guest ? '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Guest</span><span style="font-weight:700">' + guest + '</span></div>' : '') +
+    (lot ? '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Lot</span><span style="font-weight:700">' + lot + '</span></div>' : '') +
+    '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Invoice</span><span style="font-weight:700">' + inv + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Payment Method</span><span style="font-weight:700">' + method + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #1a5c32;margin-top:10px;font-size:20px"><span style="color:#78716c;font-weight:600">Amount Paid</span><span style="font-weight:800;color:#16a34a">$' + amount + '</span></div>' +
+    (balance ? '<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px"><span style="color:#78716c;font-weight:600">Remaining Balance</span><span style="font-weight:700">' + balance + '</span></div>' : '') +
+    '<div style="text-align:center;font-size:16px;font-weight:700;color:#1a5c32;margin-top:30px">Thank you for your payment!</div>' +
+    '<div style="text-align:center;margin-top:24px;font-size:11px;color:#a8a29e;border-top:1px solid #e7e5e4;padding-top:12px">Anahuac RV Park · 1003 Davis Ave, Anahuac, TX 77514 · 409-267-6603</div>';
+  return el;
+}
+
+async function downloadReceiptPdf(paymentId) {
+  try {
+    var payments = await portalFetch('/payments');
+    var p = payments.find(function(x) { return x.id === paymentId; });
+    if (!p) { alert('Payment not found'); return; }
+    var el = _receiptElement(p);
+    el.style.position = 'fixed';
+    el.style.top = '-99999px';
+    el.style.left = '0';
+    el.style.zIndex = '-9999';
+    document.body.appendChild(el);
+    await new Promise(function(r) { setTimeout(r, 300); });
+    var inv = p.invoice_number || 'Payment';
+    var dateStr = (p.payment_date || '').replace(/\//g, '-');
+    var filename = 'Receipt-' + inv + '-' + dateStr + '.pdf';
+    try {
+      var blob = await html2pdf().set({
+        margin: [0.5, 0.5, 0.5, 0.5],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, windowWidth: 700 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      }).from(el).outputPdf('blob');
+      var url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = filename; a.style.display = 'none';
+      document.body.appendChild(a); a.click();
+      setTimeout(function() { a.remove(); URL.revokeObjectURL(url); }, 1000);
+    } finally { el.remove(); }
+  } catch (e) { alert('Could not generate PDF: ' + (e.message || 'unknown')); }
 }
 
 function printPaymentConfirmation() {

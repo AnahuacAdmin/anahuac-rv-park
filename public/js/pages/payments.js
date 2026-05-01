@@ -65,7 +65,7 @@ async function loadPayments() {
                 <td>${p.payment_method || '—'}</td>
                 <td>${p.invoice_number || (typeLabel || '—')}</td>
                 <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${ref}">${cleanRef}</td>
-                <td><button class="btn btn-sm btn-danger" onclick="deletePayment(${p.id})">Del</button></td>
+                <td style="white-space:nowrap"><button class="btn btn-sm" onclick="printAdminReceipt(${p.id})" title="Print Receipt" style="padding:2px 6px;font-size:0.75rem">🖨️</button> <button class="btn btn-sm" onclick="downloadAdminReceiptPdf(${p.id})" title="PDF Receipt" style="padding:2px 6px;font-size:0.75rem">📄</button> <button class="btn btn-sm btn-danger" onclick="deletePayment(${p.id})">Del</button></td>
               </tr>`;
             }).join('') : '<tr><td colspan="8" class="text-center">No payments recorded</td></tr>'}
           </tbody>
@@ -271,4 +271,87 @@ async function deletePayment(id) {
   if (!confirm('Delete this payment? Invoice balances will be recalculated.')) return;
   await API.del(`/payments/${id}`);
   loadPayments();
+}
+
+function _adminReceiptElement(p) {
+  var date = p.payment_date || new Date().toISOString().split('T')[0];
+  var method = p.payment_method || 'N/A';
+  var inv = p.invoice_number || 'N/A';
+  var amount = Number(p.amount).toFixed(2);
+  var guest = (p.first_name || '') + ' ' + (p.last_name || '');
+  var lot = p.lot_id || '';
+
+  var el = document.createElement('div');
+  el.style.cssText = 'width:700px;padding:0.75in;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;color:#1c1917;font-size:14px;line-height:1.6;background:#fff;';
+  el.innerHTML =
+    '<div style="text-align:center;border-bottom:3px solid #1a5c32;padding-bottom:14px;margin-bottom:20px">' +
+      '<div style="color:#1a5c32;font-size:20px;font-weight:800;margin-bottom:2px">Anahuac RV Park</div>' +
+      '<div style="color:#666;font-size:12px">1003 Davis Ave, Anahuac, TX 77514</div>' +
+      '<div style="color:#666;font-size:12px">Phone: 409-267-6603</div>' +
+    '</div>' +
+    '<div style="text-align:center;font-size:22px;font-weight:800;color:#1a5c32;letter-spacing:1px;margin:20px 0">PAYMENT RECEIPT</div>' +
+    '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Date</span><span style="font-weight:700">' + date + '</span></div>' +
+    (guest.trim() ? '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Guest</span><span style="font-weight:700">' + guest + '</span></div>' : '') +
+    (lot ? '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Lot</span><span style="font-weight:700">' + lot + '</span></div>' : '') +
+    '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Invoice</span><span style="font-weight:700">' + inv + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Payment Method</span><span style="font-weight:700">' + method + '</span></div>' +
+    (p.reference_number ? '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e7e5e4"><span style="color:#78716c;font-weight:600">Reference</span><span style="font-weight:700">' + p.reference_number + '</span></div>' : '') +
+    '<div style="display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #1a5c32;margin-top:10px;font-size:20px"><span style="color:#78716c;font-weight:600">Amount Paid</span><span style="font-weight:800;color:#16a34a">$' + amount + '</span></div>' +
+    (p.notes ? '<div style="margin-top:12px;padding:8px 12px;background:#fafaf9;border-radius:4px;border-left:3px solid #d6d3d1;font-size:12px;color:#374151"><strong>Notes:</strong> ' + p.notes + '</div>' : '') +
+    '<div style="text-align:center;font-size:16px;font-weight:700;color:#1a5c32;margin-top:30px">Thank you for your payment!</div>' +
+    '<div style="text-align:center;margin-top:24px;font-size:11px;color:#a8a29e;border-top:1px solid #e7e5e4;padding-top:12px">Anahuac RV Park · 1003 Davis Ave, Anahuac, TX 77514 · 409-267-6603</div>';
+  return el;
+}
+
+async function printAdminReceipt(paymentId) {
+  try {
+    var payments = await API.get('/payments');
+    var p = payments.find(function(x) { return x.id === paymentId; });
+    if (!p) { alert('Payment not found'); return; }
+    var el = _adminReceiptElement(p);
+    var css = '@page{margin:0;size:letter portrait}body{margin:0;padding:0}';
+    var w = window.open('', '_blank', 'width=600,height=700');
+    if (!w) { alert('Please allow popups to print.'); return; }
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt</title><style>' + css + '</style></head><body>' + el.outerHTML + '</body></html>');
+    w.document.close();
+    setTimeout(function() { w.focus(); w.print(); }, 300);
+  } catch (e) { alert('Could not print receipt'); }
+}
+
+async function downloadAdminReceiptPdf(paymentId) {
+  try {
+    showStatusToast('📄', 'Generating receipt PDF...');
+    var payments = await API.get('/payments');
+    var p = payments.find(function(x) { return x.id === paymentId; });
+    if (!p) { dismissToast(); alert('Payment not found'); return; }
+    var el = _adminReceiptElement(p);
+    el.style.position = 'fixed';
+    el.style.top = '-99999px';
+    el.style.left = '0';
+    el.style.zIndex = '-9999';
+    document.body.appendChild(el);
+    await new Promise(function(r) { setTimeout(r, 300); });
+    var inv = p.invoice_number || 'Payment';
+    var dateStr = (p.payment_date || '').replace(/\//g, '-');
+    var filename = 'Receipt-' + inv + '-' + dateStr + '.pdf';
+    try {
+      var blob = await html2pdf().set({
+        margin: [0.5, 0.5, 0.5, 0.5],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, windowWidth: 700 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      }).from(el).outputPdf('blob');
+      var url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = filename; a.style.display = 'none';
+      document.body.appendChild(a); a.click();
+      setTimeout(function() { a.remove(); URL.revokeObjectURL(url); }, 1000);
+      dismissToast();
+      showStatusToast('✅', 'Receipt PDF downloaded');
+    } finally { el.remove(); }
+  } catch (e) {
+    dismissToast();
+    showStatusToast('❌', 'PDF failed');
+  }
 }
