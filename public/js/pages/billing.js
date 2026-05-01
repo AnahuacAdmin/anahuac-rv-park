@@ -86,7 +86,7 @@ async function loadBilling() {
     <div class="card billing-page-card">
       <div class="billing-scroll">
         <table class="billing-table">
-          <thead><tr><th style="width:75px"></th><th>Invoice #</th><th>Lot</th><th>Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Occupancy</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
+          <thead><tr><th style="width:90px;max-width:90px"></th><th>Invoice #</th><th style="width:50px">Lot</th><th>Guest</th><th style="width:80px">Date</th><th style="width:70px">Rent</th><th style="width:70px">Electric</th><th style="width:70px">Mailbox</th><th style="width:70px">Misc</th><th style="width:70px">Occupancy</th><th style="width:70px">Late Fee</th><th style="width:70px">Refund</th><th>Notes</th><th style="width:70px">Total</th><th style="width:70px">Paid</th><th style="width:70px">Balance</th><th style="width:70px">Status</th></tr></thead>
           <tbody id="invoices-body">
             ${renderInvoiceRows(invoices)}
           </tbody>
@@ -161,13 +161,13 @@ function renderInvoiceRow(inv, rowBg) {
   const _statusColor = _paused ? '#9ca3af' : inv.status === 'paid' ? '#16a34a' : inv.status === 'partial' ? '#f59e0b' : '#dc2626';
   return `
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
-      <td style="padding:0.15rem;white-space:nowrap">
-        <div style="display:flex;align-items:center;gap:2px">
+      <td style="padding:0.15rem;width:90px;max-width:90px">
+        <div style="display:flex;align-items:center;gap:2px;flex-wrap:nowrap">
           <button class="inv-icon-btn" onclick="event.stopPropagation();viewInvoice(${inv.id})" title="View Invoice">👁</button>
           <button class="inv-icon-btn" onclick="event.stopPropagation();editInvoice(${inv.id})" title="Edit Invoice">✏️</button>
-          <div class="inv-menu-wrap" style="position:relative">
+          <div class="inv-menu-wrap">
             <button class="inv-icon-btn" onclick="event.stopPropagation();toggleInvMenu(this)" title="More actions">⋮</button>
-            <div class="inv-dropdown" style="display:none;position:absolute;top:100%;right:0;z-index:100;background:#fff;border:1px solid #e7e5e4;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);min-width:160px;padding:4px 0;font-size:0.78rem">
+            <div class="inv-dropdown">
               <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();viewInvoice(${inv.id})">👁 View Invoice</button>
               <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();downloadInvoicePdf(${inv.id})">📄 Download PDF</button>
               <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();printInvoice(${inv.id})">🖨️ Print</button>
