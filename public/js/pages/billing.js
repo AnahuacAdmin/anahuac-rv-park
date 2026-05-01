@@ -86,7 +86,7 @@ async function loadBilling() {
     <div class="card billing-page-card">
       <div class="billing-scroll">
         <table class="billing-table">
-          <thead><tr><th style="width:90px">Actions</th><th>Invoice #</th><th>Lot</th><th>Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
+          <thead><tr><th style="width:90px">Actions</th><th>Invoice #</th><th>Lot</th><th>Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Mailbox</th><th>Misc</th><th>Occupancy</th><th>Late Fee</th><th>Refund</th><th>Notes</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
           <tbody id="invoices-body">
             ${renderInvoiceRows(invoices)}
           </tbody>
@@ -99,7 +99,7 @@ async function loadBilling() {
 }
 
 function renderInvoiceRows(invoices) {
-  if (!invoices.length) return '<tr><td colspan="16" class="text-center" style="padding:2rem">No invoices yet. Generate monthly invoices to get started.</td></tr>';
+  if (!invoices.length) return '<tr><td colspan="17" class="text-center" style="padding:2rem">No invoices yet. Generate monthly invoices to get started.</td></tr>';
 
   // Group invoices by month/year from invoice_date
   var rows = '';
@@ -124,7 +124,7 @@ function renderInvoiceRows(invoices) {
         monthPaid += Number(invoices[j].amount_paid) || 0;
       }
       var headerBg = monthIndex % 2 === 0 ? '#f0faf0' : '#eef2f7';
-      rows += '<tr class="month-header-row" style="background:' + headerBg + '"><td colspan="16" style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.85rem;border-bottom:2px solid ' + (monthIndex % 2 === 0 ? '#c6e6c6' : '#cdd5de') + ';color:#1c1917">' +
+      rows += '<tr class="month-header-row" style="background:' + headerBg + '"><td colspan="17" style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.85rem;border-bottom:2px solid ' + (monthIndex % 2 === 0 ? '#c6e6c6' : '#cdd5de') + ';color:#1c1917">' +
         '📅 ' + monthLabel +
         '<span style="font-weight:400;color:#78716c;margin-left:0.75rem;font-size:0.78rem">' + monthCount + ' invoice' + (monthCount !== 1 ? 's' : '') +
         ' · Total: ' + formatMoney(monthTotal) + ' · Collected: ' + formatMoney(monthPaid) + '</span></td></tr>';
@@ -172,6 +172,7 @@ function renderInvoiceRow(inv, rowBg) {
       <td>${formatMoney(inv.electric_amount)}</td>
       ${editableMoneyCell(inv.id, 'mailbox_fee', inv.mailbox_fee)}
       ${editableMoneyCell(inv.id, 'misc_fee', inv.misc_fee, inv.misc_description)}
+      ${editableMoneyCell(inv.id, 'extra_occupancy_fee', inv.extra_occupancy_fee)}
       ${editableMoneyCell(inv.id, 'late_fee', inv.late_fee)}
       ${editableMoneyCell(inv.id, 'refund_amount', inv.refund_amount, inv.refund_description, true)}
       ${editableTextCell(inv.id, 'notes', inv.notes)}
@@ -195,6 +196,7 @@ function renderDeletedInvoiceRow(inv, rowBg) {
       <td>${formatMoney(inv.electric_amount)}</td>
       <td>${formatMoney(inv.mailbox_fee)}</td>
       <td>${formatMoney(inv.misc_fee)}</td>
+      <td>${formatMoney(inv.extra_occupancy_fee)}</td>
       <td>${formatMoney(inv.late_fee)}</td>
       <td>${inv.refund_amount ? '-' + formatMoney(inv.refund_amount) : formatMoney(0)}</td>
       <td>${inv.notes || ''}</td>
@@ -554,6 +556,7 @@ async function viewInvoice(id) {
             ${inv.other_charges ? `<tr><td>${inv.other_description || 'Other Charges'}</td><td class="text-right">${formatMoney(inv.other_charges)}</td></tr>` : ''}
             ${inv.mailbox_fee ? `<tr><td>Mailbox Fee</td><td class="text-right">${formatMoney(inv.mailbox_fee)}</td></tr>` : ''}
             ${inv.misc_fee ? `<tr><td>${inv.misc_description || 'Misc Fee'}</td><td class="text-right">${formatMoney(inv.misc_fee)}</td></tr>` : ''}
+            ${inv.extra_occupancy_fee ? `<tr><td>Extra Occupancy Fee</td><td class="text-right">${formatMoney(inv.extra_occupancy_fee)}</td></tr>` : ''}
             ${inv.late_fee ? `<tr><td>Late Fee</td><td class="text-right">${formatMoney(inv.late_fee)}</td></tr>` : ''}
             ${inv.refund_amount ? `<tr><td>${inv.refund_description || 'Refund / Credit'}</td><td class="text-right">-${formatMoney(inv.refund_amount)}</td></tr>` : ''}
             ${inv.credit_applied ? `<tr><td>Account Credit Applied</td><td class="text-right" style="color:#16a34a">-${formatMoney(inv.credit_applied)}</td></tr>` : ''}
@@ -714,6 +717,7 @@ async function renderInvoiceHtml(inv) {
             ${inv.other_charges ? `<tr><td>${inv.other_description || 'Other Charges'}</td><td class="text-right">${formatMoney(inv.other_charges)}</td></tr>` : ''}
             ${inv.mailbox_fee ? `<tr><td>Mailbox Fee</td><td class="text-right">${formatMoney(inv.mailbox_fee)}</td></tr>` : ''}
             ${inv.misc_fee ? `<tr><td>${inv.misc_description || 'Misc Fee'}</td><td class="text-right">${formatMoney(inv.misc_fee)}</td></tr>` : ''}
+            ${inv.extra_occupancy_fee ? `<tr><td>Extra Occupancy Fee</td><td class="text-right">${formatMoney(inv.extra_occupancy_fee)}</td></tr>` : ''}
             ${inv.late_fee ? `<tr><td>Late Fee</td><td class="text-right">${formatMoney(inv.late_fee)}</td></tr>` : ''}
             ${inv.refund_amount ? `<tr><td>${inv.refund_description || 'Refund / Credit'}</td><td class="text-right">-${formatMoney(inv.refund_amount)}</td></tr>` : ''}
             ${inv.credit_applied ? `<tr><td>Account Credit Applied</td><td class="text-right" style="color:#16a34a">-${formatMoney(inv.credit_applied)}</td></tr>` : ''}
@@ -873,6 +877,10 @@ async function editInvoice(id) {
         <div class="form-group"><label>Misc Description</label><input name="misc_description" value="${inv.misc_description || ''}"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>Extra Occupancy Fee</label><input name="extra_occupancy_fee" type="number" step="0.01" value="${inv.extra_occupancy_fee || 0}"></div>
+        <div class="form-group" style="display:flex;align-items:flex-end"><small style="color:#78716c">$25/mo per extra occupant over 2 (age 8+)</small></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label>Refund / Credit</label><input name="refund_amount" type="number" step="0.01" value="${inv.refund_amount || 0}"></div>
         <div class="form-group"><label>Refund Description</label><input name="refund_description" value="${inv.refund_description || ''}"></div>
       </div>
@@ -896,7 +904,7 @@ async function editInvoice(id) {
         <label><input type="checkbox" name="rec_misc"> Misc Fee + Description</label> &nbsp;
         <label><input type="checkbox" name="rec_refund"> Refund as Recurring Credit</label>
       </fieldset>
-      <p><small>Total auto-recalculates: rent + electric + other + mailbox + misc + late − refund</small></p>
+      <p><small>Total auto-recalculates: rent + electric + other + mailbox + misc + occupancy + late − refund</small></p>
       <button type="submit" class="btn btn-primary btn-full mt-2">Save Changes</button>
     </form>
   `);
@@ -906,8 +914,16 @@ async function saveInvoiceEdit(e, id) {
   e.preventDefault();
   const form = new FormData(e.target);
   const data = Object.fromEntries(form);
-  ['rent_amount','electric_amount','other_charges','late_fee','mailbox_fee','misc_fee','refund_amount']
+  ['rent_amount','electric_amount','other_charges','late_fee','mailbox_fee','misc_fee','extra_occupancy_fee','refund_amount']
     .forEach(k => data[k] = parseFloat(data[k]) || 0);
+
+  // Audit trail for extra occupancy fee changes
+  const origInv = window._allInvoices?.find(i => i.id === id);
+  if (data.extra_occupancy_fee > 0 && (!origInv || (Number(origInv.extra_occupancy_fee) || 0) !== data.extra_occupancy_fee)) {
+    const editDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const auditNote = `Edited ${editDate}: extra occupancy $${data.extra_occupancy_fee.toFixed(2)}`;
+    data.notes = data.notes ? data.notes + ' | ' + auditNote : auditNote;
+  }
 
   const recFlags = { rec_late: data.rec_late, rec_mailbox: data.rec_mailbox, rec_misc: data.rec_misc, rec_refund: data.rec_refund };
   ['rec_late','rec_mailbox','rec_misc','rec_refund'].forEach(k => delete data[k]);

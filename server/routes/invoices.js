@@ -563,9 +563,9 @@ router.post('/generate', (req, res) => {
 
 router.put('/:id', (req, res) => {
   const { rent_amount, electric_amount, other_charges, other_description, late_fee,
-    mailbox_fee, misc_fee, misc_description, refund_amount, refund_description, status, notes } = req.body;
+    mailbox_fee, misc_fee, misc_description, extra_occupancy_fee, refund_amount, refund_description, status, notes } = req.body;
   const subtotal = (rent_amount || 0) + (electric_amount || 0) + (other_charges || 0)
-    + (mailbox_fee || 0) + (misc_fee || 0);
+    + (mailbox_fee || 0) + (misc_fee || 0) + (extra_occupancy_fee || 0);
   const total = subtotal + (late_fee || 0) - (refund_amount || 0);
 
   const existing = db.prepare('SELECT amount_paid FROM invoices WHERE id = ?').get(req.params.id);
@@ -573,11 +573,11 @@ router.put('/:id', (req, res) => {
 
   db.prepare(`
     UPDATE invoices SET rent_amount=?, electric_amount=?, other_charges=?, other_description=?,
-      mailbox_fee=?, misc_fee=?, misc_description=?, refund_amount=?, refund_description=?,
+      mailbox_fee=?, misc_fee=?, misc_description=?, extra_occupancy_fee=?, refund_amount=?, refund_description=?,
       subtotal=?, late_fee=?, total_amount=?, balance_due=?, status=?, notes=?
     WHERE id = ?
   `).run(rent_amount || 0, electric_amount || 0, other_charges || 0, other_description,
-    mailbox_fee || 0, misc_fee || 0, misc_description, refund_amount || 0, refund_description,
+    mailbox_fee || 0, misc_fee || 0, misc_description, extra_occupancy_fee || 0, refund_amount || 0, refund_description,
     subtotal, late_fee || 0, total, balance, status || (balance <= 0 ? 'paid' : 'pending'), notes, req.params.id);
   res.json({ success: true });
 });
@@ -586,7 +586,7 @@ router.put('/:id', (req, res) => {
 // Used by the inline cell editor on the billing page.
 router.patch('/:id', (req, res) => {
   const allowed = ['rent_amount','electric_amount','other_charges','other_description',
-    'late_fee','mailbox_fee','misc_fee','misc_description','refund_amount','refund_description','notes','status'];
+    'late_fee','mailbox_fee','misc_fee','misc_description','extra_occupancy_fee','refund_amount','refund_description','notes','status'];
   const existing = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Invoice not found' });
 
@@ -596,19 +596,19 @@ router.patch('/:id', (req, res) => {
   }
   const num = (v) => Number(v) || 0;
   const subtotal = num(merged.rent_amount) + num(merged.electric_amount) + num(merged.other_charges)
-    + num(merged.mailbox_fee) + num(merged.misc_fee);
+    + num(merged.mailbox_fee) + num(merged.misc_fee) + num(merged.extra_occupancy_fee);
   const total = subtotal + num(merged.late_fee) - num(merged.refund_amount);
   const balance = total - num(merged.amount_paid);
   const status = req.body.status || (balance <= 0 ? 'paid' : (num(merged.amount_paid) > 0 ? 'partial' : 'pending'));
 
   db.prepare(`
     UPDATE invoices SET rent_amount=?, electric_amount=?, other_charges=?, other_description=?,
-      mailbox_fee=?, misc_fee=?, misc_description=?, refund_amount=?, refund_description=?,
+      mailbox_fee=?, misc_fee=?, misc_description=?, extra_occupancy_fee=?, refund_amount=?, refund_description=?,
       subtotal=?, late_fee=?, total_amount=?, balance_due=?, status=?, notes=?
     WHERE id = ?
   `).run(
     num(merged.rent_amount), num(merged.electric_amount), num(merged.other_charges), merged.other_description,
-    num(merged.mailbox_fee), num(merged.misc_fee), merged.misc_description,
+    num(merged.mailbox_fee), num(merged.misc_fee), merged.misc_description, num(merged.extra_occupancy_fee),
     num(merged.refund_amount), merged.refund_description,
     subtotal, num(merged.late_fee), total, balance, status, merged.notes,
     req.params.id
@@ -619,6 +619,7 @@ router.patch('/:id', (req, res) => {
     rent_amount: num(merged.rent_amount), electric_amount: num(merged.electric_amount),
     other_charges: num(merged.other_charges), other_description: merged.other_description,
     mailbox_fee: num(merged.mailbox_fee), misc_fee: num(merged.misc_fee), misc_description: merged.misc_description,
+    extra_occupancy_fee: num(merged.extra_occupancy_fee),
     refund_amount: num(merged.refund_amount), refund_description: merged.refund_description,
     late_fee: num(merged.late_fee), notes: merged.notes,
   });
