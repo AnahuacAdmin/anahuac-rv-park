@@ -146,10 +146,11 @@ router.get('/latest', (req, res) => {
     // Find the latest meter reading for this lot — pick the highest id regardless of tenant_id,
     // so real readings (with photos/kwh) are never hidden behind zero-use placeholders.
     let reading = db.prepare('SELECT * FROM meter_readings WHERE lot_id = ? ORDER BY id DESC LIMIT 1').get(lot.id);
-    // If there's a reading with actual usage, prefer it over a zero placeholder
-    if (reading && reading.kwh_used === 0 && reading.current_reading === 0) {
+    // If the latest reading is a zero-use placeholder (no actual usage AND no photo),
+    // prefer a real reading that has actual usage or a photo.
+    if (reading && reading.kwh_used === 0 && reading.current_reading === reading.previous_reading && !reading.photo) {
       const realReading = db.prepare(
-        'SELECT * FROM meter_readings WHERE lot_id = ? AND (kwh_used > 0 OR current_reading > 0) ORDER BY id DESC LIMIT 1'
+        "SELECT * FROM meter_readings WHERE lot_id = ? AND (kwh_used > 0 OR current_reading != previous_reading OR (photo IS NOT NULL AND photo != '')) ORDER BY id DESC LIMIT 1"
       ).get(lot.id);
       if (realReading) reading = realReading;
     }

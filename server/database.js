@@ -908,12 +908,14 @@ async function initializeDatabase() {
 
   // --- Data fix: delete zero-use placeholder readings where a real reading exists for the same lot ---
   // Placeholders have kwh_used=0, current_reading=previous_reading (no actual usage), and no photo.
+  // A "real" reading has actual usage OR a photo attached.
   try {
     const deleted = dbWrapper.prepare(`
       DELETE FROM meter_readings
-      WHERE kwh_used = 0 AND current_reading = previous_reading AND photo IS NULL
+      WHERE kwh_used = 0 AND current_reading = previous_reading AND (photo IS NULL OR photo = '')
         AND lot_id IN (
-          SELECT DISTINCT lot_id FROM meter_readings WHERE kwh_used > 0 OR current_reading > previous_reading
+          SELECT DISTINCT lot_id FROM meter_readings
+          WHERE kwh_used > 0 OR current_reading != previous_reading OR (photo IS NOT NULL AND photo != '')
         )
     `).run();
     if (deleted.changes > 0) console.log(`[database] Deleted ${deleted.changes} zero-use placeholder readings`);
