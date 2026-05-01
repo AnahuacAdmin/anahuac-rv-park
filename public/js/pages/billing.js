@@ -119,10 +119,11 @@ function renderInvoiceRows(invoices) {
       var colors = monthColors[monthIndex % 2];
       currentRowBg = colors.row;
       var monthLabel = isNaN(d.getTime()) ? 'Unknown' : d.toLocaleString('default', { month: 'long', year: 'numeric' });
-      // Count invoices in this month
+      // Count invoices and collect IDs in this month
       var monthCount = 0;
       var monthTotal = 0;
       var monthPaid = 0;
+      var monthIds = [];
       for (var j = i; j < invoices.length; j++) {
         var d2 = new Date(invoices[j].invoice_date);
         var mk2 = isNaN(d2.getTime()) ? 'Unknown' : d2.getFullYear() + '-' + String(d2.getMonth() + 1).padStart(2, '0');
@@ -130,11 +131,14 @@ function renderInvoiceRows(invoices) {
         monthCount++;
         monthTotal += Number(invoices[j].total_amount) || 0;
         monthPaid += Number(invoices[j].amount_paid) || 0;
+        if (!invoices[j].deleted) monthIds.push(invoices[j].id);
       }
-      rows += '<tr class="month-header-row" style="background:' + colors.header + '"><td colspan="17" style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.85rem;border-bottom:2px solid ' + colors.border + ';color:#1c1917">' +
-        '📅 ' + monthLabel +
+      rows += '<tr class="month-header-row" style="background:' + colors.header + '"><td colspan="17" style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.85rem;border-bottom:2px solid ' + colors.border + ';color:#1c1917;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.25rem">' +
+        '<span>📅 ' + monthLabel +
         '<span style="font-weight:400;color:#78716c;margin-left:0.75rem;font-size:0.78rem">' + monthCount + ' invoice' + (monthCount !== 1 ? 's' : '') +
-        ' · Total: ' + formatMoney(monthTotal) + ' · Collected: ' + formatMoney(monthPaid) + '</span></td></tr>';
+        ' · Total: ' + formatMoney(monthTotal) + ' · Collected: ' + formatMoney(monthPaid) + '</span></span>' +
+        (monthIds.length ? '<button class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.5rem;white-space:nowrap" onclick="event.stopPropagation();printMonthInvoices([' + monthIds.join(',') + '])">🖨️ Print All (' + monthIds.length + ')</button>' : '') +
+        '</td></tr>';
       lastMonthKey = monthKey;
     }
     rows += renderInvoiceRow(inv, currentRowBg);
@@ -161,6 +165,7 @@ function renderInvoiceRow(inv, rowBg) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">
           <button class="inv-act-btn" onclick="event.stopPropagation();viewInvoice(${inv.id})">View</button>
           <button class="inv-act-btn" onclick="event.stopPropagation();downloadInvoicePdf(${inv.id})">PDF</button>
+          <button class="inv-act-btn" onclick="event.stopPropagation();printInvoice(${inv.id})" title="Print invoice">🖨️</button>
           <button class="inv-act-btn" onclick="event.stopPropagation();emailInvoice(${inv.id})">Email</button>
           <button class="inv-act-btn" onclick="event.stopPropagation();smsInvoice(${inv.id})">SMS</button>
           ${inv.balance_due > 0.005 ? `<button class="inv-act-btn inv-act-green" onclick="event.stopPropagation();payInvoiceWithStripe(${inv.id})">Pay</button>` : ''}
@@ -686,6 +691,60 @@ async function downloadInvoicePdf(id) {
   } finally {
     wrap.remove();
   }
+}
+
+// Print a single invoice — renders PDF blob and opens print dialog.
+async function printInvoice(id) {
+  try {
+    showStatusToast('🖨️', 'Preparing invoice for print...');
+    const inv = await API.get(`/invoices/${id}`);
+    if (!inv) throw new Error('Invoice not found');
+    await _printInvoiceHtml(inv);
+  } catch (err) {
+    console.error('[billing] print failed:', err);
+    showStatusToast('❌', 'Print failed — try the PDF button instead');
+  }
+}
+
+// Print all invoices for a month in one batch.
+async function printMonthInvoices(ids) {
+  try {
+    showStatusToast('🖨️', `Preparing ${ids.length} invoices for print...`);
+    var allHtml = '';
+    for (var i = 0; i < ids.length; i++) {
+      var inv = await API.get('/invoices/' + ids[i]);
+      if (!inv) continue;
+      var html = await renderInvoiceHtml(inv);
+      allHtml += (i > 0 ? '<div style="page-break-before:always"></div>' : '') + html;
+    }
+    if (!allHtml) throw new Error('No invoices to print');
+    // Open in a print window
+    var printWin = window.open('', '_blank', 'width=800,height=1000');
+    if (!printWin) { showStatusToast('❌', 'Pop-up blocked — allow pop-ups and try again'); return; }
+    printWin.document.write('<html><head><title>Print Invoices</title>');
+    printWin.document.write('<link rel="stylesheet" href="/css/style.css">');
+    printWin.document.write('<style>body{margin:0;padding:1rem;background:#fff} .invoice-print{max-width:800px;margin:0 auto 1rem} @media print{body{padding:0}}</style>');
+    printWin.document.write('</head><body>' + allHtml + '</body></html>');
+    printWin.document.close();
+    // Wait for CSS + images to load, then print
+    printWin.onload = function() { setTimeout(function() { printWin.print(); }, 300); };
+  } catch (err) {
+    console.error('[billing] batch print failed:', err);
+    showStatusToast('❌', 'Print failed — try printing individually');
+  }
+}
+
+// Internal helper: render a single invoice and open print dialog.
+async function _printInvoiceHtml(inv) {
+  var html = await renderInvoiceHtml(inv);
+  var printWin = window.open('', '_blank', 'width=800,height=1000');
+  if (!printWin) { showStatusToast('❌', 'Pop-up blocked — allow pop-ups and try again'); return; }
+  printWin.document.write('<html><head><title>Invoice ' + (inv.invoice_number || '') + '</title>');
+  printWin.document.write('<link rel="stylesheet" href="/css/style.css">');
+  printWin.document.write('<style>body{margin:0;padding:1rem;background:#fff} .invoice-print{max-width:800px;margin:0 auto} @media print{body{padding:0}}</style>');
+  printWin.document.write('</head><body>' + html + '</body></html>');
+  printWin.document.close();
+  printWin.onload = function() { setTimeout(function() { printWin.print(); }, 300); };
 }
 
 // Reusable invoice HTML used by both view modal and offscreen PDF render.
