@@ -768,7 +768,7 @@ function _invoicePrintCSS() {
     .inv-qr-section img { width: 90px; height: 90px; }
     .inv-qr-section strong { font-size: 11pt; }
     .inv-qr-section p { font-size: 8.5pt; color: #78716c; margin: 2px 0 0; }
-    .inv-qr-section .inv-pay-url { font-size: 8pt; color: #1a5c32; word-break: break-all; margin-top: 2px; }
+    .inv-qr-section a { display: none; } /* Hide pay button on print — QR code is sufficient */
 
     /* Fine print */
     .inv-fine-print {
@@ -894,7 +894,6 @@ async function renderInvoiceHtml(inv) {
       ${inv.notes ? `<div class="inv-notes"><strong>Notes:</strong> ${inv.notes}</div>` : ''}
 
       ${!isPaid ? await invoicePayQrHtml(inv.id, true) : ''}
-      ${!isPaid ? `<p style="text-align:center;font-size:8.5pt;color:#1a5c32;margin:2px 0 10px"><strong>Pay online:</strong> <a href="${APP_URL}/pay.html?pay=${inv.id}" style="color:#1a5c32">${APP_URL}/pay.html?pay=${inv.id}</a></p>` : ''}
 
       ${invoiceStandardNotesHtml()}
 
@@ -926,8 +925,8 @@ async function invoicePayQrHtml(invoiceId, forPdf) {
         <img src="${qrDataUrl}" alt="Pay QR code" width="120" height="120">
         <div>
           <strong>Scan to Pay Online</strong>
+          <p>Scan the QR code with your phone to pay securely online.</p>
           <p>A 3% convenience fee applies to card payments.</p>
-          <p class="inv-pay-url">${payUrl}</p>
         </div>
       </div>
     `;
@@ -938,6 +937,7 @@ async function invoicePayQrHtml(invoiceId, forPdf) {
       <div>
         <strong>Scan to Pay Online</strong>
         <p style="font-size:0.8rem;color:#78716c;margin:0.2rem 0 0">A 3% convenience fee applies to card payments.</p>
+        <a href="${payUrl}" target="_blank" style="display:inline-block;margin-top:6px;padding:4px 14px;background:#1a5c32;color:#fff;border-radius:5px;font-size:0.8rem;font-weight:600;text-decoration:none">Pay Online &rarr;</a>
       </div>
     </div>
   `;
