@@ -178,8 +178,8 @@ function renderInvoiceRow(inv, rowBg) {
       <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${invoiceEvictionBadge(inv)}</td>
     </tr>
     <tr class="invoice-actions-row" id="inv-actions-${inv.id}" style="display:none">
-      <td colspan="10" style="padding:4px 8px;background:#f5f5f4;border-bottom:2px solid #d6d3d1">
-        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+      <td colspan="10" style="padding:4px 8px;background:#f5f5f5;border-bottom:2px solid #d6d3d1">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center">
           <button class="inv-act-btn" onclick="event.stopPropagation();viewInvoice(${inv.id})">View</button>
           <button class="inv-act-btn" onclick="event.stopPropagation();downloadInvoicePdf(${inv.id})">PDF</button>
           <button class="inv-act-btn" onclick="event.stopPropagation();printInvoice(${inv.id})">Print</button>
@@ -212,8 +212,8 @@ function renderDeletedInvoiceRow(inv, rowBg) {
       <td><span class="badge badge-gray" style="font-size:0.65rem">Deleted</span></td>
     </tr>
     <tr class="invoice-actions-row" id="inv-actions-${inv.id}" style="display:none">
-      <td colspan="10" style="padding:4px 8px;background:#f5f5f4;border-bottom:2px solid #d6d3d1">
-        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+      <td colspan="10" style="padding:4px 8px;background:#f5f5f5;border-bottom:2px solid #d6d3d1">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center">
           <button class="inv-act-btn" onclick="event.stopPropagation();restoreInvoice(${inv.id})">Restore</button>
         </div>
       </td>

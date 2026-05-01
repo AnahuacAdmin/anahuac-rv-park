@@ -1380,7 +1380,7 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
   th, td { padding: 0.5rem; white-space: nowrap; }
 
   /* Billing action buttons — tappable on mobile */
-  .inv-act-btn { min-height: 32px; font-size: 0.72rem; }
+  .inv-act-btn { min-height: 32px; font-size: 0.75rem; padding: 4px 12px; }
 
   /* Form inputs — full width, tappable */
   input, select, textarea {
@@ -1716,14 +1716,14 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
 /* Hide tel: call buttons on desktop — only show on mobile devices */
 @media (min-width: 769px) { .mobile-call-btn { display: none !important; } }
 
-/* === INVOICE ACTION BUTTONS (compact text grid) === */
+/* === INVOICE ACTION BUTTONS (horizontal row) === */
 .inv-act-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 100%; height: 26px; padding: 0 4px; border: 1px solid var(--gray-200, #e7e5e4);
+  padding: 4px 12px; border: 1px solid var(--gray-200, #e7e5e4);
   background: #fff; border-radius: 4px; cursor: pointer;
-  font-size: 0.68rem; font-weight: 600; color: var(--gray-700, #44403c);
+  font-size: 0.75rem; font-weight: 600; color: var(--gray-700, #44403c);
   font-family: inherit; white-space: nowrap;
-  transition: background 0.15s;
+  transition: background 0.15s; line-height: 1.2;
 }
 .inv-act-btn:hover { background: var(--gray-100, #f5f5f4); }
 .inv-act-btn:active { transform: scale(0.97); }
