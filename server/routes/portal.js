@@ -275,6 +275,19 @@ router.post('/message', tenantAuth, (req, res) => {
   res.json({ success: true });
 });
 
+// Payment history for the logged-in tenant
+router.get('/payments', tenantAuth, (req, res) => {
+  const payments = db.prepare(`
+    SELECT p.id, p.payment_date, p.amount, p.payment_method, p.reference_number, p.notes,
+      i.invoice_number, i.total_amount, i.balance_due, i.status as invoice_status
+    FROM payments p
+    LEFT JOIN invoices i ON p.invoice_id = i.id
+    WHERE p.tenant_id = ?
+    ORDER BY p.payment_date DESC, p.id DESC
+  `).all(req.tenant.id);
+  res.json(payments);
+});
+
 // Birthday message for the logged-in tenant (most recent, within last 3 days)
 router.get('/birthday-message', tenantAuth, (req, res) => {
   try {

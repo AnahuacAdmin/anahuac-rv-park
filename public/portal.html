@@ -392,6 +392,26 @@
     </div>
   </div>
 
+  <!-- Payment Confirmation Overlay -->
+  <div id="payment-confirmation" data-tab-section="home" style="display:none;width:100%;max-width:800px;margin-bottom:0.6rem">
+    <div class="card" style="border-top:4px solid #16a34a;text-align:center;padding:1.5rem 1.25rem">
+      <div style="font-size:3rem;margin-bottom:0.5rem">✅</div>
+      <div style="font-size:1.4rem;font-weight:800;color:#16a34a;margin-bottom:0.25rem">Payment Received!</div>
+      <div id="confirm-details" style="font-size:0.95rem;color:#44403c;line-height:1.8;margin:0.75rem 0"></div>
+      <div style="font-size:0.85rem;color:#78716c;margin-bottom:1rem">Thank you for your payment</div>
+      <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-green" onclick="document.getElementById('payment-confirmation').style.display='none'" style="font-size:0.95rem">Back to Portal</button>
+        <button class="btn btn-outline" onclick="printPaymentConfirmation()" style="font-size:0.95rem">🖨️ Print Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment History -->
+  <div class="card" data-tab-section="home" style="margin-bottom:0.6rem;padding:1rem 1.25rem">
+    <div class="card-title" style="font-size:0.72rem;margin-bottom:0.5rem">Payment History</div>
+    <div id="p-payment-history" style="font-size:0.88rem;color:#a8a29e">Loading...</div>
+  </div>
+
   <!-- Birthday Banner — between balance and quick actions -->
   <div id="portal-birthday-banner" data-tab-section="home" style="display:none;width:100%;max-width:800px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border:3px solid #d97706;border-radius:16px;padding:1.5rem 1.25rem;margin-bottom:0.6rem;text-align:center;position:relative;overflow:hidden;box-shadow:0 4px 15px rgba(245,158,11,0.3)">
     <div style="font-size:2.5rem;margin-bottom:0.4rem">🎂🎉🥳</div>
@@ -1099,9 +1119,27 @@ async function showPortal() {
     }
     if (sessionStorage.getItem('portal_paid')) {
       sessionStorage.removeItem('portal_paid');
-      payEl.innerHTML = '<div class="msg-success">🎉 Payment received! Thank you!</div>' + payEl.innerHTML;
+      // Show full confirmation screen
+      var confirmEl = document.getElementById('payment-confirmation');
+      if (confirmEl) {
+        confirmEl.style.display = '';
+        // Load most recent payment for details
+        portalFetch('/payments').then(function(payments) {
+          if (payments && payments.length > 0) {
+            var p = payments[0];
+            document.getElementById('confirm-details').innerHTML =
+              '<div><strong>Invoice:</strong> ' + (p.invoice_number || 'N/A') + '</div>' +
+              '<div><strong>Amount Paid:</strong> $' + Number(p.amount).toFixed(2) + '</div>' +
+              '<div><strong>Date:</strong> ' + (p.payment_date || new Date().toISOString().split('T')[0]) + '</div>' +
+              '<div><strong>Method:</strong> Credit Card (Stripe)</div>';
+          }
+        }).catch(function() {});
+      }
       try { celebratePayment(); } catch(e) {}
     }
+
+    // Load payment history
+    loadPaymentHistory();
 
     const invEl = document.getElementById('p-invoices');
     invEl.innerHTML = (data.invoices || []).map(i =>
@@ -1113,6 +1151,7 @@ async function showPortal() {
     document.getElementById('p-balance').className = 'balance-amount balance-paid';
     document.getElementById('pay-section').innerHTML = '<p style="text-align:center;color:#78716c;font-size:0.85rem">Payment preview not available</p>';
     document.getElementById('p-invoices').innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">Invoice data preview not available</p>';
+    document.getElementById('p-payment-history').innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">Payment history preview not available</p>';
   }
 }
 
@@ -3007,6 +3046,91 @@ async function portalPay() {
     if (r?.url) window.location.href = r.url;
     else alert('Could not start payment. Please call 409-267-6603.');
   } catch (err) { alert('Payment error: ' + (err.message || 'unknown')); }
+}
+
+async function loadPaymentHistory() {
+  var el = document.getElementById('p-payment-history');
+  if (!el) return;
+  try {
+    var payments = await portalFetch('/payments');
+    if (!payments || !payments.length) {
+      el.innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">No payments recorded yet</p>';
+      return;
+    }
+    el.innerHTML = '<div style="display:flex;flex-direction:column;gap:0.4rem">' +
+      payments.map(function(p) {
+        var method = (p.payment_method || 'N/A').replace('Credit Card', '💳 Card').replace('cash', '💵 Cash').replace('check', '📝 Check');
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0.6rem;background:#fafaf9;border-radius:8px;border:1px solid #e7e5e4">' +
+          '<div>' +
+            '<div style="font-weight:600;color:#1c1917;font-size:0.88rem">' + (p.invoice_number || 'Credit') + '</div>' +
+            '<div style="font-size:0.75rem;color:#78716c">' + (p.payment_date || '') + ' · ' + method + '</div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:0.5rem">' +
+            '<span style="font-weight:700;color:#16a34a;font-size:0.95rem">$' + Number(p.amount).toFixed(2) + '</span>' +
+            '<button onclick="printReceipt(' + p.id + ')" style="background:none;border:1px solid #d6d3d1;border-radius:6px;padding:2px 6px;font-size:0.7rem;cursor:pointer;color:#78716c" title="Print Receipt">🖨️</button>' +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+  } catch (e) { el.innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">Could not load payment history</p>'; }
+}
+
+function _receiptHtml(data) {
+  var date = data.payment_date || new Date().toISOString().split('T')[0];
+  var method = (data.payment_method || 'N/A');
+  var inv = data.invoice_number || 'N/A';
+  var amount = Number(data.amount).toFixed(2);
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt — Anahuac RV Park</title>' +
+    '<style>@page{margin:0;size:letter portrait}body{margin:0.75in;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;color:#1c1917;font-size:14px;line-height:1.6}' +
+    '.header{text-align:center;border-bottom:2px solid #1a5c32;padding-bottom:12px;margin-bottom:20px}' +
+    '.header h1{color:#1a5c32;font-size:20px;margin:0}.header p{color:#666;font-size:12px;margin:2px 0}' +
+    '.title{text-align:center;font-size:18px;font-weight:800;color:#1a5c32;letter-spacing:1px;margin:20px 0}' +
+    '.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e7e5e4}' +
+    '.row .label{color:#78716c;font-weight:600}.row .value{font-weight:700;text-align:right}' +
+    '.total{font-size:20px;color:#16a34a;border-top:2px solid #1a5c32;margin-top:10px;padding-top:10px}' +
+    '.footer{text-align:center;margin-top:30px;font-size:12px;color:#a8a29e;border-top:1px solid #e7e5e4;padding-top:12px}' +
+    '.thank{text-align:center;font-size:16px;font-weight:700;color:#1a5c32;margin-top:24px}</style></head><body>' +
+    '<div class="header"><h1>Anahuac RV Park</h1><p>1003 Davis Ave, Anahuac, TX 77514</p><p>409-267-6603</p></div>' +
+    '<div class="title">PAYMENT RECEIPT</div>' +
+    '<div class="row"><span class="label">Date</span><span class="value">' + date + '</span></div>' +
+    '<div class="row"><span class="label">Invoice</span><span class="value">' + inv + '</span></div>' +
+    '<div class="row"><span class="label">Payment Method</span><span class="value">' + method + '</span></div>' +
+    '<div class="row total"><span class="label">Amount Paid</span><span class="value">$' + amount + '</span></div>' +
+    '<div class="thank">Thank you for your payment!</div>' +
+    '<div class="footer">Anahuac RV Park · 1003 Davis Ave, Anahuac, TX 77514 · 409-267-6603</div>' +
+    '</body></html>';
+}
+
+async function printReceipt(paymentId) {
+  try {
+    var payments = await portalFetch('/payments');
+    var p = payments.find(function(x) { return x.id === paymentId; });
+    if (!p) { alert('Payment not found'); return; }
+    var w = window.open('', '_blank', 'width=600,height=700');
+    if (!w) { alert('Please allow popups to print receipts.'); return; }
+    w.document.write(_receiptHtml(p));
+    w.document.close();
+    setTimeout(function() { w.print(); }, 300);
+  } catch (e) { alert('Could not load receipt'); }
+}
+
+function printPaymentConfirmation() {
+  var details = document.getElementById('confirm-details');
+  if (!details) return;
+  // Parse the confirmation details into a receipt
+  var rows = details.querySelectorAll('div');
+  var data = { payment_date: '', amount: 0, invoice_number: 'N/A', payment_method: 'Credit Card' };
+  rows.forEach(function(r) {
+    var text = r.textContent;
+    if (text.includes('Invoice:')) data.invoice_number = text.split(':')[1].trim();
+    if (text.includes('Amount Paid:')) data.amount = parseFloat(text.replace(/[^0-9.]/g, '')) || 0;
+    if (text.includes('Date:')) data.payment_date = text.split(':')[1].trim();
+    if (text.includes('Method:')) data.payment_method = text.split(':')[1].trim();
+  });
+  var w = window.open('', '_blank', 'width=600,height=700');
+  if (!w) { alert('Please allow popups to print receipts.'); return; }
+  w.document.write(_receiptHtml(data));
+  w.document.close();
+  setTimeout(function() { w.print(); }, 300);
 }
 
 function handleCallBtn(e) {

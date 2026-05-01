@@ -9,6 +9,17 @@
 
 const express = require('express');
 const { db } = require('./database');
+const { sendSms } = require('./twilio');
+let _resend = null;
+function getResend() {
+  if (_resend) return _resend;
+  if (!process.env.RESEND_API_KEY) return null;
+  const { Resend } = require('resend');
+  _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
+const FROM_ADDRESS = 'Anahuac RV Park <invoices@anrvpark.com>';
+const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 
 let _stripe = null;
 function getStripe() {
@@ -92,6 +103,31 @@ function registerStripeWebhook(app) {
           }
 
           console.log(`[stripe] payment recorded for invoice ${inv.invoice_number}`);
+
+          // Send confirmation email + SMS (non-blocking)
+          const tenant = db.prepare('SELECT first_name, last_name, email, phone, lot_id FROM tenants WHERE id = ?').get(inv.tenant_id);
+          const remainingBalance = Math.max(0, newBalance).toFixed(2);
+          if (tenant) {
+            // Email confirmation via Resend
+            try {
+              const resend = getResend();
+              if (resend && tenant.email) {
+                resend.emails.send({
+                  from: FROM_ADDRESS,
+                  to: tenant.email,
+                  subject: `Payment Received — Anahuac RV Park`,
+                  text: `Thank you, ${tenant.first_name}!\n\nYour payment of $${paymentAmount.toFixed(2)} for Invoice ${inv.invoice_number} has been received on ${today}.\n\nRemaining balance: $${remainingBalance}\n\nIf you have questions, call us at 409-267-6603 or visit ${APP_URL}/portal.html\n\nAnahuac RV Park\n1003 Davis Ave, Anahuac, TX 77514\n409-267-6603`,
+                }).catch(e => console.error('[stripe] confirmation email failed:', e.message));
+              }
+            } catch (e) { console.error('[stripe] email setup error:', e.message); }
+
+            // SMS confirmation via Twilio
+            try {
+              if (tenant.phone) {
+                sendSms(tenant.phone, `Anahuac RV Park: Payment of $${paymentAmount.toFixed(2)} received for Invoice ${inv.invoice_number}. Thank you! Balance: $${remainingBalance}. Questions? 409-267-6603`).catch(e => console.error('[stripe] confirmation SMS failed:', e.message));
+              }
+            } catch (e) { console.error('[stripe] SMS setup error:', e.message); }
+          }
         }
         res.json({ received: true });
       } catch (err) {
