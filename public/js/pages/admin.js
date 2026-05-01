@@ -192,15 +192,17 @@ async function loadAdmin() {
       <button class="btn btn-sm btn-primary" id="btn-add-local-link">➕ Add Link</button>
     </div>
 
-    <div class="card">
-      <h3>Database Backup</h3>
+    <div class="card" style="border-left:4px solid #16a34a">
+      <h3>💾 Database Backup</h3>
       <p>Last backup: <strong id="last-backup-display">${lastBackup}</strong></p>
+      <div id="backup-size-info" style="font-size:0.82rem;color:#78716c;margin:0.5rem 0">Loading backup info...</div>
       <div class="btn-group mt-2">
-        <button class="btn btn-primary" onclick="downloadDatabaseBackup()">Download Backup (.sqlite)</button>
-        <button class="btn btn-warning" onclick="document.getElementById('restore-input').click()">Restore from Backup</button>
+        <button class="btn btn-primary" onclick="showBackupInstructionsModal('db')">📦 Database Only (.sqlite)</button>
+        <button class="btn btn-success" onclick="showBackupInstructionsModal('full')">📁 Full Backup with Photos (.zip)</button>
+        <button class="btn btn-warning" onclick="document.getElementById('restore-input').click()">⬆️ Restore from Backup</button>
         <input type="file" id="restore-input" accept=".sqlite,.db,application/octet-stream" style="display:none" onchange="restoreDatabaseBackup(this)">
       </div>
-      <p class="mt-2"><small>The backup is the complete SQLite database file. Restoring will replace ALL current data — download a fresh backup first.</small></p>
+      <p class="mt-2"><small>The backup includes tenant data, invoices, payments, meter readings, and settings. The full backup also includes all meter photos. Restoring will replace ALL current data — download a fresh backup first.</small></p>
     </div>
 
     <div class="card" style="border-left:4px solid #dc2626">
@@ -232,6 +234,7 @@ async function loadAdmin() {
   `;
 
   // Load dynamic sections
+  loadBackupSizeInfo();
   loadFlatRateTenants();
   loadAlertHistory();
   loadNWSCurrentAlerts();
@@ -302,15 +305,18 @@ async function downloadDatabaseBackup() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `rvpark-backup-${today}.sqlite`;
+    a.download = `AnahuacRVPark-Backup-${today}.sqlite`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    showStatusToast('✅', 'Database backup downloaded successfully!');
     // Refresh the last-backup display
     const info = await API.get('/admin/backup-info');
     const el = document.getElementById('last-backup-display');
     if (el && info?.lastBackupAt) el.textContent = new Date(info.lastBackupAt).toLocaleString();
+    // Clear dashboard backup dismiss so banner hides
+    localStorage.removeItem('backup_dismiss_until');
   } catch (err) {
     alert('Backup failed: ' + (err.message || 'unknown error'));
   }
@@ -339,6 +345,84 @@ async function restoreDatabaseBackup(input) {
     location.reload();
   } catch (err) {
     alert('Restore failed: ' + (err.message || 'unknown error'));
+  }
+}
+
+async function loadBackupSizeInfo() {
+  try {
+    const info = await API.get('/admin/backup-info');
+    const el = document.getElementById('backup-size-info');
+    if (!el) return;
+    const dbSize = info.dbSizeBytes ? (info.dbSizeBytes / 1024 / 1024).toFixed(1) + ' MB' : 'unknown';
+    const photoInfo = info.photoCount > 0
+      ? `${info.photoCount} photos (${(info.photoSizeBytes / 1024 / 1024).toFixed(1)} MB)`
+      : 'No photos';
+    el.innerHTML = `📊 Database: <strong>${dbSize}</strong> &nbsp;|&nbsp; 📷 Photos: <strong>${photoInfo}</strong>`;
+  } catch {}
+}
+
+function showBackupInstructionsModal(type) {
+  const isFullBackup = type === 'full';
+  const title = isFullBackup ? 'Full Backup with Photos' : 'Database Backup';
+  const fileDesc = isFullBackup
+    ? 'a <strong>.zip</strong> file containing the database and all meter photos'
+    : 'a <strong>.sqlite</strong> database file with all tenant data, invoices, payments, and settings';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'backup-instructions-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:5000;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:480px;width:100%;padding:1.5rem;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <h3 style="margin:0 0 1rem">💾 ${title}</h3>
+      <p style="font-size:0.9rem;line-height:1.5;margin:0 0 0.75rem">This will download ${fileDesc}.</p>
+      <div style="background:#f5f5f4;border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:0.85rem;line-height:1.6">
+        <strong>After downloading:</strong>
+        <ol style="margin:0.5rem 0 0;padding-left:1.25rem">
+          <li>Save the file to a safe location (USB drive, Google Drive, or another computer)</li>
+          <li>Keep at least 2 copies in different places</li>
+          <li>Name your backup folder by date so you can find it later</li>
+          ${isFullBackup ? '<li>The ZIP contains a folder of meter photos — do not rename or rearrange these</li>' : ''}
+        </ol>
+      </div>
+      <p style="font-size:0.78rem;color:#78716c;margin:0 0 1rem">⏱️ We recommend backing up at least once a month. ${isFullBackup ? 'Full backups may take longer if you have many photos.' : ''}</p>
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="document.getElementById('backup-instructions-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" onclick="document.getElementById('backup-instructions-overlay').remove();${isFullBackup ? 'downloadFullBackup()' : 'downloadDatabaseBackup()'}">⬇️ Download Now</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+
+async function downloadFullBackup() {
+  try {
+    showStatusToast('⏳', 'Preparing full backup with photos...');
+    const res = await fetch('/api/admin/backup-full', {
+      headers: { 'Authorization': `Bearer ${API.token}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Backup failed (${res.status})`);
+    }
+    const blob = await res.blob();
+    const today = new Date().toISOString().split('T')[0];
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `AnahuacRVPark-FullBackup-${today}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showStatusToast('✅', 'Full backup downloaded successfully!');
+    // Refresh last-backup display
+    const info = await API.get('/admin/backup-info');
+    const el = document.getElementById('last-backup-display');
+    if (el && info?.lastBackupAt) el.textContent = new Date(info.lastBackupAt).toLocaleString();
+    // Clear dashboard backup dismiss so banner hides
+    localStorage.removeItem('backup_dismiss_until');
+  } catch (err) {
+    alert('Full backup failed: ' + (err.message || 'unknown error'));
   }
 }
 

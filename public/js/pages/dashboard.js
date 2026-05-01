@@ -99,6 +99,8 @@ async function loadDashboard() {
 
     <div id="dash-weather-alert-banner"></div>
 
+    <div id="dash-backup-reminder-banner"></div>
+
     <!-- Weekly Arrivals/Departures -->
     ${isAdmin() ? `
     <div class="card dash-fade-in" id="weekly-widget" style="animation-delay:0.08s;padding:0">
@@ -426,6 +428,7 @@ async function loadDashboard() {
   waitForChartAndRender(data);
   loadDashWeatherBanner();
   if (isAdmin()) loadWeeklySchedule();
+  if (isAdmin()) loadDashBackupReminder();
   loadDashBanner();
 
   // Count-up animation for stat values
@@ -480,6 +483,57 @@ async function loadDashboard() {
 
   // Init calculator
   initCalc();
+}
+
+async function loadDashBackupReminder() {
+  const banner = document.getElementById('dash-backup-reminder-banner');
+  if (!banner) return;
+  try {
+    const info = await API.get('/admin/backup-info');
+    const lastBackup = info?.lastBackupAt ? new Date(info.lastBackupAt) : null;
+    const now = new Date();
+    const daysSince = lastBackup ? Math.floor((now - lastBackup) / (1000 * 60 * 60 * 24)) : 999;
+    const isFirstOfMonth = now.getDate() === 1;
+
+    // Check dismiss (localStorage)
+    const dismissUntil = localStorage.getItem('backup_dismiss_until');
+    const isDismissed = dismissUntil && new Date(dismissUntil) > now;
+
+    // Show if: 30+ days since last backup (or never backed up), and not dismissed — OR first of month always
+    const shouldShow = (daysSince >= 30 && !isDismissed) || (isFirstOfMonth && daysSince >= 7);
+    if (!shouldShow) return;
+
+    const urgency = daysSince >= 60 ? 'border-left:4px solid #dc2626;background:#fef2f2' :
+                    daysSince >= 30 ? 'border-left:4px solid #f59e0b;background:#fffbeb' :
+                    'border-left:4px solid #0284c7;background:#eff6ff';
+    const icon = daysSince >= 60 ? '🚨' : '⚠️';
+    const msg = lastBackup
+      ? `Your last backup was <strong>${daysSince} days ago</strong> (${lastBackup.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}). We recommend backing up at least once a month.`
+      : `<strong>No backup has been created yet.</strong> We strongly recommend downloading a backup of your data.`;
+
+    banner.innerHTML = `
+      <div class="card dash-fade-in" style="${urgency};padding:0.85rem 1rem;margin-bottom:0.5rem;animation-delay:0.06s">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
+          <div style="flex:1;min-width:200px">
+            <strong style="font-size:0.9rem">${icon} Monthly Backup Reminder</strong>
+            <p style="margin:0.25rem 0 0;font-size:0.82rem;color:#57534e">${msg}</p>
+          </div>
+          <div style="display:flex;gap:0.5rem;align-items:center">
+            <button class="btn btn-sm btn-primary" onclick="navigateTo('admin')" style="font-size:0.8rem">💾 Go to Backup</button>
+            <button class="btn btn-sm btn-outline" onclick="dismissBackupReminder()" style="font-size:0.75rem;color:#78716c">Remind me later</button>
+          </div>
+        </div>
+      </div>`;
+  } catch {}
+}
+
+function dismissBackupReminder() {
+  // Dismiss for 7 days
+  const until = new Date();
+  until.setDate(until.getDate() + 7);
+  localStorage.setItem('backup_dismiss_until', until.toISOString());
+  const banner = document.getElementById('dash-backup-reminder-banner');
+  if (banner) banner.innerHTML = '';
 }
 
 async function loadDashReviews() {

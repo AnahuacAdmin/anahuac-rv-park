@@ -6,9 +6,13 @@
  */
 const router = require('express').Router();
 const fs = require('fs');
+const path = require('path');
 const express = require('express');
+const archiver = require('archiver');
 const { db, reloadDatabase, saveDb, DB_PATH } = require('../database');
 const { authenticate } = require('../middleware');
+
+const PHOTOS_DIR = path.join(path.dirname(DB_PATH), 'uploads', 'meter-photos');
 
 router.use(authenticate);
 
@@ -20,7 +24,23 @@ function requireAdmin(req, res, next) {
 // Last backup metadata stored as a setting key.
 router.get('/backup-info', requireAdmin, (req, res) => {
   const row = db.prepare("SELECT value FROM settings WHERE key = 'last_backup_at'").get();
-  res.json({ lastBackupAt: row?.value || null });
+  let dbSizeBytes = 0;
+  let photoCount = 0;
+  let photoSizeBytes = 0;
+  try {
+    saveDb();
+    if (fs.existsSync(DB_PATH)) dbSizeBytes = fs.statSync(DB_PATH).size;
+  } catch {}
+  try {
+    if (fs.existsSync(PHOTOS_DIR)) {
+      const files = fs.readdirSync(PHOTOS_DIR);
+      photoCount = files.length;
+      for (const f of files) {
+        try { photoSizeBytes += fs.statSync(path.join(PHOTOS_DIR, f)).size; } catch {}
+      }
+    }
+  } catch {}
+  res.json({ lastBackupAt: row?.value || null, dbSizeBytes, photoCount, photoSizeBytes });
 });
 
 // Download the entire .sqlite file. Forces a save first so the file on disk
@@ -44,6 +64,44 @@ router.get('/backup', requireAdmin, (req, res) => {
   } catch (err) {
     console.error('[admin] backup failed:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Full backup: ZIP file with database + meter photos.
+router.get('/backup-full', requireAdmin, (req, res) => {
+  try {
+    saveDb();
+    if (!fs.existsSync(DB_PATH)) return res.status(500).json({ error: 'Database file not found' });
+    const today = new Date().toISOString().split('T')[0];
+    const filename = `AnahuacRVPark-FullBackup-${today}.zip`;
+
+    const nowIso = new Date().toISOString();
+    db.prepare(
+      'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
+    ).run('last_backup_at', nowIso, nowIso);
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const archive = archiver('zip', { zlib: { level: 5 } });
+    archive.on('error', (err) => {
+      console.error('[admin] full backup archive error:', err);
+      if (!res.headersSent) res.status(500).json({ error: err.message });
+    });
+    archive.pipe(res);
+
+    // Add database
+    archive.file(DB_PATH, { name: `AnahuacRVPark-Backup-${today}.sqlite` });
+
+    // Add photos folder if it exists
+    if (fs.existsSync(PHOTOS_DIR)) {
+      archive.directory(PHOTOS_DIR, 'meter-photos');
+    }
+
+    archive.finalize();
+  } catch (err) {
+    console.error('[admin] full backup failed:', err);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
 
