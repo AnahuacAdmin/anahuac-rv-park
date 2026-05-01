@@ -169,7 +169,7 @@ function renderInvoiceRow(inv, rowBg) {
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
       <td class="bt-actions" data-label="">
         <div class="inv-menu-wrap">
-          <button class="inv-icon-btn" onclick="event.stopPropagation();toggleInvMenu(this)" title="Actions" style="font-weight:900;font-size:1rem">⋮</button>
+          <button class="inv-icon-btn" onclick="toggleInvMenu(this,event)" title="Actions" style="font-weight:900;font-size:1rem">⋮</button>
           <div class="inv-dropdown">
             <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();viewInvoice(${inv.id})">👁 View Invoice</button>
             <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();editInvoice(${inv.id})">✏️ Edit</button>
@@ -275,19 +275,22 @@ function invoicePauseMenuItemCompact(inv) {
   return '';
 }
 
-function toggleInvMenu(btn) {
+function toggleInvMenu(btn, evt) {
+  if (evt) { evt.stopPropagation(); evt.preventDefault(); }
   var dd = btn.parentElement.querySelector('.inv-dropdown');
-  var isOpen = dd.style.display !== 'none';
+  var isOpen = dd.classList.contains('inv-dropdown-open');
   closeInvMenus();
-  if (!isOpen) dd.style.display = '';
+  if (!isOpen) dd.classList.add('inv-dropdown-open');
 }
 
 function closeInvMenus() {
-  document.querySelectorAll('.inv-dropdown').forEach(function(el) { el.style.display = 'none'; });
+  document.querySelectorAll('.inv-dropdown-open').forEach(function(el) { el.classList.remove('inv-dropdown-open'); });
 }
 
 // Close dropdown menus when clicking outside
-document.addEventListener('click', function() { closeInvMenus(); });
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.inv-menu-wrap')) closeInvMenus();
+});
 
 function showPauseEviction(tenantId, name) {
   showModal(`Pause Eviction — ${name}`, `
