@@ -86,7 +86,7 @@ async function loadBilling() {
     <div class="card billing-page-card">
       <div class="billing-scroll">
         <table class="billing-table">
-          <thead><tr><th style="width:30px"></th><th style="width:60px">Inv #</th><th style="width:40px">Lot</th><th>Guest</th><th style="width:55px">Date</th><th style="width:65px">Rent</th><th style="width:65px">Elec</th><th style="width:70px">Fees</th><th style="width:70px">Credits</th><th style="width:75px">Total</th><th style="width:75px">Balance</th><th style="width:55px">Status</th></tr></thead>
+          <thead><tr><th>Inv #</th><th>Lot</th><th>Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Fees</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
           <tbody id="invoices-body">
             ${renderInvoiceRows(invoices)}
           </tbody>
@@ -99,7 +99,7 @@ async function loadBilling() {
 }
 
 function renderInvoiceRows(invoices) {
-  if (!invoices.length) return '<tr><td colspan="12" class="text-center" style="padding:2rem">No invoices yet. Generate monthly invoices to get started.</td></tr>';
+  if (!invoices.length) return '<tr><td colspan="10" class="text-center" style="padding:2rem">No invoices yet. Generate monthly invoices to get started.</td></tr>';
 
   // Group invoices by month/year and alternate background colors per month group
   var rows = '';
@@ -133,7 +133,7 @@ function renderInvoiceRows(invoices) {
         monthPaid += Number(invoices[j].amount_paid) || 0;
         if (!invoices[j].deleted) monthIds.push(invoices[j].id);
       }
-      rows += '<tr class="month-header-row" style="background:' + colors.header + '"><td colspan="12" style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.85rem;border-bottom:2px solid ' + colors.border + ';color:#1c1917;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.25rem">' +
+      rows += '<tr class="month-header-row" style="background:' + colors.header + '"><td colspan="10" style="padding:0.5rem 0.75rem;font-weight:700;font-size:0.85rem;border-bottom:2px solid ' + colors.border + ';color:#1c1917;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.25rem">' +
         '<span>📅 ' + monthLabel +
         '<span style="font-weight:400;color:#78716c;margin-left:0.75rem;font-size:0.78rem">' + monthCount + ' invoice' + (monthCount !== 1 ? 's' : '') +
         ' · Total: ' + formatMoney(monthTotal) + ' · Collected: ' + formatMoney(monthPaid) + '</span></span>' +
@@ -161,62 +161,62 @@ function renderInvoiceRow(inv, rowBg) {
   const _paused = _t?.eviction_paused;
   const _statusColor = _paused ? '#9ca3af' : inv.status === 'paid' ? '#16a34a' : inv.status === 'partial' ? '#f59e0b' : '#dc2626';
   const otherFees = (Number(inv.mailbox_fee) || 0) + (Number(inv.misc_fee) || 0) + (Number(inv.extra_occupancy_fee) || 0) + (Number(inv.late_fee) || 0);
-  const credits = (Number(inv.refund_amount) || 0) + (Number(inv.credit_applied) || 0);
   const balColor = inv.balance_due > 0.005 ? '#dc2626' : '#16a34a';
   const statusLabel = inv.status === 'paid' ? 'Paid' : inv.status === 'partial' ? 'Partial' : 'Unpaid';
   const badges = (inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.55rem">PRO</span>' : '') + (_isFlat ? ' <span class="badge badge-success" style="font-size:0.55rem">FLAT</span>' : '');
   return `
-    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" style="border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
-      <td class="bt-actions" data-label="">
-        <div class="inv-menu-wrap">
-          <button class="inv-icon-btn" onclick="toggleInvMenu(this,event)" title="Actions" style="font-weight:900;font-size:1rem">⋮</button>
-          <div class="inv-dropdown">
-            <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();viewInvoice(${inv.id})">👁 View Invoice</button>
-            <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();editInvoice(${inv.id})">✏️ Edit</button>
-            <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();downloadInvoicePdf(${inv.id})">📄 Download PDF</button>
-            <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();printInvoice(${inv.id})">🖨️ Print</button>
-            <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();emailInvoice(${inv.id})">📧 Email Invoice</button>
-            <button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();smsInvoice(${inv.id})">💬 Send SMS</button>
-            ${inv.balance_due > 0.005 ? `<button class="inv-dd-item" style="color:#16a34a;font-weight:700" onclick="event.stopPropagation();closeInvMenus();payInvoiceWithStripe(${inv.id})">💳 Record Payment</button>` : ''}
-            ${inv.amount_paid > 0.005 ? `<button class="inv-dd-item" style="color:#dc2626" onclick="event.stopPropagation();closeInvMenus();showRefundModal(${inv.id})">↩️ Refund</button>` : ''}
-            ${invoicePauseMenuItemCompact(inv)}
-            <div style="border-top:1px solid #e7e5e4;margin:2px 0"></div>
-            <button class="inv-dd-item" style="color:#dc2626" onclick="event.stopPropagation();closeInvMenus();deleteInvoice(${inv.id})">🗑️ Delete</button>
-          </div>
+    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" onclick="toggleInvoiceActions(${inv.id})" style="cursor:pointer;border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
+      <td title="${inv.invoice_number}">${shortInvNum(inv.invoice_number)}${badges}</td>
+      <td><strong>${inv.lot_id}</strong></td>
+      <td>${inv.first_name} ${inv.last_name}</td>
+      <td>${shortDate(inv.invoice_date)}</td>
+      <td>${formatMoney(inv.rent_amount)}</td>
+      <td>${formatMoney(inv.electric_amount)}</td>
+      <td title="Mailbox: ${formatMoney(inv.mailbox_fee)} | Misc: ${formatMoney(inv.misc_fee)} | Occ: ${formatMoney(inv.extra_occupancy_fee)} | Late: ${formatMoney(inv.late_fee)}">${otherFees > 0.005 ? formatMoney(otherFees) : '<span style="color:#a8a29e">—</span>'}</td>
+      <td><strong>${formatMoney(inv.total_amount)}</strong></td>
+      <td><strong style="color:${balColor}">${formatMoney(inv.balance_due)}</strong></td>
+      <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${invoiceEvictionBadge(inv)}</td>
+    </tr>
+    <tr class="invoice-actions-row" id="inv-actions-${inv.id}" style="display:none">
+      <td colspan="10" style="padding:4px 8px;background:#f5f5f4;border-bottom:2px solid #d6d3d1">
+        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+          <button class="inv-act-btn" onclick="event.stopPropagation();viewInvoice(${inv.id})">View</button>
+          <button class="inv-act-btn" onclick="event.stopPropagation();downloadInvoicePdf(${inv.id})">PDF</button>
+          <button class="inv-act-btn" onclick="event.stopPropagation();printInvoice(${inv.id})">Print</button>
+          <button class="inv-act-btn" onclick="event.stopPropagation();emailInvoice(${inv.id})">Email</button>
+          <button class="inv-act-btn" onclick="event.stopPropagation();smsInvoice(${inv.id})">SMS</button>
+          ${inv.balance_due > 0.005 ? `<button class="inv-act-btn inv-act-green" onclick="event.stopPropagation();payInvoiceWithStripe(${inv.id})">Pay</button>` : ''}
+          ${inv.amount_paid > 0.005 ? `<button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();showRefundModal(${inv.id})">Refund</button>` : ''}
+          ${invoicePauseBtnCompact(inv)}
+          <button class="inv-act-btn" onclick="event.stopPropagation();editInvoice(${inv.id})">Edit</button>
+          <button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();deleteInvoice(${inv.id})">Delete</button>
         </div>
       </td>
-      <td data-label="Inv #" title="${inv.invoice_number}">${shortInvNum(inv.invoice_number)}${badges}</td>
-      <td data-label="Lot"><strong>${inv.lot_id}</strong></td>
-      <td data-label="Guest" class="bt-guest" title="${inv.first_name} ${inv.last_name}">${inv.first_name} ${inv.last_name}</td>
-      <td data-label="Date">${shortDate(inv.invoice_date)}</td>
-      <td data-label="Rent">${formatMoney(inv.rent_amount)}</td>
-      <td data-label="Electric">${formatMoney(inv.electric_amount)}</td>
-      <td data-label="Fees" title="Mailbox: ${formatMoney(inv.mailbox_fee)} · Misc: ${formatMoney(inv.misc_fee)} · Occ: ${formatMoney(inv.extra_occupancy_fee)} · Late: ${formatMoney(inv.late_fee)}">${otherFees > 0.005 ? formatMoney(otherFees) : '<span style="color:#a8a29e">—</span>'}</td>
-      <td data-label="Credits">${credits > 0.005 ? '<span style="color:#16a34a">-' + formatMoney(credits) + '</span>' : '<span style="color:#a8a29e">—</span>'}</td>
-      <td data-label="Total"><strong>${formatMoney(inv.total_amount)}</strong></td>
-      <td data-label="Balance"><strong style="color:${balColor}">${formatMoney(inv.balance_due)}</strong></td>
-      <td data-label="Status"><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${invoiceEvictionBadge(inv)}</td>
     </tr>
   `;
 }
 
 function renderDeletedInvoiceRow(inv, rowBg) {
   const otherFees = (Number(inv.mailbox_fee) || 0) + (Number(inv.misc_fee) || 0) + (Number(inv.extra_occupancy_fee) || 0) + (Number(inv.late_fee) || 0);
-  const credits = (Number(inv.refund_amount) || 0);
   return `
-    <tr class="invoice-row deleted-row" data-id="${inv.id}" style="color:#9ca3af;background:${rowBg || '#f3f4f6'};font-style:italic">
-      <td><button class="inv-icon-btn" style="font-size:0.65rem;width:28px" onclick="restoreInvoice(${inv.id})" title="Restore">↩</button></td>
+    <tr class="invoice-row deleted-row" data-id="${inv.id}" onclick="toggleInvoiceActions(${inv.id})" style="cursor:pointer;color:#9ca3af;background:${rowBg || '#f3f4f6'};font-style:italic">
       <td>${shortInvNum(inv.invoice_number)}</td>
       <td>${inv.lot_id}</td>
-      <td class="bt-guest">${inv.first_name} ${inv.last_name}</td>
+      <td>${inv.first_name} ${inv.last_name}</td>
       <td>${shortDate(inv.invoice_date)}</td>
       <td>${formatMoney(inv.rent_amount)}</td>
       <td>${formatMoney(inv.electric_amount)}</td>
       <td>${otherFees > 0.005 ? formatMoney(otherFees) : '—'}</td>
-      <td>${credits > 0.005 ? '-' + formatMoney(credits) : '—'}</td>
       <td>${formatMoney(inv.total_amount)}</td>
       <td>${formatMoney(inv.balance_due)}</td>
       <td><span class="badge badge-gray" style="font-size:0.65rem">Deleted</span></td>
+    </tr>
+    <tr class="invoice-actions-row" id="inv-actions-${inv.id}" style="display:none">
+      <td colspan="10" style="padding:4px 8px;background:#f5f5f4;border-bottom:2px solid #d6d3d1">
+        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+          <button class="inv-act-btn" onclick="event.stopPropagation();restoreInvoice(${inv.id})">Restore</button>
+        </div>
+      </td>
     </tr>
   `;
 }
@@ -263,34 +263,14 @@ function invoicePauseBtnCompact(inv) {
   return '';
 }
 
-function invoicePauseMenuItemCompact(inv) {
-  var t = (window._billingTenants || []).find(function(x) { return x.id === inv.tenant_id; });
-  if (!t) return '';
-  if (t.eviction_warning === 1 && !t.eviction_paused && inv.balance_due > 0) {
-    return '<button class="inv-dd-item" style="color:#92400e" onclick="event.stopPropagation();closeInvMenus();showPauseEviction(' + t.id + ', \'' + (t.first_name + ' ' + t.last_name).replace(/'/g, "\\'") + '\')">⏸️ Pause Eviction</button>';
-  }
-  if (t.eviction_paused) {
-    return '<button class="inv-dd-item" onclick="event.stopPropagation();closeInvMenus();resumeEviction(' + t.id + ')">▶️ Resume Eviction</button>';
-  }
-  return '';
+function toggleInvoiceActions(id) {
+  var row = document.getElementById('inv-actions-' + id);
+  if (!row) return;
+  var isOpen = row.style.display !== 'none';
+  // Close all open action rows first
+  document.querySelectorAll('.invoice-actions-row').forEach(function(el) { el.style.display = 'none'; });
+  if (!isOpen) row.style.display = '';
 }
-
-function toggleInvMenu(btn, evt) {
-  if (evt) { evt.stopPropagation(); evt.preventDefault(); }
-  var dd = btn.parentElement.querySelector('.inv-dropdown');
-  var isOpen = dd.classList.contains('inv-dropdown-open');
-  closeInvMenus();
-  if (!isOpen) dd.classList.add('inv-dropdown-open');
-}
-
-function closeInvMenus() {
-  document.querySelectorAll('.inv-dropdown-open').forEach(function(el) { el.classList.remove('inv-dropdown-open'); });
-}
-
-// Close dropdown menus when clicking outside
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.inv-menu-wrap')) closeInvMenus();
-});
 
 function showPauseEviction(tenantId, name) {
   showModal(`Pause Eviction — ${name}`, `
