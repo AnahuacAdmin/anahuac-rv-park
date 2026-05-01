@@ -82,8 +82,8 @@ const portalGeneralLimiter = rateLimit({
 app.use('/api/portal', portalGeneralLimiter);
 
 const paymentLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
+  windowMs: 60 * 1000,     // 1 minute window
+  max: 10,                  // 10 attempts per minute per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many payment requests. Please try again later.' },

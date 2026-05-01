@@ -2116,7 +2116,7 @@ async function loadPortalLostFound() {
       var badgeColor = p.status === 'reunited' ? '#f59e0b' : isLost ? '#dc2626' : '#16a34a';
       var badgeBg = p.status === 'reunited' ? '#fffbeb' : isLost ? '#fef2f2' : '#f0fdf4';
       var badgeText = p.status === 'reunited' ? '🎉 REUNITED' : isLost ? '🔴 LOST' : '🟢 FOUND';
-      var author = ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'A neighbor';
+      var author = 'A neighbor';
       var ago = _lfPortalTimeAgo(p.created_at);
 
       var actionBtn = '';
@@ -2145,7 +2145,7 @@ async function loadPortalLostFound() {
             ' · ' + (p.date_occurred || '') +
           '</div>' +
           (p.contact_phone ? '<div style="font-size:0.88rem;margin-top:0.2rem"><a href="tel:' + _escPortal(p.contact_phone) + '" style="color:#1a5c32;font-weight:600">📞 ' + _escPortal(p.contact_phone) + '</a></div>' : '') +
-          '<div style="font-size:0.75rem;color:#a8a29e;margin-top:0.2rem">Posted by ' + _escPortal(author) + (p.lot_id ? ' · Lot ' + p.lot_id : '') + '</div>' +
+          '<div style="font-size:0.82rem;color:#78716c;margin-top:0.2rem">📞 Contact the office: <a href="tel:4092676603" style="color:#1a5c32;font-weight:600">409-267-6603</a></div>' +
           (p.status === 'reunited' ? '<div style="background:#fef3c7;border-radius:8px;padding:0.5rem;margin-top:0.5rem;text-align:center;font-weight:700;color:#92400e;font-size:0.9rem">🎉 This pet has been reunited with their owner!</div>' : '') +
           actionBtn +
         '</div></div>';

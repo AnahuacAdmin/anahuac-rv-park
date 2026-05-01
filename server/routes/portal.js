@@ -30,7 +30,7 @@ function checkLockout(key) {
   if (!entry) return null;
   if (entry.lockedUntil && Date.now() < entry.lockedUntil) {
     const mins = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
-    return `Too many failed attempts. Try again in ${mins} minute${mins !== 1 ? 's' : ''}, or contact management at 409-267-6603.`;
+    return `Too many login attempts. Please try again in ${mins} minute${mins !== 1 ? 's' : ''}. Call 409-267-6603 for assistance.`;
   }
   // Lockout expired — clear it but keep count
   if (entry.lockedUntil && Date.now() >= entry.lockedUntil) {

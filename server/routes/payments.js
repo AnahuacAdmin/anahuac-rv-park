@@ -53,8 +53,7 @@ router.post('/create-checkout-session', async (req, res) => {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `Anahuac RV Park — Invoice ${invoice.invoice_number}`,
-              description: `Lot ${invoice.lot_id} — ${invoice.first_name} ${invoice.last_name}`,
+              name: 'Anahuac RV Park — Invoice Payment',
             },
             unit_amount: balanceCents,
           },
@@ -74,11 +73,11 @@ router.post('/create-checkout-session', async (req, res) => {
         invoice_number: invoice.invoice_number,
         lot_id: invoice.lot_id,
       },
-      success_url: `${origin}/?paid=1&invoice=${encodeURIComponent(invoice.invoice_number)}`,
+      success_url: `${origin}/?paid=1`,
       cancel_url:  `${origin}/pay.html?cancelled=1`,
     });
 
-    res.json({ id: session.id, url: session.url });
+    res.json({ url: session.url });
   } catch (err) {
     console.error('[payments] create-checkout-session failed:', err);
     res.status(500).json({ error: 'Payment session creation failed' });

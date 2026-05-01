@@ -5,20 +5,20 @@ const router = require('express').Router();
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
 
-// Public: get active posts (for portal)
+// Public: get active posts (for portal) — no tenant names exposed
 router.get('/public', (req, res) => {
   var rows = db.prepare(`
     SELECT p.id, p.type, p.pet_type, p.pet_name, p.breed, p.color_description,
-      p.last_seen_location, p.date_occurred, p.contact_phone, p.details, p.status,
+      p.last_seen_location, p.date_occurred, p.details, p.status,
       p.created_at, p.reunited_at,
-      CASE WHEN p.photo_data IS NOT NULL AND p.photo_data != '' THEN 1 ELSE 0 END as has_photo,
-      t.first_name, t.last_name, t.lot_id
+      CASE WHEN p.photo_data IS NOT NULL AND p.photo_data != '' THEN 1 ELSE 0 END as has_photo
     FROM lost_found_pets p
-    LEFT JOIN tenants t ON p.tenant_id = t.id
     WHERE p.status IN ('active', 'reunited')
       AND p.created_at >= datetime('now', '-30 days')
     ORDER BY CASE p.status WHEN 'active' THEN 0 ELSE 1 END, p.created_at DESC
   `).all();
+  // Replace any tenant contact info with office number
+  rows.forEach(r => { r.contact_phone = '409-267-6603'; });
   res.json(rows);
 });
 
