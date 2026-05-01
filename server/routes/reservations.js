@@ -165,7 +165,7 @@ router.post('/:id/checkin', (req, res) => {
 
     const tenantResult = db.prepare(`
       INSERT INTO tenants (lot_id, first_name, last_name, phone, email, monthly_rent, rent_type, move_in_date, is_active, notes)
-      VALUES (?, ?, ?, ?, ?, ?, 'standard', ?, 1, ?)
+      VALUES (?, ?, ?, ?, ?, ?, 'monthly', ?, 1, ?)
     `).run(r.lot_id, firstName, lastName, r.phone, r.email, r.rate_per_night * 30, r.arrival_date,
       `Converted from reservation ${r.confirmation_number}`);
 
@@ -281,7 +281,7 @@ router.post('/groups/:id/checkin-all', (req, res) => {
       const parts = name.trim().split(/\s+/);
       const firstName = parts.slice(0, -1).join(' ') || parts[0] || 'Guest';
       const lastName = parts.length > 1 ? parts[parts.length - 1] : '';
-      const tResult = db.prepare("INSERT INTO tenants (lot_id, first_name, last_name, phone, email, monthly_rent, rent_type, move_in_date, is_active, notes) VALUES (?, ?, ?, ?, ?, ?, 'standard', ?, 1, ?)")
+      const tResult = db.prepare("INSERT INTO tenants (lot_id, first_name, last_name, phone, email, monthly_rent, rent_type, move_in_date, is_active, notes) VALUES (?, ?, ?, ?, ?, ?, 'monthly', ?, 1, ?)")
         .run(lot.lot_id, firstName, lastName, g.primary_contact_phone, g.primary_contact_email, 50 * 30, g.arrival_date, `Group: ${g.group_name}`);
       db.prepare("UPDATE lots SET status = 'occupied' WHERE id = ?").run(lot.lot_id);
       db.prepare("INSERT INTO checkins (tenant_id, lot_id, check_in_date, status, notes) VALUES (?, ?, ?, 'checked_in', ?)").run(tResult.lastInsertRowid, lot.lot_id, g.arrival_date, `Group: ${g.group_name}`);

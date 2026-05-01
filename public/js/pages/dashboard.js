@@ -164,7 +164,16 @@ async function loadDashboard() {
           <canvas id="invoiceChart"></canvas>
         </div>
       </div>
-    </div>` : ''}
+    </div>
+    ${(data.revenueByType && data.revenueByType.length) ? `
+    <div class="dash-charts-row" style="margin-top:0.5rem">
+      <div class="card dash-chart-card dash-chart-small dash-fade-in" style="animation-delay:0.45s">
+        <h3>Revenue by Guest Type</h3>
+        <div style="position:relative;height:200px">
+          <canvas id="guestTypeChart"></canvas>
+        </div>
+      </div>
+    </div>` : ''}` : ''}
 
     <!-- Google Reviews -->
     ${isAdmin() ? `
@@ -1363,7 +1372,37 @@ function doRenderCharts(data) {
       });
     }
 
-    console.log('[charts] all 3 charts rendered successfully');
+    // Revenue by Guest Type Donut
+    var gtCanvas = document.getElementById('guestTypeChart');
+    if (gtCanvas && data.revenueByType && data.revenueByType.length) {
+      gtCanvas.parentElement.style.height = '200px';
+      gtCanvas.parentElement.style.position = 'relative';
+      new Chart(gtCanvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: data.revenueByType.map(function(r) { return r.label; }),
+          datasets: [{
+            data: data.revenueByType.map(function(r) { return r.revenue; }),
+            backgroundColor: data.revenueByType.map(function(r) {
+              if (r.label.indexOf('Long') >= 0) return '#1a5c32';
+              if (r.label.indexOf('Short') >= 0) return '#f59e0b';
+              return '#3b82f6';
+            }),
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: '65%',
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+            tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': $' + Number(ctx.raw).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); } } }
+          }
+        }
+      });
+    }
+
+    console.log('[charts] all charts rendered successfully');
   } catch(e) {
     console.error('[charts] render error:', e);
   }

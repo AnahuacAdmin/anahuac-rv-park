@@ -99,7 +99,7 @@ router.post('/', (req, res) => {
       str(b.lot_id), b.first_name, b.last_name, cleanPhone(b.phone), str(b.email),
       str(b.emergency_contact), cleanPhone(b.emergency_phone), str(b.emergency_contact_relationship),
       str(b.rv_make), str(b.rv_model), str(b.rv_year), str(b.rv_length), str(b.license_plate),
-      num(b.monthly_rent) || 295, b.rent_type || 'standard', str(b.move_in_date), str(b.notes),
+      num(b.monthly_rent) || 295, b.rent_type || 'monthly', str(b.move_in_date), str(b.notes),
       num(b.recurring_late_fee), num(b.recurring_mailbox_fee), num(b.recurring_misc_fee),
       str(b.recurring_misc_description), num(b.recurring_credit), str(b.recurring_credit_description),
       str(b.id_number), str(b.date_of_birth), num(b.deposit_amount),

@@ -71,6 +71,28 @@ router.get('/', (req, res) => {
   rc.forEach(c => activity.push({ type: 'checkin', icon: '🏕️', text: `${c.first_name} ${c.last_name} checked in to Lot ${c.lot_id}`, date: c.check_in_date, ts: c.created_at }));
   activity.sort((a, b) => (b.ts || b.date || '').localeCompare(a.ts || a.date || ''));
 
+  // Revenue by guest type (grouped)
+  const revenueByType = [];
+  try {
+    const typeRows = db.prepare(`
+      SELECT t.rent_type, COALESCE(SUM(i.total_amount), 0) as revenue
+      FROM invoices i
+      JOIN tenants t ON i.tenant_id = t.id
+      WHERE COALESCE(i.deleted, 0) = 0
+      GROUP BY t.rent_type
+    `).all();
+    let longTerm = 0, shortTerm = 0, electricOnly = 0;
+    for (const r of typeRows) {
+      const rt = (r.rent_type || 'monthly').toLowerCase();
+      if (rt === 'electric_only') electricOnly += r.revenue;
+      else if (['daily', 'weekly', 'short_term'].includes(rt)) shortTerm += r.revenue;
+      else longTerm += r.revenue; // monthly, standard, flat_rate, premium, prorated, etc.
+    }
+    if (longTerm > 0) revenueByType.push({ label: 'Long Term (Monthly)', revenue: longTerm });
+    if (shortTerm > 0) revenueByType.push({ label: 'Short Term (Daily/Weekly)', revenue: shortTerm });
+    if (electricOnly > 0) revenueByType.push({ label: 'Electric Only', revenue: electricOnly });
+  } catch {}
+
   // Upcoming reservations
   let upcomingReservations = [];
   try {
@@ -80,7 +102,7 @@ router.get('/', (req, res) => {
   res.json({
     totalLots, occupied, vacant, reserved, activeTenants, waitlistCount, pendingReservations,
     monthlyRevenue, lastMonthRevenue, pendingInvoices, partialInvoices, paidInvoices, invoiceMonth: currentMonth,
-    totalOutstanding, recentPayments, totalKwh, revenueHistory,
+    totalOutstanding, recentPayments, totalKwh, revenueHistory, revenueByType,
     activity: activity.slice(0, 10), upcomingReservations,
     occupancyRate: totalLots - reserved > 0 ? Math.round((occupied / (totalLots - reserved)) * 100) : 0,
   });

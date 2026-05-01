@@ -159,6 +159,9 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN flat_rate_amount REAL DEFAULT 0");
   addCol("ALTER TABLE tenants ADD COLUMN guest_rating TEXT DEFAULT 'green'");
 
+  // Rename rent_type 'standard' to 'monthly' for consistency
+  try { db.run("UPDATE tenants SET rent_type = 'monthly' WHERE rent_type = 'standard'"); } catch (e) { /* ignore */ }
+
   // Guest notes & incidents
   db.run(`CREATE TABLE IF NOT EXISTS guest_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -645,7 +648,7 @@ async function initializeDatabase() {
       rv_length TEXT,
       license_plate TEXT,
       monthly_rent REAL DEFAULT 295,
-      rent_type TEXT DEFAULT 'standard',
+      rent_type TEXT DEFAULT 'monthly',
       move_in_date DATE,
       move_out_date DATE,
       is_active INTEGER DEFAULT 1,
