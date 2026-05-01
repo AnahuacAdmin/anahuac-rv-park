@@ -151,14 +151,17 @@ router.get('/latest', (req, res) => {
       reading = db.prepare('SELECT * FROM meter_readings WHERE lot_id = ? ORDER BY id DESC LIMIT 1').get(lot.id);
     }
 
-    // Find previous month's reading (second most recent)
+    // Find previous month's reading — must be from a DIFFERENT reading_date (different month).
+    // Same-date readings are duplicates from this session, not a previous period.
     var prevReading = null;
-    if (reading && tenant) {
-      prevReading = db.prepare('SELECT id, reading_date, previous_reading, current_reading, kwh_used, electric_charge, photo FROM meter_readings WHERE lot_id = ? AND tenant_id = ? AND id < ? ORDER BY id DESC LIMIT 1').get(lot.id, tenant.id, reading.id);
+    if (reading && tenant && reading.reading_date) {
+      prevReading = db.prepare(
+        `SELECT id, reading_date, previous_reading, current_reading, kwh_used, electric_charge, photo
+         FROM meter_readings
+         WHERE lot_id = ? AND tenant_id = ? AND id < ? AND reading_date != ?
+         ORDER BY id DESC LIMIT 1`
+      ).get(lot.id, tenant.id, reading.id, reading.reading_date);
     }
-
-    // Safety: ensure prev reading is never the same as current reading
-    if (prevReading && reading && prevReading.id === reading.id) prevReading = null;
 
     results.push({
       id: reading?.id || 0,
@@ -186,6 +189,12 @@ router.get('/latest', (req, res) => {
   const withPhotos = results.filter(r => r.photo).length;
   const withPrevPhotos = results.filter(r => r.prev_photo).length;
   console.log(`[meters/latest] Returning ${results.length} lots, ${withPhotos} with curr photo, ${withPrevPhotos} with prev photo`);
+  // Debug: log duplicate readings for troubleshooting
+  const debugLots = ['A2', 'A3'];
+  for (const dl of debugLots) {
+    const allForLot = db.prepare('SELECT id, lot_id, reading_date, current_reading, photo FROM meter_readings WHERE lot_id = ? ORDER BY id').all(dl);
+    if (allForLot.length > 0) console.log(`[meters/debug] ${dl} readings:`, JSON.stringify(allForLot));
+  }
   res.json(results);
 });
 
