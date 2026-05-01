@@ -86,7 +86,19 @@ async function loadBilling() {
     <div class="card billing-page-card">
       <div class="billing-scroll">
         <table class="billing-table">
-          <thead><tr><th>Inv #</th><th>Lot</th><th>Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Fees</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
+          <colgroup>
+            <col style="width:70px">
+            <col style="width:40px">
+            <col>
+            <col style="width:55px">
+            <col style="width:65px">
+            <col style="width:65px">
+            <col style="width:65px">
+            <col style="width:70px">
+            <col style="width:70px">
+            <col style="width:70px">
+          </colgroup>
+          <thead><tr><th style="text-align:left">Inv #</th><th>Lot</th><th style="text-align:left">Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Fees</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
           <tbody id="invoices-body">
             ${renderInvoiceRows(invoices)}
           </tbody>
@@ -166,9 +178,9 @@ function renderInvoiceRow(inv, rowBg) {
   const badges = (inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.55rem">PRO</span>' : '') + (_isFlat ? ' <span class="badge badge-success" style="font-size:0.55rem">FLAT</span>' : '');
   return `
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" onclick="toggleInvoiceActions(${inv.id})" style="cursor:pointer;border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
-      <td title="${inv.invoice_number}">${shortInvNum(inv.invoice_number)}${badges}</td>
+      <td style="text-align:left" title="${inv.invoice_number}">${shortInvNum(inv.invoice_number)}${badges}</td>
       <td><strong>${inv.lot_id}</strong></td>
-      <td>${inv.first_name} ${inv.last_name}</td>
+      <td style="text-align:left;overflow:hidden;text-overflow:ellipsis">${inv.first_name} ${inv.last_name}</td>
       <td>${shortDate(inv.invoice_date)}</td>
       <td>${formatMoney(inv.rent_amount)}</td>
       <td>${formatMoney(inv.electric_amount)}</td>
