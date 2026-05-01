@@ -718,33 +718,39 @@ async function printMonthInvoices(ids) {
       allHtml += (i > 0 ? '<div style="page-break-before:always"></div>' : '') + html;
     }
     if (!allHtml) throw new Error('No invoices to print');
-    // Open in a print window
-    var printWin = window.open('', '_blank', 'width=800,height=1000');
-    if (!printWin) { showStatusToast('❌', 'Pop-up blocked — allow pop-ups and try again'); return; }
-    printWin.document.write('<html><head><title>Print Invoices</title>');
-    printWin.document.write('<link rel="stylesheet" href="/css/style.css">');
-    printWin.document.write('<style>body{margin:0;padding:1rem;background:#fff} .invoice-print{max-width:800px;margin:0 auto 1rem} @media print{body{padding:0}}</style>');
-    printWin.document.write('</head><body>' + allHtml + '</body></html>');
-    printWin.document.close();
-    // Wait for CSS + images to load, then print
-    printWin.onload = function() { setTimeout(function() { printWin.print(); }, 300); };
+    _printViaIframe(allHtml);
   } catch (err) {
     console.error('[billing] batch print failed:', err);
     showStatusToast('❌', 'Print failed — try printing individually');
   }
 }
 
-// Internal helper: render a single invoice and open print dialog.
+// Internal helper: render a single invoice and trigger print via iframe.
 async function _printInvoiceHtml(inv) {
   var html = await renderInvoiceHtml(inv);
-  var printWin = window.open('', '_blank', 'width=800,height=1000');
-  if (!printWin) { showStatusToast('❌', 'Pop-up blocked — allow pop-ups and try again'); return; }
-  printWin.document.write('<html><head><title>Invoice ' + (inv.invoice_number || '') + '</title>');
-  printWin.document.write('<link rel="stylesheet" href="/css/style.css">');
-  printWin.document.write('<style>body{margin:0;padding:1rem;background:#fff} .invoice-print{max-width:800px;margin:0 auto} @media print{body{padding:0}}</style>');
-  printWin.document.write('</head><body>' + html + '</body></html>');
-  printWin.document.close();
-  printWin.onload = function() { setTimeout(function() { printWin.print(); }, 300); };
+  _printViaIframe(html);
+}
+
+// Print HTML content via a hidden iframe (avoids popup blockers).
+function _printViaIframe(html) {
+  var iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-99999px;left:-99999px;width:800px;height:1000px;border:none;visibility:hidden';
+  document.body.appendChild(iframe);
+  var doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write('<html><head>');
+  doc.write('<link rel="stylesheet" href="/css/style.css">');
+  doc.write('<style>body{margin:0;padding:1rem;background:#fff} .invoice-print{max-width:800px;margin:0 auto 1rem} @media print{body{padding:0}}</style>');
+  doc.write('</head><body>' + html + '</body></html>');
+  doc.close();
+  // Wait for CSS + images to load, then print and clean up
+  iframe.onload = function() {
+    setTimeout(function() {
+      try { iframe.contentWindow.print(); } catch (e) { console.error('[billing] iframe print error:', e); }
+      // Remove iframe after a delay to let the print dialog finish
+      setTimeout(function() { iframe.remove(); }, 2000);
+    }, 400);
+  };
 }
 
 // Reusable invoice HTML used by both view modal and offscreen PDF render.
