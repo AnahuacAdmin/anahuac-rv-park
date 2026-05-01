@@ -96,12 +96,14 @@ async function showRecordPayment() {
         </select>
       </div>
       <div class="form-group">
-        <label>Link to Invoice (optional)</label>
-        <select name="invoice_id" id="payment-invoice-select">
-          <option value="">No invoice link (settlement/refund/other)</option>
-          ${pendingInvoices.map(i => `<option value="${i.id}" data-tenant="${i.tenant_id}">${i.invoice_number} - ${formatMoney(i.balance_due)} due</option>`).join('')}
+        <label>Link to Invoice <span style="color:#dc2626;font-weight:700">*</span></label>
+        <select name="invoice_id" id="payment-invoice-select" onchange="updateInvoiceDetail();updatePaymentPreview()">
+          <option value="">-- Select invoice to pay --</option>
+          ${pendingInvoices.map(i => `<option value="${i.id}" data-tenant="${i.tenant_id}" data-total="${i.total_amount}" data-paid="${i.amount_paid}" data-balance="${i.balance_due}">${i.invoice_number} - ${i.lot_id} - ${formatMoney(i.balance_due)} due</option>`).join('')}
         </select>
+        <div id="no-invoice-warning" style="display:none;color:#dc2626;font-size:0.78rem;margin-top:0.25rem;font-weight:600">⚠️ No invoice selected — payment won't update any invoice balance</div>
       </div>
+      <div id="invoice-detail-box" style="display:none;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:0.75rem;margin-bottom:0.75rem;font-size:0.85rem"></div>
       <div class="form-row">
         <div class="form-group"><label>Payment Date</label><input name="payment_date" type="date" value="${new Date().toISOString().split('T')[0]}" required></div>
         <div class="form-group"><label>Amount</label><input name="amount" type="number" step="0.01" required>
@@ -136,12 +138,47 @@ async function showRecordPayment() {
 
 function filterPaymentInvoices(tenantId) {
   const select = document.getElementById('payment-invoice-select');
+  var firstMatch = null;
   Array.from(select.options).forEach(opt => {
     if (!opt.value) return;
-    opt.style.display = opt.dataset.tenant === tenantId ? '' : 'none';
+    var show = opt.dataset.tenant === tenantId;
+    opt.style.display = show ? '' : 'none';
+    if (show && !firstMatch) firstMatch = opt;
   });
-  select.value = '';
+  // Auto-select the first matching invoice and pre-fill amount
+  if (firstMatch) {
+    select.value = firstMatch.value;
+    var match = firstMatch.textContent.match(/\$([\d,]+\.?\d*)\s+due/);
+    var due = match ? parseFloat(match[1].replace(',', '')) : 0;
+    var amtInput = document.querySelector('form [name="amount"]');
+    if (amtInput && !amtInput.value && due > 0) amtInput.value = due.toFixed(2);
+  } else {
+    select.value = '';
+  }
   updatePaymentPreview();
+  updateInvoiceDetail();
+}
+
+function updateInvoiceDetail() {
+  var box = document.getElementById('invoice-detail-box');
+  var warn = document.getElementById('no-invoice-warning');
+  var invSelect = document.getElementById('payment-invoice-select');
+  if (!box || !invSelect) return;
+  var opt = invSelect.selectedOptions[0];
+  if (!opt || !opt.value) {
+    box.style.display = 'none';
+    if (warn) warn.style.display = '';
+    return;
+  }
+  if (warn) warn.style.display = 'none';
+  var total = parseFloat(opt.dataset.total) || 0;
+  var paid = parseFloat(opt.dataset.paid) || 0;
+  var balance = parseFloat(opt.dataset.balance) || 0;
+  box.style.display = '';
+  box.innerHTML = '<div style="font-weight:700;margin-bottom:0.35rem;color:#166534">Invoice Details</div>' +
+    '<div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>Total Amount:</span><strong>' + formatMoney(total) + '</strong></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>Already Paid:</span><strong>' + formatMoney(paid) + '</strong></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:0.15rem 0;border-top:1px solid #a7f3d0;margin-top:0.2rem;padding-top:0.35rem"><span style="font-weight:700">Balance Remaining:</span><strong style="color:#dc2626;font-size:1rem">' + formatMoney(balance) + '</strong></div>';
 }
 
 function updatePaymentPreview() {
@@ -195,9 +232,13 @@ async function savePayment(e) {
   e.preventDefault();
   const form = new FormData(e.target);
   var holdAsCredit = form.get('hold_as_credit') === '1';
+  var invoiceId = holdAsCredit ? null : (form.get('invoice_id') ? parseInt(form.get('invoice_id')) : null);
+  if (!invoiceId && !holdAsCredit) {
+    if (!confirm('No invoice selected! This payment will NOT update any invoice balance.\n\nContinue anyway?')) return;
+  }
   const data = {
     tenant_id: parseInt(form.get('tenant_id')),
-    invoice_id: holdAsCredit ? null : (form.get('invoice_id') ? parseInt(form.get('invoice_id')) : null),
+    invoice_id: invoiceId,
     payment_date: form.get('payment_date'),
     amount: parseFloat(form.get('amount')),
     payment_method: form.get('payment_method'),

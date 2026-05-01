@@ -217,7 +217,7 @@ function renderInvoiceRow(inv, rowBg) {
           <button class="inv-act-btn" onclick="event.stopPropagation();printInvoice(${inv.id})">Print</button>
           <button class="inv-act-btn" onclick="event.stopPropagation();emailInvoice(${inv.id})">Email</button>
           <button class="inv-act-btn" onclick="event.stopPropagation();smsInvoice(${inv.id})">SMS</button>
-          ${inv.balance_due > 0.005 ? `<button class="inv-act-btn inv-act-green" onclick="event.stopPropagation();payInvoiceWithStripe(${inv.id})">Pay</button>` : ''}
+          ${inv.balance_due > 0.005 ? `<button class="inv-act-btn inv-act-green" onclick="event.stopPropagation();recordPaymentForInvoice(${inv.id})">Pay</button>` : ''}
           ${invoicePauseBtnCompact(inv)}
           <button class="inv-act-btn" onclick="event.stopPropagation();editInvoice(${inv.id})">Edit</button>
           ${inv.amount_paid > 0.005 ? `<button class="inv-act-btn inv-act-orange" onclick="event.stopPropagation();showRefundModal(${inv.id})">Refund</button>` : ''}
@@ -1241,6 +1241,77 @@ async function payInvoiceWithStripe(id) {
     window.location.href = r.url;
   } catch (err) {
     alert('Could not start checkout: ' + (err.message || 'unknown error'));
+  }
+}
+
+async function recordPaymentForInvoice(invoiceId) {
+  var inv = await API.get('/invoices/' + invoiceId);
+  if (!inv) return;
+  var today = new Date().toISOString().split('T')[0];
+  var balance = Number(inv.balance_due) || 0;
+  var paid = Number(inv.amount_paid) || 0;
+  var total = Number(inv.total_amount) || 0;
+  showModal('Record Payment — ' + (inv.invoice_number || 'Invoice'), `
+    <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:0.75rem;margin-bottom:0.75rem;font-size:0.85rem">
+      <div style="font-weight:700;margin-bottom:0.35rem;color:#166534">Invoice Details</div>
+      <div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>Guest:</span><strong>${inv.first_name} ${inv.last_name} — Lot ${inv.lot_id}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>Invoice:</span><strong>${inv.invoice_number}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>Total Amount:</span><strong>${formatMoney(total)}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:0.15rem 0"><span>Already Paid:</span><strong>${formatMoney(paid)}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:0.15rem 0;border-top:1px solid #a7f3d0;margin-top:0.2rem;padding-top:0.35rem"><span style="font-weight:700">Balance Remaining:</span><strong style="color:#dc2626;font-size:1.1rem">${formatMoney(balance)}</strong></div>
+    </div>
+    <form onsubmit="submitInvoicePayment(event, ${invoiceId}, ${inv.tenant_id})">
+      <div class="form-row">
+        <div class="form-group"><label>Payment Date</label><input name="payment_date" type="date" value="${today}" required></div>
+        <div class="form-group"><label>Amount</label><input name="amount" type="number" step="0.01" value="${balance.toFixed(2)}" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Payment Method</label>
+          <select name="payment_method">
+            <option value="cash">Cash</option>
+            <option value="check">Check</option>
+            <option value="money_order">Money Order</option>
+            <option value="zelle">Zelle</option>
+            <option value="card">Credit/Debit Card</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Reference #</label><input name="reference_number"></div>
+      </div>
+      <div class="form-group"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
+      <div class="form-group"><label style="display:flex;align-items:center;gap:0.5rem;font-weight:500"><input type="checkbox" name="send_sms_receipt" value="1"> Send SMS receipt</label></div>
+      <div style="display:flex;gap:0.5rem">
+        <button type="submit" class="btn btn-success" style="flex:1">Record Payment</button>
+        <button type="button" class="btn btn-outline" style="flex:0 0 auto" onclick="payInvoiceWithStripe(${invoiceId})">Pay via Stripe</button>
+      </div>
+    </form>
+  `);
+}
+
+async function submitInvoicePayment(e, invoiceId, tenantId) {
+  e.preventDefault();
+  var form = new FormData(e.target);
+  var data = {
+    tenant_id: tenantId,
+    invoice_id: invoiceId,
+    payment_date: form.get('payment_date'),
+    amount: parseFloat(form.get('amount')),
+    payment_method: form.get('payment_method'),
+    reference_number: form.get('reference_number'),
+    notes: form.get('notes'),
+    send_sms_receipt: form.get('send_sms_receipt') === '1',
+  };
+  try {
+    var r = await API.post('/payments', data);
+    closeModal();
+    if (r?.overpayment > 0) {
+      showCelebration('🎉💚', 'Payment recorded! $' + r.overpayment.toFixed(2) + ' overpayment added as credit.');
+    } else {
+      showCelebration('💰🎉', 'Payment Recorded!');
+    }
+    loadBilling();
+  } catch (err) {
+    alert('Failed: ' + (err.message || 'unknown'));
   }
 }
 
