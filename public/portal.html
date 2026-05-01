@@ -388,7 +388,7 @@
     </div>
     <div id="pay-section"></div>
     <div style="margin-top:0.6rem">
-      <div class="card-title" style="font-size:0.72rem">Recent Invoices</div>
+      <div class="card-title" style="font-size:0.72rem">Your Invoice Details</div>
       <div id="p-invoices"></div>
     </div>
   </div>
@@ -1225,9 +1225,51 @@ async function showPortal() {
     loadSavedCardsDisplay();
 
     const invEl = document.getElementById('p-invoices');
-    invEl.innerHTML = (data.invoices || []).map(i =>
-      `<div class="invoice-row"><span>${i.invoice_number} — ${i.invoice_date}</span><span style="font-weight:700;color:${i.status === 'paid' ? '#16a34a' : '#dc2626'}">$${Number(i.balance_due).toFixed(2)}</span></div>`
-    ).join('') || '<p style="color:#a8a29e;font-size:0.85rem">No invoices yet</p>';
+    const unpaidInvs = (data.invoices || []).filter(i => i.status !== 'paid' && Number(i.balance_due) > 0.005);
+    const paidInvs = (data.invoices || []).filter(i => i.status === 'paid' || Number(i.balance_due) <= 0.005);
+    var invHtml = '';
+    if (unpaidInvs.length) {
+      unpaidInvs.forEach(function(i) {
+        var d = new Date(i.invoice_date);
+        var monthLabel = isNaN(d.getTime()) ? i.invoice_date : d.toLocaleString('default',{month:'long',year:'numeric'});
+        var rent = Number(i.rent_amount)||0, elec = Number(i.electric_amount)||0, usage = Number(i.electric_usage)||0;
+        var mail = Number(i.mailbox_fee)||0, misc = Number(i.misc_fee)||0, occ = Number(i.extra_occupancy_fee)||0;
+        var late = Number(i.late_fee)||0, refAmt = Number(i.refund_amount)||0, creditAmt = Number(i.credit_applied)||0;
+        var subtotal = Number(i.total_amount)||0;
+        var bal = Number(i.balance_due)||0;
+        var fee3 = bal * 0.03;
+        var totalCard = bal + fee3;
+        invHtml += '<details open style="margin-bottom:0.75rem;border:1.5px solid #d6d3d1;border-radius:12px;overflow:hidden">' +
+          '<summary style="padding:0.65rem 1rem;background:#f5f5f4;cursor:pointer;font-weight:700;font-size:0.88rem;display:flex;justify-content:space-between;align-items:center">' +
+            '<span>📄 ' + monthLabel + '</span><span style="color:#dc2626">$' + bal.toFixed(2) + ' due</span></summary>' +
+          '<div style="padding:0.75rem 1rem;font-size:0.85rem">' +
+            '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Monthly Rent</span><span>$' + rent.toFixed(2) + '</span></div>' +
+            (elec > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Electric' + (usage > 0 ? ' (' + Math.round(usage) + ' kWh × $0.15)' : '') + '</span><span>$' + elec.toFixed(2) + '</span></div>' : '') +
+            (mail > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Mailbox Fee</span><span>$' + mail.toFixed(2) + '</span></div>' : '') +
+            (occ > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Extra Occupancy</span><span>$' + occ.toFixed(2) + '</span></div>' : '') +
+            (misc > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Misc Fee</span><span>$' + misc.toFixed(2) + '</span></div>' : '') +
+            (late > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0;color:#dc2626"><span>Late Fee</span><span>$' + late.toFixed(2) + '</span></div>' : '') +
+            (refAmt > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0;color:#16a34a"><span>Credit: ' + (i.refund_description || 'Adjustment') + '</span><span>-$' + refAmt.toFixed(2) + '</span></div>' : '') +
+            (creditAmt > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0;color:#16a34a"><span>Account Credit Applied</span><span>-$' + creditAmt.toFixed(2) + '</span></div>' : '') +
+            '<div style="border-top:1px solid #d6d3d1;margin:0.4rem 0"></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:0.2rem 0;font-weight:700"><span>Subtotal</span><span>$' + subtotal.toFixed(2) + '</span></div>' +
+            (bal !== subtotal ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0;font-weight:700"><span>Balance Due</span><span style="color:#dc2626">$' + bal.toFixed(2) + '</span></div>' : '') +
+            '<div style="border-top:2px dashed #f59e0b;margin:0.5rem 0;padding-top:0.4rem">' +
+              '<div style="display:flex;justify-content:space-between;padding:0.15rem 0;font-size:0.8rem;color:#78716c"><span>If paying by card:</span></div>' +
+              '<div style="display:flex;justify-content:space-between;padding:0.15rem 0;font-size:0.82rem"><span>Convenience Fee (3%)</span><span>$' + fee3.toFixed(2) + '</span></div>' +
+              '<div style="display:flex;justify-content:space-between;padding:0.15rem 0;font-weight:800;font-size:0.95rem"><span>Total with Card</span><span style="color:#dc2626">$' + totalCard.toFixed(2) + '</span></div>' +
+              '<div style="font-size:0.72rem;color:#78716c;margin-top:0.25rem;text-align:center">💡 Pay by cash or check at the office to avoid the convenience fee</div>' +
+            '</div>' +
+          '</div></details>';
+      });
+    }
+    if (paidInvs.length) {
+      invHtml += '<div style="margin-top:0.5rem;font-size:0.78rem;color:#78716c;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem">Paid</div>';
+      paidInvs.forEach(function(i) {
+        invHtml += '<div class="invoice-row"><span>' + i.invoice_number + ' — ' + i.invoice_date + '</span><span style="font-weight:700;color:#16a34a">$' + Number(i.balance_due).toFixed(2) + ' ✅</span></div>';
+      });
+    }
+    invEl.innerHTML = invHtml || '<p style="color:#a8a29e;font-size:0.85rem">No invoices yet</p>';
   } else if (_isAdminPreview) {
     // Preview mode with no API data — show placeholder
     document.getElementById('p-balance').textContent = '$0.00';
