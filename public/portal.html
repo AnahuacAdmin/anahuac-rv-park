@@ -1680,10 +1680,7 @@ async function loadHFFeed(type) {
     var r = await fetch('/api/hunting-fishing/public?type=' + type);
     var posts = await r.json();
 
-    // Promo card for fishing tab
-    var promo = type === 'fishing' ? '<div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #a7f3d0;border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.75rem;font-size:0.82rem;color:#065f46">' +
-      '<div style="font-weight:700;font-size:0.85rem">🎣 Try Carlile Custom Creatures!</div>' +
-      '<div style="margin-top:0.15rem">Hand poured soft plastic lures made right here in Anahuac, TX. Ask management for details!</div></div>' : '';
+    var promo = '';
 
     if (!posts || !posts.length) {
       el.innerHTML = promo + '<div style="text-align:center;padding:1.5rem 0;color:#a8a29e">No ' + type + ' posts yet — be the first! 🎣</div>';
@@ -2358,10 +2355,9 @@ var CHOMPER_KB = [
   { q:'Weather?', k:'weather,rain,storm,temperature,forecast,hot,cold,wind', a:'Check the weather radar right on your portal! 🌤️ Just scroll down to the weather section — it shows live radar, current conditions, and the 7-day forecast for Anahuac. 🐊' },
 
   // === FISHING ===
-  { q:'Best bait for bass?', k:'bait,bass,lure,best,fishing,what to use', a:'For bass in this area, try: 🎣\n\n🪱 Soft plastics (Texas rig)\n💥 Topwater at dawn\n🦞 Crawfish imitations\n\nAnd definitely try Carlile Custom Creatures — hand poured right here in Anahuac! Ask management! 🐊' },
+  { q:'Best bait for bass?', k:'bait,bass,lure,best,fishing,what to use', a:'For bass in this area, try: 🎣\n\n🪱 Soft plastics (Texas rig)\n💥 Topwater at dawn\n🦞 Crawfish imitations\n\nTight lines, neighbor! 🐊' },
   { q:'Best time to fish?', k:'best time,when to fish,morning,evening,fishing time', a:'Early morning (dawn) and late evening (sunset) are the best times! 🌅 The fish are most active then. As we say — the early gator gets the fish! 🐊🎣' },
   { q:'Best fishing spots?', k:'fishing spots,where to fish,best spots,trinity,east bay', a:'Chambers County is amazing for fishing! 🎣\n\n🏆 Trinity Bay — trophy bass\n🐟 East Bay — redfish and flounder\n🎣 Anahuac Channel — speckled trout\n🐊 Park pond — bass and catfish\n\nTight lines, neighbor! 🎣' },
-  { q:'Carlile Custom?', k:'carlile,custom,creatures,soft plastic,hand pour', a:'🎣 Carlile Custom Creatures makes hand-poured soft plastic lures right here in Anahuac, TX! Amazing for bass fishing in Trinity Bay. Ask management for details! 🐊' },
 
   // === HUNTING ===
   { q:'Duck season?', k:'duck,season,when,hunting,waterfowl', a:'Duck season in Texas is typically November through January. 🦆 Always check TPWD for exact dates: tpwd.texas.gov. Happy hunting! 🎯' },
