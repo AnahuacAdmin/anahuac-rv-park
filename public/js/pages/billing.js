@@ -87,16 +87,16 @@ async function loadBilling() {
       <div class="billing-scroll">
         <table class="billing-table">
           <colgroup>
-            <col style="width:60px">
-            <col style="width:35px">
-            <col style="width:150px">
-            <col style="width:50px">
             <col style="width:65px">
-            <col style="width:60px">
+            <col style="width:40px">
+            <col style="width:160px">
             <col style="width:55px">
-            <col style="width:65px">
-            <col style="width:65px">
-            <col style="width:60px">
+            <col style="width:70px">
+            <col style="width:70px">
+            <col style="width:70px">
+            <col style="width:75px">
+            <col style="width:85px">
+            <col style="width:75px">
           </colgroup>
           <thead><tr><th style="text-align:left">Inv #</th><th>Lot</th><th style="text-align:left">Guest</th><th>Date</th><th>Rent</th><th>Electric</th><th>Fees</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
           <tbody id="invoices-body">
@@ -172,15 +172,30 @@ function renderInvoiceRow(inv, rowBg) {
   const _isFlat = _t?.flat_rate;
   const _paused = _t?.eviction_paused;
   const _statusColor = _paused ? '#9ca3af' : inv.status === 'paid' ? '#16a34a' : inv.status === 'partial' ? '#f59e0b' : '#dc2626';
-  const otherFees = (Number(inv.mailbox_fee) || 0) + (Number(inv.misc_fee) || 0) + (Number(inv.extra_occupancy_fee) || 0) + (Number(inv.late_fee) || 0);
+  const mailbox = Number(inv.mailbox_fee) || 0;
+  const misc = Number(inv.misc_fee) || 0;
+  const occ = Number(inv.extra_occupancy_fee) || 0;
+  const late = Number(inv.late_fee) || 0;
+  const otherFees = mailbox + misc + occ + late;
   const refundAmt = Number(inv.refund_amount) || 0;
   const creditAmt = Number(inv.credit_applied) || 0;
   const balColor = inv.balance_due > 0.005 ? '#dc2626' : '#16a34a';
   const statusLabel = inv.status === 'paid' ? 'Paid' : inv.status === 'partial' ? 'Partial' : 'Unpaid';
   const badges = (inv.notes && inv.notes.startsWith('Prorated') ? ' <span class="badge badge-info" style="font-size:0.55rem">PRO</span>' : '') + (_isFlat ? ' <span class="badge badge-success" style="font-size:0.55rem">FLAT</span>' : '');
-  const totalTip = `Rent: ${formatMoney(inv.rent_amount)} + Electric: ${formatMoney(inv.electric_amount)} + Fees: ${formatMoney(otherFees)}${refundAmt > 0.005 ? ' - Credit: ' + formatMoney(refundAmt) + (inv.refund_description ? ' (' + inv.refund_description + ')' : '') : ''}${creditAmt > 0.005 ? ' - Applied: ' + formatMoney(creditAmt) : ''}`;
+  // Fee breakdown label
+  const feeParts = [];
+  if (mailbox > 0.005) feeParts.push('Mail');
+  if (misc > 0.005) feeParts.push('Misc');
+  if (occ > 0.005) feeParts.push('Occ');
+  if (late > 0.005) feeParts.push('Late ' + formatMoney(late));
+  const feeDetail = feeParts.length ? '<div style="font-size:0.6rem;color:#78716c;white-space:normal;line-height:1.2">' + feeParts.join(' + ') + '</div>' : '';
+  // Credit/refund detail under balance
+  const creditLines = [];
+  if (refundAmt > 0.005) creditLines.push('-' + formatMoney(refundAmt) + ' ' + (inv.refund_description || 'credit'));
+  if (creditAmt > 0.005) creditLines.push('-' + formatMoney(creditAmt) + ' applied');
+  const balNote = creditLines.length ? '<div style="font-size:0.65rem;color:#78716c;white-space:normal;line-height:1.2">' + creditLines.join('<br>') + '</div>' : '';
   const refundBadge = refundAmt > 0.005 ? ' <span class="badge badge-info" style="font-size:0.55rem">CREDIT</span>' : '';
-  const balNote = (refundAmt > 0.005 || creditAmt > 0.005) ? '<div style="font-size:0.6rem;color:#78716c;line-height:1.1">' + (refundAmt > 0.005 ? '-' + formatMoney(refundAmt) + ' credit' : '') + (refundAmt > 0.005 && creditAmt > 0.005 ? ', ' : '') + (creditAmt > 0.005 ? '-' + formatMoney(creditAmt) + ' applied' : '') + '</div>' : '';
+  const totalTip = `Rent: ${formatMoney(inv.rent_amount)} + Electric: ${formatMoney(inv.electric_amount)} + Fees: ${formatMoney(otherFees)}${refundAmt > 0.005 ? ' - Credit: ' + formatMoney(refundAmt) : ''}${creditAmt > 0.005 ? ' - Applied: ' + formatMoney(creditAmt) : ''}`;
   return `
     <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" onclick="toggleInvoiceActions(${inv.id})" style="cursor:pointer;border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
       <td style="text-align:left" title="${inv.invoice_number}">${shortInvNum(inv.invoice_number)}${badges}</td>
@@ -189,9 +204,9 @@ function renderInvoiceRow(inv, rowBg) {
       <td>${shortDate(inv.invoice_date)}</td>
       <td>${formatMoney(inv.rent_amount)}</td>
       <td>${formatMoney(inv.electric_amount)}</td>
-      <td title="Mailbox: ${formatMoney(inv.mailbox_fee)} | Misc: ${formatMoney(inv.misc_fee)} | Occ: ${formatMoney(inv.extra_occupancy_fee)} | Late: ${formatMoney(inv.late_fee)}">${otherFees > 0.005 ? formatMoney(otherFees) : '<span style="color:#a8a29e">—</span>'}</td>
+      <td style="white-space:normal">${otherFees > 0.005 ? formatMoney(otherFees) + feeDetail : '<span style="color:#a8a29e">—</span>'}</td>
       <td title="${totalTip}"><strong>${formatMoney(inv.total_amount)}</strong></td>
-      <td><strong style="color:${balColor}">${formatMoney(inv.balance_due)}</strong>${balNote}</td>
+      <td style="white-space:normal"><strong style="color:${balColor}">${formatMoney(inv.balance_due)}</strong>${balNote}</td>
       <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${refundBadge}${invoiceEvictionBadge(inv)}</td>
     </tr>
     <tr class="invoice-actions-row" id="inv-actions-${inv.id}" style="display:none">
