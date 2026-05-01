@@ -371,5 +371,6 @@ async function exportExpensesCSV() {
 async function deleteExpense(id) {
   if (!confirm('Delete this expense?')) return;
   await API.del('/expenses/' + id);
-  refreshExpList();
+  showStatusToast('✅', 'Expense deleted');
+  loadExpenses();
 }

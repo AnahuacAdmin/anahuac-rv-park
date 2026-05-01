@@ -248,6 +248,7 @@ async function saveDefaultRates() {
       default_rate_pullthrough: document.getElementById('rate-pullthrough')?.value || '375',
     });
     showStatusToast('\u2705', 'Default rates saved!');
+    loadLotMgmt();
   } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
 }
 
