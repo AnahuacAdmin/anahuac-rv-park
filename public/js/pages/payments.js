@@ -9,8 +9,9 @@ async function loadPayments() {
   if (!payments) return;
 
   var s = summary || {};
+  var electricTotal = s.electric || 0;
   var parkRevenue = (s.rent || 0) + (s.mailbox || 0) + (s.misc || 0) + (s.late_fees || 0);
-  var netRevenue = parkRevenue + (s.refunded || 0);
+  var netRevenue = parkRevenue + (s.refunded || 0) - electricTotal;
 
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('payments')}
@@ -21,7 +22,8 @@ async function loadPayments() {
     <div class="stats-grid">
       <div class="stat-card success"><div class="stat-value">${formatMoney(parkRevenue)}</div><div class="stat-label">Park Revenue</div></div>
       ${(s.refunded || 0) < 0 ? `<div class="stat-card" style="border-left-color:#dc2626"><div class="stat-value" style="color:#dc2626">${formatMoney(s.refunded)}</div><div class="stat-label">Refunded</div></div>` : ''}
-      <div class="stat-card" style="border-left-color:#166534"><div class="stat-value" style="color:#166534">${formatMoney(netRevenue)}</div><div class="stat-label">Net Revenue</div></div>
+      <div class="stat-card" style="border-left-color:#0284c7"><div class="stat-value" style="color:#0284c7">${formatMoney(electricTotal)}</div><div class="stat-label">Electric (pass-through)</div></div>
+      <div class="stat-card" style="border-left-color:#166534"><div class="stat-value" style="color:#166534">${formatMoney(netRevenue)}</div><div class="stat-label">Net Park Revenue</div></div>
       <div class="stat-card"><div class="stat-value">${s.transactions || payments.length}</div><div class="stat-label">Transactions</div></div>
     </div>
 
@@ -36,7 +38,8 @@ async function loadPayments() {
         <div><span style="color:var(--gray-500)">Mailbox:</span> <strong>${formatMoney(s.mailbox || 0)}</strong></div>
         ${(s.misc || 0) > 0 ? `<div><span style="color:var(--gray-500)">Misc:</span> <strong>${formatMoney(s.misc || 0)}</strong></div>` : ''}
         <div><span style="color:var(--gray-500)">Refunds:</span> <strong style="color:#dc2626">${formatMoney(s.refunded || 0)}</strong></div>
-        <div style="border-top:2px solid #166534;padding-top:0.25rem;grid-column:1/-1;font-size:0.95rem"><span style="color:#166534;font-weight:700">Net Park Revenue:</span> <strong style="color:#166534;font-size:1.05rem">${formatMoney(netRevenue)}</strong></div>
+        <div><span style="color:#0284c7">Electric (pass-through):</span> <strong style="color:#0284c7">-${formatMoney(electricTotal)}</strong></div>
+        <div style="border-top:2px solid #166534;padding-top:0.25rem;grid-column:1/-1;font-size:0.95rem"><span style="color:#166534;font-weight:700">Net Park Revenue (after electric pass-through):</span> <strong style="color:#166534;font-size:1.05rem">${formatMoney(netRevenue)}</strong></div>
       </div>
     </div>
     <div class="card scrollable-table-card">
