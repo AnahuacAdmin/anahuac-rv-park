@@ -17,6 +17,7 @@ const PHOTOS_DIR = path.join(path.dirname(DB_PATH), 'uploads', 'meter-photos');
 if (!fs.existsSync(PHOTOS_DIR)) fs.mkdirSync(PHOTOS_DIR, { recursive: true });
 
 // Photo diagnostics — public (no auth), only shows counts
+// Optional ?lot=A4 to see all readings for a specific lot
 router.get('/photo-stats', (req, res) => {
   const total = db.prepare('SELECT COUNT(*) as cnt FROM meter_readings').get().cnt;
   const withPhoto = db.prepare("SELECT COUNT(*) as cnt FROM meter_readings WHERE photo IS NOT NULL AND photo != ''").get().cnt;
@@ -30,7 +31,31 @@ router.get('/photo-stats', (req, res) => {
   recentWithPhotos.forEach(r => {
     r.file_exists = fs.existsSync(path.join(PHOTOS_DIR, r.photo || ''));
   });
-  res.json({ total, withPhoto, todayTotal, todayWithPhoto, todayDate: today, photosDir: PHOTOS_DIR, recentWithPhotos });
+
+  const result = { total, withPhoto, todayTotal, todayWithPhoto, todayDate: today, photosDir: PHOTOS_DIR, recentWithPhotos };
+
+  // Lot-specific query: /photo-stats?lot=A4
+  const lotFilter = req.query.lot;
+  if (lotFilter) {
+    result.lotReadings = db.prepare(
+      'SELECT id, lot_id, tenant_id, reading_date, previous_reading, current_reading, kwh_used, electric_charge, photo FROM meter_readings WHERE lot_id = ? ORDER BY id DESC'
+    ).all(lotFilter);
+    result.lotReadings.forEach(r => {
+      r.photo_file_exists = r.photo ? fs.existsSync(path.join(PHOTOS_DIR, r.photo)) : null;
+    });
+  }
+
+  // List all photo files on disk
+  try {
+    const diskFiles = fs.readdirSync(PHOTOS_DIR);
+    const dbPhotos = db.prepare("SELECT photo FROM meter_readings WHERE photo IS NOT NULL AND photo != ''").all().map(r => r.photo);
+    result.diskFileCount = diskFiles.length;
+    result.orphanedFiles = diskFiles.filter(f => !dbPhotos.includes(f));
+  } catch (e) {
+    result.diskError = e.message;
+  }
+
+  res.json(result);
 });
 
 // Serve meter photos — public (no auth) so <img> tags can load them directly
@@ -131,6 +156,9 @@ router.get('/latest', (req, res) => {
     if (reading && tenant) {
       prevReading = db.prepare('SELECT id, reading_date, previous_reading, current_reading, kwh_used, electric_charge, photo FROM meter_readings WHERE lot_id = ? AND tenant_id = ? AND id < ? ORDER BY id DESC LIMIT 1').get(lot.id, tenant.id, reading.id);
     }
+
+    // Safety: ensure prev reading is never the same as current reading
+    if (prevReading && reading && prevReading.id === reading.id) prevReading = null;
 
     results.push({
       id: reading?.id || 0,
