@@ -3,7 +3,7 @@
  * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
  * Service Worker — Offline & Caching
  */
-const CACHE_NAME = 'rvpark-v82';
+const CACHE_NAME = 'rvpark-v83';
 
 const APP_SHELL = [
   // NOTE: '/' intentionally excluded — handled separately as network-first to prevent caching stale HTML
@@ -38,6 +38,11 @@ const APP_SHELL = [
   '/js/pages/documents.js',
   '/js/pages/maintenance.js',
   '/js/pages/expenses.js',
+  '/js/pages/pnl.js',
+  '/js/pages/bank-recon.js',
+  '/js/pages/receipt-catalog.js',
+  '/js/pages/message-log.js',
+  '/js/pages/guest-lookup.js',
   '/js/pages/inspections.js',
   '/js/pages/branding.js',
   '/js/pages/setup-wizard.js',

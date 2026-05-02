@@ -2,9 +2,9 @@
 // Runs automatically after server starts to verify critical endpoints.
 // Usage: called from server/index.js after listen(), or manually: node scripts/post-deploy-test.js
 
-const BASE = process.env.APP_URL || process.env.RAILWAY_PUBLIC_DOMAIN
-  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-  : `http://localhost:${process.env.PORT || 3000}`;
+// When running inside the container, always use localhost to avoid DNS/firewall issues.
+// The server binds on 0.0.0.0:PORT, so localhost:PORT works from within the same process.
+const BASE = `http://localhost:${process.env.PORT || 3000}`;
 
 async function runTests() {
   const results = [];
@@ -28,10 +28,19 @@ async function runTests() {
   });
 
   // 2. Portal login endpoint responds (not 500)
-  await test('Portal login endpoint', `${BASE}/api/portal/login`, (res) => {
-    // POST required, so GET should return 404 (route not found for GET) or 400/405, NOT 500
-    return res.status !== 500;
-  });
+  try {
+    const loginRes = await fetch(`${BASE}/api/portal/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lot_number: '__test__', last_name: '__test__' }),
+    });
+    const passed = loginRes.status === 401 || loginRes.status === 400 || loginRes.status === 429;
+    results.push({ name: 'Portal login endpoint', passed, status: loginRes.status });
+    console.log(`[deploy-test] ${passed ? '✓' : '✗'} Portal login endpoint (HTTP ${loginRes.status})`);
+  } catch (err) {
+    results.push({ name: 'Portal login endpoint', passed: false, error: err.message });
+    console.error(`[deploy-test] ✗ Portal login endpoint — ${err.message}`);
+  }
 
   // 3. Dashboard loads (requires auth so expect 401, NOT 500)
   await test('Dashboard API responds', `${BASE}/api/dashboard`, (res) => {

@@ -1781,7 +1781,7 @@ async function loadPortalUsers() {
     }
 
     var online = users.filter(function(u) { return _portalIsOnline(u.last_portal_login); });
-    var pinSetup = users.filter(function(u) { return u.portal_pin; });
+    var pinSetup = users.filter(function(u) { return u.has_pin; });
     var neverLogged = users.filter(function(u) { return !u.last_portal_login; });
 
     if (countEl) countEl.textContent = '(' + online.length + ' online)';
@@ -1802,7 +1802,7 @@ async function loadPortalUsers() {
     users.forEach(function(u) {
       var isOn = _portalIsOnline(u.last_portal_login);
       var statusDot = isOn ? '<span style="color:#16a34a;font-size:1.1rem" title="Online now">●</span>' :
-                     u.portal_pin ? '<span style="color:#d1d5db;font-size:1.1rem" title="Offline">●</span>' :
+                     u.has_pin ? '<span style="color:#d1d5db;font-size:1.1rem" title="Offline">●</span>' :
                      '<span style="color:#f59e0b;font-size:0.9rem" title="No PIN set">⚠️</span>';
       var lastLogin = u.last_portal_login ? _stripTime(u.last_portal_login) : '<span style="color:#d1d5db">Never</span>';
       var name = escapeHtml((u.first_name || '') + ' ' + (u.last_name || ''));

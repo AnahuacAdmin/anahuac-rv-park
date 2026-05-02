@@ -211,7 +211,8 @@ router.get('/portal-users', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   try {
     const users = db.prepare(`
-      SELECT id, first_name, last_name, lot_id, phone, email, portal_pin,
+      SELECT id, first_name, last_name, lot_id, phone, email,
+             CASE WHEN portal_pin IS NOT NULL AND portal_pin != '' THEN 1 ELSE 0 END as has_pin,
              last_portal_login, COALESCE(portal_login_count, 0) as portal_login_count
       FROM tenants WHERE is_active = 1
       ORDER BY last_portal_login DESC NULLS LAST

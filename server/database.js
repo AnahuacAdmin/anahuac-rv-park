@@ -1067,8 +1067,13 @@ function runStartupHealthCheck() {
       'rent_amount', 'electric_amount', 'mailbox_fee', 'misc_fee', 'extra_occupancy_fee', 'late_fee',
       'refund_amount', 'refund_description', 'credit_applied'],
     tenants: ['id', 'first_name', 'last_name', 'lot_id', 'phone', 'email', 'is_active'],
-    meter_readings: ['id', 'lot_id', 'reading_date', 'reading_value'],
+    meter_readings: ['id', 'lot_id', 'reading_date', 'current_reading', 'previous_reading', 'kwh_used', 'photo'],
     payments: ['id', 'tenant_id', 'invoice_id', 'payment_date', 'amount', 'payment_method'],
+    vendors: ['id', 'name', 'category', 'phone', 'email'],
+    expenses: ['id', 'expense_date', 'category', 'amount', 'vendor', 'vendor_id', 'status'],
+    expense_categories: ['id', 'name', 'is_active'],
+    employee_payments: ['id', 'employee_name', 'amount', 'month', 'year'],
+    bank_reconciliation: ['id', 'month', 'year', 'beginning_balance', 'ending_balance'],
   };
 
   for (const [table, cols] of Object.entries(criticalTables)) {

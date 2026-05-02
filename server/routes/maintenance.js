@@ -28,6 +28,7 @@ router.get('/', (req, res) => {
 
 // Submit request (tenant or admin)
 router.post('/', async (req, res) => {
+  try {
   var b = req.body || {};
   var result = db.prepare('INSERT INTO maintenance_requests (tenant_id, lot_id, category, description, photo) VALUES (?,?,?,?,?)').run(
     b.tenant_id || req.user.id, b.lot_id || null, b.category || 'Other', b.description || '', b.photo || null
@@ -47,10 +48,12 @@ router.post('/', async (req, res) => {
     }
   } catch (e) { console.error('[maintenance] SMS failed:', e.message); }
   res.json({ id: result.lastInsertRowid });
+  } catch (err) { console.error('[maintenance] create error:', err.message); res.status(500).json({ error: 'Failed to create request' }); }
 });
 
 // Update status (admin)
 router.put('/:id', async (req, res) => {
+  try {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   var b = req.body || {};
   var resolved = b.status === 'resolved' ? new Date().toISOString() : null;
@@ -68,6 +71,7 @@ router.put('/:id', async (req, res) => {
     } catch (e) { console.error('[maintenance] resolve SMS failed:', e.message); }
   }
   res.json({ success: true });
+  } catch (err) { console.error('[maintenance] update error:', err.message); res.status(500).json({ error: 'Failed to update request' }); }
 });
 
 // Serve maintenance photo

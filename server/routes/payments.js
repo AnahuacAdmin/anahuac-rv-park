@@ -163,6 +163,7 @@ router.get('/tenant/:tenantId', (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  try {
   const { tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes, send_sms_receipt, hold_as_credit } = req.body;
 
   let newBalance = null;
@@ -253,6 +254,10 @@ router.post('/', async (req, res) => {
   }
 
   res.json({ id: result.lastInsertRowid, smsReceipt: smsResult, overpayment });
+  } catch (err) {
+    console.error('[payments] record payment error:', err.message);
+    res.status(500).json({ error: 'Failed to record payment: ' + err.message });
+  }
 });
 
 // Process a Stripe refund

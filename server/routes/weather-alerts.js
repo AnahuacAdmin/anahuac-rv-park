@@ -68,6 +68,7 @@ router.post('/check', async (req, res) => {
 
 // Test alert (sends to manager phone ONLY, never to tenants)
 router.post('/test', async (req, res) => {
+  try {
   const mgrPhone = db.prepare("SELECT value FROM settings WHERE key = 'manager_phone'").get()?.value;
   if (!mgrPhone) return res.status(400).json({ error: 'No manager phone configured in Settings.' });
 
@@ -78,11 +79,13 @@ router.post('/test', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'SMS failed: ' + err.message });
   }
+  } catch (err) { console.error('[weather-alerts] test error:', err.message); res.status(500).json({ error: err.message }); }
 });
 
 // Admin manually sends SMS to ALL tenants for a specific alert
 // This is the ONLY way SMS gets sent to tenants — never automatic
 router.post('/send', async (req, res) => {
+  try {
   const { alert_event, alert_headline, nws_alert_id } = req.body || {};
   if (!alert_event) return res.status(400).json({ error: 'Alert event type required' });
 
@@ -122,6 +125,7 @@ router.post('/send', async (req, res) => {
   }
 
   res.json({ success: true, sent, failed, total: tenants.length });
+  } catch (err) { console.error('[weather-alerts] send error:', err.message); res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;
