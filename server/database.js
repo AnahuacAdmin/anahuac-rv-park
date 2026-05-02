@@ -972,6 +972,83 @@ async function initializeDatabase() {
 
   saveDb();
   console.log('Database initialized successfully');
+
+  // === STARTUP HEALTH CHECK ===
+  runStartupHealthCheck();
+}
+
+// Validate that required columns exist in a table. Returns list of missing columns.
+function validateColumns(tableName, requiredColumns) {
+  const missing = [];
+  try {
+    const info = db.exec(`PRAGMA table_info(${tableName})`);
+    const existing = info[0] ? info[0].values.map(r => r[1]) : [];
+    for (const col of requiredColumns) {
+      if (!existing.includes(col)) missing.push(col);
+    }
+  } catch (e) {
+    console.error(`[CRITICAL] Cannot read table schema for ${tableName}: ${e.message}`);
+    return requiredColumns; // assume all missing
+  }
+  return missing;
+}
+
+function runStartupHealthCheck() {
+  console.log('[health-check] Running startup validation...');
+  let issues = 0;
+
+  // 1. Validate critical table columns
+  const criticalTables = {
+    invoices: ['id', 'tenant_id', 'invoice_number', 'total_amount', 'balance_due', 'status', 'amount_paid',
+      'rent_amount', 'electric_amount', 'mailbox_fee', 'misc_fee', 'extra_occupancy_fee', 'late_fee',
+      'refund_amount', 'refund_description', 'credit_applied'],
+    tenants: ['id', 'first_name', 'last_name', 'lot_id', 'phone', 'email', 'is_active'],
+    meter_readings: ['id', 'lot_id', 'reading_date', 'reading_value'],
+    payments: ['id', 'tenant_id', 'invoice_id', 'payment_date', 'amount', 'payment_method'],
+  };
+
+  for (const [table, cols] of Object.entries(criticalTables)) {
+    const missing = validateColumns(table, cols);
+    if (missing.length > 0) {
+      console.error(`[CRITICAL] Table "${table}" is missing columns: ${missing.join(', ')} — portal queries may crash!`);
+      issues++;
+    }
+  }
+
+  // 2. Test the exact portal /me invoice query (the one that just broke production)
+  try {
+    db.exec(`SELECT id, invoice_number, invoice_date, total_amount, balance_due, status,
+      rent_amount, electric_amount, mailbox_fee, misc_fee,
+      extra_occupancy_fee, late_fee, refund_amount, refund_description, credit_applied
+    FROM invoices LIMIT 0`);
+  } catch (e) {
+    console.error(`[CRITICAL] Portal /me invoice query will CRASH: ${e.message}`);
+    issues++;
+  }
+
+  // 3. Test portal balance query
+  try {
+    db.exec(`SELECT COALESCE(SUM(balance_due), 0) as total FROM invoices WHERE tenant_id = -1 AND status IN ('pending','partial') AND COALESCE(deleted,0)=0`);
+  } catch (e) {
+    console.error(`[CRITICAL] Portal balance query will CRASH: ${e.message}`);
+    issues++;
+  }
+
+  // 4. Test dashboard stats query
+  try {
+    db.exec(`SELECT COUNT(*) as count FROM lots`);
+    db.exec(`SELECT COUNT(*) as count FROM tenants WHERE is_active = 1`);
+    db.exec(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')`);
+  } catch (e) {
+    console.error(`[CRITICAL] Dashboard stats query will CRASH: ${e.message}`);
+    issues++;
+  }
+
+  if (issues === 0) {
+    console.log('[health-check] All startup checks passed ✓');
+  } else {
+    console.error(`[CRITICAL] ${issues} startup check(s) FAILED — server will start but some features may be broken!`);
+  }
 }
 
 // Graceful save on exit

@@ -1187,17 +1187,25 @@ async function showPortal() {
     switchPortalTab('home');
   }, 100);
 
-  if (data) {
-    const bal = data.balance || 0;
+  if (data && !data.error) {
+    const bal = data.balance;
     const balEl = document.getElementById('p-balance');
-    balEl.textContent = '$' + bal.toFixed(2);
-    balEl.className = 'balance-amount ' + (bal > 0 ? 'balance-owed' : 'balance-paid');
-
     const payEl = document.getElementById('pay-section');
-    if (bal > 0) {
+
+    if (bal === null || bal === undefined) {
+      // Server couldn't load balance — show warning, NEVER show $0
+      balEl.textContent = '⚠️';
+      balEl.className = 'balance-amount';
+      balEl.style.fontSize = '1.8rem';
+      payEl.innerHTML = '<p style="text-align:center;color:#dc2626;font-weight:600;font-size:0.92rem;line-height:1.4">Balance temporarily unavailable<br><span style="font-size:0.82rem;color:#78716c;font-weight:400">Contact office at <a href="tel:4092676603" style="color:#2563eb">409-267-6603</a></span></p>';
+    } else if (bal > 0) {
+      balEl.textContent = '$' + bal.toFixed(2);
+      balEl.className = 'balance-amount balance-owed';
       const withFee = (bal * 1.03).toFixed(2);
       payEl.innerHTML = `<button class="btn btn-green" onclick="portalPay()" style="margin-bottom:0.5rem;font-size:1.1rem">💳 Pay Now — $${withFee}</button><p style="text-align:center;font-size:0.7rem;color:#78716c">🔒 Secure payment via Stripe · Includes 3% processing fee</p>`;
     } else {
+      balEl.textContent = '$0.00';
+      balEl.className = 'balance-amount balance-paid';
       payEl.innerHTML = '<p style="text-align:center;color:#16a34a;font-weight:700;margin-bottom:0.5rem;font-size:1.05rem">✅ All paid up!</p>';
     }
     if (sessionStorage.getItem('portal_paid')) {
@@ -1278,6 +1286,14 @@ async function showPortal() {
     document.getElementById('pay-section').innerHTML = '<p style="text-align:center;color:#78716c;font-size:0.85rem">Payment preview not available</p>';
     document.getElementById('p-invoices').innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">Invoice data preview not available</p>';
     document.getElementById('p-payment-history').innerHTML = '<p style="color:#a8a29e;font-size:0.85rem">Payment history preview not available</p>';
+  } else {
+    // API failed entirely — NEVER show $0, show error
+    var balEl = document.getElementById('p-balance');
+    balEl.textContent = '⚠️';
+    balEl.className = 'balance-amount';
+    balEl.style.fontSize = '1.8rem';
+    document.getElementById('pay-section').innerHTML = '<p style="text-align:center;color:#dc2626;font-weight:600;font-size:0.92rem;line-height:1.4">Could not load your account<br><span style="font-size:0.82rem;color:#78716c;font-weight:400">Please try again or call <a href="tel:4092676603" style="color:#2563eb">409-267-6603</a></span></p>';
+    document.getElementById('p-invoices').innerHTML = '';
   }
 }
 

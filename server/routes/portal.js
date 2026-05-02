@@ -203,23 +203,41 @@ function tenantAuth(req, res, next) {
 
 // Get tenant dashboard data
 router.get('/me', tenantAuth, (req, res) => {
-  const tenant = db.prepare('SELECT id, first_name, last_name, lot_id, phone, email FROM tenants WHERE id = ?').get(req.tenant.id);
-  if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+  try {
+    const tenant = db.prepare('SELECT id, first_name, last_name, lot_id, phone, email FROM tenants WHERE id = ?').get(req.tenant.id);
+    if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
 
-  const balance = db.prepare(`
-    SELECT COALESCE(SUM(balance_due), 0) as total
-    FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0
-  `).get(tenant.id);
+    let balance = null;
+    try {
+      const result = db.prepare(`
+        SELECT COALESCE(SUM(balance_due), 0) as total
+        FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0
+      `).get(tenant.id);
+      balance = result?.total ?? 0;
+    } catch (e) {
+      console.error('[CRITICAL] Portal balance query failed:', e.message);
+      // balance stays null — frontend will show "unavailable" instead of $0
+    }
 
-  const invoices = db.prepare(`
-    SELECT id, invoice_number, invoice_date, total_amount, balance_due, status,
-      rent_amount, electric_amount, mailbox_fee, misc_fee,
-      extra_occupancy_fee, late_fee, refund_amount, refund_description, credit_applied
-    FROM invoices WHERE tenant_id = ? AND COALESCE(deleted,0)=0
-    ORDER BY invoice_date DESC LIMIT 6
-  `).all(tenant.id);
+    let invoices = [];
+    try {
+      invoices = db.prepare(`
+        SELECT id, invoice_number, invoice_date, total_amount, balance_due, status,
+          rent_amount, electric_amount, mailbox_fee, misc_fee,
+          extra_occupancy_fee, late_fee, refund_amount, refund_description, credit_applied
+        FROM invoices WHERE tenant_id = ? AND COALESCE(deleted,0)=0
+        ORDER BY invoice_date DESC LIMIT 6
+      `).all(tenant.id);
+    } catch (e) {
+      console.error('[CRITICAL] Portal invoice query failed:', e.message);
+      // invoices stays [] — frontend shows empty list rather than crashing
+    }
 
-  res.json({ ...tenant, balance: balance?.total || 0, invoices });
+    res.json({ ...tenant, balance, invoices });
+  } catch (err) {
+    console.error('[CRITICAL] Portal /me endpoint failed:', err.message);
+    res.status(500).json({ error: 'temporarily unavailable', balance: null });
+  }
 });
 
 // Helper: get or create Stripe instance
@@ -498,15 +516,20 @@ router.post('/message', tenantAuth, (req, res) => {
 
 // Payment history for the logged-in tenant
 router.get('/payments', tenantAuth, (req, res) => {
-  const payments = db.prepare(`
-    SELECT p.id, p.payment_date, p.amount, p.payment_method, p.reference_number, p.notes,
-      i.invoice_number, i.total_amount, i.balance_due, i.status as invoice_status
-    FROM payments p
-    LEFT JOIN invoices i ON p.invoice_id = i.id
-    WHERE p.tenant_id = ?
-    ORDER BY p.payment_date DESC, p.id DESC
-  `).all(req.tenant.id);
-  res.json(payments);
+  try {
+    const payments = db.prepare(`
+      SELECT p.id, p.payment_date, p.amount, p.payment_method, p.reference_number, p.notes,
+        i.invoice_number, i.total_amount, i.balance_due, i.status as invoice_status
+      FROM payments p
+      LEFT JOIN invoices i ON p.invoice_id = i.id
+      WHERE p.tenant_id = ?
+      ORDER BY p.payment_date DESC, p.id DESC
+    `).all(req.tenant.id);
+    res.json(payments);
+  } catch (err) {
+    console.error('[CRITICAL] Portal payment history query failed:', err.message);
+    res.status(500).json({ error: 'Could not load payment history' });
+  }
 });
 
 // Birthday message for the logged-in tenant (most recent, within last 3 days)

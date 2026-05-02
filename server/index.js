@@ -189,6 +189,11 @@ initializeDatabase()
       try { require('./jobs/weatherJob').start(); } catch (e) { console.error('[weather-job] failed to start:', e.message); }
       try { require('./jobs/reminderJob').start(); } catch (e) { console.error('[reminder-job] failed to start:', e.message); }
       try { require('./jobs/birthdayJob').start(); } catch (e) { console.error('[birthday-job] failed to start:', e.message); }
+      // Run post-deploy smoke tests (non-blocking)
+      setTimeout(() => {
+        try { require('../scripts/post-deploy-test').runTests().catch(e => console.error('[deploy-test] error:', e.message)); }
+        catch (e) { console.error('[deploy-test] failed to load:', e.message); }
+      }, 3000);
     });
   })
   .catch((err) => {
