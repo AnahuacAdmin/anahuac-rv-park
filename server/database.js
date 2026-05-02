@@ -529,6 +529,13 @@ async function initializeDatabase() {
     last_used DATE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+  // Vendor directory — new columns for account/login management
+  addCol("ALTER TABLE vendors ADD COLUMN account_number TEXT");
+  addCol("ALTER TABLE vendors ADD COLUMN login_url TEXT");
+  addCol("ALTER TABLE vendors ADD COLUMN username TEXT");
+  addCol("ALTER TABLE vendors ADD COLUMN password_encrypted TEXT");
+  addCol("ALTER TABLE vendors ADD COLUMN autopay_enrolled INTEGER DEFAULT 0");
+  addCol("ALTER TABLE vendors ADD COLUMN payment_method TEXT");
 
   // Seed default vendors if empty
   const vendorCount = db.prepare('SELECT COUNT(*) as c FROM vendors').get().c;
@@ -537,9 +544,66 @@ async function initializeDatabase() {
     seedVendors.run('Chambers County EMS', 'Emergency Services', '409-267-2444', 'Emergency medical services', 1);
     seedVendors.run('Anahuac Police Department', 'Emergency Services', '409-267-3534', 'Local police non-emergency', 1);
     seedVendors.run('CenterPoint Energy', 'Electrical', '713-659-2111', 'Electric utility provider', 1);
-    seedVendors.run('City of Anahuac Water', 'Water/Utilities', '409-267-3313', 'Municipal water service', 1);
+    seedVendors.run('City of Anahuac Water', 'Water/Utilities', '409-267-3313', 'Municipal water service — autopay enrolled', 1);
     seedVendors.run('Anahuac Hardware', 'Supplies/Hardware', '409-267-3218', 'Local hardware store', 0);
   }
+
+  // Expense categories (IRS-ready P&L structure)
+  db.run(`CREATE TABLE IF NOT EXISTS expense_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    parent_category TEXT,
+    sort_order INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1
+  )`);
+  const catCount = db.prepare('SELECT COUNT(*) as c FROM expense_categories').get().c;
+  if (catCount === 0) {
+    const seedCat = db.prepare('INSERT INTO expense_categories (name, parent_category, sort_order) VALUES (?, ?, ?)');
+    const cats = [
+      ['EMPLOYEES', null, 1], ['OWNERS/PARTNERS', null, 2],
+      ['ELECTRICITY', null, 10], ['VERIZON LAND LINE', null, 11], ['PARK MOBILE PHONE', null, 12],
+      ['WATER/SEWER', null, 13], ['DUMPSTER', null, 14], ['ENTERTAINMENT', null, 15],
+      ['STARLINK WIFI - GUEST', null, 16], ['MAINTENANCE', null, 17], ['MAINTENANCE REPAIRS', null, 18],
+      ['LAWN MOWER PAYMENT', null, 19], ['INSURANCE', null, 20], ['ADVERTISING', null, 21],
+      ['UTILITY REPAIRS', null, 22], ['BUILDING MATERIAL', null, 23], ['PROPERTY TAX', null, 24],
+      ['MEALS', null, 25], ['PROFESSIONAL SERVICE', null, 26], ['OFFICE SUPPLIES', null, 27],
+      ['RV PARK SUPPLIES', null, 28], ['FEES', null, 29], ['APPLIANCE REPAIRS', null, 30],
+      ['PEST CONTROL', null, 31], ['ROAD REPAIR MATERIAL', null, 32], ['SECURITY', null, 33],
+      ['FUEL', null, 34], ['PLUMBING', null, 35], ['TRACTOR REPAIR', null, 36],
+    ];
+    cats.forEach(c => seedCat.run(c[0], c[1], c[2]));
+  }
+
+  // Expenses — add new columns for vendor linking, status, filing
+  addCol("ALTER TABLE expenses ADD COLUMN vendor_id INTEGER");
+  addCol("ALTER TABLE expenses ADD COLUMN status TEXT DEFAULT 'filed'");
+  addCol("ALTER TABLE expenses ADD COLUMN filed_by TEXT");
+  addCol("ALTER TABLE expenses ADD COLUMN filed_at DATETIME");
+
+  // Employee / Owner payments
+  db.run(`CREATE TABLE IF NOT EXISTS employee_payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_name TEXT NOT NULL,
+    role TEXT DEFAULT 'employee',
+    month INTEGER,
+    year INTEGER,
+    amount REAL DEFAULT 0,
+    payment_method TEXT,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Bank reconciliation
+  db.run(`CREATE TABLE IF NOT EXISTS bank_reconciliation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    month INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    beginning_balance REAL DEFAULT 0,
+    ending_balance REAL DEFAULT 0,
+    is_reconciled INTEGER DEFAULT 0,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
 
   // Lot inspections
   db.run(`CREATE TABLE IF NOT EXISTS lot_inspections (

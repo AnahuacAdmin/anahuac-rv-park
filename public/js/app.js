@@ -55,7 +55,10 @@ function injectMainApp() {
           <li class="nav-section">Financial</li>
           <li><a href="#" data-page="billing" class="nav-link">\u{1F4B0} Billing & Invoices</a></li>
           <li><a href="#" data-page="payments" class="nav-link">\u{1F4B3} Payments</a></li>
-          <li><a href="#" data-page="expenses" class="nav-link" id="nav-expenses" style="display:none">\u{1F9FE} Expenses</a></li>
+          <li><a href="#" data-page="expenses" class="nav-link" id="nav-expenses" style="display:none">\u{1F4B8} Expenses</a></li>
+          <li><a href="#" data-page="pnl" class="nav-link" id="nav-pnl" style="display:none">\u{1F4CA} Profit & Loss</a></li>
+          <li><a href="#" data-page="bank-recon" class="nav-link" id="nav-bank-recon" style="display:none">\u{1F3E6} Bank Reconciliation</a></li>
+          <li><a href="#" data-page="receipt-catalog" class="nav-link" id="nav-receipt-catalog" style="display:none">\u{1F9FE} Receipt Catalog</a></li>
           <li><a href="#" data-page="reports" class="nav-link" id="nav-reports" style="display:none">\u{1F4CA} Performance Metrics</a></li>
           <li class="nav-section" style="display:none" id="nav-community-divider">Community</li>
           <li><a href="#" data-page="community" class="nav-link" id="nav-community" style="display:none">\u{1F4CB} Community Board</a></li>
@@ -92,7 +95,7 @@ function refreshUsersNavVisibility() {
   if (!document.getElementById('sidebar')) return; // main-app not injected yet
   const isAdmin = API.user?.role === 'admin';
   const isStaff = API.user?.role === 'staff';
-  document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses, #nav-community, #nav-inspections, #nav-branding, #nav-lost-found, #nav-birding, #nav-hunting-fishing, #nav-message-log').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
+  document.querySelectorAll('#nav-users, #nav-admin, #nav-reports, #nav-lotmgmt, #nav-vendors, #nav-documents, #nav-maintenance, #nav-expenses, #nav-pnl, #nav-bank-recon, #nav-receipt-catalog, #nav-community, #nav-inspections, #nav-branding, #nav-lost-found, #nav-birding, #nav-hunting-fishing, #nav-message-log').forEach(el => { if (el) el.style.display = isAdmin ? '' : 'none'; });
   const adminDiv = document.getElementById('nav-admin-divider');
   if (adminDiv) adminDiv.style.display = isAdmin ? '' : 'none';
   const communityDiv = document.getElementById('nav-community-divider');
@@ -1157,7 +1160,7 @@ function navigateTo(page, skipHistory) {
   const loader = { dashboard: loadDashboard, sitemap: loadSiteMap, tenants: loadTenants,
     meters: loadMeters, electric: loadElectric, billing: loadBilling, payments: loadPayments,
     checkins: loadCheckins, messages: loadMessages, reservations: loadReservations, waitlist: loadWaitlist,
-    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors, documents: loadDocuments, maintenance: loadMaintenance, expenses: loadExpenses, community: loadCommunity, inspections: loadInspections, branding: loadBranding,
+    users: loadUsers, reports: loadReports, admin: loadAdmin, lotmgmt: loadLotMgmt, vendors: loadVendors, documents: loadDocuments, maintenance: loadMaintenance, expenses: loadExpenses, pnl: loadPnl, 'bank-recon': loadBankRecon, 'receipt-catalog': loadReceiptCatalog, community: loadCommunity, inspections: loadInspections, branding: loadBranding,
     'water-meters': loadWaterMeters, 'water-analytics': loadWaterAnalytics, 'lost-found': loadLostFound, birding: loadBirding, 'hunting-fishing': loadHuntingFishing, 'message-log': loadMessageLog, 'guest-lookup': loadGuestLookup };
   // Contextual first-visit tips
   const _tips = {

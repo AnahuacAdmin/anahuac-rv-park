@@ -2,8 +2,12 @@
  * Anahuac RV Park — Expense Tracking with AI Receipt Scanner
  */
 var EXP_CATS = [
-  'Electric/Utilities', 'Plumbing/Water', 'Maintenance/Repairs', 'Supplies/Hardware',
-  'Landscaping', 'Insurance', 'Taxes/Fees', 'Equipment', 'Labor/Contractors', 'Office/Admin', 'Other'
+  'ELECTRICITY', 'VERIZON LAND LINE', 'PARK MOBILE PHONE', 'WATER/SEWER', 'DUMPSTER',
+  'ENTERTAINMENT', 'STARLINK WIFI - GUEST', 'MAINTENANCE', 'MAINTENANCE REPAIRS',
+  'LAWN MOWER PAYMENT', 'INSURANCE', 'ADVERTISING', 'UTILITY REPAIRS', 'BUILDING MATERIAL',
+  'PROPERTY TAX', 'MEALS', 'PROFESSIONAL SERVICE', 'OFFICE SUPPLIES', 'RV PARK SUPPLIES',
+  'FEES', 'APPLIANCE REPAIRS', 'PEST CONTROL', 'ROAD REPAIR MATERIAL', 'SECURITY',
+  'FUEL', 'PLUMBING', 'TRACTOR REPAIR', 'Other'
 ];
 
 async function loadExpenses() {
@@ -20,9 +24,25 @@ async function loadExpenses() {
     '<div class="page-header"><h2>💸 Expenses</h2>' +
     '<div class="btn-group">' +
       '<button class="btn btn-primary" id="btn-add-expense">+ Add Expense</button>' +
-      '<button class="btn btn-success" id="btn-snap-receipt">📷 Snap Receipt</button>' +
+      '<button class="btn btn-success" id="btn-snap-receipt">📷 Scan Receipt</button>' +
+      '<button class="btn btn-outline" id="btn-upload-receipt">📄 Upload</button>' +
       '<button class="btn btn-outline" id="btn-export-csv">📥 Export CSV</button>' +
     '</div></div>' +
+
+    // How-to guide
+    '<details style="margin-bottom:1rem"><summary style="cursor:pointer;font-weight:700;font-size:0.88rem;color:var(--brand-primary);padding:0.5rem;background:#f0fdf4;border-radius:8px">❓ How to Record Expenses</summary>' +
+    '<div class="card" style="margin-top:0.5rem;font-size:0.85rem">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem">' +
+        '<div><strong>Option 1: Scan a Receipt</strong><ol style="margin:0.25rem 0 0;padding-left:1.25rem;color:var(--gray-600)">' +
+          '<li>Tap "📷 Scan Receipt"</li><li>Take a photo of the receipt</li><li>AI reads vendor, amount, date</li><li>Review for accuracy</li><li>Tap "File Expense" to save</li></ol></div>' +
+        '<div><strong>Option 2: Manual Entry</strong><ol style="margin:0.25rem 0 0;padding-left:1.25rem;color:var(--gray-600)">' +
+          '<li>Tap "+ Add Expense"</li><li>Select vendor and category</li><li>Enter amount and date</li><li>Attach a receipt if you have one</li><li>Tap "Save" to file</li></ol></div>' +
+        '<div><strong>Option 3: Upload Invoice</strong><ol style="margin:0.25rem 0 0;padding-left:1.25rem;color:var(--gray-600)">' +
+          '<li>Tap "📄 Upload"</li><li>Select PDF or image</li><li>Fill in the details</li><li>Review and file</li></ol></div>' +
+      '</div>' +
+      '<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--gray-200);font-size:0.82rem;color:var(--gray-500)">' +
+        '<strong>Tips:</strong> Always attach a receipt for IRS compliance. Use "Pending Review" if unsure about a category. Check the P&L Report monthly.</div>' +
+    '</div></details>' +
 
     // Summary cards
     '<div class="dash-top-bar" style="margin-bottom:1rem">' +
@@ -139,6 +159,7 @@ async function loadExpenses() {
   setTimeout(function() {
     document.getElementById('btn-add-expense')?.addEventListener('click', function() { showExpenseForm(); });
     document.getElementById('btn-snap-receipt')?.addEventListener('click', showSnapReceipt);
+    document.getElementById('btn-upload-receipt')?.addEventListener('click', showUploadReceipt);
     document.getElementById('btn-filter-exp')?.addEventListener('click', refreshExpList);
     document.getElementById('btn-export-csv')?.addEventListener('click', exportExpensesCSV);
   }, 50);
@@ -191,17 +212,21 @@ async function refreshExpList() {
     if (!list || !list.length) { el.innerHTML = '<div class="card" style="text-align:center;padding:2rem;color:#78716c">No expenses found for this period</div>'; return; }
     var total = list.reduce(function(s, e) { return s + (Number(e.amount) || 0); }, 0);
     el.innerHTML = '<div class="card"><div class="table-container"><table>' +
-      '<thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Description</th><th>Amount</th><th>Receipt</th><th>Actions</th></tr></thead><tbody>' +
+      '<thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Description</th><th>Amount</th><th>Status</th><th>Receipt</th><th>Actions</th></tr></thead><tbody>' +
       list.map(function(e) {
         var receiptCol = e.has_receipt
           ? '<a href="/api/expenses/' + e.id + '/receipt" target="_blank" style="font-size:0.75rem;color:var(--brand-primary);font-weight:600" title="View receipt">🧾 View</a>'
           : '<span style="color:#a8a29e;font-size:0.72rem">—</span>';
+        var statusBadge = e.status === 'filed' ? '<span class="badge badge-success" style="font-size:0.6rem">✅ Filed</span>'
+          : e.status === 'pending' ? '<span class="badge badge-warning" style="font-size:0.6rem">⏳ Review</span>'
+          : '<span class="badge badge-gray" style="font-size:0.6rem">📝 Draft</span>';
         return '<tr>' +
           '<td>' + formatDate(e.expense_date) + '</td>' +
           '<td><strong>' + escapeHtml(e.vendor || '—') + '</strong></td>' +
           '<td><span class="badge badge-gray" style="font-size:0.65rem">' + escapeHtml(e.category) + '</span></td>' +
           '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(e.description || '') + '</td>' +
           '<td><strong>' + formatMoney(e.amount) + '</strong></td>' +
+          '<td>' + statusBadge + '</td>' +
           '<td>' + receiptCol + '</td>' +
           '<td class="btn-group">' +
             '<button class="btn btn-sm btn-outline" onclick="showExpenseForm(' + e.id + ')">Edit</button>' +
@@ -225,17 +250,33 @@ async function showExpenseForm(editId) {
   var e = existing || {};
   var title = editId ? 'Edit Expense' : '+ Add Expense';
 
+  // Fetch vendors for dropdown
+  var vendorList = [];
+  try { vendorList = await API.get('/vendors') || []; } catch {}
+  var vendorOpts = '<option value="">— Select Vendor —</option>' + vendorList.map(function(v) {
+    return '<option value="' + v.id + '"' + (e.vendor_id == v.id || e.vendor === v.name ? ' selected' : '') + '>' + escapeHtml(v.name) + '</option>';
+  }).join('');
+
   showModal(title,
     '<form id="expense-form">' +
     '<div class="form-row"><div class="form-group"><label>Date *</label><input name="expense_date" type="date" value="' + (e.expense_date || today) + '" required></div>' +
     '<div class="form-group"><label>Amount ($) *</label><input name="amount" type="number" step="0.01" value="' + (e.amount || '') + '" required></div></div>' +
     '<div class="form-row"><div class="form-group"><label>Category</label><select name="category">' +
       EXP_CATS.map(function(c) { return '<option' + (c === e.category ? ' selected' : '') + '>' + c + '</option>'; }).join('') +
-    '</select></div><div class="form-group"><label>Vendor</label><input name="vendor" value="' + _escAttr(e.vendor || '') + '" placeholder="e.g. Home Depot"></div></div>' +
+    '</select></div><div class="form-group"><label>Vendor</label><select name="vendor_id">' + vendorOpts + '</select></div></div>' +
+    '<div class="form-group"><label>Vendor (manual)</label><input name="vendor" value="' + _escAttr(e.vendor || '') + '" placeholder="Or type vendor name if not in list"></div>' +
     '<div class="form-group"><label>Description</label><input name="description" value="' + _escAttr(e.description || '') + '" placeholder="What was purchased/paid for"></div>' +
-    '<div class="form-group"><label>Paid By</label><input name="paid_by" value="' + _escAttr(e.paid_by || '') + '" placeholder="Cash, Card, Check..."></div>' +
+    '<div class="form-row"><div class="form-group"><label>Paid By</label><select name="paid_by">' +
+      ['','Cash','Check','Credit Card','Debit Card','Autopay','Zelle','ACH'].map(function(m) {
+        return '<option value="' + m + '"' + (e.paid_by === m ? ' selected' : '') + '>' + (m || '— Select —') + '</option>';
+      }).join('') +
+    '</select></div><div class="form-group"><label>Status</label><select name="status">' +
+      '<option value="draft"' + (e.status === 'draft' ? ' selected' : '') + '>⏳ Draft</option>' +
+      '<option value="pending"' + (e.status === 'pending' ? ' selected' : '') + '>⏳ Pending Review</option>' +
+      '<option value="filed"' + (!e.status || e.status === 'filed' ? ' selected' : '') + '>✅ Filed</option>' +
+    '</select></div></div>' +
     (!editId ? '<div class="form-group"><label>Receipt Photo <span style="color:#a8a29e">(optional)</span></label>' +
-      '<input type="file" id="expense-receipt-file" accept="image/*" onchange="handleExpenseReceipt(event)">' +
+      '<input type="file" id="expense-receipt-file" accept="image/*,application/pdf" onchange="handleExpenseReceipt(event)">' +
       '<div id="expense-receipt-preview" style="margin-top:0.5rem"></div>' +
       '<input type="hidden" id="expense-receipt-data" name="receipt_photo">' +
     '</div>' : '') +
@@ -249,6 +290,8 @@ async function showExpenseForm(editId) {
       var data = Object.fromEntries(new FormData(ev.target));
       data.amount = parseFloat(data.amount) || 0;
       if (!data.receipt_photo) delete data.receipt_photo;
+      if (data.vendor_id) data.vendor_id = Number(data.vendor_id) || null;
+      else delete data.vendor_id;
       if (editId) {
         await API.put('/expenses/' + editId, data);
         showStatusToast('✅', 'Expense updated');
@@ -471,4 +514,60 @@ async function deleteRecurring(id) {
   await API.del('/expenses/recurring/' + id);
   showStatusToast('✅', 'Recurring expense deleted');
   loadExpenses();
+}
+
+// Upload invoice/receipt (PDF or Image)
+function showUploadReceipt() {
+  showModal('📄 Upload Invoice/Receipt',
+    '<div style="text-align:center;margin-bottom:1rem">' +
+      '<p style="color:var(--gray-600);font-size:0.9rem;margin:0">Upload a PDF, JPEG, or PNG file. If it\'s an image, AI will try to read the details.</p>' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label><strong>Select file</strong></label>' +
+      '<input type="file" id="upload-receipt-input" accept="image/*,application/pdf">' +
+    '</div>' +
+    '<div id="upload-preview" style="text-align:center;margin-top:0.5rem"></div>' +
+    '<div id="upload-status" style="text-align:center;margin-top:0.75rem;display:none"></div>'
+  );
+  setTimeout(function() {
+    document.getElementById('upload-receipt-input')?.addEventListener('change', handleUploadReceipt);
+  }, 50);
+}
+
+async function handleUploadReceipt(event) {
+  var file = event.target.files && event.target.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { alert('File too large. Max 10 MB.'); return; }
+
+  var preview = document.getElementById('upload-preview');
+  var status = document.getElementById('upload-status');
+
+  var reader = new FileReader();
+  reader.onload = async function(ev) {
+    var dataUrl = ev.target.result;
+    var b64 = dataUrl.split(',')[1];
+    var mime = file.type || 'image/jpeg';
+
+    if (mime.startsWith('image/')) {
+      preview.innerHTML = '<img src="' + dataUrl + '" style="max-width:260px;max-height:200px;border-radius:8px;border:1px solid #e5e7eb">';
+      // Try AI scan
+      status.style.display = '';
+      status.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;color:var(--brand-primary);font-weight:600"><div class="loading-spinner" style="width:20px;height:20px"></div> Scanning with AI...</div>';
+      try {
+        var result = await API.post('/expenses/scan-receipt', { image: b64, mime: mime });
+        status.innerHTML = '<div style="color:#16a34a;font-weight:600">✅ Scanned! Opening form...</div>';
+        setTimeout(function() { closeModal(); showExpenseFormWithScan(result, b64); }, 600);
+      } catch {
+        status.innerHTML = '<div style="color:#f59e0b">Could not auto-read. Opening manual form...</div>';
+        setTimeout(function() { closeModal(); showExpenseFormWithScan({}, b64); }, 600);
+      }
+    } else {
+      // PDF — just attach to manual form
+      preview.innerHTML = '<div style="font-size:2rem;margin-bottom:0.5rem">📄</div><div style="font-size:0.85rem">' + escapeHtml(file.name) + '</div>';
+      status.style.display = '';
+      status.innerHTML = '<div style="color:var(--brand-primary);font-weight:600">PDF attached. Opening form...</div>';
+      setTimeout(function() { closeModal(); showExpenseFormWithScan({}, b64); }, 600);
+    }
+  };
+  reader.readAsDataURL(file);
 }

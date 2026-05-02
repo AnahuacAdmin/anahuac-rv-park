@@ -148,6 +148,9 @@ app.use('/api/birding', require('./routes/birding'));
 app.use('/api/hunting-fishing', require('./routes/hunting-fishing'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/credits', require('./routes/credits'));
+app.use('/api/pnl', require('./routes/pnl'));
+app.use('/api/bank-reconciliation', require('./routes/bank-reconciliation'));
+app.use('/api/employee-payments', require('./routes/employee-payments'));
 
 // Public pages — serve without .html extension so /privacy and /terms work
 app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'privacy.html')));

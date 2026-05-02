@@ -115,8 +115,17 @@ router.get('/export/csv', (req, res) => {
 router.post('/', (req, res) => {
   var b = req.body || {};
   if (!b.expense_date || !b.amount) return res.status(400).json({ error: 'Date and amount required' });
-  var result = db.prepare('INSERT INTO expenses (expense_date, category, description, amount, receipt_photo, vendor, paid_by) VALUES (?,?,?,?,?,?,?)').run(
-    b.expense_date, b.category || 'Other', b.description || '', Number(b.amount) || 0, b.receipt_photo || null, b.vendor || null, b.paid_by || null
+  var vendorName = b.vendor || null;
+  // If vendor_id provided, look up vendor name
+  if (b.vendor_id) {
+    var v = db.prepare('SELECT name FROM vendors WHERE id=?').get(b.vendor_id);
+    if (v) vendorName = v.name;
+  }
+  var status = b.status || 'filed';
+  var filedAt = status === 'filed' ? new Date().toISOString() : null;
+  var result = db.prepare('INSERT INTO expenses (expense_date, category, description, amount, receipt_photo, vendor, vendor_id, paid_by, status, filed_by, filed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(
+    b.expense_date, b.category || 'Other', b.description || '', Number(b.amount) || 0, b.receipt_photo || null,
+    vendorName, b.vendor_id ? Number(b.vendor_id) : null, b.paid_by || null, status, req.user?.username || null, filedAt
   );
   res.json({ id: result.lastInsertRowid });
 });
@@ -124,14 +133,22 @@ router.post('/', (req, res) => {
 // Update expense
 router.put('/:id', (req, res) => {
   var b = req.body || {};
-  // Only update receipt_photo if explicitly provided (avoids clearing it on edit)
+  var vendorName = b.vendor || null;
+  if (b.vendor_id) {
+    var v = db.prepare('SELECT name FROM vendors WHERE id=?').get(b.vendor_id);
+    if (v) vendorName = v.name;
+  }
+  var status = b.status || 'filed';
+  var filedAt = status === 'filed' ? new Date().toISOString() : null;
   if (b.receipt_photo !== undefined) {
-    db.prepare('UPDATE expenses SET expense_date=?, category=?, description=?, amount=?, receipt_photo=?, vendor=?, paid_by=? WHERE id=?').run(
-      b.expense_date, b.category || 'Other', b.description || '', Number(b.amount) || 0, b.receipt_photo || null, b.vendor || null, b.paid_by || null, req.params.id
+    db.prepare('UPDATE expenses SET expense_date=?, category=?, description=?, amount=?, receipt_photo=?, vendor=?, vendor_id=?, paid_by=?, status=?, filed_by=?, filed_at=? WHERE id=?').run(
+      b.expense_date, b.category || 'Other', b.description || '', Number(b.amount) || 0, b.receipt_photo || null,
+      vendorName, b.vendor_id ? Number(b.vendor_id) : null, b.paid_by || null, status, req.user?.username || null, filedAt, req.params.id
     );
   } else {
-    db.prepare('UPDATE expenses SET expense_date=?, category=?, description=?, amount=?, vendor=?, paid_by=? WHERE id=?').run(
-      b.expense_date, b.category || 'Other', b.description || '', Number(b.amount) || 0, b.vendor || null, b.paid_by || null, req.params.id
+    db.prepare('UPDATE expenses SET expense_date=?, category=?, description=?, amount=?, vendor=?, vendor_id=?, paid_by=?, status=?, filed_by=?, filed_at=? WHERE id=?').run(
+      b.expense_date, b.category || 'Other', b.description || '', Number(b.amount) || 0,
+      vendorName, b.vendor_id ? Number(b.vendor_id) : null, b.paid_by || null, status, req.user?.username || null, filedAt, req.params.id
     );
   }
   res.json({ success: true });
@@ -186,6 +203,22 @@ router.post('/scan-receipt', async (req, res) => {
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM expenses WHERE id=?').run(req.params.id);
   res.json({ success: true });
+});
+
+// Expense categories
+router.get('/categories', (req, res) => {
+  var cats = db.prepare('SELECT * FROM expense_categories WHERE is_active = 1 ORDER BY sort_order').all();
+  res.json(cats);
+});
+
+router.post('/categories', (req, res) => {
+  var b = req.body || {};
+  if (!b.name) return res.status(400).json({ error: 'Name required' });
+  var maxOrder = db.prepare('SELECT MAX(sort_order) as m FROM expense_categories').get().m || 0;
+  var result = db.prepare('INSERT INTO expense_categories (name, parent_category, sort_order) VALUES (?, ?, ?)').run(
+    b.name.toUpperCase(), b.parent_category || null, maxOrder + 1
+  );
+  res.json({ id: result.lastInsertRowid });
 });
 
 // --- Recurring Expenses ---
