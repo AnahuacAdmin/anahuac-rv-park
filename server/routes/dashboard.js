@@ -206,4 +206,31 @@ router.get('/upcoming-birthdays', (req, res) => {
   }
 });
 
+// Portal users for admin dashboard
+router.get('/portal-users', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    const users = db.prepare(`
+      SELECT id, first_name, last_name, lot_id, phone, email, portal_pin,
+             last_portal_login, COALESCE(portal_login_count, 0) as portal_login_count
+      FROM tenants WHERE is_active = 1
+      ORDER BY last_portal_login DESC NULLS LAST
+    `).all();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reset portal PIN
+router.post('/portal-users/:id/reset-pin', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    db.prepare('UPDATE tenants SET portal_pin = NULL WHERE id = ?').run(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

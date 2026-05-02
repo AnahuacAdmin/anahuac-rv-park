@@ -185,6 +185,18 @@ async function loadDashboard() {
       <div id="dash-reviews" style="font-size:0.85rem;color:var(--gray-500)">Loading review stats...</div>
     </div>` : ''}
 
+    <!-- Portal Users -->
+    ${isAdmin() ? `
+    <div class="card dash-fade-in" style="animation-delay:0.44s;padding:0;overflow:hidden">
+      <button id="portal-users-toggle" style="width:100%;background:none;border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:0.85rem 1rem" onclick="togglePortalUsers()">
+        <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:#1c1917">🐊 Guest Portal Users <span id="portal-online-count" style="font-size:0.8rem;color:#16a34a;font-weight:600"></span></h3>
+        <span id="portal-users-toggle-icon" style="color:var(--gray-400);font-size:0.8rem">tap to expand ▼</span>
+      </button>
+      <div id="portal-users-body" style="display:none;padding:0 1rem 1rem">
+        <div style="color:var(--gray-500);font-size:0.85rem">Loading...</div>
+      </div>
+    </div>` : ''}
+
     <!-- Quick Actions -->
     <div class="dash-actions dash-fade-in" style="animation-delay:0.45s">
       <button class="dash-action-btn" onclick="navigateTo('meters')"><span class="dash-action-icon">⚡</span>Meter Readings</button>
@@ -488,6 +500,7 @@ async function loadDashboard() {
 
     loadDashCommunity();
     loadDashReviews();
+    loadPortalUsers();
   }
 
   // Init calculator
@@ -1733,4 +1746,95 @@ function _renderWeeklyMobile(container, data) {
   });
 
   container.innerHTML = html;
+}
+
+// ── Portal Users Widget ──
+function togglePortalUsers() {
+  var body = document.getElementById('portal-users-body');
+  var icon = document.getElementById('portal-users-toggle-icon');
+  if (!body) return;
+  if (body.style.display === 'none') {
+    body.style.display = '';
+    if (icon) icon.textContent = '▲ Hide';
+  } else {
+    body.style.display = 'none';
+    if (icon) icon.textContent = 'tap to expand ▼';
+  }
+}
+
+function _portalIsOnline(lastLogin) {
+  if (!lastLogin) return false;
+  var ts = new Date(lastLogin.replace(' ', 'T') + 'Z');
+  return (Date.now() - ts.getTime()) < 2 * 60 * 60 * 1000; // 2 hours
+}
+
+async function loadPortalUsers() {
+  var body = document.getElementById('portal-users-body');
+  var countEl = document.getElementById('portal-online-count');
+  if (!body) return;
+  try {
+    var users = await API.get('/dashboard/portal-users');
+    if (!users || !users.length) {
+      body.innerHTML = '<p style="color:var(--gray-400);font-size:0.85rem">No active tenants found.</p>';
+      if (countEl) countEl.textContent = '(0 online)';
+      return;
+    }
+
+    var online = users.filter(function(u) { return _portalIsOnline(u.last_portal_login); });
+    var pinSetup = users.filter(function(u) { return u.portal_pin; });
+    var neverLogged = users.filter(function(u) { return !u.last_portal_login; });
+
+    if (countEl) countEl.textContent = '(' + online.length + ' online)';
+
+    var html = '';
+    // Summary stats
+    html += '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.85rem">';
+    html += '<span>🟢 <strong>' + online.length + '</strong> online now</span>';
+    html += '<span>🔑 <strong>' + pinSetup.length + '</strong>/' + users.length + ' PIN set up</span>';
+    html += '<span>👻 <strong>' + neverLogged.length + '</strong> never logged in</span>';
+    html += '</div>';
+
+    // Table
+    html += '<div style="max-height:320px;overflow-y:auto"><table class="data-table" style="font-size:0.8rem;width:100%"><thead><tr>';
+    html += '<th>Status</th><th>Guest</th><th>Lot</th><th>Last Login</th><th>Logins</th><th>Actions</th>';
+    html += '</tr></thead><tbody>';
+
+    users.forEach(function(u) {
+      var isOn = _portalIsOnline(u.last_portal_login);
+      var statusDot = isOn ? '<span style="color:#16a34a;font-size:1.1rem" title="Online now">●</span>' :
+                     u.portal_pin ? '<span style="color:#d1d5db;font-size:1.1rem" title="Offline">●</span>' :
+                     '<span style="color:#f59e0b;font-size:0.9rem" title="No PIN set">⚠️</span>';
+      var lastLogin = u.last_portal_login ? _stripTime(u.last_portal_login) : '<span style="color:#d1d5db">Never</span>';
+      var name = escapeHtml((u.first_name || '') + ' ' + (u.last_name || ''));
+
+      html += '<tr>';
+      html += '<td style="text-align:center">' + statusDot + '</td>';
+      html += '<td><strong>' + name + '</strong></td>';
+      html += '<td>' + escapeHtml(u.lot_id || '') + '</td>';
+      html += '<td>' + lastLogin + '</td>';
+      html += '<td style="text-align:center">' + (u.portal_login_count || 0) + '</td>';
+      html += '<td style="white-space:nowrap">';
+      html += '<button class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.4rem;margin-right:0.25rem" onclick="resetPortalPin(' + u.id + ',\'' + escapeHtml(name).replace(/'/g, "\\'") + '\')" title="Reset PIN">🔑 Reset</button>';
+      html += '<button class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.4rem;margin-right:0.25rem" onclick="navigateTo(\'tenants\')" title="View Profile">👤</button>';
+      html += '<button class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.4rem" onclick="navigateTo(\'messages\')" title="Send Message">💬</button>';
+      html += '</td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    body.innerHTML = html;
+  } catch (err) {
+    body.innerHTML = '<span style="color:#dc2626;font-size:0.85rem">Failed to load portal users.</span>';
+  }
+}
+
+async function resetPortalPin(tenantId, name) {
+  if (!confirm('Reset portal PIN for ' + name + '? They will need to set up a new PIN on next login.')) return;
+  try {
+    await API.post('/dashboard/portal-users/' + tenantId + '/reset-pin');
+    showStatusToast('✅', 'PIN reset for ' + name);
+    loadPortalUsers();
+  } catch (err) {
+    alert('Failed to reset PIN: ' + (err.message || 'Unknown error'));
+  }
 }

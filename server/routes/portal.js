@@ -161,6 +161,7 @@ router.post('/login', (req, res) => {
 
   // Success — clear attempts
   clearFailures(key);
+  db.prepare("UPDATE tenants SET last_portal_login = datetime('now'), portal_login_count = COALESCE(portal_login_count, 0) + 1 WHERE id = ?").run(tenant.id);
   const token = jwt.sign({ id: tenant.id, lot_id: tenant.lot_id, role: 'tenant', name: `${tenant.first_name} ${tenant.last_name}` }, SECRET, { expiresIn: '2h' });
   res.json({ token, tenant: { id: tenant.id, first_name: tenant.first_name, last_name: tenant.last_name, lot_id: tenant.lot_id } });
 });
@@ -182,7 +183,7 @@ router.post('/setup-pin', (req, res) => {
   if (tenant.portal_pin) return res.status(400).json({ error: 'PIN already set. Contact management to reset.' });
 
   const hash = bcrypt.hashSync(String(pin), 10);
-  db.prepare('UPDATE tenants SET portal_pin = ? WHERE id = ?').run(hash, tenant.id);
+  db.prepare("UPDATE tenants SET portal_pin = ?, last_portal_login = datetime('now'), portal_login_count = COALESCE(portal_login_count, 0) + 1 WHERE id = ?").run(hash, tenant.id);
 
   const token = jwt.sign({ id: tenant.id, lot_id: tenant.lot_id, role: 'tenant', name: `${tenant.first_name} ${tenant.last_name}` }, SECRET, { expiresIn: '2h' });
   res.json({ token, tenant: { id: tenant.id, first_name: tenant.first_name, last_name: tenant.last_name, lot_id: tenant.lot_id } });
