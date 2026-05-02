@@ -1027,6 +1027,20 @@ document.getElementById('msg-form').addEventListener('submit', async (e) => {
   } catch (err) { statusEl.innerHTML = '<div class="msg-error">' + (err.message || 'Failed to send') + '</div>'; }
 });
 
+// Parse invoice_date as local date (not UTC) to avoid timezone shift.
+// "2026-05-01" should always display as "May 2026", not "April 2026".
+function invoiceMonthLabel(dateStr) {
+  if (!dateStr) return 'Invoice';
+  var parts = String(dateStr).split('-');
+  if (parts.length >= 2) {
+    var y = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10) - 1; // JS months are 0-based
+    var d = new Date(y, m, parseInt(parts[2] || 1, 10));
+    if (!isNaN(d.getTime())) return d.toLocaleString('default', { month: 'long', year: 'numeric' });
+  }
+  return dateStr;
+}
+
 async function showPortal() {
   // Switch from login to portal view
   document.getElementById('login-wrapper').classList.add('hidden');
@@ -1239,9 +1253,8 @@ async function showPortal() {
     var invHtml = '';
     if (unpaidInvs.length) {
       unpaidInvs.forEach(function(i) {
-        var d = new Date(i.invoice_date);
-        var monthLabel = isNaN(d.getTime()) ? i.invoice_date : d.toLocaleString('default',{month:'long',year:'numeric'});
-        var rent = Number(i.rent_amount)||0, elec = Number(i.electric_amount)||0, usage = Number(i.electric_usage)||0;
+        var monthLabel = invoiceMonthLabel(i.invoice_date);
+        var rent = Number(i.rent_amount)||0, elec = Number(i.electric_amount)||0;
         var mail = Number(i.mailbox_fee)||0, misc = Number(i.misc_fee)||0, occ = Number(i.extra_occupancy_fee)||0;
         var late = Number(i.late_fee)||0, refAmt = Number(i.refund_amount)||0, creditAmt = Number(i.credit_applied)||0;
         var subtotal = Number(i.total_amount)||0;
@@ -1253,7 +1266,7 @@ async function showPortal() {
             '<span>📄 ' + monthLabel + '</span><span style="color:#dc2626">$' + bal.toFixed(2) + ' due</span></summary>' +
           '<div style="padding:0.75rem 1rem;font-size:0.85rem">' +
             '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Monthly Rent</span><span>$' + rent.toFixed(2) + '</span></div>' +
-            (elec > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Electric' + (usage > 0 ? ' (' + Math.round(usage) + ' kWh × $0.15)' : '') + '</span><span>$' + elec.toFixed(2) + '</span></div>' : '') +
+            (elec > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Electric</span><span>$' + elec.toFixed(2) + '</span></div>' : '') +
             (mail > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Mailbox Fee</span><span>$' + mail.toFixed(2) + '</span></div>' : '') +
             (occ > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Extra Occupancy</span><span>$' + occ.toFixed(2) + '</span></div>' : '') +
             (misc > 0.005 ? '<div style="display:flex;justify-content:space-between;padding:0.2rem 0"><span>Misc Fee</span><span>$' + misc.toFixed(2) + '</span></div>' : '') +
@@ -1275,7 +1288,7 @@ async function showPortal() {
     if (paidInvs.length) {
       invHtml += '<div style="margin-top:0.5rem;font-size:0.78rem;color:#78716c;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem">Paid</div>';
       paidInvs.forEach(function(i) {
-        invHtml += '<div class="invoice-row"><span>' + i.invoice_number + ' — ' + i.invoice_date + '</span><span style="font-weight:700;color:#16a34a">$' + Number(i.balance_due).toFixed(2) + ' ✅</span></div>';
+        invHtml += '<div class="invoice-row"><span>' + i.invoice_number + ' — ' + invoiceMonthLabel(i.invoice_date) + '</span><span style="font-weight:700;color:#16a34a">$' + Number(i.balance_due).toFixed(2) + ' ✅</span></div>';
       });
     }
     invEl.innerHTML = invHtml || '<p style="color:#a8a29e;font-size:0.85rem">No invoices yet</p>';
@@ -3202,7 +3215,7 @@ async function portalPay() {
     var html = '';
     detail.invoices.forEach(function(inv) {
       html += '<div style="border-bottom:1px solid #e7e5e4;padding-bottom:0.5rem;margin-bottom:0.5rem">';
-      html += '<div style="font-weight:700;color:#1a5c32;margin-bottom:0.25rem">' + inv.invoice_number + ' — ' + inv.invoice_date + '</div>';
+      html += '<div style="font-weight:700;color:#1a5c32;margin-bottom:0.25rem">' + inv.invoice_number + ' — ' + invoiceMonthLabel(inv.invoice_date) + '</div>';
       if (inv.rent_amount > 0) html += '<div style="display:flex;justify-content:space-between"><span>Rent</span><span>$' + Number(inv.rent_amount).toFixed(2) + '</span></div>';
       if (inv.electric_amount > 0) html += '<div style="display:flex;justify-content:space-between"><span>Electric</span><span>$' + Number(inv.electric_amount).toFixed(2) + '</span></div>';
       if (inv.mailbox_fee > 0) html += '<div style="display:flex;justify-content:space-between"><span>Mailbox</span><span>$' + Number(inv.mailbox_fee).toFixed(2) + '</span></div>';
