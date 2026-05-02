@@ -213,7 +213,7 @@ router.get('/me', tenantAuth, (req, res) => {
 
   const invoices = db.prepare(`
     SELECT id, invoice_number, invoice_date, total_amount, balance_due, status,
-      rent_amount, electric_amount, electric_usage, mailbox_fee, misc_fee,
+      rent_amount, electric_amount, mailbox_fee, misc_fee,
       extra_occupancy_fee, late_fee, refund_amount, refund_description, credit_applied
     FROM invoices WHERE tenant_id = ? AND COALESCE(deleted,0)=0
     ORDER BY invoice_date DESC LIMIT 6
