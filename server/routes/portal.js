@@ -168,25 +168,30 @@ router.post('/login', (req, res) => {
 
 // Set up PIN for first time
 router.post('/setup-pin', (req, res) => {
-  const { lot_id, last_name, pin } = req.body || {};
-  if (!lot_id || !last_name || !pin) return res.status(400).json({ error: 'All fields required' });
-  if (!/^\d{4}$/.test(String(pin))) return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+  try {
+    const { lot_id, last_name, pin } = req.body || {};
+    if (!lot_id || !last_name || !pin) return res.status(400).json({ error: 'All fields required' });
+    if (!/^\d{4}$/.test(String(pin))) return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
 
-  const tenant = db.prepare(`
-    SELECT t.id, t.first_name, t.last_name, t.lot_id, t.portal_pin
-    FROM tenants t
-    WHERE LOWER(t.lot_id) = LOWER(?) AND LOWER(t.last_name) = LOWER(?) AND t.is_active = 1
-    LIMIT 1
-  `).get(lot_id.trim(), last_name.trim());
+    const tenant = db.prepare(`
+      SELECT t.id, t.first_name, t.last_name, t.lot_id, t.portal_pin
+      FROM tenants t
+      WHERE LOWER(t.lot_id) = LOWER(?) AND LOWER(t.last_name) = LOWER(?) AND t.is_active = 1
+      LIMIT 1
+    `).get(lot_id.trim(), last_name.trim());
 
-  if (!tenant) return res.status(401).json({ error: 'Tenant not found' });
-  if (tenant.portal_pin) return res.status(400).json({ error: 'PIN already set. Contact management to reset.' });
+    if (!tenant) return res.status(401).json({ error: 'Tenant not found' });
+    if (tenant.portal_pin) return res.status(400).json({ error: 'PIN already set. Contact management to reset.' });
 
-  const hash = bcrypt.hashSync(String(pin), 10);
-  db.prepare("UPDATE tenants SET portal_pin = ?, last_portal_login = datetime('now'), portal_login_count = COALESCE(portal_login_count, 0) + 1 WHERE id = ?").run(hash, tenant.id);
+    const hash = bcrypt.hashSync(String(pin), 10);
+    db.prepare("UPDATE tenants SET portal_pin = ?, last_portal_login = datetime('now'), portal_login_count = COALESCE(portal_login_count, 0) + 1 WHERE id = ?").run(hash, tenant.id);
 
-  const token = jwt.sign({ id: tenant.id, lot_id: tenant.lot_id, role: 'tenant', name: `${tenant.first_name} ${tenant.last_name}` }, SECRET, { expiresIn: '2h' });
-  res.json({ token, tenant: { id: tenant.id, first_name: tenant.first_name, last_name: tenant.last_name, lot_id: tenant.lot_id } });
+    const token = jwt.sign({ id: tenant.id, lot_id: tenant.lot_id, role: 'tenant', name: `${tenant.first_name} ${tenant.last_name}` }, SECRET, { expiresIn: '2h' });
+    res.json({ token, tenant: { id: tenant.id, first_name: tenant.first_name, last_name: tenant.last_name, lot_id: tenant.lot_id } });
+  } catch (err) {
+    console.error('[portal] setup-pin error:', err.message);
+    res.status(500).json({ error: 'Setup failed. Please try again.' });
+  }
 });
 
 // Middleware: verify tenant JWT
@@ -497,21 +502,26 @@ router.post('/default-card', tenantAuth, async (req, res) => {
 
 // Send message to management
 router.post('/message', tenantAuth, (req, res) => {
-  const { message } = req.body || {};
-  if (!message || !message.trim()) return res.status(400).json({ error: 'Message cannot be empty' });
-
-  db.prepare('INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast) VALUES (?, ?, ?, ?, 0)')
-    .run(req.tenant.id, 'Portal Message', message.trim(), 'portal');
-
-  // Forward to manager via SMS
   try {
-    const mgrPhone = getManagerPhone();
-    if (mgrPhone) {
-      sendSms(mgrPhone, `Portal message from ${req.tenant.name} (Lot ${req.tenant.lot_id}): ${message.trim()}`).catch(e => console.error('[portal] mgr SMS failed:', e.message));
-    }
-  } catch {}
+    const { message } = req.body || {};
+    if (!message || !message.trim()) return res.status(400).json({ error: 'Message cannot be empty' });
 
-  res.json({ success: true });
+    db.prepare('INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast) VALUES (?, ?, ?, ?, 0)')
+      .run(req.tenant.id, 'Portal Message', message.trim(), 'portal');
+
+    // Forward to manager via SMS
+    try {
+      const mgrPhone = getManagerPhone();
+      if (mgrPhone) {
+        sendSms(mgrPhone, `Portal message from ${req.tenant.name} (Lot ${req.tenant.lot_id}): ${message.trim()}`).catch(e => console.error('[portal] mgr SMS failed:', e.message));
+      }
+    } catch {}
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[portal] message error:', err.message);
+    res.status(500).json({ error: 'Could not send message' });
+  }
 });
 
 // Payment history for the logged-in tenant

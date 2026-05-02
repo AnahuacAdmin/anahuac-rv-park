@@ -597,7 +597,7 @@ router.put('/:id', (req, res) => {
     WHERE id = ?
   `).run(rent_amount || 0, electric_amount || 0, other_charges || 0, other_description,
     mailbox_fee || 0, misc_fee || 0, misc_description, extra_occupancy_fee || 0, refund_amount || 0, refund_description,
-    subtotal, late_fee || 0, total, balance, status || (balance <= 0 ? 'paid' : 'pending'), notes, req.params.id);
+    subtotal, late_fee || 0, total, balance, status || (balance <= 0 ? 'paid' : ((existing?.amount_paid || 0) > 0 ? 'partial' : 'pending')), notes, req.params.id);
   res.json({ success: true });
 });
 

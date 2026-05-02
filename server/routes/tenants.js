@@ -12,6 +12,8 @@ router.use(authenticate);
 
 // Never expose the bcrypt PIN hash in API responses
 function stripPin(t) { if (t) delete t.portal_pin; return t; }
+// Strip PII from list endpoints — detail view still shows them for admin
+function stripPII(t) { if (t) { delete t.portal_pin; delete t.ssn_last4; delete t.dl_number; delete t.dl_state; delete t.id_number; delete t.date_of_birth; } return t; }
 
 // Strip non-digits from phone numbers before saving (keeps SMS compatible)
 function cleanPhone(v) {
@@ -31,7 +33,7 @@ router.get('/', (req, res) => {
     WHERE t.is_active = 1
     ORDER BY t.lot_id
   `).all();
-  res.json(tenants.map(stripPin));
+  res.json(tenants.map(stripPII));
 });
 
 router.get('/all', (req, res) => {
@@ -44,7 +46,7 @@ router.get('/all', (req, res) => {
     LEFT JOIN lots l ON t.lot_id = l.id
     ORDER BY t.is_active DESC, t.lot_id
   `).all();
-  res.json(tenants.map(stripPin));
+  res.json(tenants.map(stripPII));
 });
 
 // Search tenants by name, phone, email (active + inactive)

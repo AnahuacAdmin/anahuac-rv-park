@@ -310,7 +310,7 @@ router.post('/refund', async (req, res) => {
     // Record the refund
     const result = db.prepare(
       'INSERT INTO refunds (payment_id, invoice_id, tenant_id, amount, reason, stripe_refund_id, processed_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(payment.invoice_id, payment.invoice_id, payment.tenant_id, amount, reason, stripeRefundId, req.user?.username || 'admin');
+    ).run(payment_id, payment.invoice_id, payment.tenant_id, amount, reason, stripeRefundId, req.user?.username || 'admin');
 
     // Update invoice: reduce amount_paid, increase balance_due
     if (payment.invoice_id) {
@@ -362,7 +362,7 @@ router.delete('/:id', (req, res) => {
     const invoice = db.prepare('SELECT total_amount FROM invoices WHERE id = ?').get(payment.invoice_id);
     const balance = (invoice?.total_amount || 0) - totalPaid.total;
     db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
-      .run(totalPaid.total, Math.max(0, balance), balance <= 0 ? 'paid' : 'pending', payment.invoice_id);
+      .run(totalPaid.total, Math.max(0, balance), balance <= 0 ? 'paid' : (totalPaid.total > 0 ? 'partial' : 'pending'), payment.invoice_id);
   }
 
   res.json({ success: true });
