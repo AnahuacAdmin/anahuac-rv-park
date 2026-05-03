@@ -631,6 +631,16 @@ async function initializeDatabase() {
     resolved_at DATETIME
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS downtime_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME,
+    duration_minutes INTEGER,
+    reason TEXT,
+    alerts_sent INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   // Weather alert tracking
   db.run(`CREATE TABLE IF NOT EXISTS weather_alerts_sent (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1074,6 +1084,7 @@ function runStartupHealthCheck() {
     expense_categories: ['id', 'name', 'is_active'],
     employee_payments: ['id', 'employee_name', 'amount', 'month', 'year'],
     bank_reconciliation: ['id', 'month', 'year', 'beginning_balance', 'ending_balance'],
+    downtime_log: ['id', 'start_time', 'reason'],
   };
 
   for (const [table, cols] of Object.entries(criticalTables)) {

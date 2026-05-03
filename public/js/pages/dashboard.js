@@ -275,6 +275,7 @@ async function loadDashboard() {
         <div style="color:var(--gray-500);font-size:0.85rem">Loading...</div>
       </div>
       <div id="health-alert-history"></div>
+      <div id="uptime-widget" style="margin-top:0.75rem;border-top:1px solid var(--gray-200);padding-top:0.75rem;display:none"></div>
     </div>` : ''}
 
     ${isAdmin() ? `
@@ -1316,9 +1317,59 @@ async function refreshHealth() {
     } else if (alertHistEl) {
       alertHistEl.innerHTML = '';
     }
+    // Fetch uptime/downtime data
+    try { await refreshUptimeWidget(); } catch {}
   } catch {
     cardsEl.innerHTML = '<div style="color:var(--gray-500);font-size:0.85rem">Health check failed</div>';
   }
+}
+
+async function refreshUptimeWidget() {
+  var el = document.getElementById('uptime-widget');
+  if (!el) return;
+  try {
+    var d = await API.get('/health/downtime');
+    if (!d) return;
+    el.style.display = '';
+
+    var statusColor = d.currentStatus === 'up' ? '#16a34a' : '#dc2626';
+    var statusIcon = d.currentStatus === 'up' ? '🟢' : '🔴';
+    var statusText = d.currentStatus === 'up' ? 'All Systems Operational' : 'System Down Since ' + (d.downSince ? new Date(d.downSince).toLocaleString() : 'Unknown');
+
+    var pctColor = d.uptimePercent >= 99.9 ? '#16a34a' : d.uptimePercent >= 99 ? '#ca8a04' : '#dc2626';
+
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">';
+    html += '<div style="display:flex;align-items:center;gap:0.4rem">';
+    html += '<span>' + statusIcon + '</span>';
+    html += '<strong style="font-size:0.82rem;color:' + statusColor + '">' + statusText + '</strong>';
+    html += '</div>';
+    html += '<div style="text-align:right">';
+    html += '<div style="font-size:0.75rem;color:var(--gray-500)">This Month</div>';
+    html += '<div style="font-size:1rem;font-weight:800;color:' + pctColor + '">' + d.uptimePercent.toFixed(2) + '% uptime</div>';
+    if (d.downtimeMinutesThisMonth > 0) html += '<div style="font-size:0.7rem;color:var(--gray-500)">' + d.downtimeMinutesThisMonth + ' min downtime</div>';
+    html += '</div></div>';
+
+    // Downtime history
+    if (d.logs && d.logs.length) {
+      html += '<div style="margin-top:0.5rem">';
+      html += '<div style="font-size:0.75rem;font-weight:600;color:var(--gray-600);margin-bottom:0.3rem;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'\':\'none\'">Downtime History ▾</div>';
+      html += '<div style="display:none;max-height:200px;overflow-y:auto">';
+      d.logs.forEach(function(log) {
+        var start = new Date(log.start_time).toLocaleString();
+        var end = log.end_time ? new Date(log.end_time).toLocaleString() : 'Ongoing';
+        var dur = log.duration_minutes ? log.duration_minutes + ' min' : 'ongoing';
+        var color = log.end_time ? 'var(--gray-500)' : '#dc2626';
+        html += '<div style="font-size:0.72rem;color:' + color + ';padding:3px 0;border-bottom:1px solid var(--gray-100)">';
+        html += (log.end_time ? '✅' : '🔴') + ' <strong>' + start + '</strong> → ' + end + ' (' + dur + ')';
+        if (log.reason) html += '<br><span style="color:var(--gray-400);font-size:0.68rem">' + escapeHtml(log.reason).substring(0, 120) + '</span>';
+        if (log.alerts_sent) html += ' <span style="color:var(--gray-400);font-size:0.68rem">(' + log.alerts_sent + ' alerts)</span>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    el.innerHTML = html;
+  } catch { el.style.display = 'none'; }
 }
 
 function waitForChartAndRender(data, attempts) {
