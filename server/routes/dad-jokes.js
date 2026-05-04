@@ -80,9 +80,6 @@ router.get('/seed', (req, res) => {
   res.json({ message: 'Seeded', count: newCount });
 });
 
-// ══════ Admin routes ══════
-router.use(authenticate);
-
 // TEMPORARY: one-time rotation verify (remove after confirming)
 router.get('/verify-rotate', (req, res) => {
   if (req.query.key !== 'anahuac2026verify') return res.status(403).json({ error: 'Denied' });
@@ -101,6 +98,9 @@ router.get('/verify-rotate', (req, res) => {
   }
   res.json({ error: 'No jokes available' });
 });
+
+// ══════ Admin routes ══════
+router.use(authenticate);
 
 // Force rotate today's joke (admin only)
 router.post('/force-rotate', (req, res) => {
