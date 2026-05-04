@@ -3,9 +3,28 @@
  * Handles push notifications, notification clicks, and app badge updates.
  */
 
+var CACHE_VERSION = 'portal-v2';
+
 self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    Promise.all([
+      // Delete ALL old caches on activation
+      caches.keys().then(function(keys) {
+        return Promise.all(keys.filter(function(k) { return k !== CACHE_VERSION; }).map(function(k) { return caches.delete(k); }));
+      }),
+      self.clients.claim()
+    ])
+  );
+});
+
+// Never cache HTML or API — always fetch fresh
+self.addEventListener('fetch', (event) => {
+  var url = new URL(event.request.url);
+  if (url.pathname.endsWith('.html') || url.pathname.startsWith('/api/') || url.pathname === '/portal') {
+    return; // Let the browser handle normally (network only)
+  }
+  // All other requests: default browser behavior (no custom caching)
 });
 
 // Push notification handler

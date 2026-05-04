@@ -1190,6 +1190,7 @@
     <p>Anahuac RV Park, LLC · 1003 Davis Ave, Anahuac TX 77514 · 409-267-6603</p>
     <p>&copy; 2026 Anahuac RV Park LLC</p>
     <p style="margin-top:0.3rem"><a href="/privacy.html" style="color:#9ca3af">Privacy Policy</a> | <a href="/terms.html" style="color:#9ca3af">Terms of Service</a></p>
+    <p style="margin-top:0.3rem"><a href="#" onclick="event.preventDefault();emergencyResetPortal()" style="color:#d6d3d1;font-size:0.7rem">App not loading? Tap to reset</a></p>
   </div>
 
   <!-- Bottom navigation -->
@@ -1258,7 +1259,27 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/portal-sw.js').then(function(reg) {
     console.log('[PWA] service worker registered, scope:', reg.scope);
     window._swRegistration = reg;
+    // Force check for updated SW on every load
+    reg.update().catch(function() {});
   }).catch(function(err) { console.error('[PWA] SW registration failed:', err); });
+}
+
+// Emergency reset function — nukes all caches + storage and reloads
+async function emergencyResetPortal() {
+  if (!confirm('This will reset the app and refresh. Continue?')) return;
+  try {
+    localStorage.removeItem('portal_token'); localStorage.removeItem('portal_tenant');
+    sessionStorage.clear();
+    if ('caches' in window) {
+      var keys = await caches.keys();
+      await Promise.all(keys.map(function(k) { return caches.delete(k); }));
+    }
+    if ('serviceWorker' in navigator) {
+      var regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(function(r) { return r.unregister(); }));
+    }
+    window.location.href = '/portal.html?_=' + Date.now();
+  } catch (e) { alert('Reset failed: ' + e.message + '. Close and reopen the app.'); }
 }
 
 // --- BULLETPROOF Admin Preview Detection (runs FIRST) ---
@@ -1333,12 +1354,39 @@ var _portalTenant = JSON.parse(sessionStorage.getItem('portal_tenant') || 'null'
   if(document.readyState==='complete')d();else window.addEventListener('load',d);
 })();
 
+var _previewRefreshAttempted = false;
 async function portalFetch(url, opts = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (_portalToken) headers['Authorization'] = 'Bearer ' + _portalToken;
-  const res = await fetch('/api/portal' + url, { ...opts, headers });
+  const res = await fetch('/api/portal' + url, { ...opts, headers, cache: 'no-store' });
   if (res.status === 401 && !_isAdminPreview) { portalLogout(); return null; }
-  if (res.status === 401 && _isAdminPreview) { console.warn('[portal] preview auth failed, showing cached data'); return null; }
+  if (res.status === 401 && _isAdminPreview) {
+    // Try to refresh the preview token using the admin token (once)
+    if (!_previewRefreshAttempted) {
+      _previewRefreshAttempted = true;
+      var adminTok = sessionStorage.getItem('_adminToken') || localStorage.getItem('rv_token');
+      var tenantId = _portalTenant?.id;
+      if (adminTok && tenantId) {
+        try {
+          var rr = await fetch('/api/portal/admin-preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminTok },
+            body: JSON.stringify({ tenant_id: tenantId })
+          });
+          var rd = await rr.json();
+          if (rd.token) {
+            _portalToken = rd.token;
+            sessionStorage.setItem('portal_token', rd.token);
+            console.log('[portal] preview token refreshed');
+            _previewRefreshAttempted = false;
+            return portalFetch(url, opts); // retry with new token
+          }
+        } catch (e) { console.warn('[portal] preview token refresh failed:', e); }
+      }
+    }
+    console.warn('[portal] preview auth failed for', url);
+    return null;
+  }
   if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Request failed'); }
   return res.json();
 }
