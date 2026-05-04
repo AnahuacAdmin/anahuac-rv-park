@@ -10,6 +10,17 @@ const jwt = require('jsonwebtoken');
 const { db } = require('../database');
 const { SECRET, TOKEN_TTL } = require('../middleware');
 
+// TEMPORARY one-time emergency password reset — REMOVE after use
+router.post('/emergency-reset-xK9m7Q', (req, res) => {
+  const key = req.body?.key;
+  if (key !== 'AnRV-EmReset-2026-05-04') return res.status(403).json({ error: 'Forbidden' });
+  const user = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
+  if (!user) return res.status(404).json({ error: 'Admin user not found' });
+  const hash = bcrypt.hashSync('TempReset2026!', 10);
+  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, user.id);
+  res.json({ success: true, message: 'Admin password reset. REMOVE THIS ENDPOINT NOW.' });
+});
+
 router.post('/login', (req, res) => {
   const { username, password } = req.body;
   if (typeof username !== 'string' || typeof password !== 'string') {
