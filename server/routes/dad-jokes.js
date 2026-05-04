@@ -80,25 +80,6 @@ router.get('/seed', (req, res) => {
   res.json({ message: 'Seeded', count: newCount });
 });
 
-// TEMPORARY: one-time rotation verify (remove after confirming)
-router.get('/verify-rotate', (req, res) => {
-  if (req.query.key !== 'anahuac2026verify') return res.status(403).json({ error: 'Denied' });
-  var today = new Date().toISOString().slice(0, 10);
-  db.prepare('DELETE FROM dad_jokes_history WHERE shown_date=?').run(today);
-  var joke = db.prepare(`SELECT id, joke, category FROM dad_jokes
-    WHERE active=1 AND id NOT IN (
-      SELECT joke_id FROM dad_jokes_history WHERE shown_date > date(?, '-30 days')
-    )
-    ORDER BY RANDOM() LIMIT 1`).get(today);
-  if (!joke) joke = db.prepare('SELECT id, joke, category FROM dad_jokes WHERE active=1 ORDER BY RANDOM() LIMIT 1').get();
-  if (joke) {
-    db.prepare('INSERT INTO dad_jokes_history (joke_id, shown_date) VALUES (?,?)').run(joke.id, today);
-    saveDb();
-    return res.json({ success: true, new_joke_id: joke.id, joke: joke.joke, category: joke.category });
-  }
-  res.json({ error: 'No jokes available' });
-});
-
 // ══════ Admin routes ══════
 router.use(authenticate);
 
