@@ -119,6 +119,39 @@ async function initializeDatabase() {
   addCol("ALTER TABLE meter_readings ADD COLUMN notes TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN credit_balance REAL DEFAULT 0");
   addCol("ALTER TABLE checkins ADD COLUMN move_out_statement TEXT");
+  addCol("ALTER TABLE tenants ADD COLUMN payment_due_day INTEGER DEFAULT 1");
+  addCol("ALTER TABLE tenants ADD COLUMN payment_arrangement_notes TEXT");
+  addCol("ALTER TABLE invoices ADD COLUMN late_fee_waived INTEGER DEFAULT 0");
+  addCol("ALTER TABLE invoices ADD COLUMN late_fee_waived_reason TEXT");
+
+  db.run(`CREATE TABLE IF NOT EXISTS late_fee_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoice_id INTEGER REFERENCES invoices(id),
+    tenant_id INTEGER REFERENCES tenants(id),
+    action TEXT NOT NULL,
+    amount REAL,
+    reason TEXT,
+    admin_user TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS late_fee_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT UNIQUE NOT NULL,
+    invoice_id INTEGER NOT NULL REFERENCES invoices(id),
+    action TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS late_fee_checks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoice_id INTEGER NOT NULL REFERENCES invoices(id),
+    notification_sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    email_sent INTEGER DEFAULT 0,
+    sms_sent INTEGER DEFAULT 0
+  )`);
   db.run(`CREATE TABLE IF NOT EXISTS reservation_groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_name TEXT NOT NULL,
@@ -281,6 +314,47 @@ async function initializeDatabase() {
     is_biggest_of_month INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  // Extra photos for hunting/fishing posts (multi-photo support)
+  db.run(`CREATE TABLE IF NOT EXISTS catch_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    photo_data TEXT NOT NULL,
+    display_order INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Per-user reactions on catch posts
+  db.run(`CREATE TABLE IF NOT EXISTS catch_reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    tenant_id INTEGER NOT NULL,
+    reaction_type TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_catch_reactions_unique ON catch_reactions(post_id, tenant_id, reaction_type)'); } catch {}
+
+  // Comments on catch posts
+  db.run(`CREATE TABLE IF NOT EXISTS catch_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    tenant_id INTEGER,
+    author_name TEXT,
+    comment TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Tenant badges (first catch, biggest catch, etc.)
+  db.run(`CREATE TABLE IF NOT EXISTS tenant_badges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER NOT NULL,
+    badge_type TEXT NOT NULL,
+    badge_label TEXT,
+    earned_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  addCol("ALTER TABLE hunting_fishing_posts ADD COLUMN is_first_catch INTEGER DEFAULT 0");
+  addCol("ALTER TABLE catch_comments ADD COLUMN is_management INTEGER DEFAULT 0");
 
   // Bird Sightings
   db.run(`CREATE TABLE IF NOT EXISTS bird_sightings (
@@ -921,6 +995,42 @@ async function initializeDatabase() {
   ensureSetting.run('review_request_enabled', '1');
   ensureSetting.run('google_review_url', 'https://search.google.com/local/writereview?placeid=ChIJgTxw3Pk-P4YRs2t_UMVRVa4');
   ensureSetting.run('review_request_cooldown_days', '90');
+  ensureSetting.run('late_fee_type', 'fixed');
+  ensureSetting.run('late_fee_percentage', '10');
+  ensureSetting.run('late_fee_grace_days', '3');
+  ensureSetting.run('late_fee_mode', 'notify');
+  ensureSetting.run('late_fee_email', 'anrvpark@gmail.com');
+  ensureSetting.run('late_fee_sms_number', '');
+  ensureSetting.run('late_fee_email_enabled', '1');
+  ensureSetting.run('late_fee_sms_enabled', '0');
+
+  // One-time fix: correct phantom partial/pending invoice statuses
+  // Invoices marked 'partial' that are actually fully paid (payments + credits cover total)
+  const fixedToPaid = dbWrapper.prepare(`
+    UPDATE invoices SET status = 'paid', balance_due = 0
+    WHERE status = 'partial'
+    AND (COALESCE(amount_paid,0) + COALESCE(credit_applied,0)) >= (total_amount - 0.01)
+    AND COALESCE(deleted, 0) = 0
+  `).run();
+  // Invoices marked 'partial' with zero payments and zero credits (should be pending)
+  const fixedToPending = dbWrapper.prepare(`
+    UPDATE invoices SET status = 'pending'
+    WHERE status = 'partial'
+    AND COALESCE(amount_paid, 0) < 0.005
+    AND COALESCE(credit_applied, 0) < 0.005
+    AND COALESCE(deleted, 0) = 0
+  `).run();
+  // Invoices marked 'pending' that are actually fully paid
+  const fixedPendingToPaid = dbWrapper.prepare(`
+    UPDATE invoices SET status = 'paid', balance_due = 0
+    WHERE status = 'pending'
+    AND (COALESCE(amount_paid,0) + COALESCE(credit_applied,0)) >= (total_amount - 0.01)
+    AND COALESCE(deleted, 0) = 0
+  `).run();
+  const totalFixed = (fixedToPaid.changes || 0) + (fixedToPending.changes || 0) + (fixedPendingToPaid.changes || 0);
+  if (totalFixed > 0) {
+    console.log(`[db] Invoice status correction: ${fixedToPaid.changes} partial→paid, ${fixedToPending.changes} partial→pending, ${fixedPendingToPaid.changes} pending→paid`);
+  }
 
   // Seed lots
   const existingLots = dbWrapper.prepare('SELECT COUNT(*) as count FROM lots').get();
@@ -1043,6 +1153,257 @@ async function initializeDatabase() {
     `).run();
     if (deleted.changes > 0) console.log(`[database] Deleted ${deleted.changes} zero-use placeholder readings`);
   } catch (e) { console.error('[database] placeholder cleanup error:', e.message); }
+
+  // ── General Chat ──
+  db.run(`CREATE TABLE IF NOT EXISTS general_chat_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    category TEXT DEFAULT 'general',
+    message TEXT NOT NULL,
+    photo_data TEXT,
+    is_management INTEGER DEFAULT 0,
+    is_pinned INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS general_chat_reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    tenant_id INTEGER NOT NULL,
+    reaction_type TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_gc_reactions_unique ON general_chat_reactions(post_id, tenant_id, reaction_type)'); } catch {}
+  db.run(`CREATE TABLE IF NOT EXISTS general_chat_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    tenant_id INTEGER,
+    author_name TEXT,
+    comment TEXT NOT NULL,
+    is_management INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // ── Garden Posts ──
+  db.run(`CREATE TABLE IF NOT EXISTS garden_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    plant_name TEXT,
+    stage TEXT,
+    caption TEXT,
+    photo_data TEXT,
+    is_management INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS garden_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    photo_data TEXT NOT NULL,
+    display_order INTEGER DEFAULT 0
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS garden_reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    tenant_id INTEGER NOT NULL,
+    reaction_type TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_garden_reactions_unique ON garden_reactions(post_id, tenant_id, reaction_type)'); } catch {}
+  db.run(`CREATE TABLE IF NOT EXISTS garden_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    tenant_id INTEGER,
+    author_name TEXT,
+    comment TEXT NOT NULL,
+    is_management INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // ── Gardening Tips ──
+  db.run(`CREATE TABLE IF NOT EXISTS gardening_tips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    category TEXT,
+    is_local INTEGER DEFAULT 0,
+    show_date TEXT,
+    display_order INTEGER,
+    active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS gardening_tips_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tip_id INTEGER NOT NULL,
+    shown_date TEXT UNIQUE NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // ── Dad Jokes ──
+  db.run(`CREATE TABLE IF NOT EXISTS dad_jokes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    joke TEXT NOT NULL,
+    category TEXT,
+    active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS dad_jokes_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    joke_id INTEGER NOT NULL,
+    shown_date TEXT UNIQUE NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS dad_joke_reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    joke_id INTEGER NOT NULL,
+    tenant_id INTEGER NOT NULL,
+    reaction_type TEXT NOT NULL,
+    shown_date TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  try { db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_dj_reactions_unique ON dad_joke_reactions(joke_id, tenant_id, reaction_type, shown_date)'); } catch {}
+
+  // ── Local Restaurants ──
+  db.run(`CREATE TABLE IF NOT EXISTS local_restaurants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category TEXT DEFAULT 'american',
+    cuisine_type TEXT,
+    address TEXT,
+    city TEXT DEFAULT 'Anahuac',
+    phone TEXT,
+    website TEXT,
+    hours TEXT,
+    price_level TEXT DEFAULT '$',
+    description TEXT,
+    rating REAL DEFAULT 0,
+    distance_miles REAL DEFAULT 0,
+    has_delivery INTEGER DEFAULT 0,
+    has_takeout INTEGER DEFAULT 1,
+    has_dine_in INTEGER DEFAULT 1,
+    notable_for TEXT,
+    is_recommended INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    display_order INTEGER DEFAULT 0,
+    latitude REAL,
+    longitude REAL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Seed local restaurants if empty
+  try {
+    var lrCount = db.prepare('SELECT COUNT(*) as c FROM local_restaurants').get().c;
+    if (lrCount === 0) {
+      var lrIns = db.prepare('INSERT INTO local_restaurants (name,category,cuisine_type,address,city,phone,price_level,rating,distance_miles,notable_for,is_recommended,display_order,has_delivery,has_takeout,has_dine_in) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+      var lrData = [
+        // Anahuac
+        ['The Anahuac Cafe','breakfast','Diner · Breakfast · Lunch','Main St, Anahuac','Anahuac','','$',4.3,0.5,'Classic diner breakfast & burgers',1,1,0,1,1],
+        ['Big Daddy\'s Mexican Restaurant','mexican','Mexican','Anahuac','Anahuac','','$',4.2,0.8,'Generous portions, great enchiladas',0,2,0,1,1],
+        ['Gator Junction','american','American · Bar & Grill','Anahuac','Anahuac','','$$',4.0,0.6,'Cold beer & fried catfish',0,3,0,1,1],
+        ['El Toro Mexican Restaurant','mexican','Mexican','Anahuac','Anahuac','','$',4.1,0.7,'Authentic Tex-Mex, quick service',0,4,0,1,1],
+        ['Subway','fast_food','Subs · Sandwiches','Anahuac','Anahuac','','$',3.5,0.9,'Fresh subs, quick lunch',0,10,0,1,1],
+        ['Sonic Drive-In','fast_food','Drive-In · Burgers','Anahuac','Anahuac','','$',3.6,0.9,'Shakes, tater tots, classic drive-in',0,11,0,1,0],
+        ['Dairy Queen','fast_food','Ice Cream · Burgers','Anahuac','Anahuac','','$',3.7,1.0,'Blizzards & Texas Stop Sign burgers',0,12,0,1,1],
+        ['Pizza Hut','pizza','Pizza · Wings','Anahuac','Anahuac','','$',3.5,0.8,'Pizza, pasta, and wings',0,13,1,1,1],
+        // Mont Belvieu area
+        ['Texas Roadhouse','bbq','Steakhouse · BBQ','Mont Belvieu','Mont Belvieu','','$$',4.4,15.0,'Hand-cut steaks, fall-off-the-bone ribs',1,5,0,1,1],
+        ['Whataburger','fast_food','Burgers · Fast Food','Mont Belvieu','Mont Belvieu','','$',4.0,14.0,'Texas classic — Honey Butter Chicken Biscuit',0,14,0,1,1],
+        ['Chick-fil-A','fast_food','Chicken · Fast Food','Mont Belvieu','Mont Belvieu','','$',4.5,15.0,'Best chicken sandwich, always friendly',0,15,0,1,1],
+        ['Chili\'s Grill & Bar','american','American · Casual Dining','Mont Belvieu','Mont Belvieu','','$$',3.9,15.0,'Casual dining, good happy hour',0,16,0,1,1],
+        // Winnie area
+        ['Al-T\'s Cajun Restaurant','cajun','Cajun · Seafood','Winnie','Winnie','','$$',4.6,20.0,'Famous crawfish, boudin & gumbo — a MUST try!',1,6,0,1,1],
+        ['The Boondocks','american','American · Bar & Grill','Winnie','Winnie','','$$',4.3,22.0,'Local favorite, great steaks & burgers',0,7,0,1,1],
+        ['Tia Juanita\'s Fish Camp','seafood','Seafood · Cajun · Mexican','Winnie','Winnie','','$$',4.5,21.0,'Gulf seafood, tacos, incredible shrimp',1,8,0,1,1],
+        // Beach City / Cove
+        ['Roosters Steakhouse','bbq','Steakhouse · BBQ','Beach City','Beach City','','$$',4.2,12.0,'Hearty steaks in a country setting',0,9,0,1,1],
+      ];
+      lrData.forEach(function(r) { lrIns.run(...r); });
+    }
+  } catch (e) { console.log('[db] restaurant seed:', e.message); }
+
+  // ── Content Cache (news, weather, traffic) ──
+  db.run(`CREATE TABLE IF NOT EXISTS content_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cache_key TEXT UNIQUE NOT NULL,
+    data TEXT,
+    expires_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Push notification subscriptions
+  db.run(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    is_admin INTEGER DEFAULT 0,
+    endpoint TEXT NOT NULL,
+    p256dh_key TEXT NOT NULL,
+    auth_key TEXT NOT NULL,
+    user_agent TEXT,
+    device_label TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_used_at DATETIME
+  )`);
+
+  // Notification log & inbox
+  db.run(`CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    is_admin INTEGER DEFAULT 0,
+    type TEXT,
+    title TEXT,
+    body TEXT,
+    url TEXT,
+    priority TEXT DEFAULT 'normal',
+    is_read INTEGER DEFAULT 0,
+    is_sent INTEGER DEFAULT 0,
+    sent_at DATETIME,
+    read_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Notification preferences per tenant
+  db.run(`CREATE TABLE IF NOT EXISTS notification_preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER UNIQUE,
+    enabled INTEGER DEFAULT 1,
+    invoices INTEGER DEFAULT 1,
+    payments INTEGER DEFAULT 1,
+    community INTEGER DEFAULT 1,
+    maintenance INTEGER DEFAULT 1,
+    announcements INTEGER DEFAULT 1,
+    weather_alerts INTEGER DEFAULT 1,
+    quiet_hours_enabled INTEGER DEFAULT 1,
+    quiet_start_hour INTEGER DEFAULT 22,
+    quiet_end_hour INTEGER DEFAULT 7,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Quarter request system
+  db.run(`CREATE TABLE IF NOT EXISTS quarter_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER NOT NULL,
+    amount REAL NOT NULL,
+    when_needed TEXT DEFAULT 'asap',
+    preferred_time TEXT,
+    tenant_note TEXT,
+    status TEXT DEFAULT 'pending',
+    admin_response TEXT,
+    admin_responded_at DATETIME,
+    responded_by TEXT,
+    confirmed_time TEXT,
+    completed_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS quarter_request_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL,
+    sender_type TEXT NOT NULL,
+    sender_name TEXT,
+    message TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
 
   saveDb();
   console.log('Database initialized successfully');

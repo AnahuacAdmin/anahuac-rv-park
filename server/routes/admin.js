@@ -202,4 +202,27 @@ router.get('/message-log', requireAdmin, (req, res) => {
   }
 });
 
+// ── Admin Push Notification Subscription ──
+router.post('/push/subscribe', requireAdmin, (req, res) => {
+  const { endpoint, keys } = req.body || {};
+  if (!endpoint || !keys?.p256dh || !keys?.auth) return res.status(400).json({ error: 'Invalid subscription' });
+  try {
+    const existing = db.prepare('SELECT id FROM push_subscriptions WHERE is_admin = 1 AND endpoint = ?').get(endpoint);
+    if (existing) {
+      db.prepare('UPDATE push_subscriptions SET p256dh_key = ?, auth_key = ?, user_agent = ?, last_used_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(keys.p256dh, keys.auth, req.headers['user-agent'] || '', existing.id);
+    } else {
+      db.prepare('INSERT INTO push_subscriptions (tenant_id, is_admin, endpoint, p256dh_key, auth_key, user_agent, device_label) VALUES (NULL,1,?,?,?,?,?)')
+        .run(endpoint, keys.p256dh, keys.auth, req.headers['user-agent'] || '', req.body.device_label || 'Admin');
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save subscription' });
+  }
+});
+
+router.get('/push/vapid-key', requireAdmin, (req, res) => {
+  res.json({ key: process.env.VAPID_PUBLIC_KEY || '' });
+});
+
 module.exports = router;

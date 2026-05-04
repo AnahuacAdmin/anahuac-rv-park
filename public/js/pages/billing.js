@@ -48,8 +48,54 @@ async function loadBilling() {
       <span style="font-size:0.85rem">Total: <strong style="color:#1a5c32">${formatMoney(flatTotal)}</strong>/month</span>
     </div>` : '';
 
+  // Build billing summary bar
+  var totalOutstanding = 0, totalCreditsOnFile = 0, acctWithCredit = 0, acctPastDue = 0;
+  var _seenTenantCredits = {};
+  (invoices || []).forEach(function(inv) {
+    if (!inv.deleted && inv.status !== 'paid' && Number(inv.balance_due) > 0.005) {
+      totalOutstanding += Number(inv.balance_due) || 0;
+    }
+    // Count per-tenant credit (only once per tenant)
+    if (!_seenTenantCredits[inv.tenant_id]) {
+      _seenTenantCredits[inv.tenant_id] = true;
+      var cb = Number(inv.tenant_credit_balance) || 0;
+      if (cb > 0.005) { totalCreditsOnFile += cb; acctWithCredit++; }
+    }
+  });
+  // Count accounts past due (unique tenants with unpaid invoices 5+ days old)
+  var _pastDueTenants = {};
+  (invoices || []).forEach(function(inv) {
+    if (!inv.deleted && inv.status !== 'paid' && Number(inv.balance_due) > 0.005) {
+      var age = (Date.now() - new Date(inv.invoice_date).getTime()) / 86400000;
+      if (age >= 5 && !_pastDueTenants[inv.tenant_id]) {
+        _pastDueTenants[inv.tenant_id] = true;
+        acctPastDue++;
+      }
+    }
+  });
+  var summaryBar = `
+    <div class="card" style="margin-bottom:0.75rem;padding:0.6rem 1rem;display:flex;gap:1.25rem;flex-wrap:wrap;align-items:center;border-left:4px solid #1a5c32">
+      <div style="text-align:center;min-width:100px">
+        <div style="font-size:0.65rem;color:#78716c;text-transform:uppercase;font-weight:600;letter-spacing:0.03em">Outstanding</div>
+        <div style="font-size:1.1rem;font-weight:800;color:#dc2626">${formatMoney(totalOutstanding)}</div>
+      </div>
+      <div style="text-align:center;min-width:100px">
+        <div style="font-size:0.65rem;color:#78716c;text-transform:uppercase;font-weight:600;letter-spacing:0.03em">Credits on File</div>
+        <div style="font-size:1.1rem;font-weight:800;color:#16a34a">${formatMoney(totalCreditsOnFile)}</div>
+      </div>
+      <div style="text-align:center;min-width:80px">
+        <div style="font-size:0.65rem;color:#78716c;text-transform:uppercase;font-weight:600;letter-spacing:0.03em">With Credit</div>
+        <div style="font-size:1.1rem;font-weight:800;color:#16a34a">${acctWithCredit}</div>
+      </div>
+      <div style="text-align:center;min-width:80px">
+        <div style="font-size:0.65rem;color:#78716c;text-transform:uppercase;font-weight:600;letter-spacing:0.03em">Past Due</div>
+        <div style="font-size:1.1rem;font-weight:800;color:${acctPastDue > 0 ? '#dc2626' : '#16a34a'}">${acctPastDue}</div>
+      </div>
+    </div>`;
+
   document.getElementById('page-content').innerHTML = `
     ${evictionBanner}
+    ${summaryBar}
     ${flatSummary}
     ${rateLegend}
     ${helpPanel('billing')}
@@ -69,6 +115,7 @@ async function loadBilling() {
         <option value="partial">Partial</option>
         <option value="paid">Paid</option>
         <option value="flat">Flat Rate Only</option>
+        <option value="pastdue">Past Due</option>
       </select>
       <select id="invoice-month-filter" onchange="applyInvoiceFilters()">
         <option value="all">All Months</option>
@@ -195,9 +242,21 @@ function renderInvoiceRow(inv, rowBg) {
   if (creditAmt > 0.005) creditLines.push('-' + formatMoney(creditAmt) + ' applied');
   const balNote = creditLines.length ? '<div style="font-size:0.65rem;color:#78716c;white-space:normal;line-height:1.2">' + creditLines.join('<br>') + '</div>' : '';
   const refundBadge = refundAmt > 0.005 ? ' <span class="badge badge-info" style="font-size:0.55rem">CREDIT</span>' : '';
-  const totalTip = `Rent: ${formatMoney(inv.rent_amount)} + Electric: ${formatMoney(inv.electric_amount)} + Fees: ${formatMoney(otherFees)}${refundAmt > 0.005 ? ' - Credit: ' + formatMoney(refundAmt) : ''}${creditAmt > 0.005 ? ' - Applied: ' + formatMoney(creditAmt) : ''}`;
+  // Forward credit badge — show tenant's current credit balance
+  const tenantCredit = Number(inv.tenant_credit_balance) || 0;
+  const forwardCreditBadge = tenantCredit > 0.005 ? ' <span style="display:inline-block;background:#dcfce7;color:#15803d;font-size:0.55rem;font-weight:700;padding:1px 5px;border-radius:4px;border:1px solid #bbf7d0;white-space:nowrap" title="Tenant has ' + formatMoney(tenantCredit) + ' credit on file">+' + formatMoney(tenantCredit) + '</span>' : '';
+  // Past-due color coding
+  var _pastDueDays = 0;
+  if (inv.status !== 'paid' && inv.balance_due > 0.005) {
+    _pastDueDays = Math.floor((Date.now() - new Date(inv.invoice_date).getTime()) / 86400000);
+  }
+  var _pdBorder = _pastDueDays >= 8 ? '#dc2626' : _pastDueDays >= 4 ? '#f97316' : _pastDueDays >= 1 ? '#eab308' : '';
+  var _pdBg = _pastDueDays >= 8 ? '#fef2f2' : _pastDueDays >= 4 ? '#fff7ed' : '';
+  var _pdBadge = _pastDueDays >= 1 && inv.status !== 'paid' ? ' <span style="font-size:0.55rem;font-weight:700;color:' + (_pastDueDays >= 8 ? '#dc2626' : _pastDueDays >= 4 ? '#f97316' : '#eab308') + '">' + _pastDueDays + 'd</span>' : '';
+  var _lfWaivedBadge = inv.late_fee_waived ? ' <span class="badge badge-gray" style="font-size:0.5rem">WAIVED</span>' : '';
+  const totalTip = `Rent: ${formatMoney(inv.rent_amount)} + Electric: ${formatMoney(inv.electric_amount)} + Fees: ${formatMoney(otherFees)}${refundAmt > 0.005 ? ' - Credit: ' + formatMoney(refundAmt) : ''}${creditAmt > 0.005 ? ' - Applied: ' + formatMoney(creditAmt) : ''}${tenantCredit > 0.005 ? ' | Credit on file: ' + formatMoney(tenantCredit) : ''}`;
   return `
-    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" onclick="toggleInvoiceActions(${inv.id})" style="cursor:pointer;border-left:4px solid ${_statusColor}${rowBg ? ';background:' + rowBg : ''}">
+    <tr class="invoice-row" data-status="${inv.status}" data-id="${inv.id}" data-past-due="${_pastDueDays}" onclick="toggleInvoiceActions(${inv.id})" style="cursor:pointer;border-left:4px solid ${_pdBorder || _statusColor}${_pdBg ? ';background:' + _pdBg : (rowBg ? ';background:' + rowBg : '')}">
       <td data-label="Inv #" style="text-align:left" title="${inv.invoice_number}">${shortInvNum(inv.invoice_number)}${badges}</td>
       <td data-label="Lot"><strong>${inv.lot_id}</strong></td>
       <td data-label="Guest" style="text-align:left;overflow:hidden;text-overflow:ellipsis">${inv.first_name} ${inv.last_name}</td>
@@ -207,7 +266,7 @@ function renderInvoiceRow(inv, rowBg) {
       <td data-label="Fees" style="white-space:normal">${otherFees > 0.005 ? formatMoney(otherFees) + feeDetail : '<span style="color:#a8a29e">—</span>'}</td>
       <td data-label="Total" title="${totalTip}"><strong>${formatMoney(inv.total_amount)}</strong></td>
       <td data-label="Balance" style="white-space:normal"><strong style="color:${balColor}">${inv.status === 'paid' ? formatMoney(0) : formatMoney(inv.balance_due)}</strong>${balNote}</td>
-      <td data-label="Status"><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${refundBadge}${invoiceEvictionBadge(inv)}</td>
+      <td data-label="Status"><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'partial' ? 'warning' : 'danger'}" style="font-size:0.65rem">${statusLabel}</span>${refundBadge}${forwardCreditBadge}${_pdBadge}${_lfWaivedBadge}${invoiceEvictionBadge(inv)}</td>
     </tr>
     <tr class="invoice-actions-row" id="inv-actions-${inv.id}" style="display:none">
       <td colspan="10" style="padding:4px 8px;background:#f5f5f5;border-bottom:2px solid #d6d3d1">
@@ -218,6 +277,9 @@ function renderInvoiceRow(inv, rowBg) {
           <button class="inv-act-btn" onclick="event.stopPropagation();emailInvoice(${inv.id})">Email</button>
           <button class="inv-act-btn" onclick="event.stopPropagation();smsInvoice(${inv.id})">SMS</button>
           ${inv.balance_due > 0.005 ? `<button class="inv-act-btn inv-act-green" onclick="event.stopPropagation();recordPaymentForInvoice(${inv.id})">Pay</button>` : ''}
+          ${inv.balance_due > 0.005 && !(Number(inv.late_fee) > 0) ? `<button class="inv-act-btn inv-act-orange" onclick="event.stopPropagation();applyLateFeeToInvoice(${inv.id})" title="Apply late fee">+Late</button>` : ''}
+          ${Number(inv.late_fee) > 0 && !inv.late_fee_waived ? `<button class="inv-act-btn" onclick="event.stopPropagation();waiveLateFeeOnInvoice(${inv.id})" title="Waive late fee">Waive</button>` : ''}
+          ${Number(inv.late_fee) > 0 ? `<button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();removeLateFeeFromInvoice(${inv.id})" title="Remove late fee">-Late</button>` : ''}
           ${invoicePauseBtnCompact(inv)}
           <button class="inv-act-btn" onclick="event.stopPropagation();editInvoice(${inv.id})">Edit</button>
           ${inv.amount_paid > 0.005 ? `<button class="inv-act-btn inv-act-orange" onclick="event.stopPropagation();showRefundModal(${inv.id})">Refund</button>` : ''}
@@ -439,6 +501,10 @@ function applyInvoiceFilters() {
     if (status === 'flat') {
       const _t = (window._billingTenants || []).find(x => x.id === i.tenant_id);
       if (!_t?.flat_rate) return false;
+    } else if (status === 'pastdue') {
+      if (i.status === 'paid' || i.balance_due <= 0.005) return false;
+      var _age = Math.floor((Date.now() - new Date(i.invoice_date).getTime()) / 86400000);
+      if (_age < 1) return false;
     } else if (status !== 'all' && i.status !== status) return false;
     const d = i.invoice_date || '';
     if (year !== 'all' && d.slice(0, 4) !== year) return false;
@@ -1541,21 +1607,52 @@ function showUndoToast(message, onUndo) {
 
 // Run the late-fee check on demand and show a summary alert.
 async function checkLateFees() {
-  if (!confirm('Run late fee check now? Any unpaid invoice 3+ days old will get a $25 late fee (only if not already auto-applied).')) return;
+  if (!confirm('Run past-due check now? This will scan all unpaid invoices and apply/notify based on your Late Fee Settings.')) return;
   try {
-    const r = await API.post('/invoices/check-late-fees', {});
-    let msg = `Late fee check complete.\n\n`;
-    msg += `Invoices checked: ${r.invoicesChecked}\n`;
-    msg += `Late fees applied: ${r.feesApplied} ($${r.feeAmountTotal.toFixed(2)} total)\n`;
-    msg += `New eviction warnings: ${r.evictionWarnings}\n`;
-    if (r.feeInvoiceNumbers?.length) {
-      msg += `\nInvoices charged:\n${r.feeInvoiceNumbers.join('\n')}`;
+    const r = await API.post('/late-fees/admin/check-now', {});
+    let msg = 'Past-due check complete.\n\n';
+    msg += 'Invoices checked: ' + r.total + '\n';
+    msg += 'Past due: ' + r.pastDue + '\n';
+    msg += 'Notifications sent: ' + r.notified + '\n';
+    msg += 'Auto-applied: ' + r.autoApplied + '\n';
+    if (r.details && r.details.length) {
+      msg += '\nPast due invoices:\n' + r.details.map(function(d) { return d.lot + ' ' + d.tenant + ' — ' + d.daysLate + ' days'; }).join('\n');
     }
     alert(msg);
     loadBilling();
   } catch (err) {
     alert('Late fee check failed: ' + (err.message || 'unknown error'));
   }
+}
+
+// Late fee admin actions from billing row
+async function applyLateFeeToInvoice(invoiceId) {
+  var amt = prompt('Late fee amount (leave blank for default from settings):');
+  var body = { invoice_id: invoiceId };
+  if (amt && !isNaN(parseFloat(amt))) body.amount = parseFloat(amt);
+  try {
+    var r = await API.post('/late-fees/admin/apply', body);
+    showStatusToast('OK', 'Late fee of $' + Number(r.amount).toFixed(2) + ' applied');
+    loadBilling();
+  } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
+}
+
+async function waiveLateFeeOnInvoice(invoiceId) {
+  var reason = prompt('Reason for waiving (optional):') || '';
+  try {
+    await API.post('/late-fees/admin/waive', { invoice_id: invoiceId, reason: reason });
+    showStatusToast('OK', 'Late fee waived');
+    loadBilling();
+  } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
+}
+
+async function removeLateFeeFromInvoice(invoiceId) {
+  if (!confirm('Remove the late fee from this invoice? The amount will be subtracted from the total and balance.')) return;
+  try {
+    var r = await API.post('/late-fees/admin/remove', { invoice_id: invoiceId });
+    showStatusToast('OK', 'Late fee of $' + Number(r.removedAmount).toFixed(2) + ' removed');
+    loadBilling();
+  } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
 }
 
 // --- Excel export of currently filtered invoices ---

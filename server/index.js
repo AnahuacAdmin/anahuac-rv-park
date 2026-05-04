@@ -47,7 +47,7 @@ require('./stripe-webhook').registerStripeWebhook(app);
 // Twilio incoming SMS webhook — public, uses URL-encoded body, registered before JSON parser.
 app.use('/api/twilio/incoming-sms', require('./routes/twilio-webhook'));
 
-app.use(express.json({ limit: '5mb' })); // 5mb to allow base64 PDF attachments for emailed invoices
+app.use(express.json({ limit: '50mb' })); // 50mb to allow multi-photo catch uploads (up to 5 resized images)
 
 // Prevent browsers from caching HTML pages — always fetch latest version
 app.use((req, res, next) => {
@@ -146,11 +146,19 @@ app.use('/api/water-meters', require('./routes/water-meters'));
 app.use('/api/lost-found', require('./routes/lost-found'));
 app.use('/api/birding', require('./routes/birding'));
 app.use('/api/hunting-fishing', require('./routes/hunting-fishing'));
+app.use('/api/general-chat', require('./routes/general-chat'));
+app.use('/api/garden', require('./routes/garden'));
+app.use('/api/dad-jokes', require('./routes/dad-jokes'));
+app.use('/api/news', require('./routes/news'));
+app.use('/api/local-restaurants', require('./routes/local-restaurants'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/credits', require('./routes/credits'));
 app.use('/api/pnl', require('./routes/pnl'));
 app.use('/api/bank-reconciliation', require('./routes/bank-reconciliation'));
 app.use('/api/employee-payments', require('./routes/employee-payments'));
+const lateFeesRouter = require('./routes/late-fees');
+app.use('/api/late-fees', lateFeesRouter);
+app.use('/api/quarter-requests', require('./routes/quarter-requests'));
 
 // Public pages — serve without .html extension so /privacy and /terms work
 app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'privacy.html')));
@@ -170,7 +178,7 @@ function scheduleDailyLateFeeCheck() {
   const msUntil = nextMidnight - now;
   setTimeout(function tick() {
     try {
-      const summary = invoicesRouter.runLateFeeCheck();
+      const summary = lateFeesRouter.runPastDueCheck();
       console.log('[late-fees] daily check:', summary);
     } catch (err) {
       console.error('[late-fees] daily check failed:', err);
@@ -192,6 +200,12 @@ initializeDatabase()
       try { require('./jobs/weatherJob').start(); } catch (e) { console.error('[weather-job] failed to start:', e.message); }
       try { require('./jobs/reminderJob').start(); } catch (e) { console.error('[reminder-job] failed to start:', e.message); }
       try { require('./jobs/birthdayJob').start(); } catch (e) { console.error('[birthday-job] failed to start:', e.message); }
+      // Flush queued push notifications every 15 minutes (catches quiet-hours queue)
+      try {
+        const pushService = require('./services/push-notifications');
+        setInterval(() => { try { pushService.flushQueuedNotifications(); } catch {} }, 15 * 60 * 1000);
+        console.log('[push] notification flush job started (every 15 min)');
+      } catch (e) { console.error('[push] flush job failed to start:', e.message); }
       // Run post-deploy smoke tests (non-blocking)
       setTimeout(() => {
         try { require('../scripts/post-deploy-test').runTests().catch(e => console.error('[deploy-test] error:', e.message)); }

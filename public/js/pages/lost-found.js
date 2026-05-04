@@ -48,7 +48,7 @@ function renderLFCardAdmin(p) {
   var ago = _lfTimeAgo(p.created_at);
 
   return '<div class="card" style="border-top:4px solid ' + badgeColor + ';padding:0">' +
-    (p.has_photo ? '<img src="/api/lost-found/' + p.id + '/photo" style="width:100%;height:180px;object-fit:cover;display:block" onerror="this.style.display=\'none\'">' : '') +
+    (p.has_photo ? '<img src="/api/lost-found/' + p.id + '/photo" style="width:100%;max-height:400px;height:auto;object-fit:contain;background:#1a1a1a;display:block" onerror="this.style.display=\'none\'">' : '') +
     '<div style="padding:0.75rem">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">' +
         '<span style="background:' + badgeBg + ';color:' + badgeColor + ';font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:6px">' + badgeText + '</span>' +

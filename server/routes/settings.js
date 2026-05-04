@@ -19,7 +19,10 @@ router.get('/', (req, res) => {
 
 const ALLOWED_SETTINGS = new Set([
   'electric_rate', 'park_name', 'park_address', 'park_phone', 'park_email',
-  'late_fee_amount', 'late_fee_day', 'recovery_pin', 'wifi_password',
+  'late_fee_amount', 'late_fee_day', 'late_fee_type', 'late_fee_percentage',
+  'late_fee_grace_days', 'late_fee_mode', 'late_fee_email', 'late_fee_sms_number',
+  'late_fee_email_enabled', 'late_fee_sms_enabled',
+  'recovery_pin', 'wifi_password',
   'manager_phone', 'manager_email', 'auto_eviction_sms', 'auto_eviction_email',
   'reservation_nightly_rate', 'default_monthly_rate', 'default_daily_rate', 'default_weekly_rate',
   'default_rate_standard', 'default_rate_premium', 'default_rate_pullthrough',

@@ -234,4 +234,188 @@ router.post('/portal-users/:id/reset-pin', (req, res) => {
   }
 });
 
+// ── Live Activity Feed (for admin activity banner + full log) ──
+router.get('/activity-feed', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    var limit = Math.min(parseInt(req.query.limit) || 30, 100);
+    var offset = parseInt(req.query.offset) || 0;
+    var typeFilter = req.query.type || '';
+    var search = req.query.search || '';
+
+    // Build UNION ALL query across all activity sources
+    var items = [];
+
+    // 1. Catch posts
+    try {
+      var catches = db.prepare(`SELECT p.id, p.species, p.location, p.created_at as ts,
+        COALESCE(t.first_name || ' ' || t.last_name, 'Visitor') as who,
+        COALESCE(t.lot_id, '') as lot, p.post_type
+        FROM hunting_fishing_posts p LEFT JOIN tenants t ON p.tenant_id = t.id
+        ORDER BY p.created_at DESC LIMIT 20`).all();
+      catches.forEach(function(c) {
+        var icon = c.post_type === 'fishing' ? '🎣' : '🦆';
+        items.push({
+          type: 'catch', icon: icon, color: '#16a34a',
+          text: c.who + (c.lot ? ' (' + c.lot + ')' : '') + ' caught ' + (c.species || 'something') + (c.location ? ' at ' + c.location : ''),
+          ts: c.ts, related_id: c.id, related_page: 'hunting-fishing', requires_action: false
+        });
+      });
+    } catch {}
+
+    // 2. Catch comments
+    try {
+      var comments = db.prepare(`SELECT c.id, c.post_id, c.comment, c.created_at as ts, c.is_management,
+        COALESCE(c.author_name, t.first_name || ' ' || t.last_name, 'Visitor') as who,
+        p.species
+        FROM catch_comments c LEFT JOIN tenants t ON c.tenant_id = t.id
+        LEFT JOIN hunting_fishing_posts p ON c.post_id = p.id
+        ORDER BY c.created_at DESC LIMIT 20`).all();
+      comments.forEach(function(c) {
+        if (c.is_management) return; // skip admin's own comments
+        items.push({
+          type: 'comment', icon: '💬', color: '#0284c7',
+          text: c.who + ' commented on ' + (c.species || 'a catch') + ': "' + (c.comment || '').slice(0, 60) + (c.comment && c.comment.length > 60 ? '...' : '') + '"',
+          ts: c.ts, related_id: c.post_id, related_page: 'hunting-fishing', requires_action: false
+        });
+      });
+    } catch {}
+
+    // 3. Catch reactions (grouped by post in last 24h)
+    try {
+      var reactions = db.prepare(`SELECT p.id as post_id, p.species, COUNT(*) as cnt,
+        MAX(r.created_at) as ts
+        FROM catch_reactions r JOIN hunting_fishing_posts p ON r.post_id = p.id
+        WHERE r.tenant_id != -1 AND r.created_at > datetime('now', '-24 hours')
+        GROUP BY p.id ORDER BY ts DESC LIMIT 10`).all();
+      reactions.forEach(function(r) {
+        items.push({
+          type: 'reaction', icon: '❤️', color: '#0284c7',
+          text: r.cnt + ' reaction' + (r.cnt > 1 ? 's' : '') + ' on ' + (r.species || 'a catch'),
+          ts: r.ts, related_id: r.post_id, related_page: 'hunting-fishing', requires_action: false
+        });
+      });
+    } catch {}
+
+    // 4. Community posts
+    try {
+      var cposts = db.prepare(`SELECT p.id, p.title, p.post_type, p.status, p.submitted_at as ts,
+        CASE WHEN p.tenant_id IS NULL THEN 'Park Management' ELSE t.first_name || ' ' || t.last_name END as who,
+        COALESCE(t.lot_id, '') as lot
+        FROM community_posts p LEFT JOIN tenants t ON p.tenant_id = t.id
+        ORDER BY p.submitted_at DESC LIMIT 20`).all();
+      cposts.forEach(function(c) {
+        var isPending = c.status === 'pending';
+        items.push({
+          type: 'community', icon: '📢', color: isPending ? '#f59e0b' : '#0284c7',
+          text: c.who + (c.lot ? ' (' + c.lot + ')' : '') + ' posted: ' + (c.title || '(untitled)').slice(0, 60),
+          ts: c.ts, related_id: c.id, related_page: 'community',
+          requires_action: isPending
+        });
+      });
+    } catch {}
+
+    // 5. Community replies
+    try {
+      var replies = db.prepare(`SELECT r.id, r.message, r.created_at as ts, r.author_name as who, r.is_management,
+        p.title as post_title
+        FROM community_replies r JOIN community_posts p ON r.post_id = p.id
+        ORDER BY r.created_at DESC LIMIT 15`).all();
+      replies.forEach(function(r) {
+        if (r.is_management) return;
+        items.push({
+          type: 'reply', icon: '💬', color: '#0284c7',
+          text: (r.who || 'Someone') + ' replied to "' + (r.post_title || 'a post').slice(0, 40) + '"',
+          ts: r.ts, related_id: r.id, related_page: 'community', requires_action: false
+        });
+      });
+    } catch {}
+
+    // 6. Bird sightings
+    try {
+      var birds = db.prepare(`SELECT b.id, b.bird_name, b.location, b.rarity, b.created_at as ts,
+        COALESCE(t.first_name || ' ' || t.last_name, 'Visitor') as who,
+        COALESCE(t.lot_id, '') as lot
+        FROM bird_sightings b LEFT JOIN tenants t ON b.tenant_id = t.id
+        ORDER BY b.created_at DESC LIMIT 10`).all();
+      birds.forEach(function(b) {
+        items.push({
+          type: 'birding', icon: '🐦', color: '#16a34a',
+          text: b.who + (b.lot ? ' (' + b.lot + ')' : '') + ' spotted ' + (b.bird_name || 'a bird') + (b.location ? ' at ' + b.location : '') + (b.rarity && b.rarity !== 'Common' ? ' (' + b.rarity + '!)' : ''),
+          ts: b.ts, related_id: b.id, related_page: 'birding', requires_action: false
+        });
+      });
+    } catch {}
+
+    // 9. Lost & found
+    try {
+      var lf = db.prepare(`SELECT l.id, l.type, l.pet_type, l.pet_name, l.status, l.created_at as ts,
+        COALESCE(t.first_name || ' ' || t.last_name, 'Someone') as who
+        FROM lost_found_pets l LEFT JOIN tenants t ON l.tenant_id = t.id
+        ORDER BY l.created_at DESC LIMIT 10`).all();
+      lf.forEach(function(l) {
+        var isActive = l.status === 'active';
+        items.push({
+          type: 'lost-found', icon: '📦', color: isActive ? '#f59e0b' : '#16a34a',
+          text: l.who + ' reported ' + l.type + ' ' + (l.pet_type || 'pet') + (l.pet_name ? ' "' + l.pet_name + '"' : '') + (l.status === 'reunited' ? ' (REUNITED!)' : ''),
+          ts: l.ts, related_id: l.id, related_page: 'lost-found',
+          requires_action: isActive && l.type === 'lost'
+        });
+      });
+    } catch {}
+
+    // 10. General chat posts
+    try {
+      db.prepare(`SELECT g.id, g.message, g.category, g.created_at as ts,
+        CASE WHEN g.is_management = 1 THEN 'Park Management' ELSE COALESCE(t.first_name || ' ' || t.last_name, 'Visitor') END as who,
+        COALESCE(t.lot_id, '') as lot
+        FROM general_chat_posts g LEFT JOIN tenants t ON g.tenant_id = t.id
+        ORDER BY g.created_at DESC LIMIT 10`).all().forEach(function(g) {
+        var preview = (g.message || '').substring(0, 50) + (g.message && g.message.length > 50 ? '...' : '');
+        items.push({
+          type: 'chat', icon: '💬', color: '#3b82f6',
+          text: g.who + (g.lot ? ' (' + g.lot + ')' : '') + ': ' + preview,
+          ts: g.ts, related_id: g.id, related_page: 'general-chat', requires_action: false
+        });
+      });
+    } catch {}
+
+    // 11. Garden posts
+    try {
+      db.prepare(`SELECT g.id, g.plant_name, g.caption, g.created_at as ts,
+        CASE WHEN g.is_management = 1 THEN 'Park Management' ELSE COALESCE(t.first_name || ' ' || t.last_name, 'Visitor') END as who,
+        COALESCE(t.lot_id, '') as lot
+        FROM garden_posts g LEFT JOIN tenants t ON g.tenant_id = t.id
+        ORDER BY g.created_at DESC LIMIT 10`).all().forEach(function(g) {
+        items.push({
+          type: 'garden', icon: '🌱', color: '#16a34a',
+          text: g.who + (g.lot ? ' (' + g.lot + ')' : '') + ' shared ' + (g.plant_name || 'a plant') + (g.caption ? ': ' + g.caption.substring(0, 40) : ''),
+          ts: g.ts, related_id: g.id, related_page: 'garden', requires_action: false
+        });
+      });
+    } catch {}
+
+    // Sort all by timestamp descending
+    items.sort(function(a, b) { return (b.ts || '').localeCompare(a.ts || ''); });
+
+    // Apply filters
+    if (typeFilter) {
+      items = items.filter(function(i) { return i.type === typeFilter; });
+    }
+    if (search) {
+      var q = search.toLowerCase();
+      items = items.filter(function(i) { return i.text.toLowerCase().indexOf(q) >= 0; });
+    }
+
+    var total = items.length;
+    var actionCount = items.filter(function(i) { return i.requires_action; }).length;
+    items = items.slice(offset, offset + limit);
+
+    res.json({ items: items, total: total, actionCount: actionCount });
+  } catch (err) {
+    console.error('[dashboard] activity-feed error:', err);
+    res.status(500).json({ error: 'Could not load activity feed' });
+  }
+});
+
 module.exports = router;

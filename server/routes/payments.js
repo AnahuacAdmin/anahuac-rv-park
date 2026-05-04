@@ -8,6 +8,7 @@ const router = require('express').Router();
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
 const { sendSms } = require('../twilio');
+const pushService = require('../services/push-notifications');
 
 let _stripe = null;
 function getStripe() {
@@ -204,9 +205,9 @@ router.post('/', async (req, res) => {
   // Update invoice if linked
   if (invoice_id) {
     const totalPaid = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoice_id = ?').get(invoice_id);
-    const invoice = db.prepare('SELECT total_amount, invoice_number FROM invoices WHERE id = ?').get(invoice_id);
-    const balance = (invoice?.total_amount || 0) - totalPaid.total;
-    const status = balance <= 0 ? 'paid' : 'partial';
+    const invoice = db.prepare('SELECT total_amount, invoice_number, COALESCE(credit_applied,0) as credit_applied FROM invoices WHERE id = ?').get(invoice_id);
+    const balance = (invoice?.total_amount || 0) - totalPaid.total - (invoice?.credit_applied || 0);
+    const status = balance <= 0.01 ? 'paid' : 'partial';
     db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
       .run(totalPaid.total, Math.max(0, balance), status, invoice_id);
     newBalance = Math.max(0, balance);
@@ -253,6 +254,12 @@ router.post('/', async (req, res) => {
     }
   }
 
+  // Push notification to tenant (payment confirmed) and admin (payment received)
+  try {
+    const tn = db.prepare('SELECT first_name, last_name, lot_id FROM tenants WHERE id = ?').get(tenant_id);
+    pushService.notifyTenant(tenant_id, { type: 'payment', title: '\u2705 Payment Received \u2014 Thank You!', body: '$' + Number(amount).toFixed(2) + ' paid via ' + (payment_method || 'cash') + '. Receipt available.', url: '/portal', priority: 'normal' });
+    pushService.notifyAdmin({ type: 'payment', title: '\ud83d\udcb3 Payment from ' + (tn?.first_name || 'Tenant'), body: '$' + Number(amount).toFixed(2) + ' received from ' + (tn ? tn.first_name + ' ' + tn.last_name : 'Unknown') + ' (Lot ' + (tn?.lot_id || '?') + ') via ' + (payment_method || 'cash'), url: '/', priority: 'normal' });
+  } catch {}
   res.json({ id: result.lastInsertRowid, smsReceipt: smsResult, overpayment });
   } catch (err) {
     console.error('[payments] record payment error:', err.message);
@@ -317,10 +324,11 @@ router.post('/refund', async (req, res) => {
       const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(payment.invoice_id);
       if (inv) {
         const newPaid = Math.max(0, (Number(inv.amount_paid) || 0) - amount);
-        const newBalance = (Number(inv.total_amount) || 0) - newPaid;
+        const credits = (Number(inv.credit_applied) || 0);
+        const newBalance = (Number(inv.total_amount) || 0) - newPaid - credits;
         let newStatus = 'pending';
-        if (newBalance <= 0.005) newStatus = 'paid';
-        else if (newPaid > 0.005) newStatus = 'partial';
+        if (newBalance <= 0.01) newStatus = 'paid';
+        else if (newPaid > 0.005 || credits > 0.005) newStatus = 'partial';
         db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
           .run(newPaid, Math.max(0, newBalance), newStatus, inv.id);
       }
@@ -359,10 +367,13 @@ router.delete('/:id', (req, res) => {
 
   if (payment?.invoice_id) {
     const totalPaid = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoice_id = ?').get(payment.invoice_id);
-    const invoice = db.prepare('SELECT total_amount FROM invoices WHERE id = ?').get(payment.invoice_id);
-    const balance = (invoice?.total_amount || 0) - totalPaid.total;
+    const invoice = db.prepare('SELECT total_amount, COALESCE(credit_applied,0) as credit_applied FROM invoices WHERE id = ?').get(payment.invoice_id);
+    const balance = (invoice?.total_amount || 0) - totalPaid.total - (invoice?.credit_applied || 0);
+    let delStatus = 'pending';
+    if (balance <= 0.01) delStatus = 'paid';
+    else if (totalPaid.total > 0.005 || (invoice?.credit_applied || 0) > 0.005) delStatus = 'partial';
     db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
-      .run(totalPaid.total, Math.max(0, balance), balance <= 0 ? 'paid' : (totalPaid.total > 0 ? 'partial' : 'pending'), payment.invoice_id);
+      .run(totalPaid.total, Math.max(0, balance), delStatus, payment.invoice_id);
   }
 
   res.json({ success: true });

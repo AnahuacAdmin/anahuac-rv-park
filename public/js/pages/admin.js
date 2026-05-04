@@ -21,6 +21,15 @@ async function loadAdmin() {
   const autoEvictSms = settings?.auto_eviction_sms === '1';
   const autoEvictEmail = settings?.auto_eviction_email === '1';
   const autoBirthdayEnabled = settings?.auto_birthday_enabled === '1';
+  const lfAmount = settings?.late_fee_amount || '25';
+  const lfType = settings?.late_fee_type || 'fixed';
+  const lfPct = settings?.late_fee_percentage || '10';
+  const lfGrace = settings?.late_fee_grace_days || '3';
+  const lfMode = settings?.late_fee_mode || 'notify';
+  const lfEmail = settings?.late_fee_email || '';
+  const lfSmsNum = settings?.late_fee_sms_number || '';
+  const lfEmailOn = settings?.late_fee_email_enabled === '1';
+  const lfSmsOn = settings?.late_fee_sms_enabled === '1';
 
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('admin')}
@@ -90,6 +99,56 @@ async function loadAdmin() {
         </div>
       </div>
       <button class="btn btn-danger mt-1" onclick="saveEvictionSettings()">Save Eviction Settings</button>
+    </div>
+
+    <div class="card" style="border-left:4px solid #f59e0b">
+      <h3>Late Fee Settings</h3>
+      <p><small>Configure how late fees are detected and applied when invoices are past due. The system checks daily at midnight.</small></p>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label>Fee Type</label>
+          <select id="lf-type" onchange="document.getElementById('lf-pct-group').style.display=this.value==='percentage'?'':'none';document.getElementById('lf-amt-group').style.display=this.value==='fixed'?'':'none'">
+            <option value="fixed" ${lfType === 'fixed' ? 'selected' : ''}>Fixed Amount ($)</option>
+            <option value="percentage" ${lfType === 'percentage' ? 'selected' : ''}>Percentage of Rent</option>
+          </select>
+        </div>
+        <div class="form-group" id="lf-amt-group" style="${lfType === 'fixed' ? '' : 'display:none'}">
+          <label>Late Fee Amount ($)</label>
+          <input type="number" step="0.01" id="lf-amount" value="${lfAmount}" style="max-width:120px">
+        </div>
+        <div class="form-group" id="lf-pct-group" style="${lfType === 'percentage' ? '' : 'display:none'}">
+          <label>Percentage (%)</label>
+          <input type="number" step="0.1" id="lf-percentage" value="${lfPct}" style="max-width:100px">
+        </div>
+      </div>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label>Grace Period (days after due date)</label>
+          <input type="number" id="lf-grace" value="${lfGrace}" min="0" max="30" style="max-width:80px">
+        </div>
+        <div class="form-group">
+          <label>Mode</label>
+          <select id="lf-mode">
+            <option value="notify" ${lfMode === 'notify' ? 'selected' : ''}>Notify Only (email/SMS me, I decide)</option>
+            <option value="auto" ${lfMode === 'auto' ? 'selected' : ''}>Auto-Apply (add fee automatically)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row mt-1">
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem"><input type="checkbox" id="lf-email-on" ${lfEmailOn ? 'checked' : ''}> Email notifications</label>
+          <input type="email" id="lf-email" value="${lfEmail}" placeholder="admin@example.com" style="margin-top:0.25rem">
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem"><input type="checkbox" id="lf-sms-on" ${lfSmsOn ? 'checked' : ''}> SMS notifications</label>
+          <input type="text" id="lf-sms-num" value="${lfSmsNum}" placeholder="+14095551234" style="margin-top:0.25rem">
+        </div>
+      </div>
+      <div class="btn-group mt-1">
+        <button class="btn btn-primary" onclick="saveLateFeeSettings()">Save Late Fee Settings</button>
+        <button class="btn btn-outline" onclick="runLateFeeCheckNow()">Run Past-Due Check Now</button>
+      </div>
+      <div id="lf-check-result" style="margin-top:0.75rem"></div>
     </div>
 
     <div class="card" style="border-left:4px solid #16a34a">
@@ -185,6 +244,13 @@ async function loadAdmin() {
       <button class="btn btn-sm btn-primary" id="btn-add-restaurant">➕ Add Restaurant</button>
     </div>
 
+    <div class="card" style="border-left:4px solid #ea580c">
+      <h3>🍴 Local Eats Directory</h3>
+      <p><small>Manage the full Local Eats restaurant directory shown on the tenant portal (with address, phone, hours, categories, ratings, etc.).</small></p>
+      <div id="admin-local-eats-list" style="margin:0.75rem 0">Loading...</div>
+      <button class="btn btn-sm btn-primary" id="btn-add-local-eat">➕ Add Restaurant</button>
+    </div>
+
     <div class="card" style="border-left:4px solid #0284c7">
       <h3>🔗 Portal Local Links</h3>
       <p><small>Manage attraction, fishing, and community links shown on the tenant portal.</small></p>
@@ -241,6 +307,7 @@ async function loadAdmin() {
   loadWeatherAlertHistory();
   loadOfflineAdminStatus();
   loadAdminRestaurants();
+  loadAdminLocalEats();
   loadAdminLocalLinks();
   // Wire add buttons
   setTimeout(function() {
@@ -251,6 +318,11 @@ async function loadAdmin() {
   setTimeout(function() {
     var btn = document.getElementById('btn-add-restaurant');
     if (btn) btn.addEventListener('click', showAddRestaurant);
+  }, 50);
+  // Wire add local eat button
+  setTimeout(function() {
+    var btn = document.getElementById('btn-add-local-eat');
+    if (btn) btn.addEventListener('click', showAddLocalEat);
   }, 50);
 
   // Password eyeball toggles
@@ -672,6 +744,118 @@ async function deleteRestaurant(id, name) {
   loadAdminRestaurants();
 }
 
+// --- Local Eats Directory Admin ---
+var LE_CATEGORIES = ['american', 'mexican', 'seafood', 'bbq', 'asian', 'pizza', 'cajun', 'deli', 'breakfast', 'bakery', 'bar', 'fast-food', 'other'];
+var LE_PRICE_LEVELS = ['$', '$$', '$$$', '$$$$'];
+
+async function loadAdminLocalEats() {
+  var el = document.getElementById('admin-local-eats-list');
+  if (!el) return;
+  try {
+    var list = await API.get('/local-restaurants/admin');
+    if (!list || !list.length) { el.innerHTML = '<p style="font-size:0.82rem;color:#78716c">No restaurants yet. Click Add to create one.</p>'; return; }
+    el.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="border-bottom:2px solid #e5e7eb"><th style="text-align:left;padding:4px">Name</th><th>City</th><th>Category</th><th>Price</th><th>Rating</th><th>Rec</th><th>Active</th><th>Actions</th></tr></thead><tbody>' +
+      list.map(function(r) {
+        return '<tr style="border-bottom:1px solid #f3f4f6">' +
+          '<td style="padding:4px"><strong>' + escapeHtml(r.name) + '</strong></td>' +
+          '<td style="padding:4px;font-size:0.75rem">' + escapeHtml(r.city || '') + '</td>' +
+          '<td style="padding:4px;font-size:0.75rem">' + escapeHtml(r.category || '') + '</td>' +
+          '<td style="padding:4px">' + escapeHtml(r.price_level || '') + '</td>' +
+          '<td style="padding:4px">' + (r.rating ? r.rating.toFixed(1) : '—') + '</td>' +
+          '<td style="padding:4px">' + (r.is_recommended ? '⭐' : '') + '</td>' +
+          '<td style="padding:4px">' + (r.is_active ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-gray">No</span>') + '</td>' +
+          '<td style="padding:4px" class="btn-group"><button class="btn btn-sm btn-outline" onclick="showEditLocalEat(' + r.id + ')">Edit</button><button class="btn btn-sm btn-warning" onclick="toggleRecommendLocalEat(' + r.id + ')">Rec</button><button class="btn btn-sm btn-danger" onclick="deleteLocalEat(' + r.id + ',\'' + escapeHtml(r.name).replace(/'/g, "\\'") + '\')">Del</button></td>' +
+        '</tr>';
+      }).join('') + '</tbody></table>';
+  } catch { el.innerHTML = '<p style="color:#dc2626;font-size:0.82rem">Failed to load local eats</p>'; }
+}
+
+function showAddLocalEat() {
+  showModal('🍴 Add Local Restaurant', localEatFormHtml());
+  setTimeout(function() {
+    var form = document.getElementById('local-eat-form');
+    if (form) form.addEventListener('submit', function(e) { saveLocalEat(e, null); });
+  }, 50);
+}
+
+async function showEditLocalEat(id) {
+  var list = await API.get('/local-restaurants/admin');
+  var r = (list || []).find(function(x) { return x.id === id; });
+  if (!r) return;
+  showModal('🍴 Edit Restaurant', localEatFormHtml(r));
+  setTimeout(function() {
+    var form = document.getElementById('local-eat-form');
+    if (form) form.addEventListener('submit', function(e) { saveLocalEat(e, id); });
+  }, 50);
+}
+
+function localEatFormHtml(r) {
+  r = r || {};
+  return '<form id="local-eat-form" style="max-height:70vh;overflow-y:auto;padding-right:0.5rem">' +
+    '<div class="form-row">' +
+      '<div class="form-group" style="flex:2"><label>Restaurant Name *</label><input name="name" value="' + escapeHtml(r.name || '') + '" required></div>' +
+      '<div class="form-group"><label>Category</label><select name="category">' + LE_CATEGORIES.map(function(c) { return '<option value="' + c + '"' + (r.category === c ? ' selected' : '') + '>' + c.charAt(0).toUpperCase() + c.slice(1) + '</option>'; }).join('') + '</select></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Cuisine Type</label><input name="cuisine_type" value="' + escapeHtml(r.cuisine_type || '') + '" placeholder="e.g. Tex-Mex, Southern, Italian"></div>' +
+    '<div class="form-row">' +
+      '<div class="form-group" style="flex:2"><label>Address</label><input name="address" value="' + escapeHtml(r.address || '') + '"></div>' +
+      '<div class="form-group"><label>City</label><input name="city" value="' + escapeHtml(r.city || 'Anahuac') + '"></div>' +
+    '</div>' +
+    '<div class="form-row">' +
+      '<div class="form-group"><label>Phone</label><input name="phone" value="' + escapeHtml(r.phone || '') + '" placeholder="(409) 555-1234"></div>' +
+      '<div class="form-group"><label>Website</label><input name="website" value="' + escapeHtml(r.website || '') + '" placeholder="https://..."></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Hours</label><input name="hours" value="' + escapeHtml(r.hours || '') + '" placeholder="Mon-Sat 7am-9pm, Sun 8am-3pm"></div>' +
+    '<div class="form-row">' +
+      '<div class="form-group"><label>Price Level</label><select name="price_level">' + LE_PRICE_LEVELS.map(function(p) { return '<option value="' + p + '"' + (r.price_level === p ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></div>' +
+      '<div class="form-group"><label>Rating (0-5)</label><input type="number" name="rating" value="' + (r.rating || '') + '" min="0" max="5" step="0.1" style="max-width:80px"></div>' +
+      '<div class="form-group"><label>Distance (mi)</label><input type="number" name="distance_miles" value="' + (r.distance_miles || '') + '" min="0" step="0.1" style="max-width:80px"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Description</label><textarea name="description" rows="2" style="width:100%">' + escapeHtml(r.description || '') + '</textarea></div>' +
+    '<div class="form-group"><label>Notable For</label><input name="notable_for" value="' + escapeHtml(r.notable_for || '') + '" placeholder="Best burgers in town, Fresh Gulf shrimp..."></div>' +
+    '<div class="form-row">' +
+      '<div class="form-group"><label>Display Order</label><input type="number" name="display_order" value="' + (r.display_order || 0) + '" min="0" style="max-width:80px"></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin:0.75rem 0">' +
+      '<label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" name="has_delivery" value="1" ' + (r.has_delivery ? 'checked' : '') + '> Delivery</label>' +
+      '<label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" name="has_takeout" value="1" ' + (r.has_takeout !== 0 ? 'checked' : '') + '> Takeout</label>' +
+      '<label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" name="has_dine_in" value="1" ' + (r.has_dine_in !== 0 ? 'checked' : '') + '> Dine-In</label>' +
+      '<label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" name="is_recommended" value="1" ' + (r.is_recommended ? 'checked' : '') + '> Park Recommended</label>' +
+      '<label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" name="is_active" value="1" ' + (r.is_active !== 0 ? 'checked' : '') + '> Active</label>' +
+    '</div>' +
+    '<button type="submit" class="btn btn-primary btn-full">' + (r.id ? 'Update' : 'Add') + ' Restaurant</button></form>';
+}
+
+async function saveLocalEat(e, id) {
+  e.preventDefault();
+  var f = new FormData(e.target);
+  var data = {
+    name: f.get('name'), category: f.get('category'), cuisine_type: f.get('cuisine_type'),
+    address: f.get('address'), city: f.get('city'), phone: f.get('phone'),
+    website: f.get('website'), hours: f.get('hours'), price_level: f.get('price_level'),
+    description: f.get('description'), rating: f.get('rating'), distance_miles: f.get('distance_miles'),
+    notable_for: f.get('notable_for'), display_order: f.get('display_order'),
+    has_delivery: f.get('has_delivery') === '1', has_takeout: f.get('has_takeout') === '1',
+    has_dine_in: f.get('has_dine_in') === '1', is_recommended: f.get('is_recommended') === '1',
+    is_active: f.get('is_active') === '1'
+  };
+  if (id) await API.post('/local-restaurants/' + id + '/update', data);
+  else await API.post('/local-restaurants/add', data);
+  closeModal();
+  loadAdminLocalEats();
+}
+
+async function toggleRecommendLocalEat(id) {
+  await API.post('/local-restaurants/' + id + '/recommend');
+  loadAdminLocalEats();
+}
+
+async function deleteLocalEat(id, name) {
+  if (!confirm('Deactivate "' + name + '" from Local Eats?')) return;
+  await API.del('/local-restaurants/' + id);
+  loadAdminLocalEats();
+}
+
 // --- Portal Local Links Admin ---
 var LINK_CATS = ['attraction', 'fishing', 'community'];
 
@@ -851,6 +1035,49 @@ async function saveDailyReminderSettings() {
     });
     showStatusToast('✅', 'Daily reminder settings saved!');
   } catch (err) { alert('Failed to save: ' + (err.message || 'unknown')); }
+}
+
+async function saveLateFeeSettings() {
+  try {
+    await API.put('/settings', {
+      late_fee_type: document.getElementById('lf-type')?.value || 'fixed',
+      late_fee_amount: document.getElementById('lf-amount')?.value || '25',
+      late_fee_percentage: document.getElementById('lf-percentage')?.value || '10',
+      late_fee_grace_days: document.getElementById('lf-grace')?.value || '3',
+      late_fee_mode: document.getElementById('lf-mode')?.value || 'notify',
+      late_fee_email: document.getElementById('lf-email')?.value || '',
+      late_fee_sms_number: document.getElementById('lf-sms-num')?.value || '',
+      late_fee_email_enabled: document.getElementById('lf-email-on')?.checked ? '1' : '0',
+      late_fee_sms_enabled: document.getElementById('lf-sms-on')?.checked ? '1' : '0',
+    });
+    showStatusToast('OK', 'Late fee settings saved!');
+  } catch (err) { alert('Failed to save: ' + (err.message || 'unknown')); }
+}
+
+async function runLateFeeCheckNow() {
+  var el = document.getElementById('lf-check-result');
+  if (el) el.innerHTML = '<span style="color:#78716c;font-size:0.85rem">Running past-due check...</span>';
+  try {
+    var r = await API.post('/late-fees/admin/check-now', {});
+    var html = '<div style="font-size:0.85rem;margin-top:0.5rem">';
+    html += '<strong>Checked:</strong> ' + r.total + ' unpaid invoices<br>';
+    html += '<strong>Past due:</strong> ' + r.pastDue + '<br>';
+    html += '<strong>Notified:</strong> ' + r.notified + '<br>';
+    html += '<strong>Auto-applied:</strong> ' + r.autoApplied + '<br>';
+    if (r.details && r.details.length) {
+      html += '<div style="margin-top:0.5rem;max-height:200px;overflow-y:auto">';
+      r.details.forEach(function(d) {
+        html += '<div style="padding:0.25rem 0;border-bottom:1px solid #e7e5e4;font-size:0.82rem">' +
+          '<strong>' + d.lot + '</strong> ' + d.tenant + ' — ' + d.invoice + ' (' + d.daysLate + ' days late)</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+    if (el) el.innerHTML = html;
+    showStatusToast('OK', 'Past-due check complete: ' + r.pastDue + ' past due');
+  } catch (err) {
+    if (el) el.innerHTML = '<span style="color:#dc2626;font-size:0.85rem">Check failed: ' + (err.message || 'unknown') + '</span>';
+  }
 }
 
 async function changeAdminPassword() {

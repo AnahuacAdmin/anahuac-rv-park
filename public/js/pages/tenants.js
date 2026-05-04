@@ -95,6 +95,7 @@ async function showEditTenant(id) {
     loadTenantVehicles(id);
     loadTenantOccupants(id);
     loadTenantAuthorizedPersons(id);
+    loadLateFeeHistory(id);
   }, 100);
 }
 
@@ -286,6 +287,23 @@ function tenantForm(lots, tenant = {}) {
           <div class="form-group"><label>Recurring Credit / Discount</label><input name="recurring_credit" type="number" step="0.01" value="${tenant.recurring_credit || 0}"></div>
           <div class="form-group"><label>Credit Description</label><input name="recurring_credit_description" value="${tenant.recurring_credit_description || ''}"></div>
         </div>
+      </fieldset>
+
+      <fieldset style="border:1px solid #f59e0b;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
+        <legend><strong style="color:#f59e0b">Payment & Late Fee Settings</strong></legend>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Payment Due Day (1st-28th)</label>
+            <select name="payment_due_day">
+              ${[...Array(28)].map((_, i) => '<option value="' + (i+1) + '" ' + ((tenant.payment_due_day || 1) === (i+1) ? 'selected' : '') + '>' + _ordinal(i+1) + ' of month</option>').join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Payment Arrangement Notes</label>
+            <input name="payment_arrangement_notes" value="${(tenant.payment_arrangement_notes || '').replace(/"/g, '&quot;')}" placeholder="e.g. Pays on 15th, SSI schedule">
+          </div>
+        </div>
+        ${tenant.id ? '<div id="late-fee-history-' + tenant.id + '" style="margin-top:0.5rem"></div>' : ''}
       </fieldset>
 
       <fieldset style="border:1px solid #ddd;padding:0.75rem;margin:0.75rem 0;border-radius:6px">
@@ -1624,4 +1642,33 @@ async function showCreditHistory(tenantId, tenantName) {
       </table>`}
     </div>
   `);
+}
+
+function _ordinal(n) {
+  var s = ['th','st','nd','rd'];
+  var v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+async function loadLateFeeHistory(tenantId) {
+  var el = document.getElementById('late-fee-history-' + tenantId);
+  if (!el) return;
+  try {
+    var log = await API.get('/late-fees/admin/log?tenant_id=' + tenantId);
+    if (!log || !log.length) {
+      el.innerHTML = '<p style="font-size:0.78rem;color:#78716c">No late fee history for this guest.</p>';
+      return;
+    }
+    el.innerHTML = '<div style="font-size:0.8rem;font-weight:600;margin-bottom:0.3rem">Late Fee History</div>' +
+      '<table style="width:100%;font-size:0.8rem"><thead><tr><th>Date</th><th>Invoice</th><th>Action</th><th>Amount</th><th>By</th><th>Reason</th></tr></thead><tbody>' +
+      log.slice(0, 20).map(function(l) {
+        var color = l.action === 'applied' ? '#dc2626' : l.action === 'waived' ? '#f59e0b' : '#16a34a';
+        return '<tr><td>' + (l.created_at || '').slice(0, 10) + '</td>' +
+          '<td>' + (l.invoice_number || '—') + '</td>' +
+          '<td><span style="color:' + color + ';font-weight:600;text-transform:capitalize">' + l.action + '</span></td>' +
+          '<td>' + (l.amount ? '$' + Number(l.amount).toFixed(2) : '—') + '</td>' +
+          '<td style="font-size:0.72rem">' + (l.admin_user || '—') + '</td>' +
+          '<td style="font-size:0.72rem;color:#78716c">' + escapeHtml(l.reason || '') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  } catch { el.innerHTML = ''; }
 }

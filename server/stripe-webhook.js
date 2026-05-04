@@ -10,6 +10,7 @@
 const express = require('express');
 const { db } = require('./database');
 const { sendSms } = require('./twilio');
+const pushService = require('./services/push-notifications');
 let _resend = null;
 function getResend() {
   if (_resend) return _resend;
@@ -87,6 +88,13 @@ function registerStripeWebhook(app) {
 
           console.log(`[stripe] saved-card payment recorded for invoice ${inv.invoice_number}`);
 
+          // Push notifications
+          try {
+            pushService.notifyTenant(tenantId, { type: 'payment', title: '\u2705 Payment Received \u2014 Thank You!', body: '$' + balanceAmount.toFixed(2) + ' paid via credit card. Receipt available.', url: '/portal', priority: 'normal' });
+            var _tn = db.prepare('SELECT first_name, last_name, lot_id FROM tenants WHERE id = ?').get(tenantId);
+            pushService.notifyAdmin({ type: 'payment', title: '\ud83d\udcb3 Payment from ' + (_tn?.first_name || 'Tenant'), body: '$' + balanceAmount.toFixed(2) + ' received from ' + (_tn ? _tn.first_name + ' ' + _tn.last_name : 'Unknown') + ' (Lot ' + (_tn?.lot_id || '?') + ')', url: '/', priority: 'normal' });
+          } catch {}
+
           // Send confirmations (non-blocking)
           const tenant = db.prepare('SELECT first_name, last_name, email, phone, lot_id FROM tenants WHERE id = ?').get(tenantId);
           const remainingBalance = Math.max(0, newBalance).toFixed(2);
@@ -163,6 +171,13 @@ function registerStripeWebhook(app) {
           }
 
           console.log(`[stripe] payment recorded for invoice ${inv.invoice_number}`);
+
+          // Push notifications
+          try {
+            pushService.notifyTenant(inv.tenant_id, { type: 'payment', title: '\u2705 Payment Received \u2014 Thank You!', body: '$' + paymentAmount.toFixed(2) + ' paid via credit card. Receipt available.', url: '/portal', priority: 'normal' });
+            var _tn2 = db.prepare('SELECT first_name, last_name, lot_id FROM tenants WHERE id = ?').get(inv.tenant_id);
+            pushService.notifyAdmin({ type: 'payment', title: '\ud83d\udcb3 Payment from ' + (_tn2?.first_name || 'Tenant'), body: '$' + paymentAmount.toFixed(2) + ' received from ' + (_tn2 ? _tn2.first_name + ' ' + _tn2.last_name : 'Unknown') + ' (Lot ' + (_tn2?.lot_id || '?') + ')', url: '/', priority: 'normal' });
+          } catch {}
 
           // Send confirmation email + SMS (non-blocking)
           const tenant = db.prepare('SELECT first_name, last_name, email, phone, lot_id FROM tenants WHERE id = ?').get(inv.tenant_id);

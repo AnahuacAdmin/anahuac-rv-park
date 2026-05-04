@@ -5,6 +5,7 @@
 const router = require('express').Router();
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
+const pushService = require('../services/push-notifications');
 
 // Public: active announcements for portal
 router.get('/public', (req, res) => {
@@ -26,6 +27,8 @@ router.post('/', (req, res) => {
   var result = db.prepare('INSERT INTO announcements (title, message, is_pinned, expires_at) VALUES (?,?,?,?)').run(
     b.title, b.message || '', b.is_pinned ? 1 : 0, b.expires_at || null
   );
+  // Push to all tenants
+  try { pushService.notifyAllTenants({ type: 'announcement', title: '\ud83d\udce2 From Park Management', body: (b.title + (b.message ? ' \u2014 ' + b.message : '')).substring(0, 150), url: '/portal', priority: b.is_pinned ? 'critical' : 'normal' }); } catch {}
   res.json({ id: result.lastInsertRowid });
 });
 

@@ -97,6 +97,8 @@ async function loadDashboard() {
 
     <div id="dash-community-strip"></div>
 
+    ${isAdmin() ? `<div id="dash-activity-banner" class="dash-fade-in" style="animation-delay:0.07s"></div>` : ''}
+
     <div id="dash-weather-alert-banner"></div>
 
     <div id="dash-backup-reminder-banner"></div>
@@ -328,6 +330,14 @@ async function loadDashboard() {
       <div id="dash-electric-alerts" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
     </div>
 
+    <div class="card dash-fade-in" style="animation-delay:0.865s">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <h3 style="margin:0">\u{1FA99} Quarter Requests</h3>
+        <a href="#" onclick="event.preventDefault();navigateTo('quarter-requests')" style="font-size:0.78rem;color:var(--brand-primary);font-weight:600">View All \u2192</a>
+      </div>
+      <div id="dash-quarter-requests" style="font-size:0.85rem;color:var(--gray-500)">Loading...</div>
+    </div>
+
     <div id="dash-inspections-widget" style="display:none"></div>
 
     <div id="dash-birthdays-widget" style="display:none"></div>
@@ -496,12 +506,16 @@ async function loadDashboard() {
     loadDashWater();
     loadDashInspections();
     loadDashBirthdays();
+    loadDashQuarterRequests();
     if (typeof checkBackupReminder === 'function') checkBackupReminder();
     initDashRadar();
 
     loadDashCommunity();
     loadDashReviews();
     loadPortalUsers();
+    loadDashActivityBanner();
+    clearInterval(window._activityBannerInterval);
+    window._activityBannerInterval = setInterval(loadDashActivityBanner, 45000);
   }
 
   // Init calculator
@@ -910,6 +924,74 @@ function startDashRadarClock() {
   }
   update();
   setInterval(update, 60000);
+}
+
+// ── Live Activity Banner ──
+async function loadDashActivityBanner() {
+  var banner = document.getElementById('dash-activity-banner');
+  if (!banner) return;
+  try {
+    var data = await API.get('/dashboard/activity-feed?limit=15');
+    if (!data || !data.items || !data.items.length) {
+      banner.innerHTML = '';
+      return;
+    }
+    var actionCount = data.actionCount || 0;
+    var actionBadge = actionCount > 0
+      ? '<span style="background:#dc2626;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;animation:actPulse 2s ease-in-out infinite">' + actionCount + ' need' + (actionCount > 1 ? '' : 's') + ' action</span>'
+      : '';
+
+    var itemsHtml = data.items.map(function(item) {
+      var colorMap = { catch: '#16a34a', comment: '#0284c7', reaction: '#0284c7', community: '#7c3aed',
+        reply: '#0284c7', birding: '#16a34a', 'lost-found': '#f59e0b', chat: '#3b82f6', garden: '#16a34a' };
+      var bgMap = { catch: '#f0fdf4', comment: '#eff6ff', reaction: '#eff6ff', community: '#f5f3ff',
+        reply: '#eff6ff', birding: '#f0fdf4', 'lost-found': '#fffbeb', chat: '#eff6ff', garden: '#f0fdf4' };
+      var color = colorMap[item.type] || '#78716c';
+      var bg = bgMap[item.type] || '#f5f5f4';
+      var actionDot = item.requires_action ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#dc2626;margin-right:4px;animation:actPulse 2s ease-in-out infinite"></span>' : '';
+      var page = item.related_page || '';
+      var onclick = page ? 'onclick="navigateTo(\'' + page + '\')"' : '';
+      return '<div ' + onclick + ' style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;' +
+        'background:' + bg + ';border:1px solid ' + color + '22;border-radius:16px;font-size:0.75rem;' +
+        'white-space:nowrap;color:#1c1917;cursor:' + (page ? 'pointer' : 'default') + ';flex-shrink:0">' +
+        actionDot + '<span>' + item.icon + '</span>' +
+        '<span style="max-width:280px;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(item.text) + '</span>' +
+        '<span style="color:#a8a29e;font-size:0.68rem">' + _activityTimeAgo(item.ts) + '</span>' +
+      '</div>';
+    }).join('');
+
+    banner.innerHTML =
+      '<div class="card" style="padding:0;overflow:hidden;border-left:4px solid #1a5c32;margin-bottom:0.75rem">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0.75rem 0.35rem;background:linear-gradient(135deg,#f0fdf4,#eff6ff)">' +
+          '<div style="display:flex;align-items:center;gap:6px">' +
+            '<span style="font-size:0.85rem">🎣</span>' +
+            '<strong style="font-size:0.8rem;color:#1a5c32">LIVE COMMUNITY ACTIVITY</strong>' +
+            actionBadge +
+          '</div>' +
+          '<a href="#" onclick="event.preventDefault();navigateTo(\'activity-log\')" style="font-size:0.72rem;color:var(--brand-primary);font-weight:600;text-decoration:none">VIEW ALL →</a>' +
+        '</div>' +
+        '<div id="dash-activity-scroll" style="display:flex;gap:6px;padding:0.4rem 0.75rem 0.5rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin">' +
+          itemsHtml +
+        '</div>' +
+      '</div>' +
+      '<style>' +
+        '@keyframes actPulse{0%,100%{opacity:1}50%{opacity:0.4}}' +
+        '#dash-activity-scroll::-webkit-scrollbar{height:4px}' +
+        '#dash-activity-scroll::-webkit-scrollbar-thumb{background:#d6d3d1;border-radius:4px}' +
+      '</style>';
+  } catch {
+    if (banner) banner.innerHTML = '';
+  }
+}
+
+function _activityTimeAgo(ts) {
+  if (!ts) return '';
+  var diff = Date.now() - new Date(ts.replace(' ', 'T') + (ts.includes('Z') || ts.includes('+') ? '' : 'Z')).getTime();
+  if (isNaN(diff) || diff < 0) return '';
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + 'h';
+  return Math.floor(diff / 86400000) + 'd';
 }
 
 async function loadDashCommunity() {
@@ -1887,5 +1969,249 @@ async function resetPortalPin(tenantId, name) {
     loadPortalUsers();
   } catch (err) {
     alert('Failed to reset PIN: ' + (err.message || 'Unknown error'));
+  }
+}
+
+// ─── Quarter Requests Dashboard Widget ───
+async function loadDashQuarterRequests() {
+  var el = document.getElementById('dash-quarter-requests');
+  if (!el) return;
+  try {
+    var rows = await API.get('/quarter-requests/pending');
+    if (!rows || !rows.length) {
+      el.innerHTML = '<span style="color:#16a34a">\u2705 No pending quarter requests</span>';
+      return;
+    }
+    el.innerHTML = rows.slice(0, 5).map(function(r) {
+      var statusColor = r.status === 'pending' ? '#f59e0b' : r.status === 'confirmed' ? '#3b82f6' : '#6b7280';
+      var statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
+      var name = (r.first_name || '') + ' ' + (r.last_name || '');
+      var timeAgo = _stripTime(r.created_at);
+      return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid var(--gray-100)" onclick="navigateTo(\'quarter-requests\')" style="cursor:pointer">' +
+        '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#c0c0c0,#e8e8e8);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">\u{1FA99}</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-weight:600;color:var(--gray-900);font-size:0.85rem">' + escapeHtml(name.trim()) + (r.lot_id ? ' \u2014 Lot ' + escapeHtml(String(r.lot_id)) : '') + '</div>' +
+          '<div style="font-size:0.78rem;color:var(--gray-500)">$' + Number(r.amount).toFixed(2) + ' \u00b7 ' + escapeHtml(r.when_needed || 'ASAP') + (timeAgo ? ' \u00b7 ' + timeAgo : '') + '</div>' +
+        '</div>' +
+        '<span style="font-size:0.72rem;font-weight:600;color:' + statusColor + ';background:' + statusColor + '18;padding:0.15rem 0.5rem;border-radius:99px;white-space:nowrap">' + statusLabel + '</span>' +
+      '</div>';
+    }).join('') + (rows.length > 5 ? '<div style="text-align:center;padding:0.4rem;font-size:0.78rem;color:var(--brand-primary);cursor:pointer;font-weight:600" onclick="navigateTo(\'quarter-requests\')">+ ' + (rows.length - 5) + ' more</div>' : '');
+  } catch (e) {
+    el.innerHTML = '<span style="color:var(--gray-400)">Unable to load</span>';
+  }
+}
+
+// ─── Quarter Requests Full Admin Page ───
+async function loadQuarterRequests() {
+  var el = document.getElementById('page-content');
+  if (!el) return;
+  el.innerHTML = '<div style="display:flex;justify-content:center;padding:3rem"><div class="loading-spinner"></div></div>';
+
+  var statusFilter = window._qrFilter || 'all';
+  try {
+    var rows = await API.get('/quarter-requests?status=' + statusFilter);
+    if (!rows) rows = [];
+  } catch (e) { rows = []; }
+
+  var pendingCount = rows.filter(function(r) { return r.status === 'pending'; }).length;
+  var confirmedCount = rows.filter(function(r) { return r.status === 'confirmed'; }).length;
+
+  el.innerHTML = `
+    <div class="page-header">
+      <h2>\u{1FA99} Quarter Requests</h2>
+      <div class="btn-group">
+        <span style="font-size:0.85rem;color:var(--gray-500);margin-right:0.5rem">${rows.length} request${rows.length !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem">
+      <button class="btn btn-sm ${statusFilter === 'all' ? 'btn-primary' : 'btn-outline'}" onclick="window._qrFilter='all';loadQuarterRequests()">All</button>
+      <button class="btn btn-sm ${statusFilter === 'pending' ? 'btn-primary' : 'btn-outline'}" onclick="window._qrFilter='pending';loadQuarterRequests()">
+        \u{1F7E1} Pending${pendingCount ? ' (' + pendingCount + ')' : ''}
+      </button>
+      <button class="btn btn-sm ${statusFilter === 'confirmed' ? 'btn-primary' : 'btn-outline'}" onclick="window._qrFilter='confirmed';loadQuarterRequests()">
+        \u{1F535} Confirmed${confirmedCount ? ' (' + confirmedCount + ')' : ''}
+      </button>
+      <button class="btn btn-sm ${statusFilter === 'completed' ? 'btn-primary' : 'btn-outline'}" onclick="window._qrFilter='completed';loadQuarterRequests()">
+        \u2705 Completed
+      </button>
+      <button class="btn btn-sm ${statusFilter === 'declined' ? 'btn-primary' : 'btn-outline'}" onclick="window._qrFilter='declined';loadQuarterRequests()">
+        \u274C Declined
+      </button>
+      <button class="btn btn-sm ${statusFilter === 'cancelled' ? 'btn-primary' : 'btn-outline'}" onclick="window._qrFilter='cancelled';loadQuarterRequests()">
+        \u{1F6AB} Cancelled
+      </button>
+    </div>
+
+    ${rows.length === 0 ? '<div class="card" style="text-align:center;padding:2rem;color:var(--gray-500)">No quarter requests found.</div>' :
+      rows.map(function(r) {
+        var statusColors = { pending: '#f59e0b', confirmed: '#3b82f6', completed: '#16a34a', declined: '#dc2626', cancelled: '#6b7280' };
+        var sc = statusColors[r.status] || '#6b7280';
+        var name = ((r.first_name || '') + ' ' + (r.last_name || '')).trim() || 'Unknown';
+        var timeAgo = _stripTime(r.created_at);
+        return '<div class="card" style="margin-bottom:0.75rem;border-left:4px solid ' + sc + '">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem">' +
+            '<div style="flex:1;min-width:200px">' +
+              '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">' +
+                '<span style="font-size:1.3rem">\u{1FA99}</span>' +
+                '<strong style="font-size:1rem">' + escapeHtml(name) + '</strong>' +
+                (r.lot_id ? '<span style="font-size:0.8rem;color:var(--gray-500);background:var(--gray-100);padding:0.1rem 0.4rem;border-radius:4px">Lot ' + escapeHtml(String(r.lot_id)) + '</span>' : '') +
+              '</div>' +
+              '<div style="font-size:0.85rem;color:var(--gray-600);margin-bottom:0.2rem">' +
+                '<strong>$' + Number(r.amount).toFixed(2) + '</strong> \u00b7 ' + escapeHtml(r.when_needed || 'ASAP') +
+                (r.preferred_time ? ' \u00b7 ' + escapeHtml(r.preferred_time) : '') +
+              '</div>' +
+              (r.tenant_note ? '<div style="font-size:0.82rem;color:var(--gray-500);font-style:italic">"' + escapeHtml(r.tenant_note) + '"</div>' : '') +
+              '<div style="font-size:0.75rem;color:var(--gray-400);margin-top:0.2rem">' + (timeAgo || '') + (r.phone ? ' \u00b7 ' + escapeHtml(r.phone) : '') + '</div>' +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem">' +
+              '<span style="font-size:0.75rem;font-weight:700;color:' + sc + ';background:' + sc + '15;padding:0.2rem 0.6rem;border-radius:99px;text-transform:uppercase">' + escapeHtml(r.status) + '</span>' +
+              (r.status === 'pending' ? '<div style="display:flex;gap:0.3rem"><button class="btn btn-sm btn-primary" onclick="event.stopPropagation();showQrConfirmModal(' + r.id + ')" style="font-size:0.75rem;padding:0.25rem 0.6rem">\u2705 Confirm</button><button class="btn btn-sm btn-outline" onclick="event.stopPropagation();showQrDeclineModal(' + r.id + ')" style="font-size:0.75rem;padding:0.25rem 0.6rem;color:#dc2626;border-color:#dc2626">\u274C Decline</button></div>' : '') +
+              (r.status === 'confirmed' ? '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();completeQr(' + r.id + ')" style="font-size:0.75rem;padding:0.25rem 0.6rem;background:#16a34a">\u2705 Mark Complete</button>' : '') +
+              '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();showQrDetail(' + r.id + ')" style="font-size:0.72rem;padding:0.2rem 0.5rem">\u{1F4AC} Messages</button>' +
+            '</div>' +
+          '</div>' +
+          (r.admin_response ? '<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--gray-100);font-size:0.82rem;color:var(--gray-600)"><strong>Admin:</strong> ' + escapeHtml(r.admin_response) + (r.responded_by ? ' <span style="color:var(--gray-400)">\u2014 ' + escapeHtml(r.responded_by) + '</span>' : '') + '</div>' : '') +
+        '</div>';
+      }).join('')}
+  `;
+}
+
+// Quarter Request Confirm Modal
+function showQrConfirmModal(id) {
+  var overlay = document.createElement('div');
+  overlay.id = 'qr-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:1.5rem;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">' +
+    '<h3 style="margin:0 0 0.75rem">\u2705 Confirm Quarter Request</h3>' +
+    '<label style="font-size:0.85rem;font-weight:600;color:var(--gray-700)">Message to tenant:</label>' +
+    '<textarea id="qr-confirm-msg" rows="3" style="width:100%;margin:0.4rem 0 0.75rem;padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;font-size:0.85rem;resize:vertical" placeholder="e.g. Come by the office anytime today!">Confirmed! Come by the office and we\'ll get your quarters ready.</textarea>' +
+    '<label style="font-size:0.85rem;font-weight:600;color:var(--gray-700)">Confirmed time (optional):</label>' +
+    '<input id="qr-confirm-time" type="text" style="width:100%;margin:0.4rem 0 1rem;padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;font-size:0.85rem" placeholder="e.g. Today 2-5pm">' +
+    '<div style="display:flex;gap:0.5rem;justify-content:flex-end">' +
+      '<button class="btn btn-outline" onclick="closeQrModal()">Cancel</button>' +
+      '<button class="btn btn-primary" onclick="confirmQr(' + id + ')">Confirm Request</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(overlay);
+  overlay.onclick = function(e) { if (e.target === overlay) closeQrModal(); };
+}
+
+function showQrDeclineModal(id) {
+  var overlay = document.createElement('div');
+  overlay.id = 'qr-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:1.5rem;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">' +
+    '<h3 style="margin:0 0 0.75rem">\u274C Decline Quarter Request</h3>' +
+    '<label style="font-size:0.85rem;font-weight:600;color:var(--gray-700)">Reason / message to tenant:</label>' +
+    '<textarea id="qr-decline-msg" rows="3" style="width:100%;margin:0.4rem 0 1rem;padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;font-size:0.85rem;resize:vertical" placeholder="e.g. Sorry, we\'re out of quarters today. Try again tomorrow!">Unable to fulfill at this time. Please try again later.</textarea>' +
+    '<div style="display:flex;gap:0.5rem;justify-content:flex-end">' +
+      '<button class="btn btn-outline" onclick="closeQrModal()">Cancel</button>' +
+      '<button class="btn btn-danger" onclick="declineQr(' + id + ')">Decline Request</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(overlay);
+  overlay.onclick = function(e) { if (e.target === overlay) closeQrModal(); };
+}
+
+function closeQrModal() {
+  var ov = document.getElementById('qr-modal-overlay');
+  if (ov) ov.remove();
+  var det = document.getElementById('qr-detail-overlay');
+  if (det) det.remove();
+}
+
+async function confirmQr(id) {
+  var msg = (document.getElementById('qr-confirm-msg')?.value || '').trim();
+  var time = (document.getElementById('qr-confirm-time')?.value || '').trim();
+  try {
+    await API.post('/quarter-requests/' + id + '/confirm', { message: msg || 'Confirmed!', confirmed_time: time });
+    showStatusToast('\u2705', 'Quarter request confirmed');
+    closeQrModal();
+    loadQuarterRequests();
+  } catch (e) {
+    alert('Failed to confirm: ' + (e.message || 'Unknown error'));
+  }
+}
+
+async function declineQr(id) {
+  var msg = (document.getElementById('qr-decline-msg')?.value || '').trim();
+  try {
+    await API.post('/quarter-requests/' + id + '/decline', { message: msg || 'Unable to fulfill at this time.' });
+    showStatusToast('\u274C', 'Quarter request declined');
+    closeQrModal();
+    loadQuarterRequests();
+  } catch (e) {
+    alert('Failed to decline: ' + (e.message || 'Unknown error'));
+  }
+}
+
+async function completeQr(id) {
+  if (!confirm('Mark this quarter exchange as complete?')) return;
+  try {
+    await API.post('/quarter-requests/' + id + '/complete');
+    showStatusToast('\u2705', 'Marked as complete');
+    loadQuarterRequests();
+  } catch (e) {
+    alert('Failed: ' + (e.message || 'Unknown error'));
+  }
+}
+
+// Quarter Request Detail / Message Thread
+async function showQrDetail(id) {
+  try {
+    var data = await API.get('/quarter-requests/' + id);
+    if (!data) return alert('Not found');
+  } catch (e) { return alert('Failed to load request'); }
+
+  var overlay = document.createElement('div');
+  overlay.id = 'qr-detail-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+
+  var name = ((data.first_name || '') + ' ' + (data.last_name || '')).trim() || 'Unknown';
+  var msgs = data.messages || [];
+
+  var msgsHtml = msgs.length ? msgs.map(function(m) {
+    var isAdmin = m.sender_type === 'admin';
+    return '<div style="display:flex;justify-content:' + (isAdmin ? 'flex-end' : 'flex-start') + ';margin-bottom:0.4rem">' +
+      '<div style="max-width:80%;padding:0.5rem 0.75rem;border-radius:12px;font-size:0.85rem;' +
+        (isAdmin ? 'background:var(--brand-primary,#1a5c32);color:#fff' : 'background:var(--gray-100);color:var(--gray-800)') + '">' +
+        '<div style="font-size:0.7rem;font-weight:600;margin-bottom:0.15rem;opacity:0.7">' + escapeHtml(m.sender_name || m.sender_type) + '</div>' +
+        escapeHtml(m.message) +
+        '<div style="font-size:0.65rem;opacity:0.5;margin-top:0.15rem">' + _stripTime(m.created_at) + '</div>' +
+      '</div></div>';
+  }).join('') : '<div style="text-align:center;padding:1rem;color:var(--gray-400);font-size:0.85rem">No messages yet</div>';
+
+  overlay.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:500px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3)">' +
+    '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--gray-100);display:flex;justify-content:space-between;align-items:center">' +
+      '<div><h3 style="margin:0;font-size:1rem">\u{1FA99} ' + escapeHtml(name) + (data.lot_id ? ' \u2014 Lot ' + data.lot_id : '') + '</h3>' +
+        '<div style="font-size:0.82rem;color:var(--gray-500)">$' + Number(data.amount).toFixed(2) + ' \u00b7 ' + escapeHtml(data.when_needed || 'ASAP') + '</div></div>' +
+      '<button onclick="closeQrModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gray-400)">\u2716</button>' +
+    '</div>' +
+    '<div id="qr-detail-messages" style="flex:1;overflow-y:auto;padding:1rem;min-height:150px;max-height:350px">' + msgsHtml + '</div>' +
+    '<div style="padding:0.75rem 1rem;border-top:1px solid var(--gray-100);display:flex;gap:0.5rem">' +
+      '<input id="qr-detail-input" type="text" placeholder="Type a message..." style="flex:1;padding:0.5rem 0.75rem;border:1px solid var(--gray-300);border-radius:8px;font-size:0.85rem" onkeydown="if(event.key===\'Enter\')sendQrAdminMsg(' + id + ')">' +
+      '<button class="btn btn-primary" onclick="sendQrAdminMsg(' + id + ')" style="padding:0.5rem 1rem;font-size:0.85rem">Send</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(overlay);
+  overlay.onclick = function(e) { if (e.target === overlay) closeQrModal(); };
+  // Scroll to bottom of messages
+  var msgBox = document.getElementById('qr-detail-messages');
+  if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+}
+
+async function sendQrAdminMsg(id) {
+  var input = document.getElementById('qr-detail-input');
+  var msg = (input?.value || '').trim();
+  if (!msg) return;
+  input.value = '';
+  try {
+    await API.post('/quarter-requests/' + id + '/messages', { message: msg });
+    // Reload the detail
+    closeQrModal();
+    showQrDetail(id);
+  } catch (e) {
+    alert('Failed to send: ' + (e.message || 'Unknown error'));
   }
 }

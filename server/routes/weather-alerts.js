@@ -8,6 +8,7 @@ const router = require('express').Router();
 const { db } = require('../database');
 const { authenticate, requireAdmin } = require('../middleware');
 const { sendSms } = require('../twilio');
+const pushService = require('../services/push-notifications');
 
 const NWS_ZONE = 'TXZ204'; // Chambers County TX
 const NWS_URL = `https://api.weather.gov/alerts/active?zone=${NWS_ZONE}`;
@@ -124,6 +125,8 @@ router.post('/send', async (req, res) => {
     } catch {}
   }
 
+  // Push notification to ALL tenants — critical priority bypasses quiet hours
+  try { pushService.notifyAllTenants({ type: 'weather', title: '\ud83c\udf00 WEATHER ALERT \u2014 Chambers County', body: (alert_headline || alert_event || 'Severe weather alert in effect').substring(0, 200), url: '/portal', priority: 'critical' }); } catch {}
   res.json({ success: true, sent, failed, total: tenants.length });
   } catch (err) { console.error('[weather-alerts] send error:', err.message); res.status(500).json({ error: err.message }); }
 });

@@ -6,6 +6,7 @@ const router = require('express').Router();
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
 const { sendSms } = require('../twilio');
+const pushService = require('../services/push-notifications');
 
 router.use(authenticate);
 
@@ -47,6 +48,8 @@ router.post('/', async (req, res) => {
       await sendSms(mgrPhone, msg);
     }
   } catch (e) { console.error('[maintenance] SMS failed:', e.message); }
+  // Push notification to admin
+  try { pushService.notifyAdmin({ type: 'maintenance', title: '\ud83d\udd27 Maintenance Request \u2014 Lot ' + (b.lot_id || '?'), body: (b.category || 'Other') + ': ' + (b.description || '').slice(0, 100), url: '/', priority: 'high' }); } catch {}
   res.json({ id: result.lastInsertRowid });
   } catch (err) { console.error('[maintenance] create error:', err.message); res.status(500).json({ error: 'Failed to create request' }); }
 });
@@ -60,15 +63,18 @@ router.put('/:id', async (req, res) => {
   db.prepare('UPDATE maintenance_requests SET status=?, resolution_notes=?, resolved_at=COALESCE(?,resolved_at) WHERE id=?').run(
     b.status || 'submitted', b.resolution_notes || null, resolved, req.params.id
   );
-  // SMS tenant on resolve
+  // Notify tenant on status change
+  var mReq = db.prepare('SELECT tenant_id FROM maintenance_requests WHERE id=?').get(req.params.id);
   if (b.status === 'resolved') {
     try {
-      var req2 = db.prepare('SELECT tenant_id FROM maintenance_requests WHERE id=?').get(req.params.id);
-      var tenant = req2 ? db.prepare('SELECT first_name, phone FROM tenants WHERE id=?').get(req2.tenant_id) : null;
+      var tenant = mReq ? db.prepare('SELECT first_name, phone FROM tenants WHERE id=?').get(mReq.tenant_id) : null;
       if (tenant && tenant.phone) {
         await sendSms(tenant.phone, '✅ ' + tenant.first_name + ', your maintenance request has been resolved! Contact us at 409-267-6603 if you have any issues.');
       }
     } catch (e) { console.error('[maintenance] resolve SMS failed:', e.message); }
+    if (mReq) try { pushService.notifyTenant(mReq.tenant_id, { type: 'maintenance', title: '\ud83d\udd27 Maintenance Update', body: 'Your maintenance request has been resolved!', url: '/portal', priority: 'normal' }); } catch {}
+  } else if (mReq) {
+    try { pushService.notifyTenant(mReq.tenant_id, { type: 'maintenance', title: '\ud83d\udd27 Maintenance Update', body: 'Your request status: ' + (b.status || 'updated'), url: '/portal', priority: 'normal' }); } catch {}
   }
   res.json({ success: true });
   } catch (err) { console.error('[maintenance] update error:', err.message); res.status(500).json({ error: 'Failed to update request' }); }

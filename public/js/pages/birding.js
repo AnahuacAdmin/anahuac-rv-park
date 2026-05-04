@@ -44,7 +44,7 @@ async function refreshBirdingAdmin() {
           var author = p.first_name ? p.first_name + ' ' + p.last_name : 'Visitor';
           var rarityColor = p.rarity === 'Very Rare' ? '#dc2626' : p.rarity === 'Rare' ? '#f59e0b' : p.rarity === 'Uncommon' ? '#3b82f6' : '#16a34a';
           return '<div class="card" style="padding:0;overflow:hidden">' +
-            (p.has_photo ? '<img src="/api/birding/' + p.id + '/photo" style="width:100%;height:160px;object-fit:cover" onerror="this.style.display=\'none\'">' : '') +
+            (p.has_photo ? '<img src="/api/birding/' + p.id + '/photo" style="width:100%;max-height:400px;height:auto;object-fit:contain;background:#1a1a1a" onerror="this.style.display=\'none\'">' : '') +
             '<div style="padding:0.75rem">' +
               '<div style="display:flex;justify-content:space-between;align-items:center">' +
                 '<strong style="font-size:1rem">' + escapeHtml(p.bird_name) + '</strong>' +

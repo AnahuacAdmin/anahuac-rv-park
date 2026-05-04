@@ -7,6 +7,7 @@
 const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const PDFDocument = require('pdfkit');
 const { db } = require('../database');
 const { SECRET, TOKEN_TTL } = require('../middleware');
 const { sendSms } = require('../twilio');
@@ -213,12 +214,33 @@ router.get('/me', tenantAuth, (req, res) => {
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
 
     let balance = null;
+    let accountCredit = 0;
     try {
-      const result = db.prepare(`
+      // Sum balance_due from unpaid invoices (what they currently owe)
+      const owedResult = db.prepare(`
         SELECT COALESCE(SUM(balance_due), 0) as total
         FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0
       `).get(tenant.id);
-      balance = result?.total ?? 0;
+      const owed = owedResult?.total ?? 0;
+
+      // Get tenant credit balance (overpayments, held credits, etc.)
+      const tenantRow = db.prepare('SELECT credit_balance FROM tenants WHERE id = ?').get(tenant.id);
+      const creditBal = Number(tenantRow?.credit_balance) || 0;
+
+      // Check for unlinked positive payments (no invoice_id) that weren't held as credit
+      // These are payments the admin recorded but didn't link to an invoice or mark as credit
+      const unlinkedResult = db.prepare(`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM payments WHERE tenant_id = ? AND invoice_id IS NULL
+          AND amount > 0
+          AND COALESCE(notes,'') NOT LIKE '%Held as tenant credit%'
+          AND COALESCE(notes,'') NOT LIKE '%Credit balance refund%'
+          AND COALESCE(payment_method,'') != 'Credit'
+      `).get(tenant.id);
+      const unlinkedCredit = Number(unlinkedResult?.total) || 0;
+
+      accountCredit = Math.round((creditBal + unlinkedCredit) * 100) / 100;
+      balance = Math.round((owed - creditBal - unlinkedCredit) * 100) / 100;
     } catch (e) {
       console.error('[CRITICAL] Portal balance query failed:', e.message);
       // balance stays null — frontend will show "unavailable" instead of $0
@@ -238,7 +260,7 @@ router.get('/me', tenantAuth, (req, res) => {
       // invoices stays [] — frontend shows empty list rather than crashing
     }
 
-    res.json({ ...tenant, balance, invoices });
+    res.json({ ...tenant, balance, accountCredit, invoices });
   } catch (err) {
     console.error('[CRITICAL] Portal /me endpoint failed:', err.message);
     res.status(500).json({ error: 'temporarily unavailable', balance: null });
@@ -273,8 +295,25 @@ async function getOrCreateCustomer(tenantId) {
 }
 
 // Invoice detail for payment review (Step 1)
+// If ?invoice_number= is provided, returns that single invoice (any status) for receipt detail view
 router.get('/invoice-detail', tenantAuth, (req, res) => {
   try {
+    if (req.query.invoice_number) {
+      const inv = db.prepare(`
+        SELECT id, invoice_number, invoice_date, billing_period_start, billing_period_end,
+          rent_amount, electric_amount,
+          COALESCE(mailbox_fee,0) as mailbox_fee, COALESCE(late_fee,0) as late_fee,
+          COALESCE(other_charges,0) as other_charges, other_description,
+          COALESCE(misc_fee,0) as misc_fee, misc_description, refund_description,
+          COALESCE(extra_occupancy_fee,0) as extra_occupancy_fee,
+          COALESCE(credit_applied,0) as credit_applied,
+          COALESCE(refund_amount,0) as refund_amount,
+          total_amount, amount_paid, balance_due, status,
+          COALESCE(late_fee_waived,0) as late_fee_waived
+        FROM invoices WHERE tenant_id = ? AND invoice_number = ? AND COALESCE(deleted,0)=0
+      `).get(req.tenant.id, req.query.invoice_number);
+      return res.json(inv || null);
+    }
     const invoices = db.prepare(`
       SELECT id, invoice_number, invoice_date, rent_amount, electric_amount,
         COALESCE(mailbox_fee,0) as mailbox_fee, COALESCE(late_fee,0) as late_fee,
@@ -283,7 +322,8 @@ router.get('/invoice-detail', tenantAuth, (req, res) => {
         COALESCE(extra_occupancy_fee,0) as extra_occupancy_fee,
         COALESCE(credit_applied,0) as credit_applied,
         COALESCE(refund_amount,0) as refund_amount,
-        total_amount, amount_paid, balance_due, status
+        total_amount, amount_paid, balance_due, status,
+        COALESCE(late_fee_waived,0) as late_fee_waived
       FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0
       ORDER BY invoice_date ASC
     `).all(req.tenant.id);
@@ -529,9 +569,11 @@ router.get('/payments', tenantAuth, (req, res) => {
   try {
     const payments = db.prepare(`
       SELECT p.id, p.payment_date, p.amount, p.payment_method, p.reference_number, p.notes,
-        i.invoice_number, i.total_amount, i.balance_due, i.status as invoice_status
+        i.invoice_number, i.total_amount, i.balance_due, i.status as invoice_status,
+        t.first_name, t.last_name, t.lot_id
       FROM payments p
       LEFT JOIN invoices i ON p.invoice_id = i.id
+      LEFT JOIN tenants t ON p.tenant_id = t.id
       WHERE p.tenant_id = ?
       ORDER BY p.payment_date DESC, p.id DESC
     `).all(req.tenant.id);
@@ -553,6 +595,527 @@ router.get('/birthday-message', tenantAuth, (req, res) => {
     `).get(req.tenant.id);
     res.json(msg || null);
   } catch { res.json(null); }
+});
+
+// Auth middleware that also accepts token from query string (for direct links / window.open)
+function tenantAuthFlexible(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+  if (!token) return res.status(401).json({ error: 'Not logged in' });
+  try {
+    const user = jwt.verify(token, SECRET);
+    if (user.role !== 'tenant') return res.status(403).json({ error: 'Tenant access only' });
+    req.tenant = user;
+    next();
+  } catch { res.status(401).json({ error: 'Session expired. Please log in again.' }); }
+}
+
+// Server-side PDF receipt generation
+router.get('/receipt-pdf', tenantAuthFlexible, (req, res) => {
+  try {
+    const paymentId = parseInt(req.query.payment_id);
+    if (!paymentId) return res.status(400).json({ error: 'payment_id required' });
+
+    const payment = db.prepare(`
+      SELECT p.*, t.first_name, t.last_name, t.lot_id, t.credit_balance
+      FROM payments p JOIN tenants t ON p.tenant_id = t.id
+      WHERE p.id = ? AND p.tenant_id = ?
+    `).get(paymentId, req.tenant.id);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+    // Fetch linked invoice
+    var invoice = null;
+    if (payment.invoice_id) {
+      invoice = db.prepare(`
+        SELECT id, invoice_number, invoice_date, billing_period_start, billing_period_end,
+          rent_amount, electric_amount, COALESCE(mailbox_fee,0) as mailbox_fee,
+          COALESCE(late_fee,0) as late_fee, COALESCE(late_fee_waived,0) as late_fee_waived,
+          COALESCE(other_charges,0) as other_charges, other_description,
+          COALESCE(misc_fee,0) as misc_fee, misc_description,
+          COALESCE(extra_occupancy_fee,0) as extra_occupancy_fee,
+          COALESCE(credit_applied,0) as credit_applied,
+          COALESCE(refund_amount,0) as refund_amount, refund_description,
+          total_amount, amount_paid, balance_due, status
+        FROM invoices WHERE id = ? AND tenant_id = ?
+      `).get(payment.invoice_id, req.tenant.id);
+    }
+
+    const invNum = invoice?.invoice_number || payment.reference_number || 'Payment';
+    const dateStr = (payment.payment_date || '').replace(/\//g, '-');
+    const filename = 'Receipt-' + invNum + '-' + dateStr + '.pdf';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+
+    const doc = new PDFDocument({ size: 'LETTER', margin: 50 });
+    doc.pipe(res);
+
+    // Helper: draw a row with left label + right value
+    const leftX = 50, rightX = 350, colW = 200;
+    var y;
+
+    // ─── PARK HEADER ───
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a5c32')
+      .text('Anahuac RV Park', { align: 'center' });
+    doc.fontSize(10).font('Helvetica').fillColor('#666666')
+      .text('1003 Davis Ave, Anahuac, TX 77514', { align: 'center' })
+      .text('Phone: 409-267-6603', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.moveTo(50, doc.y).lineTo(562, doc.y).lineWidth(2).strokeColor('#1a5c32').stroke();
+    doc.moveDown(1);
+
+    // ─── TITLE ───
+    doc.fontSize(16).font('Helvetica-Bold').fillColor('#1a5c32')
+      .text('PAYMENT RECEIPT', { align: 'center' });
+    doc.moveDown(1);
+
+    // ─── PAYMENT INFO ───
+    y = doc.y;
+    var addInfoRow = function(label, value) {
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#555555').text(label, leftX, y);
+      doc.font('Helvetica').fontSize(10).fillColor('#000000').text(value || 'N/A', rightX, y, { align: 'right', width: colW });
+      y += 20;
+    };
+    addInfoRow('Date:', payment.payment_date || '');
+    addInfoRow('Guest:', (payment.first_name || '') + ' ' + (payment.last_name || ''));
+    addInfoRow('Lot / Site:', payment.lot_id || '');
+    addInfoRow('Invoice:', invNum);
+    var methodLabel = (payment.payment_method || 'N/A');
+    methodLabel = methodLabel.charAt(0).toUpperCase() + methodLabel.slice(1);
+    addInfoRow('Payment Method:', methodLabel);
+    doc.y = y + 5;
+
+    // ─── LINE ITEMS ───
+    if (invoice) {
+      doc.moveTo(50, doc.y).lineTo(562, doc.y).lineWidth(1).strokeColor('#cccccc').stroke();
+      doc.moveDown(0.6);
+      doc.fontSize(11).font('Helvetica-Bold').fillColor('#1a5c32').text('INVOICE BREAKDOWN');
+      var billingPeriod = '';
+      if (invoice.billing_period_start) {
+        try {
+          var bd = new Date(invoice.billing_period_start + 'T00:00:00');
+          billingPeriod = ' — ' + bd.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        } catch {}
+      }
+      if (billingPeriod) doc.fontSize(9).font('Helvetica').fillColor('#666666').text(billingPeriod);
+      doc.moveDown(0.4);
+      y = doc.y;
+
+      var addLine = function(label, amt, color) {
+        if (Math.abs(amt) < 0.005) return;
+        doc.font('Helvetica').fontSize(10).fillColor(color || '#000000').text(label, leftX, y);
+        var prefix = amt < 0 ? '-$' : '$';
+        doc.text(prefix + Math.abs(amt).toFixed(2), rightX, y, { align: 'right', width: colW });
+        y += 18;
+      };
+      addLine('Lot Rent', Number(invoice.rent_amount) || 0);
+      addLine('Electric', Number(invoice.electric_amount) || 0);
+      if (invoice.mailbox_fee > 0.005) addLine('Mailbox Fee', invoice.mailbox_fee);
+      if (invoice.misc_fee > 0.005) addLine(invoice.misc_description || 'Misc Fee', invoice.misc_fee);
+      if (invoice.extra_occupancy_fee > 0.005) addLine('Extra Occupancy', invoice.extra_occupancy_fee);
+      if (invoice.other_charges > 0.005) addLine(invoice.other_description || 'Other Charges', invoice.other_charges);
+      if (invoice.late_fee > 0.005 && !invoice.late_fee_waived) addLine('Late Fee', invoice.late_fee, '#dc2626');
+      if (invoice.refund_amount > 0.005) addLine(invoice.refund_description || 'Credit/Adjustment', -(invoice.refund_amount), '#16a34a');
+      if (invoice.credit_applied > 0.005) addLine('Credit Applied (prev. month)', -(invoice.credit_applied), '#16a34a');
+
+      doc.y = y + 4;
+      doc.moveTo(50, doc.y).lineTo(562, doc.y).lineWidth(1).strokeColor('#cccccc').stroke();
+      doc.moveDown(0.4);
+
+      y = doc.y;
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#000000').text('Total Due', leftX, y);
+      doc.text('$' + (Number(invoice.total_amount) || 0).toFixed(2), rightX, y, { align: 'right', width: colW });
+      doc.y = y + 24;
+    }
+
+    // ─── AMOUNT PAID ───
+    doc.moveTo(50, doc.y).lineTo(562, doc.y).lineWidth(2).strokeColor('#1a5c32').stroke();
+    doc.moveDown(0.5);
+    y = doc.y;
+    doc.font('Helvetica-Bold').fontSize(14).fillColor('#16a34a').text('Amount Paid', leftX, y);
+    doc.text('$' + Number(payment.amount).toFixed(2), rightX, y, { align: 'right', width: colW });
+    y += 24;
+
+    // ─── OVERPAYMENT / BALANCE ───
+    if (invoice) {
+      var total = Number(invoice.total_amount) || 0;
+      var paidAmt = Number(payment.amount) || 0;
+      if (paidAmt > total + 0.005) {
+        var overpay = +(paidAmt - total).toFixed(2);
+        doc.font('Helvetica-Bold').fontSize(11).fillColor('#16a34a').text('Overpayment → Credit', leftX, y);
+        doc.text('+$' + overpay.toFixed(2), rightX, y, { align: 'right', width: colW });
+        y += 20;
+        // Forward month
+        try {
+          var bd2 = new Date((invoice.billing_period_start || invoice.invoice_date) + 'T00:00:00');
+          bd2.setMonth(bd2.getMonth() + 1);
+          var fwdMonth = bd2.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+          doc.fontSize(10).font('Helvetica').fillColor('#16a34a')
+            .text('Credit of $' + overpay.toFixed(2) + ' will apply to ' + fwdMonth + ' invoice', 50, y, { align: 'center', width: 512 });
+          y += 22;
+        } catch {}
+      } else if (Number(invoice.balance_due) > 0.01) {
+        doc.font('Helvetica-Bold').fontSize(11).fillColor('#dc2626').text('Remaining Balance', leftX, y);
+        doc.text('$' + Number(invoice.balance_due).toFixed(2), rightX, y, { align: 'right', width: colW });
+        y += 22;
+      }
+    }
+
+    // ─── TENANT CREDIT BALANCE ───
+    var tenantCredit = Number(payment.credit_balance) || 0;
+    if (tenantCredit > 0.01) {
+      doc.y = y + 8;
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#16a34a')
+        .text('Account Credit Balance: $' + tenantCredit.toFixed(2), { align: 'center' });
+      doc.moveDown(0.5);
+    } else {
+      doc.y = y + 10;
+    }
+
+    // ─── THANK YOU ───
+    doc.moveDown(1);
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#1a5c32')
+      .text('Thank you for your payment!', { align: 'center' });
+
+    // ─── FOOTER ───
+    doc.moveDown(2);
+    doc.moveTo(50, doc.y).lineTo(562, doc.y).lineWidth(1).strokeColor('#cccccc').stroke();
+    doc.moveDown(0.5);
+    doc.fontSize(8).font('Helvetica').fillColor('#999999')
+      .text('Anahuac RV Park · 1003 Davis Ave, Anahuac, TX 77514 · 409-267-6603', { align: 'center' });
+
+    doc.end();
+  } catch (err) {
+    console.error('[portal] receipt-pdf error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Could not generate receipt' });
+  }
+});
+
+// ── Community Activity Feed (for guest portal banner) ──
+router.get('/community-activity', tenantAuth, (req, res) => {
+  try {
+    var items = [];
+
+    // 1. Catch posts
+    try {
+      db.prepare(`SELECT p.id, p.species, p.location, p.created_at as ts,
+        COALESCE(t.first_name, 'Visitor') as who, COALESCE(t.lot_id, '') as lot, p.post_type
+        FROM hunting_fishing_posts p LEFT JOIN tenants t ON p.tenant_id = t.id
+        ORDER BY p.created_at DESC LIMIT 10`).all().forEach(function(c) {
+        items.push({ type: 'catch', icon: c.post_type === 'fishing' ? '🎣' : '🦆',
+          text: c.who + (c.lot ? ' (' + c.lot + ')' : '') + ' caught ' + (c.species || 'something') + (c.location ? ' at ' + c.location : ''),
+          ts: c.ts, post_id: c.id, section: 'hunting-fishing' });
+      });
+    } catch {}
+
+    // 2. Catch comments
+    try {
+      db.prepare(`SELECT c.comment, c.created_at as ts, c.post_id, c.is_management,
+        CASE WHEN COALESCE(c.is_management,0)=1 THEN 'Park Management'
+             ELSE COALESCE(c.author_name, t.first_name, 'Visitor') END as who,
+        p.species FROM catch_comments c LEFT JOIN tenants t ON c.tenant_id = t.id
+        LEFT JOIN hunting_fishing_posts p ON c.post_id = p.id
+        ORDER BY c.created_at DESC LIMIT 10`).all().forEach(function(c) {
+        items.push({ type: 'comment', icon: '💬',
+          text: c.who + ' commented on ' + (c.species || 'a catch'),
+          ts: c.ts, post_id: c.post_id, section: 'hunting-fishing' });
+      });
+    } catch {}
+
+    // 3. Catch reactions (grouped)
+    try {
+      db.prepare(`SELECT p.id as post_id, p.species, COUNT(*) as cnt, MAX(r.created_at) as ts
+        FROM catch_reactions r JOIN hunting_fishing_posts p ON r.post_id = p.id
+        WHERE r.created_at > datetime('now', '-48 hours')
+        GROUP BY p.id ORDER BY ts DESC LIMIT 5`).all().forEach(function(r) {
+        items.push({ type: 'reaction', icon: '❤️',
+          text: r.cnt + ' reaction' + (r.cnt > 1 ? 's' : '') + ' on ' + (r.species || 'a catch'),
+          ts: r.ts, post_id: r.post_id, section: 'hunting-fishing' });
+      });
+    } catch {}
+
+    // 4. Community posts (approved only)
+    try {
+      db.prepare(`SELECT p.id, p.title, p.submitted_at as ts,
+        CASE WHEN p.tenant_id IS NULL THEN 'Park Management' ELSE t.first_name END as who,
+        COALESCE(t.lot_id, '') as lot
+        FROM community_posts p LEFT JOIN tenants t ON p.tenant_id = t.id
+        WHERE p.status = 'approved' ORDER BY p.submitted_at DESC LIMIT 10`).all().forEach(function(c) {
+        items.push({ type: 'community', icon: '📢',
+          text: c.who + (c.lot ? ' (' + c.lot + ')' : '') + ' posted: ' + (c.title || '(untitled)').slice(0, 50),
+          ts: c.ts, section: 'community' });
+      });
+    } catch {}
+
+    // 5. Community replies
+    try {
+      db.prepare(`SELECT r.author_name as who, r.created_at as ts, r.is_management, p.title
+        FROM community_replies r JOIN community_posts p ON r.post_id = p.id
+        ORDER BY r.created_at DESC LIMIT 8`).all().forEach(function(r) {
+        var name = r.is_management ? 'Park Management' : (r.who || 'Someone');
+        items.push({ type: 'reply', icon: '💬',
+          text: name + ' replied to "' + (r.title || 'a post').slice(0, 40) + '"',
+          ts: r.ts, section: 'community' });
+      });
+    } catch {}
+
+    // 6. Bird sightings
+    try {
+      db.prepare(`SELECT b.bird_name, b.location, b.rarity, b.created_at as ts,
+        COALESCE(t.first_name, 'Visitor') as who
+        FROM bird_sightings b LEFT JOIN tenants t ON b.tenant_id = t.id
+        ORDER BY b.created_at DESC LIMIT 5`).all().forEach(function(b) {
+        items.push({ type: 'birding', icon: '🐦',
+          text: b.who + ' spotted ' + (b.bird_name || 'a bird') + (b.location ? ' at ' + b.location : '') + (b.rarity && b.rarity !== 'Common' ? ' (' + b.rarity + ')' : ''),
+          ts: b.ts, section: 'birding' });
+      });
+    } catch {}
+
+    // 7. Lost & found
+    try {
+      db.prepare(`SELECT l.type, l.pet_type, l.pet_name, l.status, l.created_at as ts,
+        COALESCE(t.first_name, 'Someone') as who
+        FROM lost_found_pets l LEFT JOIN tenants t ON l.tenant_id = t.id
+        WHERE l.status = 'active' ORDER BY l.created_at DESC LIMIT 5`).all().forEach(function(l) {
+        items.push({ type: 'lost-found', icon: '📦',
+          text: l.who + ' reported ' + l.type + ' ' + (l.pet_type || 'pet') + (l.pet_name ? ' "' + l.pet_name + '"' : ''),
+          ts: l.ts, section: 'lost-found' });
+      });
+    } catch {}
+
+    // 8. General chat posts
+    try {
+      db.prepare(`SELECT g.message, g.category, g.created_at as ts,
+        CASE WHEN g.is_management = 1 THEN 'Park Management' ELSE COALESCE(t.first_name, 'Someone') END as who
+        FROM general_chat_posts g LEFT JOIN tenants t ON g.tenant_id = t.id
+        ORDER BY g.created_at DESC LIMIT 5`).all().forEach(function(g) {
+        var preview = (g.message || '').substring(0, 60) + (g.message && g.message.length > 60 ? '...' : '');
+        items.push({ type: 'chat', icon: '💬',
+          text: g.who + ': ' + preview,
+          ts: g.ts, section: 'general-chat' });
+      });
+    } catch {}
+
+    // 9. Garden posts
+    try {
+      db.prepare(`SELECT g.plant_name, g.caption, g.created_at as ts,
+        CASE WHEN g.is_management = 1 THEN 'Park Management' ELSE COALESCE(t.first_name, 'Someone') END as who
+        FROM garden_posts g LEFT JOIN tenants t ON g.tenant_id = t.id
+        ORDER BY g.created_at DESC LIMIT 5`).all().forEach(function(g) {
+        items.push({ type: 'garden', icon: '🌱',
+          text: g.who + ' shared ' + (g.plant_name || 'a plant') + (g.caption ? ': ' + g.caption.substring(0, 40) : ''),
+          ts: g.ts, section: 'garden' });
+      });
+    } catch {}
+
+    items.sort(function(a, b) { return (b.ts || '').localeCompare(a.ts || ''); });
+    res.json({ items: items.slice(0, 15) });
+  } catch (err) {
+    console.error('[portal] community-activity error:', err);
+    res.json({ items: [] });
+  }
+});
+
+// ── Push Notifications ──
+
+// Public: get VAPID public key
+router.get('/push/vapid-key', (req, res) => {
+  res.json({ key: process.env.VAPID_PUBLIC_KEY || '' });
+});
+
+// Subscribe to push notifications
+router.post('/push/subscribe', tenantAuth, (req, res) => {
+  const { endpoint, keys } = req.body || {};
+  if (!endpoint || !keys?.p256dh || !keys?.auth) return res.status(400).json({ error: 'Invalid subscription' });
+  try {
+    // Upsert — update keys if endpoint already exists
+    const existing = db.prepare('SELECT id FROM push_subscriptions WHERE tenant_id = ? AND endpoint = ?').get(req.tenant.id, endpoint);
+    if (existing) {
+      db.prepare('UPDATE push_subscriptions SET p256dh_key = ?, auth_key = ?, user_agent = ?, last_used_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(keys.p256dh, keys.auth, req.headers['user-agent'] || '', existing.id);
+    } else {
+      db.prepare('INSERT INTO push_subscriptions (tenant_id, is_admin, endpoint, p256dh_key, auth_key, user_agent, device_label) VALUES (?,0,?,?,?,?,?)')
+        .run(req.tenant.id, endpoint, keys.p256dh, keys.auth, req.headers['user-agent'] || '', req.body.device_label || '');
+    }
+    // Ensure notification preferences exist
+    try {
+      db.prepare('INSERT OR IGNORE INTO notification_preferences (tenant_id) VALUES (?)').run(req.tenant.id);
+    } catch {}
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[push] subscribe error:', e.message);
+    res.status(500).json({ error: 'Failed to save subscription' });
+  }
+});
+
+// Unsubscribe
+router.post('/push/unsubscribe', tenantAuth, (req, res) => {
+  const { endpoint } = req.body || {};
+  if (!endpoint) return res.status(400).json({ error: 'Endpoint required' });
+  try {
+    db.prepare('DELETE FROM push_subscriptions WHERE tenant_id = ? AND endpoint = ?').run(req.tenant.id, endpoint);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to unsubscribe' });
+  }
+});
+
+// Get unread notification count
+router.get('/notifications/unread-count', tenantAuth, (req, res) => {
+  try {
+    const count = db.prepare('SELECT COUNT(*) as c FROM notifications WHERE tenant_id = ? AND is_admin = 0 AND is_read = 0').get(req.tenant.id)?.c || 0;
+    res.json({ count });
+  } catch { res.json({ count: 0 }); }
+});
+
+// Get notification history
+router.get('/notifications', tenantAuth, (req, res) => {
+  try {
+    const rows = db.prepare('SELECT * FROM notifications WHERE tenant_id = ? AND is_admin = 0 ORDER BY created_at DESC LIMIT 50').all(req.tenant.id);
+    res.json(rows || []);
+  } catch { res.json([]); }
+});
+
+// Mark notifications as read
+router.post('/notifications/mark-read', tenantAuth, (req, res) => {
+  const { notification_ids } = req.body || {};
+  try {
+    if (notification_ids && notification_ids.length) {
+      const placeholders = notification_ids.map(() => '?').join(',');
+      db.prepare(`UPDATE notifications SET is_read = 1, read_at = CURRENT_TIMESTAMP WHERE tenant_id = ? AND id IN (${placeholders})`).run(req.tenant.id, ...notification_ids);
+    } else {
+      // Mark all as read
+      db.prepare('UPDATE notifications SET is_read = 1, read_at = CURRENT_TIMESTAMP WHERE tenant_id = ? AND is_read = 0').run(req.tenant.id);
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to mark as read' });
+  }
+});
+
+// Get notification preferences
+router.get('/notifications/preferences', tenantAuth, (req, res) => {
+  try {
+    let prefs = db.prepare('SELECT * FROM notification_preferences WHERE tenant_id = ?').get(req.tenant.id);
+    if (!prefs) {
+      db.prepare('INSERT OR IGNORE INTO notification_preferences (tenant_id) VALUES (?)').run(req.tenant.id);
+      prefs = db.prepare('SELECT * FROM notification_preferences WHERE tenant_id = ?').get(req.tenant.id);
+    }
+    res.json(prefs || {});
+  } catch { res.json({}); }
+});
+
+// Update notification preferences
+router.put('/notifications/preferences', tenantAuth, (req, res) => {
+  const b = req.body || {};
+  try {
+    db.prepare('INSERT OR IGNORE INTO notification_preferences (tenant_id) VALUES (?)').run(req.tenant.id);
+    db.prepare(`UPDATE notification_preferences SET
+      enabled = ?, invoices = ?, payments = ?, community = ?, maintenance = ?,
+      announcements = ?, weather_alerts = ?, quiet_hours_enabled = ?,
+      quiet_start_hour = ?, quiet_end_hour = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE tenant_id = ?`).run(
+      b.enabled !== false ? 1 : 0,
+      b.invoices !== false ? 1 : 0,
+      b.payments !== false ? 1 : 0,
+      b.community !== false ? 1 : 0,
+      b.maintenance !== false ? 1 : 0,
+      b.announcements !== false ? 1 : 0,
+      b.weather_alerts !== false ? 1 : 0,
+      b.quiet_hours_enabled !== false ? 1 : 0,
+      parseInt(b.quiet_start_hour) || 22,
+      parseInt(b.quiet_end_hour) || 7,
+      req.tenant.id
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save preferences' });
+  }
+});
+
+// Get devices (subscriptions) for this tenant
+router.get('/push/devices', tenantAuth, (req, res) => {
+  try {
+    const devices = db.prepare('SELECT id, device_label, user_agent, created_at, last_used_at FROM push_subscriptions WHERE tenant_id = ? AND is_admin = 0').all(req.tenant.id);
+    res.json(devices || []);
+  } catch { res.json([]); }
+});
+
+// Remove a device
+router.delete('/push/devices/:id', tenantAuth, (req, res) => {
+  try {
+    db.prepare('DELETE FROM push_subscriptions WHERE id = ? AND tenant_id = ?').run(parseInt(req.params.id), req.tenant.id);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed to remove device' }); }
+});
+
+// ── Quarter Requests (Tenant) ──
+const pushService = require('../services/push-notifications');
+
+// Submit a quarter request
+router.post('/quarter-requests', tenantAuth, (req, res) => {
+  const b = req.body || {};
+  const amount = parseFloat(b.amount);
+  if (!amount || amount <= 0 || amount > 200) return res.status(400).json({ error: 'Invalid amount (max $200)' });
+  try {
+    const result = db.prepare(`INSERT INTO quarter_requests (tenant_id, amount, when_needed, preferred_time, tenant_note)
+      VALUES (?,?,?,?,?)`).run(
+      req.tenant.id, amount, b.when_needed || 'asap', b.preferred_time || '', (b.tenant_note || '').substring(0, 200)
+    );
+    // Notify admin
+    const tenant = db.prepare('SELECT first_name, last_name, lot_id FROM tenants WHERE id = ?').get(req.tenant.id);
+    const name = tenant ? tenant.first_name + ' ' + tenant.last_name : 'Tenant';
+    const lot = tenant?.lot_id || '?';
+    try { pushService.notifyAdmin({ type: 'quarters', title: '\ud83e\ude99 Quarter Request from ' + name + ' (Lot ' + lot + ')', body: '$' + amount.toFixed(0) + ' \u2014 ' + (b.when_needed === 'asap' ? 'ASAP' : b.preferred_time || b.when_needed), url: '/', priority: 'normal' }); } catch {}
+    res.json({ id: result.lastInsertRowid });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to submit request' });
+  }
+});
+
+// List my quarter requests
+router.get('/quarter-requests', tenantAuth, (req, res) => {
+  try {
+    const rows = db.prepare('SELECT * FROM quarter_requests WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 20').all(req.tenant.id);
+    res.json(rows || []);
+  } catch { res.json([]); }
+});
+
+// Get single request with messages
+router.get('/quarter-requests/:id', tenantAuth, (req, res) => {
+  try {
+    const qr = db.prepare('SELECT * FROM quarter_requests WHERE id = ? AND tenant_id = ?').get(parseInt(req.params.id), req.tenant.id);
+    if (!qr) return res.status(404).json({ error: 'Not found' });
+    const messages = db.prepare('SELECT * FROM quarter_request_messages WHERE request_id = ? ORDER BY created_at ASC').all(qr.id);
+    res.json({ ...qr, messages });
+  } catch { res.status(500).json({ error: 'Failed to load request' }); }
+});
+
+// Cancel my request
+router.post('/quarter-requests/:id/cancel', tenantAuth, (req, res) => {
+  try {
+    const qr = db.prepare('SELECT * FROM quarter_requests WHERE id = ? AND tenant_id = ?').get(parseInt(req.params.id), req.tenant.id);
+    if (!qr) return res.status(404).json({ error: 'Not found' });
+    if (qr.status === 'completed') return res.status(400).json({ error: 'Cannot cancel a completed request' });
+    db.prepare('UPDATE quarter_requests SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('cancelled', qr.id);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed to cancel' }); }
+});
+
+// Tenant sends a message on a request thread
+router.post('/quarter-requests/:id/messages', tenantAuth, (req, res) => {
+  const { message } = req.body || {};
+  if (!message || !message.trim()) return res.status(400).json({ error: 'Message required' });
+  try {
+    const qr = db.prepare('SELECT * FROM quarter_requests WHERE id = ? AND tenant_id = ?').get(parseInt(req.params.id), req.tenant.id);
+    if (!qr) return res.status(404).json({ error: 'Not found' });
+    const tenant = db.prepare('SELECT first_name, last_name FROM tenants WHERE id = ?').get(req.tenant.id);
+    const name = tenant ? tenant.first_name + ' ' + tenant.last_name : 'Tenant';
+    db.prepare('INSERT INTO quarter_request_messages (request_id, sender_type, sender_name, message) VALUES (?,?,?,?)').run(
+      qr.id, 'tenant', name, message.trim().substring(0, 500)
+    );
+    try { pushService.notifyAdmin({ type: 'quarters', title: '\ud83e\ude99 Reply from ' + name, body: message.trim().substring(0, 100), url: '/', priority: 'normal' }); } catch {}
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed to send message' }); }
 });
 
 module.exports = router;

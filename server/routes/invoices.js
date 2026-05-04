@@ -8,6 +8,7 @@ const router = require('express').Router();
 const { Resend } = require('resend');
 const { db } = require('../database');
 const { authenticate, blockStaff } = require('../middleware');
+const pushService = require('../services/push-notifications');
 const { sendSms } = require('../twilio');
 
 router.use(authenticate);
@@ -320,7 +321,7 @@ router.get('/tax-report/:year', (req, res) => {
 router.get('/', (req, res) => {
   const includeDeleted = req.query.includeDeleted === '1' || req.query.includeDeleted === 'true';
   const invoices = db.prepare(`
-    SELECT i.*, t.first_name, t.last_name, t.lot_id
+    SELECT i.*, t.first_name, t.last_name, t.lot_id, COALESCE(t.credit_balance, 0) as tenant_credit_balance
     FROM invoices i
     JOIN tenants t ON i.tenant_id = t.id
     ${includeDeleted ? '' : 'WHERE COALESCE(i.deleted, 0) = 0'}
@@ -446,6 +447,8 @@ router.post('/', (req, res) => {
       subtotal, late_fee, total, total, str(b.notes)
     );
     res.json({ id: result.lastInsertRowid, invoice_number: invoiceNum });
+    // Push notification to tenant
+    try { pushService.notifyTenant(tenant_id, { type: 'invoice', title: '\ud83d\udcb0 New Invoice \u2014 $' + total.toFixed(2) + ' due', body: 'Your monthly invoice is ready. Tap to view.', url: '/portal', priority: 'normal' }); } catch {}
   } catch (err) {
     console.error('[invoices] create failed:', err);
     res.status(500).json({ error: 'Failed to create invoice: ' + err.message });
@@ -587,8 +590,9 @@ router.put('/:id', (req, res) => {
     + (mailbox_fee || 0) + (misc_fee || 0) + (extra_occupancy_fee || 0);
   const total = subtotal + (late_fee || 0) - (refund_amount || 0);
 
-  const existing = db.prepare('SELECT amount_paid FROM invoices WHERE id = ?').get(req.params.id);
-  const balance = total - (existing?.amount_paid || 0);
+  const existing = db.prepare('SELECT amount_paid, COALESCE(credit_applied,0) as credit_applied FROM invoices WHERE id = ?').get(req.params.id);
+  const balance = total - (existing?.amount_paid || 0) - (existing?.credit_applied || 0);
+  const effectiveStatus = status || (balance <= 0.01 ? 'paid' : ((existing?.amount_paid || 0) > 0.005 || (existing?.credit_applied || 0) > 0.005 ? 'partial' : 'pending'));
 
   db.prepare(`
     UPDATE invoices SET rent_amount=?, electric_amount=?, other_charges=?, other_description=?,
@@ -597,7 +601,7 @@ router.put('/:id', (req, res) => {
     WHERE id = ?
   `).run(rent_amount || 0, electric_amount || 0, other_charges || 0, other_description,
     mailbox_fee || 0, misc_fee || 0, misc_description, extra_occupancy_fee || 0, refund_amount || 0, refund_description,
-    subtotal, late_fee || 0, total, balance, status || (balance <= 0 ? 'paid' : ((existing?.amount_paid || 0) > 0 ? 'partial' : 'pending')), notes, req.params.id);
+    subtotal, late_fee || 0, total, Math.max(0, balance), effectiveStatus, notes, req.params.id);
   res.json({ success: true });
 });
 
@@ -617,8 +621,8 @@ router.patch('/:id', (req, res) => {
   const subtotal = num(merged.rent_amount) + num(merged.electric_amount) + num(merged.other_charges)
     + num(merged.mailbox_fee) + num(merged.misc_fee) + num(merged.extra_occupancy_fee);
   const total = subtotal + num(merged.late_fee) - num(merged.refund_amount);
-  const balance = total - num(merged.amount_paid);
-  const status = req.body.status || (balance <= 0 ? 'paid' : (num(merged.amount_paid) > 0 ? 'partial' : 'pending'));
+  const balance = total - num(merged.amount_paid) - num(merged.credit_applied);
+  const status = req.body.status || (balance <= 0.01 ? 'paid' : (num(merged.amount_paid) > 0.005 || num(merged.credit_applied) > 0.005 ? 'partial' : 'pending'));
 
   db.prepare(`
     UPDATE invoices SET rent_amount=?, electric_amount=?, other_charges=?, other_description=?,

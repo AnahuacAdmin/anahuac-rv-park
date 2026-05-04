@@ -131,7 +131,8 @@ router.put('/:id', (req, res) => {
       id_number=?, date_of_birth=?, deposit_amount=?, deposit_waived=?,
       flat_rate=?, flat_rate_amount=?,
       insurance_expiry=?, registration_expiry=?, loyalty_exclude=?, grace_period_override=?,
-      ssn_last4=?, dl_number=?, dl_state=?
+      ssn_last4=?, dl_number=?, dl_state=?,
+      payment_due_day=?, payment_arrangement_notes=?
     WHERE id = ?
   `).run(
     str(b.lot_id), b.first_name, b.last_name, cleanPhone(b.phone), str(b.email),
@@ -148,6 +149,7 @@ router.put('/:id', (req, res) => {
     b.flat_rate ? 1 : 0, Number(b.flat_rate_amount) || 0,
     str(b.insurance_expiry), str(b.registration_expiry), b.loyalty_exclude ? 1 : 0, b.grace_period_override !== undefined ? (Number(b.grace_period_override) || null) : null,
     str(b.ssn_last4), str(b.dl_number), str(b.dl_state),
+    b.payment_due_day !== undefined ? (Number(b.payment_due_day) || 1) : 1, str(b.payment_arrangement_notes),
     req.params.id
   );
   res.json({ success: true });
