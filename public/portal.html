@@ -1520,6 +1520,18 @@ function invoiceMonthLabel(dateStr) {
 }
 
 async function showPortal() {
+  // Guard: if tenant data missing, force re-login
+  if (!_portalTenant || !_portalToken) {
+    console.error('[portal] showPortal called with no tenant/token — redirecting to login');
+    sessionStorage.removeItem('portal_token');
+    sessionStorage.removeItem('portal_tenant');
+    sessionStorage.removeItem('_isAdminPreview');
+    _portalToken = null; _portalTenant = null; _isAdminPreview = false;
+    document.getElementById('login-wrapper')?.classList.remove('hidden');
+    document.getElementById('portal-wrapper')?.classList.add('hidden');
+    return;
+  }
+
   // Switch from login to portal view
   document.getElementById('login-wrapper').classList.add('hidden');
   document.getElementById('portal-wrapper').classList.remove('hidden');
@@ -4505,8 +4517,10 @@ async function loadAnnouncements() {
     var announcements = await r.json();
     if (!announcements || !announcements.length) return;
     var card = document.getElementById('announcements-card');
+    var listEl = document.getElementById('announcements-list');
+    if (!card || !listEl) return;
     card.style.display = '';
-    document.getElementById('announcements-list').innerHTML = announcements.map(function(a) {
+    listEl.innerHTML = announcements.map(function(a) {
       return '<div class="announcement">' + (a.is_pinned ? '<span style="color:#f59e0b;font-size:0.7rem;font-weight:700">📌 PINNED</span> ' : '') +
         '<div><strong>' + (a.title || '') + '</strong></div>' +
         '<div style="font-size:0.88rem;color:#44403c;line-height:1.5">' + (a.message || '') + '</div>' +
@@ -5608,7 +5622,7 @@ async function loadGeneralChat() {
   if (_portalTenant) {
     try { var rr = await fetch('/api/general-chat/my-reactions?tenant_id=' + _portalTenant.id); _gcMyReactions = await rr.json(); } catch { _gcMyReactions = {}; }
   }
-  loadGCFeed();
+  try { loadGCFeed(); } catch {}
   // Wire photo input
   var photoInput = document.getElementById('gc-photo-input');
   if (photoInput && !photoInput._wired) {
@@ -5810,8 +5824,8 @@ async function loadPortalGarden() {
   if (_portalTenant) {
     try { var rr = await fetch('/api/garden/my-reactions?tenant_id=' + _portalTenant.id); _gardenMyReactions = await rr.json(); } catch { _gardenMyReactions = {}; }
   }
-  loadGardenTip();
-  loadGardenFeed();
+  try { loadGardenTip(); } catch {}
+  try { loadGardenFeed(); } catch {}
   // Wire photo input
   var photoInput = document.getElementById('garden-photo-input');
   if (photoInput && !photoInput._wired) {
