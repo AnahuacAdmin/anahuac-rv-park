@@ -1506,33 +1506,34 @@ async function showPortal() {
   applyHolidayTheme();
   startGatorFacts();
 
-  // Load data in parallel
-  const [data] = await Promise.all([
+  // Load data in parallel — use allSettled so one failure can't break everything
+  const results = await Promise.allSettled([
     portalFetch('/me').catch(() => null),
-    loadWeatherEnhanced(),
-    getActiveHoliday() ? Promise.resolve() : loadBibleVerse(),
-    loadAnnouncements(),
-    loadPortalRestaurants(),
-    loadPortalLocalLinks(),
-    loadCommunityFeed(),
-    loadPortalWeatherAlerts(),
-    loadTrafficEnhanced(),
-    loadDailyEdition(),
-    loadLatestCommunityBanner(),
-    loadFoundingAnglerBanner(),
-    loadPortalCommunityActivity(),
-    loadPortalInspections(),
-    loadPortalBirthday(),
-    checkSevereWeatherAlerts(),
-    loadPortalLostFound(),
-    loadPortalBirding(),
-    loadPortalHuntingFishing(),
-    loadDadJoke(),
-    loadGeneralChat(),
-    loadPortalGarden(),
-    loadLocalEats(),
-    loadQuarterRequests(),
+    loadWeatherEnhanced().catch(e => console.warn('[portal] weather failed:', e)),
+    getActiveHoliday() ? Promise.resolve() : loadBibleVerse().catch(e => console.warn('[portal] verse failed:', e)),
+    loadAnnouncements().catch(e => console.warn('[portal] announcements failed:', e)),
+    loadPortalRestaurants().catch(e => console.warn('[portal] restaurants failed:', e)),
+    loadPortalLocalLinks().catch(e => console.warn('[portal] links failed:', e)),
+    loadCommunityFeed().catch(e => console.warn('[portal] community failed:', e)),
+    loadPortalWeatherAlerts().catch(e => console.warn('[portal] weather alerts failed:', e)),
+    loadTrafficEnhanced().catch(e => console.warn('[portal] traffic failed:', e)),
+    loadDailyEdition().catch(e => console.warn('[portal] news failed:', e)),
+    loadLatestCommunityBanner().catch(e => console.warn('[portal] banner failed:', e)),
+    loadFoundingAnglerBanner().catch(e => console.warn('[portal] angler failed:', e)),
+    loadPortalCommunityActivity().catch(e => console.warn('[portal] activity failed:', e)),
+    loadPortalInspections().catch(e => console.warn('[portal] inspections failed:', e)),
+    loadPortalBirthday().catch(e => console.warn('[portal] birthday failed:', e)),
+    checkSevereWeatherAlerts().catch(e => console.warn('[portal] severe weather failed:', e)),
+    loadPortalLostFound().catch(e => console.warn('[portal] lost-found failed:', e)),
+    loadPortalBirding().catch(e => console.warn('[portal] birding failed:', e)),
+    loadPortalHuntingFishing().catch(e => console.warn('[portal] hunting failed:', e)),
+    loadDadJoke().catch(e => console.warn('[portal] dad joke failed:', e)),
+    loadGeneralChat().catch(e => console.warn('[portal] chat failed:', e)),
+    loadPortalGarden().catch(e => console.warn('[portal] garden failed:', e)),
+    loadLocalEats().catch(e => console.warn('[portal] local eats failed:', e)),
+    loadQuarterRequests().catch(e => console.warn('[portal] quarter requests failed:', e)),
   ]);
+  const data = results[0].status === 'fulfilled' ? results[0].value : null;
   // Initialize push notifications and badge
   initPushNotifications();
   updateNotifBadge();
