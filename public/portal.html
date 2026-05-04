@@ -2063,10 +2063,11 @@ async function loadWeatherEnhanced() {
       checkHurricaneActivity();
     }
   } catch {
-    document.getElementById('wx-cond-e').textContent = 'Weather unavailable';
+    var wxEl = document.getElementById('wx-cond-e');
+    if (wxEl) wxEl.textContent = 'Weather unavailable';
   }
   // Also update legacy weather card if it exists
-  loadWeather();
+  try { loadWeather(); } catch {}
 }
 
 function renderWxToday() {
@@ -2488,6 +2489,8 @@ function _renderRestaurantCard(r) {
 }
 
 async function loadWeather() {
+  var el = document.getElementById('weather-content');
+  if (!el) return; // Element not on this page, skip gracefully
   try {
     const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=29.7574&longitude=-94.6750&current=temperature_2m,weathercode,windspeed_10m,relative_humidity_2m&temperature_unit=fahrenheit&windspeed_unit=mph');
     const d = await r.json();
@@ -2500,9 +2503,9 @@ async function loadWeather() {
     else if (code >= 71 && code <= 77) { emoji = '❄️'; cond = 'Snow'; }
     else if (code >= 80 && code <= 82) { emoji = '🌦️'; cond = 'Showers'; }
     else if (code >= 95) { emoji = '⛈️'; cond = 'Thunderstorm'; }
-    document.getElementById('weather-content').innerHTML =
+    el.innerHTML =
       `<span class="wx-icon">${emoji}</span><span class="wx-temp">${Math.round(c.temperature_2m)}°F</span><span class="wx-detail">${cond}</span><span class="wx-detail">💨 ${Math.round(c.windspeed_10m)}mph</span><span class="wx-detail">💧 ${c.relative_humidity_2m}%</span><span class="wx-detail">📍 Anahuac, TX</span>`;
-  } catch { document.getElementById('weather-content').innerHTML = '<span class="wx-detail">Weather unavailable</span>'; }
+  } catch { el.innerHTML = '<span class="wx-detail">Weather unavailable</span>'; }
 }
 
 async function loadBibleVerse() {
