@@ -3,7 +3,7 @@
  * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
  */
 const router = require('express').Router();
-const { db } = require('../database');
+const { db, saveDb } = require('../database');
 const { authenticate } = require('../middleware');
 
 router.use(authenticate);
@@ -66,6 +66,7 @@ router.post('/transfer', (req, res) => {
   db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, related_tenant_id, notes)
     VALUES (?, 'transfer_in', ?, ?, ?)`).run(to_tenant_id, transferAmount, from_tenant_id,
     `Credit received from ${fromName} (${fromTenant.lot_id}). ${noteBase}`);
+  saveDb();
 
   res.json({
     success: true,
@@ -100,6 +101,7 @@ router.post('/refund', (req, res) => {
   // Record as negative payment for audit trail
   db.prepare('INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes) VALUES (?, NULL, ?, ?, ?, ?, ?)')
     .run(tenant_id, new Date().toISOString().split('T')[0], -refundAmount, payment_method || 'cash', reference_number || 'CREDIT-REFUND', `Credit balance refund${reason ? ': ' + reason : ''}`);
+  saveDb();
 
   res.json({ success: true, refunded: refundAmount, new_balance: +(available - refundAmount).toFixed(2) });
 });
@@ -139,6 +141,7 @@ router.post('/apply-to-invoice', (req, res) => {
   db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, invoice_id, notes)
     VALUES (?, 'applied_to_invoice', ?, ?, ?)`).run(tenant_id, -applyAmount, invoice_id,
     `Applied $${applyAmount.toFixed(2)} credit to invoice`);
+  saveDb();
 
   // Clear eviction flags if fully paid
   if (newBalance <= 0.005) {
@@ -147,6 +150,7 @@ router.post('/apply-to-invoice', (req, res) => {
     ).get(tenant_id);
     if (!unpaid || unpaid.cnt === 0) {
       db.prepare('UPDATE tenants SET eviction_warning = 0, eviction_notified = 0, eviction_paused = 0, eviction_pause_note = NULL WHERE id = ?').run(tenant_id);
+      saveDb();
     }
   }
 
@@ -163,6 +167,7 @@ router.post('/add', (req, res) => {
   db.prepare('UPDATE tenants SET credit_balance = credit_balance + ? WHERE id = ?').run(amount, tenant_id);
   db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, notes)
     VALUES (?, 'manual_add', ?, ?)`).run(tenant_id, amount, reason || 'Manual credit adjustment');
+  saveDb();
 
   res.json({ success: true });
 });

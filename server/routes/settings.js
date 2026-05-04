@@ -32,7 +32,7 @@ const ALLOWED_SETTINGS = new Set([
   'daily_reminder_enabled', 'auto_birthday_enabled',
   'brand_accent_color', 'park_website',
   'setup_wizard_completed', 'support_email',
-  'review_request_enabled', 'google_review_url', 'review_request_cooldown_days',
+  'review_request_enabled', 'google_review_url', 'review_request_cooldown_days', 'review_banner_text',
 ]);
 
 router.put('/', (req, res) => {

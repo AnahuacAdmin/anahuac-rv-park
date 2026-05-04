@@ -995,6 +995,7 @@ async function initializeDatabase() {
   ensureSetting.run('review_request_enabled', '1');
   ensureSetting.run('google_review_url', 'https://search.google.com/local/writereview?placeid=ChIJgTxw3Pk-P4YRs2t_UMVRVa4');
   ensureSetting.run('review_request_cooldown_days', '90');
+  ensureSetting.run('review_banner_text', 'Enjoying your stay? A quick Google review helps other RVers find us!');
   ensureSetting.run('late_fee_type', 'fixed');
   ensureSetting.run('late_fee_percentage', '10');
   ensureSetting.run('late_fee_grace_days', '3');
@@ -1289,36 +1290,98 @@ async function initializeDatabase() {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Seed local restaurants if empty
+  // Ensure all columns exist on local_restaurants (table may pre-date schema additions)
+  addCol("ALTER TABLE local_restaurants ADD COLUMN is_active INTEGER DEFAULT 1");
+  addCol("ALTER TABLE local_restaurants ADD COLUMN display_order INTEGER DEFAULT 0");
+  addCol("ALTER TABLE local_restaurants ADD COLUMN latitude REAL");
+  addCol("ALTER TABLE local_restaurants ADD COLUMN longitude REAL");
+  addCol("ALTER TABLE local_restaurants ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+  addCol("ALTER TABLE local_restaurants ADD COLUMN emoji TEXT DEFAULT '🍽️'");
+
+  // ── Migrate wife's curated restaurants from portal_restaurants → local_restaurants ──
+  // Runs once: checks flag in settings, migrates, sets flag so it never re-runs.
+  // portal_restaurants is NEVER deleted — it stays as a permanent backup.
   try {
-    var lrCount = db.prepare('SELECT COUNT(*) as c FROM local_restaurants').get().c;
-    if (lrCount === 0) {
-      var lrIns = db.prepare('INSERT INTO local_restaurants (name,category,cuisine_type,address,city,phone,price_level,rating,distance_miles,notable_for,is_recommended,display_order,has_delivery,has_takeout,has_dine_in) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-      var lrData = [
-        // Anahuac
-        ['The Anahuac Cafe','breakfast','Diner · Breakfast · Lunch','Main St, Anahuac','Anahuac','','$',4.3,0.5,'Classic diner breakfast & burgers',1,1,0,1,1],
-        ['Big Daddy\'s Mexican Restaurant','mexican','Mexican','Anahuac','Anahuac','','$',4.2,0.8,'Generous portions, great enchiladas',0,2,0,1,1],
-        ['Gator Junction','american','American · Bar & Grill','Anahuac','Anahuac','','$$',4.0,0.6,'Cold beer & fried catfish',0,3,0,1,1],
-        ['El Toro Mexican Restaurant','mexican','Mexican','Anahuac','Anahuac','','$',4.1,0.7,'Authentic Tex-Mex, quick service',0,4,0,1,1],
-        ['Subway','fast_food','Subs · Sandwiches','Anahuac','Anahuac','','$',3.5,0.9,'Fresh subs, quick lunch',0,10,0,1,1],
-        ['Sonic Drive-In','fast_food','Drive-In · Burgers','Anahuac','Anahuac','','$',3.6,0.9,'Shakes, tater tots, classic drive-in',0,11,0,1,0],
-        ['Dairy Queen','fast_food','Ice Cream · Burgers','Anahuac','Anahuac','','$',3.7,1.0,'Blizzards & Texas Stop Sign burgers',0,12,0,1,1],
-        ['Pizza Hut','pizza','Pizza · Wings','Anahuac','Anahuac','','$',3.5,0.8,'Pizza, pasta, and wings',0,13,1,1,1],
-        // Mont Belvieu area
-        ['Texas Roadhouse','bbq','Steakhouse · BBQ','Mont Belvieu','Mont Belvieu','','$$',4.4,15.0,'Hand-cut steaks, fall-off-the-bone ribs',1,5,0,1,1],
-        ['Whataburger','fast_food','Burgers · Fast Food','Mont Belvieu','Mont Belvieu','','$',4.0,14.0,'Texas classic — Honey Butter Chicken Biscuit',0,14,0,1,1],
-        ['Chick-fil-A','fast_food','Chicken · Fast Food','Mont Belvieu','Mont Belvieu','','$',4.5,15.0,'Best chicken sandwich, always friendly',0,15,0,1,1],
-        ['Chili\'s Grill & Bar','american','American · Casual Dining','Mont Belvieu','Mont Belvieu','','$$',3.9,15.0,'Casual dining, good happy hour',0,16,0,1,1],
-        // Winnie area
-        ['Al-T\'s Cajun Restaurant','cajun','Cajun · Seafood','Winnie','Winnie','','$$',4.6,20.0,'Famous crawfish, boudin & gumbo — a MUST try!',1,6,0,1,1],
-        ['The Boondocks','american','American · Bar & Grill','Winnie','Winnie','','$$',4.3,22.0,'Local favorite, great steaks & burgers',0,7,0,1,1],
-        ['Tia Juanita\'s Fish Camp','seafood','Seafood · Cajun · Mexican','Winnie','Winnie','','$$',4.5,21.0,'Gulf seafood, tacos, incredible shrimp',1,8,0,1,1],
-        // Beach City / Cove
-        ['Roosters Steakhouse','bbq','Steakhouse · BBQ','Beach City','Beach City','','$$',4.2,12.0,'Hearty steaks in a country setting',0,9,0,1,1],
-      ];
-      lrData.forEach(function(r) { lrIns.run(...r); });
+    var migrated = db.exec("SELECT value FROM settings WHERE key='lr_migrated_from_portal'");
+    if (!migrated.length || !migrated[0].values[0][0]) {
+      // Step 1: Save JSON backup of portal_restaurants to Railway volume BEFORE anything
+      var backupPath = path.join(dataDir, 'portal_restaurants_backup.json');
+      var prBackup = db.exec('SELECT * FROM portal_restaurants ORDER BY id');
+      var backupData = [];
+      if (prBackup.length && prBackup[0].values.length) {
+        var cols = prBackup[0].columns;
+        prBackup[0].values.forEach(function(row) {
+          var obj = {};
+          cols.forEach(function(c, i) { obj[c] = row[i]; });
+          backupData.push(obj);
+        });
+      }
+      fs.writeFileSync(backupPath, JSON.stringify(backupData, null, 2));
+      console.log('[db] BACKUP saved: ' + backupPath + ' (' + backupData.length + ' restaurants)');
+
+      // Step 2: Wipe seed defaults from local_restaurants
+      db.run('DELETE FROM local_restaurants');
+      console.log('[db] cleared seed defaults from local_restaurants');
+
+      // Step 3: COPY from portal_restaurants → local_restaurants (portal_restaurants is NOT modified)
+      var prRows = db.exec('SELECT id, name, emoji, url, display_order, is_active FROM portal_restaurants ORDER BY display_order');
+      if (prRows.length && prRows[0].values.length) {
+        var migSql = 'INSERT INTO local_restaurants (name, emoji, category, cuisine_type, website, city, is_recommended, display_order, is_active) VALUES (?,?,?,?,?,?,0,?,?)';
+        var catMap = { '🌮':'mexican','🌯':'mexican','🦞':'seafood','🍝':'american','🥪':'american','🍲':'american','🍔':'american' };
+        prRows[0].values.forEach(function(r) {
+          var name = r[1], emoji = r[2] || '🍽️', url = r[3] || '', order = r[4] || 0, active = r[5] != null ? r[5] : 1;
+          var cat = catMap[emoji] || 'american';
+          db.run(migSql, [name, emoji, cat, cat.charAt(0).toUpperCase() + cat.slice(1), url, 'Anahuac', order, active]);
+        });
+        console.log('[db] migrated ' + prRows[0].values.length + ' restaurants from portal_restaurants → local_restaurants');
+      }
+
+      // Step 4: Set flag so this never runs again
+      db.run("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('lr_migrated_from_portal', '1', datetime('now'))");
+      markDirty();
     }
-  } catch (e) { console.log('[db] restaurant seed:', e.message); }
+  } catch (e) { console.error('[db] restaurant migration:', e.message); }
+
+  // Log restaurant count
+  try {
+    var lrCountResult = db.exec('SELECT COUNT(*) FROM local_restaurants');
+    var lrCount = lrCountResult.length > 0 ? lrCountResult[0].values[0][0] : 0;
+    console.log('[db] local_restaurants has ' + lrCount + ' rows');
+  } catch (e) { console.error('[db] restaurant count check:', e.message); }
+
+  // ── Restaurant Votes ──
+  db.run(`CREATE TABLE IF NOT EXISTS restaurant_votes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    restaurant_id INTEGER NOT NULL,
+    tenant_id INTEGER NOT NULL,
+    stars INTEGER NOT NULL CHECK (stars >= 1 AND stars <= 5),
+    review_text TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(restaurant_id, tenant_id)
+  )`);
+
+  // ── Restaurant Menu Items (guest-submitted) ──
+  db.run(`CREATE TABLE IF NOT EXISTS restaurant_menu_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    restaurant_id INTEGER NOT NULL,
+    added_by_tenant_id INTEGER,
+    item_emoji TEXT DEFAULT '🍽️',
+    item_name TEXT NOT NULL,
+    is_pinned INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // ── Restaurant Menu Comments ──
+  db.run(`CREATE TABLE IF NOT EXISTS restaurant_menu_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    menu_item_id INTEGER NOT NULL,
+    tenant_id INTEGER NOT NULL,
+    comment TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  addCol("ALTER TABLE restaurant_menu_comments ADD COLUMN first_name TEXT");
+  addCol("ALTER TABLE restaurant_menu_comments ADD COLUMN lot_id TEXT");
 
   // ── Content Cache (news, weather, traffic) ──
   db.run(`CREATE TABLE IF NOT EXISTS content_cache (

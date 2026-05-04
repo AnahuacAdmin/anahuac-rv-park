@@ -454,6 +454,17 @@
       </div>
       <button type="submit" class="btn btn-green" id="login-btn">Sign In</button>
     </form>
+    <div style="margin-top:14px;text-align:center">
+      <button onclick="var h=document.getElementById('login-help');if(h.classList.contains('hidden')){h.classList.remove('hidden');h.scrollIntoView({behavior:'smooth',block:'nearest'})}else{h.classList.add('hidden')}" style="background:transparent;border:none;color:#16a34a;font-size:0.85rem;cursor:pointer;text-decoration:underline;padding:8px">First time logging in? Tap here</button>
+    </div>
+    <div id="login-help" class="hidden" style="margin-top:10px;padding:1.1rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;font-size:0.88rem;line-height:1.55;text-align:left">
+      <div style="font-weight:700;color:#15803d;font-size:0.95rem;margin-bottom:10px">Welcome! Here's how to log in:</div>
+      <div style="margin-bottom:10px"><strong style="color:#1a5c32">1. Enter your LOT NUMBER</strong><br><span style="color:#666;font-size:0.82rem">Exactly as listed on your spot — e.g. G5, H7, K12</span></div>
+      <div style="margin-bottom:10px"><strong style="color:#1a5c32">2. Enter your LAST NAME</strong><br><span style="color:#666;font-size:0.82rem">Must match what we have on file. Check with park management if unsure.</span></div>
+      <div style="margin-bottom:10px"><strong style="color:#1a5c32">3. Create a 4-DIGIT PIN</strong><br><span style="color:#666;font-size:0.82rem">First time only — this becomes your password going forward. Pick something memorable!</span></div>
+      <div style="margin-top:14px;padding:10px 12px;background:#fef3c7;border-radius:8px;font-size:0.82rem"><strong>Trouble logging in?</strong><br>Call: <a href="tel:4092676603" style="color:#16a34a;font-weight:600">409-267-6603</a><br>Email: <a href="mailto:anrvpark@gmail.com" style="color:#16a34a;font-weight:600">anrvpark@gmail.com</a></div>
+      <div style="text-align:center;margin-top:12px"><button onclick="document.getElementById('login-help').classList.add('hidden')" style="padding:8px 24px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.88rem;min-height:44px">Got it!</button></div>
+    </div>
     <p class="link"><a href="/">Admin Login</a></p>
   </div>
 
@@ -656,6 +667,20 @@
   <!-- Dad Joke Gator 🐊 -->
   <div id="portal-dad-joke" data-tab-section="home" style="width:100%;max-width:800px"></div>
 
+  <!-- Google Reviews Banner -->
+  <div id="portal-review-banner" data-tab-section="home" style="display:none;width:100%;max-width:800px;margin-bottom:0.6rem">
+    <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:2px solid #f59e0b;border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;box-shadow:0 2px 12px rgba(245,158,11,0.15)">
+      <div style="font-size:2.2rem;line-height:1">⭐</div>
+      <div style="flex:1">
+        <div style="font-weight:800;font-size:1rem;color:#92400e;margin-bottom:0.15rem">Love Anahuac RV Park?</div>
+        <div id="review-banner-text" style="font-size:0.85rem;color:#78716c;line-height:1.4">A quick Google review helps other RVers find us!</div>
+      </div>
+      <a id="review-banner-link" href="#" target="_blank" rel="noopener" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:0.6rem 1rem;border-radius:10px;font-size:0.85rem;font-weight:700;text-decoration:none;white-space:nowrap;box-shadow:0 2px 8px rgba(217,119,6,0.3);transition:transform 0.15s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        <span style="margin-right:0.3rem">⭐</span> Leave a Review
+      </a>
+    </div>
+  </div>
+
   <!-- Live community activity banner -->
   <div id="portal-community-activity" data-tab-section="home" style="width:100%;max-width:800px"></div>
 
@@ -753,44 +778,51 @@
   <!-- ===== LOCAL EATS — Restaurants ===== -->
   <div class="card" data-tab-section="home" style="width:100%;max-width:800px;padding:0;overflow:hidden;margin-bottom:0.6rem;border-top:3px solid #f59e0b" id="local-eats-section">
     <div style="padding:0.75rem 1rem 0.5rem;background:linear-gradient(135deg,#fffbeb,#fef3c7)">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-family:Georgia,serif;font-size:1rem;font-weight:700;color:#92400e">🍽️ Local Eats</div>
-          <div style="font-size:0.68rem;color:#a8946e;margin-top:0.1rem">Hungry? Here's where to fill up near the park!</div>
-        </div>
-        <select id="le-sort" onchange="renderLocalEats()" style="font-size:0.7rem;padding:3px 6px;border:1px solid #e7e2d9;border-radius:5px;background:#fff;color:#57534e">
-          <option value="distance">Nearest</option>
-          <option value="rating">Top Rated</option>
-          <option value="name">A-Z</option>
-          <option value="price">Price $→$$$</option>
-        </select>
-      </div>
+      <div style="font-family:Georgia,serif;font-size:1rem;font-weight:700;color:#92400e">🍽️ Local Eats</div>
+      <div style="font-size:0.72rem;color:#a8946e;margin-top:0.1rem">Hand-picked by Anahuac RV Park &middot; Vote for your favorites!</div>
     </div>
-    <div id="le-filters" style="display:flex;gap:0.3rem;padding:0.5rem 1rem;overflow-x:auto;background:#faf8f5;border-bottom:1px solid #f0ebe4;flex-wrap:nowrap">
-      <button class="le-filter active" onclick="filterLocalEats('all',this)">All</button>
-      <button class="le-filter" onclick="filterLocalEats('breakfast',this)">🥞 Breakfast</button>
-      <button class="le-filter" onclick="filterLocalEats('american',this)">🍔 American</button>
-      <button class="le-filter" onclick="filterLocalEats('bbq',this)">🥩 BBQ</button>
-      <button class="le-filter" onclick="filterLocalEats('seafood',this)">🐟 Seafood</button>
-      <button class="le-filter" onclick="filterLocalEats('mexican',this)">🌮 Mexican</button>
-      <button class="le-filter" onclick="filterLocalEats('pizza',this)">🍕 Pizza</button>
-      <button class="le-filter" onclick="filterLocalEats('cajun',this)">🥡 Cajun</button>
-      <button class="le-filter" onclick="filterLocalEats('fast_food',this)">🚗 Fast Food</button>
-    </div>
-    <div id="le-list" style="padding:0.5rem 0.75rem;max-height:500px;overflow-y:auto">
+    <div id="le-list" style="padding:0.5rem 0.75rem">
       <div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.82rem">Loading restaurants...</div>
     </div>
   </div>
 
-  <!-- Review nudge card -->
-  <div class="card" data-tab-section="home" style="border-left:4px solid #f59e0b;padding:0.75rem 1rem;margin-bottom:0.6rem;display:flex;align-items:center;gap:0.75rem">
-    <div style="font-size:1.5rem">⭐</div>
-    <div style="flex:1">
-      <div style="font-weight:700;font-size:0.9rem;color:#92400e">Enjoying your stay?</div>
-      <div style="font-size:0.8rem;color:#78716c">We'd love to hear about it!</div>
+  <!-- Vote Modal -->
+  <div id="le-vote-overlay" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;padding:1rem">
+    <div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:1.5rem;box-shadow:0 20px 40px rgba(0,0,0,0.3)">
+      <div style="font-weight:700;font-size:1rem;margin-bottom:0.75rem" id="le-vote-title">Rate Restaurant</div>
+      <div style="text-align:center;margin-bottom:1rem">
+        <div id="le-vote-stars" style="font-size:2rem;cursor:pointer;letter-spacing:0.3rem;user-select:none"></div>
+        <div id="le-vote-label" style="font-size:0.78rem;color:#78716c;margin-top:0.25rem">Tap a star to rate</div>
+      </div>
+      <textarea id="le-vote-review" maxlength="200" rows="2" placeholder="Optional: short review (200 chars)" style="width:100%;border:1px solid #d6d3d1;border-radius:8px;padding:0.5rem;font-size:0.85rem;resize:none;font-family:inherit;box-sizing:border-box"></textarea>
+      <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+        <button onclick="closeVoteModal()" style="flex:1;padding:0.6rem;border:1px solid #d6d3d1;border-radius:8px;background:#fff;cursor:pointer;font-size:0.88rem">Cancel</button>
+        <button onclick="submitVote()" id="le-vote-submit" style="flex:1;padding:0.6rem;border:none;border-radius:8px;background:#16a34a;color:#fff;cursor:pointer;font-weight:600;font-size:0.88rem">Submit Rating</button>
+      </div>
     </div>
-    <a href="https://search.google.com/local/writereview?placeid=ChIJgTxw3Pk-P4YRs2t_UMVRVa4" target="_blank" rel="noopener" style="background:#f59e0b;color:#fff;padding:0.4rem 0.75rem;border-radius:6px;font-size:0.8rem;font-weight:600;text-decoration:none;white-space:nowrap">Leave a Google Review</a>
   </div>
+
+  <!-- Menu Comments Overlay -->
+  <div id="le-menu-overlay" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;padding:1rem">
+    <div style="background:#fff;border-radius:14px;max-width:440px;width:100%;max-height:80vh;overflow-y:auto;padding:1.25rem;box-shadow:0 20px 40px rgba(0,0,0,0.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+        <div style="font-weight:700;font-size:1rem" id="le-menu-title">Menu Comments</div>
+        <button onclick="closeMenuOverlay()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#78716c;padding:0.25rem">&times;</button>
+      </div>
+      <div id="le-menu-items" style="min-height:60px"></div>
+      <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e7e5e4">
+        <div style="font-size:0.78rem;font-weight:600;color:#57534e;margin-bottom:0.4rem">Add a menu item you recommend:</div>
+        <div style="display:flex;gap:0.4rem">
+          <select id="le-menu-emoji" style="width:50px;font-size:1.1rem;border:1px solid #d6d3d1;border-radius:8px;padding:0.35rem;text-align:center">
+            <option>🍽️</option><option>🥘</option><option>🌮</option><option>🍔</option><option>🥩</option><option>🍕</option><option>🐟</option><option>🦞</option><option>🍗</option><option>🥗</option><option>🍲</option><option>🌯</option><option>☕</option><option>🍰</option><option>🍳</option>
+          </select>
+          <input id="le-menu-name" placeholder="e.g. Beef Fajitas" maxlength="150" style="flex:1;border:1px solid #d6d3d1;border-radius:8px;padding:0.4rem 0.6rem;font-size:0.85rem">
+          <button onclick="addMenuItem()" style="padding:0.4rem 0.75rem;background:#16a34a;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:0.85rem;cursor:pointer;white-space:nowrap">+ Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Birthday Banner — between balance and quick actions -->
   <div id="portal-birthday-banner" data-tab-section="home" style="display:none;width:100%;max-width:800px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border:3px solid #d97706;border-radius:16px;padding:1.5rem 1.25rem;margin-bottom:0.6rem;text-align:center;position:relative;overflow:hidden;box-shadow:0 4px 15px rgba(245,158,11,0.3)">
@@ -1846,6 +1878,18 @@ async function showPortal() {
     document.getElementById('p-invoices').innerHTML = '';
   }
 
+  // Google Reviews banner — show if enabled
+  if (data && data.reviewEnabled !== false) {
+    var reviewBanner = document.getElementById('portal-review-banner');
+    var reviewLink = document.getElementById('review-banner-link');
+    var reviewText = document.getElementById('review-banner-text');
+    if (reviewBanner && reviewLink) {
+      reviewLink.href = data.reviewUrl || 'https://search.google.com/local/writereview?placeid=ChIJgTxw3Pk-P4YRs2t_UMVRVa4';
+      if (data.reviewText) reviewText.textContent = data.reviewText;
+      reviewBanner.style.display = '';
+    }
+  }
+
   // ALWAYS attempt to load payment history and saved cards —
   // they fetch their own data independently of /me
   try { loadPaymentHistory(); } catch (e) { console.warn('[portal] loadPaymentHistory error:', e); }
@@ -2421,9 +2465,13 @@ function renderNewsFeed(tab) {
 
 function _renderNewsCard(item) {
   var timeAgo = _newsTimeAgo(item.published);
-  return '<a href="' + _escAttr(item.link) + '" target="_blank" rel="noopener" class="news-card" style="text-decoration:none;color:inherit">' +
+  var isOfficial = item.badge === 'OFFICIAL';
+  var cardStyle = isOfficial ? 'text-decoration:none;color:inherit;border-left:4px solid #f59e0b;background:linear-gradient(135deg,#fffbeb,#fef3c7)' : 'text-decoration:none;color:inherit';
+  var badgeHtml = isOfficial ? '<span style="display:inline-block;background:#f59e0b;color:#fff;padding:1px 8px;border-radius:4px;font-size:0.68rem;font-weight:700;margin-bottom:0.2rem">🏛️ OFFICIAL</span>' : '';
+  return '<a href="' + _escAttr(item.link) + '" target="_blank" rel="noopener" class="news-card" style="' + cardStyle + '">' +
     (item.image ? '<img class="news-card-img" src="' + _escAttr(item.image) + '" onerror="this.style.display=\'none\'" alt="">' : '') +
     '<div class="news-card-body">' +
+      badgeHtml +
       '<div class="news-card-title">' + _escPortal(item.title) + '</div>' +
       '<div class="news-card-meta"><span>' + _escPortal(item.source) + '</span><span>·</span><span>' + timeAgo + '</span></div>' +
       (item.snippet ? '<div class="news-card-snippet">' + _escPortal(item.snippet) + '</div>' : '') +
@@ -2452,112 +2500,201 @@ function _escAttr(s) {
 }
 
 // =====================================================================
-// Local Eats — Restaurants
+// Local Eats — Restaurants (with voting + menu comments)
 // =====================================================================
 var _leData = [];
-var _leFilter = 'all';
-var _leCatEmojis = {
-  breakfast:'🥞', american:'🍔', bbq:'🥩', seafood:'🐟', mexican:'🌮',
-  pizza:'🍕', cajun:'🥡', fast_food:'🚗', cafe:'☕', chinese:'🥡',
-  italian:'🍝', indian:'🍛', thai:'🍜', diner:'🍳'
-};
+var _leVoteRid = null;
+var _leVoteStars = 0;
+var _leMenuRid = null;
 
 async function loadLocalEats() {
   try {
     var r = await fetch('/api/local-restaurants/public');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     _leData = await r.json();
+    if (!Array.isArray(_leData)) _leData = [];
     renderLocalEats();
-  } catch {
+  } catch (e) {
+    console.warn('[portal] loadLocalEats failed:', e);
+    _leData = [];
     var el = document.getElementById('le-list');
-    if (el) el.innerHTML = '<div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.82rem">Could not load restaurants</div>';
+    if (el) el.innerHTML = '<div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.82rem">Could not load restaurants. Pull down to refresh.</div>';
   }
-}
-
-function filterLocalEats(cat, btn) {
-  _leFilter = cat;
-  document.querySelectorAll('.le-filter').forEach(function(b) { b.classList.remove('active'); });
-  if (btn) btn.classList.add('active');
-  renderLocalEats();
 }
 
 function renderLocalEats() {
   var el = document.getElementById('le-list');
-  if (!el || !_leData.length) return;
-
-  var sortBy = document.getElementById('le-sort')?.value || 'distance';
-  var filtered = _leData;
-  if (_leFilter !== 'all') {
-    filtered = _leData.filter(function(r) { return r.category === _leFilter; });
-  }
-
-  // Sort
-  filtered = filtered.slice().sort(function(a, b) {
-    if (sortBy === 'distance') return (a.distance_miles || 99) - (b.distance_miles || 99);
-    if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-    if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
-    if (sortBy === 'price') return (a.price_level || '').length - (b.price_level || '').length;
-    return 0;
-  });
-
-  if (!filtered.length) {
-    el.innerHTML = '<div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.82rem;font-style:italic">No restaurants in this category yet.</div>';
+  if (!el) return;
+  if (!_leData.length) {
+    el.innerHTML = '<div style="text-align:center;padding:1.5rem;color:#a8a29e;font-size:0.85rem"><div style="font-size:1.5rem;margin-bottom:0.4rem">🍽️</div>No restaurants listed yet.<br><span style="font-size:0.78rem">Check back soon!</span></div>';
     return;
   }
-
-  // Group by city
-  var cities = {};
-  filtered.forEach(function(r) {
-    var city = r.city || 'Other';
-    if (!cities[city]) cities[city] = [];
-    cities[city].push(r);
-  });
-
-  var html = '';
-  var cityOrder = ['Anahuac', 'Beach City', 'Mont Belvieu', 'Winnie'];
-  // Add any cities not in the predefined order
-  Object.keys(cities).forEach(function(c) { if (cityOrder.indexOf(c) === -1) cityOrder.push(c); });
-
-  cityOrder.forEach(function(city) {
-    var items = cities[city];
-    if (!items || !items.length) return;
-    html += '<div class="le-city-group">📍 ' + _escPortal(city) + '</div>';
-    items.forEach(function(r) { html += _renderRestaurantCard(r); });
-  });
-
-  el.innerHTML = html;
+  el.innerHTML = _leData.map(function(r) { return _renderLeCard(r); }).join('');
 }
 
-function _renderRestaurantCard(r) {
-  var emoji = _leCatEmojis[r.category] || '🍽️';
-  var stars = '';
-  if (r.rating > 0) {
-    var full = Math.floor(r.rating);
-    var half = r.rating % 1 >= 0.3;
-    for (var i = 0; i < full; i++) stars += '★';
-    if (half) stars += '½';
-    stars = '<span class="le-stars">' + stars + '</span> <span style="font-size:0.68rem;color:#57534e;font-weight:700">' + r.rating.toFixed(1) + '</span>';
+function _renderLeCard(r) {
+  var emoji = r.emoji || '🍽️';
+  var cuisine = r.cuisine_type || r.category || '';
+  var city = r.city || 'Anahuac';
+  var meta = [cuisine, city].filter(Boolean).join(' &middot; ');
+  var mapsUrl = 'https://www.google.com/maps/dir/1003+Davis+Ave+Anahuac+TX+77514/' + encodeURIComponent((r.address || r.name) + ' ' + city + ' TX');
+
+  // Stars display
+  var starsHtml = '';
+  if (r.vote_count >= 3) {
+    var avg = r.vote_avg;
+    var fullStars = Math.floor(avg);
+    var halfStar = (avg - fullStars) >= 0.3;
+    var starStr = '';
+    for (var i = 0; i < fullStars; i++) starStr += '<span style="color:#f59e0b">&#9733;</span>';
+    if (halfStar) starStr += '<span style="color:#f59e0b">&#9733;</span>';
+    for (var j = fullStars + (halfStar ? 1 : 0); j < 5; j++) starStr += '<span style="color:#d6d3d1">&#9733;</span>';
+    starsHtml = '<div style="margin-top:0.2rem;font-size:0.82rem">' + starStr + ' <span style="font-size:0.72rem;color:#78716c;font-weight:600">' + avg.toFixed(1) + ' (' + r.vote_count + ')</span></div>';
+  } else if (r.vote_count > 0) {
+    starsHtml = '<div style="margin-top:0.2rem;font-size:0.72rem;color:#a8a29e">' + r.vote_count + ' vote' + (r.vote_count > 1 ? 's' : '') + ' so far</div>';
+  } else {
+    starsHtml = '<div style="margin-top:0.2rem;font-size:0.72rem;color:#a8a29e;font-style:italic">Be the first to rate!</div>';
   }
-  var dist = r.distance_miles > 0 ? r.distance_miles.toFixed(1) + ' mi' : '';
-  var meta = [r.price_level, dist, r.cuisine_type].filter(Boolean).join(' · ');
-  var badge = r.is_recommended ? '<span class="le-badge">🏆 PARK PICK</span>' : '';
-  var mapsUrl = 'https://www.google.com/maps/dir/1003+Davis+Ave+Anahuac+TX+77514/' + encodeURIComponent((r.address || r.name) + ' ' + (r.city || 'Anahuac') + ' TX');
 
-  var actions = '<div class="le-actions">';
-  if (r.phone) actions += '<a href="tel:' + _escAttr(r.phone.replace(/[^0-9+]/g, '')) + '" class="le-btn">📞 Call</a>';
-  actions += '<a href="' + _escAttr(mapsUrl) + '" target="_blank" rel="noopener" class="le-btn">📍 Map</a>';
-  if (r.website) actions += '<a href="' + _escAttr(r.website) + '" target="_blank" rel="noopener" class="le-btn">🌐 Site</a>';
-  actions += '</div>';
+  var recBadge = r.is_recommended ? ' <span style="background:#fef3c7;color:#92400e;font-size:0.6rem;padding:1px 5px;border-radius:4px;font-weight:700;vertical-align:middle">PARK PICK</span>' : '';
 
-  return '<div class="le-card">' +
-    '<div class="le-emoji">' + emoji + '</div>' +
-    '<div class="le-info">' +
-      '<div class="le-name">' + _escPortal(r.name) + badge + '</div>' +
-      (stars ? '<div style="margin-top:0.1rem">' + stars + '</div>' : '') +
-      '<div class="le-meta">' + _escPortal(meta) + '</div>' +
-      (r.notable_for ? '<div class="le-notable">"' + _escPortal(r.notable_for) + '"</div>' : '') +
-      actions +
+  return '<div style="display:flex;gap:0.75rem;padding:0.75rem 0;border-bottom:1px solid #f0ebe4;align-items:flex-start">' +
+    '<div style="font-size:1.8rem;line-height:1;flex-shrink:0;margin-top:0.1rem">' + emoji + '</div>' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-weight:700;font-size:0.95rem;color:#1c1917">' + _escPortal(r.name) + recBadge + '</div>' +
+      '<div style="font-size:0.75rem;color:#78716c;margin-top:0.1rem">' + meta + '</div>' +
+      starsHtml +
+      '<div style="display:flex;gap:0.4rem;margin-top:0.4rem;flex-wrap:wrap">' +
+        (r.website ? '<a href="' + _escAttr(r.website) + '" target="_blank" rel="noopener" style="font-size:0.72rem;padding:0.3rem 0.6rem;background:#f5f5f4;border:1px solid #e7e5e4;border-radius:6px;text-decoration:none;color:#44403c;font-weight:500">🌐 Menu</a>' : '') +
+        '<a href="' + _escAttr(mapsUrl) + '" target="_blank" rel="noopener" style="font-size:0.72rem;padding:0.3rem 0.6rem;background:#f5f5f4;border:1px solid #e7e5e4;border-radius:6px;text-decoration:none;color:#44403c;font-weight:500">📍 Map</a>' +
+        '<button onclick="openVoteModal(' + r.id + ')" style="font-size:0.72rem;padding:0.3rem 0.6rem;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;color:#92400e;font-weight:600;cursor:pointer">&#11088; Vote</button>' +
+      '</div>' +
+      '<button onclick="openMenuOverlay(' + r.id + ')" style="background:none;border:none;font-size:0.72rem;color:#16a34a;cursor:pointer;padding:0.25rem 0;margin-top:0.3rem;font-weight:500">' +
+        (r.comment_count > 0 ? '&#128172; ' + r.comment_count + ' comment' + (r.comment_count !== 1 ? 's' : '') + ' on menu items' : '&#128172; Add a menu comment') +
+      '</button>' +
     '</div>' +
   '</div>';
+}
+
+// ── Vote Modal ──
+function openVoteModal(rid) {
+  _leVoteRid = rid;
+  _leVoteStars = 0;
+  var rest = _leData.find(function(r) { return r.id === rid; });
+  var title = document.getElementById('le-vote-title');
+  if (title) title.textContent = 'Rate ' + (rest ? rest.name : 'Restaurant');
+  document.getElementById('le-vote-review').value = '';
+  _renderVoteStars(0);
+  var overlay = document.getElementById('le-vote-overlay');
+  overlay.style.display = 'flex';
+  // Load existing vote if any
+  if (_portalToken) {
+    portalFetch('/local-restaurants/' + rid + '/my-vote').then(function(d) {
+      if (d && d.vote) {
+        _leVoteStars = d.vote.stars;
+        _renderVoteStars(d.vote.stars);
+        document.getElementById('le-vote-review').value = d.vote.review_text || '';
+        document.getElementById('le-vote-label').textContent = 'Your current rating: ' + d.vote.stars + ' star' + (d.vote.stars > 1 ? 's' : '');
+      }
+    }).catch(function() {});
+  }
+}
+
+function closeVoteModal() {
+  document.getElementById('le-vote-overlay').style.display = 'none';
+  _leVoteRid = null;
+}
+
+function _renderVoteStars(selected) {
+  var html = '';
+  for (var i = 1; i <= 5; i++) {
+    html += '<span onclick="_leVoteStars=' + i + ';_renderVoteStars(' + i + ');document.getElementById(\'le-vote-label\').textContent=\'' + i + ' star' + (i > 1 ? 's' : '') + '\'" style="cursor:pointer;color:' + (i <= selected ? '#f59e0b' : '#d6d3d1') + '">&#9733;</span>';
+  }
+  document.getElementById('le-vote-stars').innerHTML = html;
+}
+
+async function submitVote() {
+  if (!_leVoteStars || !_leVoteRid) { alert('Please tap a star rating first.'); return; }
+  try {
+    var review = document.getElementById('le-vote-review').value.trim();
+    var r = await portalFetch('/local-restaurants/' + _leVoteRid + '/vote', {
+      method: 'POST',
+      body: JSON.stringify({ stars: _leVoteStars, review_text: review })
+    });
+    if (r && r.success) {
+      // Update local data
+      var rest = _leData.find(function(x) { return x.id === _leVoteRid; });
+      if (rest) { rest.vote_count = r.vote_count; rest.vote_avg = r.vote_avg; }
+      renderLocalEats();
+      closeVoteModal();
+    }
+  } catch (e) { alert('Could not submit vote. Please try again.'); }
+}
+
+// ── Menu Comments Overlay ──
+function openMenuOverlay(rid) {
+  _leMenuRid = rid;
+  var rest = _leData.find(function(r) { return r.id === rid; });
+  document.getElementById('le-menu-title').textContent = (rest ? rest.name : 'Menu Comments');
+  document.getElementById('le-menu-items').innerHTML = '<div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.82rem">Loading...</div>';
+  document.getElementById('le-menu-name').value = '';
+  document.getElementById('le-menu-overlay').style.display = 'flex';
+  _loadMenuItems(rid);
+}
+
+function closeMenuOverlay() {
+  document.getElementById('le-menu-overlay').style.display = 'none';
+  _leMenuRid = null;
+}
+
+async function _loadMenuItems(rid) {
+  try {
+    var r = await fetch('/api/local-restaurants/' + rid + '/menu');
+    var items = await r.json();
+    var el = document.getElementById('le-menu-items');
+    if (!items || !items.length) {
+      el.innerHTML = '<div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.82rem;font-style:italic">No menu items yet. Be the first to add one!</div>';
+      return;
+    }
+    el.innerHTML = items.map(function(item) {
+      var pinBadge = item.is_pinned ? '<span style="background:#fef3c7;color:#92400e;font-size:0.6rem;padding:1px 4px;border-radius:3px;font-weight:700;margin-left:0.3rem">TOP RATED</span>' : '';
+      var commentsHtml = '';
+      if (item.comments && item.comments.length) {
+        commentsHtml = item.comments.map(function(c) {
+          return '<div style="padding:0.3rem 0;font-size:0.78rem;color:#57534e;border-top:1px solid #f5f5f4">' +
+            '<strong>' + _escPortal(c.first_name || 'Guest') + (c.lot_id ? ' (' + _escPortal(c.lot_id) + ')' : '') + ':</strong> ' +
+            '"' + _escPortal(c.comment) + '"' +
+          '</div>';
+        }).join('');
+      }
+      return '<div style="margin-bottom:0.75rem;padding:0.6rem;background:#fafaf9;border-radius:8px;border:1px solid #e7e5e4">' +
+        '<div style="font-weight:600;font-size:0.88rem">' + _escPortal(item.item_emoji || '🍽️') + ' ' + _escPortal(item.item_name) + pinBadge + '</div>' +
+        commentsHtml +
+        '<button onclick="_addCommentPrompt(' + item.id + ')" style="margin-top:0.3rem;background:none;border:none;font-size:0.72rem;color:#16a34a;cursor:pointer;padding:0.2rem 0;font-weight:500">+ Add comment</button>' +
+      '</div>';
+    }).join('');
+  } catch { document.getElementById('le-menu-items').innerHTML = '<div style="color:#a8a29e;font-size:0.82rem;text-align:center;padding:0.5rem">Could not load menu items.</div>'; }
+}
+
+async function addMenuItem() {
+  var name = document.getElementById('le-menu-name').value.trim();
+  var emoji = document.getElementById('le-menu-emoji').value;
+  if (!name) { alert('Enter a menu item name.'); return; }
+  try {
+    await portalFetch('/local-restaurants/' + _leMenuRid + '/menu', {
+      method: 'POST', body: JSON.stringify({ item_name: name, item_emoji: emoji })
+    });
+    document.getElementById('le-menu-name').value = '';
+    _loadMenuItems(_leMenuRid);
+  } catch { alert('Could not add menu item. Please try again.'); }
+}
+
+function _addCommentPrompt(itemId) {
+  var comment = prompt('Your comment on this menu item (200 chars max):');
+  if (!comment || !comment.trim()) return;
+  portalFetch('/local-restaurants/menu/' + itemId + '/comment', {
+    method: 'POST', body: JSON.stringify({ comment: comment.trim().slice(0, 200) })
+  }).then(function() { _loadMenuItems(_leMenuRid); }).catch(function() { alert('Could not add comment.'); });
 }
 
 async function loadWeather() {
@@ -5574,7 +5711,7 @@ async function loadDadJoke() {
   var el = document.getElementById('portal-dad-joke');
   if (!el) return;
   try {
-    var r = await fetch('/api/dad-jokes/today');
+    var r = await fetch('/api/dad-jokes/today?_=' + Date.now(), { cache: 'no-store' });
     var joke = await r.json();
     if (!joke) { el.innerHTML = ''; return; }
     var myReaction = null;

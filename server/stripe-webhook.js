@@ -8,7 +8,7 @@
 // receives the raw request body needed for signature verification.
 
 const express = require('express');
-const { db } = require('./database');
+const { db, saveDb } = require('./database');
 const { sendSms } = require('./twilio');
 const pushService = require('./services/push-notifications');
 let _resend = null;
@@ -72,17 +72,20 @@ function registerStripeWebhook(app) {
             VALUES (?, ?, ?, ?, 'Credit Card', ?, ?)`)
             .run(tenantId, inv.id, today, balanceAmount, pi.id,
               `Stripe saved card, charged $${(pi.amount / 100).toFixed(2)} (incl. 3% convenience fee)`);
+          saveDb();
 
           const newPaid = (Number(inv.amount_paid) || 0) + balanceAmount;
           const newBalance = (Number(inv.total_amount) || 0) - newPaid;
           const newStatus = newBalance <= 0.005 ? 'paid' : 'partial';
           db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
             .run(newPaid, Math.max(0, newBalance), newStatus, inv.id);
+          saveDb();
 
           if (newBalance <= 0.005) {
             const unpaid = db.prepare("SELECT COUNT(*) as cnt FROM invoices WHERE tenant_id = ? AND balance_due > 0.005 AND status IN ('pending','partial') AND COALESCE(deleted,0) = 0").get(tenantId);
             if (!unpaid || unpaid.cnt === 0) {
               db.prepare('UPDATE tenants SET eviction_warning = 0, eviction_notified = 0, eviction_paused = 0, eviction_pause_note = NULL WHERE id = ?').run(tenantId);
+              saveDb();
             }
           }
 
@@ -153,12 +156,14 @@ function registerStripeWebhook(app) {
             session.id,
             `Stripe payment, customer charged $${(session.amount_total / 100).toFixed(2)} (incl. 3% convenience fee)`
           );
+          saveDb();
 
           const newPaid = (Number(inv.amount_paid) || 0) + paymentAmount;
           const newBalance = (Number(inv.total_amount) || 0) - newPaid;
           const newStatus = newBalance <= 0.005 ? 'paid' : 'partial';
           db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
             .run(newPaid, Math.max(0, newBalance), newStatus, inv.id);
+          saveDb();
 
           // Clear eviction warning if tenant has no remaining unpaid invoices.
           if (newBalance <= 0.005) {
@@ -167,6 +172,7 @@ function registerStripeWebhook(app) {
             ).get(inv.tenant_id);
             if (!unpaid || unpaid.cnt === 0) {
               db.prepare('UPDATE tenants SET eviction_warning = 0, eviction_notified = 0, eviction_paused = 0, eviction_pause_note = NULL WHERE id = ?').run(inv.tenant_id);
+              saveDb();
             }
           }
 

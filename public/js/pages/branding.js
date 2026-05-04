@@ -99,6 +99,7 @@ async function loadBranding() {
           </label>
           <div class="form-group"><label>Google Review URL</label><input id="brand-review-url" value="${_esc(settings.google_review_url || 'https://search.google.com/local/writereview?placeid=ChIJgTxw3Pk-P4YRs2t_UMVRVa4')}" placeholder="https://search.google.com/local/writereview?placeid=..."></div>
           <div class="form-group"><label>Cooldown (days before asking same tenant again)</label><input id="brand-review-cooldown" type="number" value="${settings.review_request_cooldown_days || '90'}" min="1" max="365" style="width:100px"></div>
+          <div class="form-group"><label>Portal Banner Text</label><input id="brand-review-banner-text" value="${_esc(settings.review_banner_text || 'Enjoying your stay? A quick Google review helps other RVers find us!')}" placeholder="Custom message shown on portal review banner" maxlength="150"></div>
         </div>
 
         <!-- Save -->
@@ -336,6 +337,7 @@ async function saveBranding() {
       review_request_enabled: document.getElementById('brand-review-enabled')?.checked ? '1' : '0',
       google_review_url: document.getElementById('brand-review-url')?.value || '',
       review_request_cooldown_days: document.getElementById('brand-review-cooldown')?.value || '90',
+      review_banner_text: document.getElementById('brand-review-banner-text')?.value || '',
     });
 
     // 2. Upload/remove logo

@@ -3,7 +3,7 @@
  * Daily rotating joke, never repeats until full cycle
  */
 const router = require('express').Router();
-const { db } = require('../database');
+const { db, saveDb } = require('../database');
 const { authenticate } = require('../middleware');
 
 // ── Public: get today's joke ──
@@ -24,17 +24,18 @@ router.get('/today', (req, res) => {
       return res.json(joke);
     }
   }
-  // Pick next joke not yet shown
+  // Pick a random joke not shown in the last 30 days
   var joke = db.prepare(`SELECT id, joke, category FROM dad_jokes
-    WHERE active=1 AND id NOT IN (SELECT joke_id FROM dad_jokes_history)
-    ORDER BY id ASC LIMIT 1`).get();
+    WHERE active=1 AND id NOT IN (
+      SELECT joke_id FROM dad_jokes_history WHERE shown_date > date(?, '-30 days')
+    )
+    ORDER BY RANDOM() LIMIT 1`).get(today);
   if (!joke) {
-    // All jokes shown — restart cycle
-    db.prepare('DELETE FROM dad_jokes_history').run();
-    joke = db.prepare('SELECT id, joke, category FROM dad_jokes WHERE active=1 ORDER BY id ASC LIMIT 1').get();
+    // All jokes used in last 30 days — pick any random active joke
+    joke = db.prepare('SELECT id, joke, category FROM dad_jokes WHERE active=1 ORDER BY RANDOM() LIMIT 1').get();
   }
   if (joke) {
-    try { db.prepare('INSERT INTO dad_jokes_history (joke_id, shown_date) VALUES (?,?)').run(joke.id, today); } catch {}
+    try { db.prepare('INSERT INTO dad_jokes_history (joke_id, shown_date) VALUES (?,?)').run(joke.id, today); saveDb(); } catch {}
     joke.reactions = getJokeReactions(joke.id, today);
     return res.json(joke);
   }
@@ -56,6 +57,7 @@ router.post('/react', (req, res) => {
   // Remove any existing reaction for this tenant+joke+date, then insert
   db.prepare('DELETE FROM dad_joke_reactions WHERE joke_id=? AND tenant_id=? AND shown_date=?').run(joke_id, tenant_id, today);
   db.prepare('INSERT INTO dad_joke_reactions (joke_id, tenant_id, reaction_type, shown_date) VALUES (?,?,?,?)').run(joke_id, tenant_id, reaction_type, today);
+  saveDb();
   res.json({ success: true, reactions: getJokeReactions(joke_id, today) });
 });
 
@@ -81,17 +83,40 @@ router.get('/seed', (req, res) => {
 // ══════ Admin routes ══════
 router.use(authenticate);
 
+// Force rotate today's joke (admin only)
+router.post('/force-rotate', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var today = new Date().toISOString().slice(0, 10);
+  // Delete today's assignment
+  db.prepare('DELETE FROM dad_jokes_history WHERE shown_date=?').run(today);
+  // Pick a new random joke
+  var joke = db.prepare(`SELECT id, joke, category FROM dad_jokes
+    WHERE active=1 AND id NOT IN (
+      SELECT joke_id FROM dad_jokes_history WHERE shown_date > date(?, '-30 days')
+    )
+    ORDER BY RANDOM() LIMIT 1`).get(today);
+  if (!joke) joke = db.prepare('SELECT id, joke, category FROM dad_jokes WHERE active=1 ORDER BY RANDOM() LIMIT 1').get();
+  if (joke) {
+    db.prepare('INSERT INTO dad_jokes_history (joke_id, shown_date) VALUES (?,?)').run(joke.id, today);
+    saveDb();
+    return res.json({ success: true, joke });
+  }
+  res.json({ error: 'No jokes available' });
+});
+
 router.post('/add', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   var { joke, category } = req.body || {};
   if (!joke) return res.status(400).json({ error: 'Joke text required' });
   db.prepare('INSERT INTO dad_jokes (joke, category) VALUES (?,?)').run(joke, category || 'classic');
+  saveDb();
   res.json({ success: true });
 });
 
 router.delete('/:id', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   db.prepare('UPDATE dad_jokes SET active=0 WHERE id=?').run(parseInt(req.params.id));
+  saveDb();
   res.json({ success: true });
 });
 
@@ -296,6 +321,7 @@ function seedJokes() {
   ];
   var ins = db.prepare('INSERT INTO dad_jokes (joke, category) VALUES (?,?)');
   jokes.forEach(function(j) { ins.run(j[0], j[1]); });
+  saveDb();
 }
 
 // Auto-seed on first load

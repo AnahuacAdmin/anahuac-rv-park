@@ -2,9 +2,9 @@
 // Runs automatically after server starts to verify critical endpoints.
 // Usage: called from server/index.js after listen(), or manually: node scripts/post-deploy-test.js
 
-// When running inside the container, always use localhost to avoid DNS/firewall issues.
-// The server binds on 0.0.0.0:PORT, so localhost:PORT works from within the same process.
-const BASE = `http://localhost:${process.env.PORT || 3000}`;
+// Use 127.0.0.1 (not localhost) to avoid IPv6 resolution issues in Railway containers.
+// localhost may resolve to ::1 while server binds on 0.0.0.0 (IPv4 only).
+const BASE = `http://127.0.0.1:${process.env.PORT || 3000}`;
 
 async function runTests() {
   const results = [];
@@ -32,7 +32,7 @@ async function runTests() {
     const loginRes = await fetch(`${BASE}/api/portal/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lot_number: '__test__', last_name: '__test__' }),
+      body: JSON.stringify({ lot_id: '__test__', last_name: '__test__' }),
     });
     const passed = loginRes.status === 401 || loginRes.status === 400 || loginRes.status === 429;
     results.push({ name: 'Portal login endpoint', passed, status: loginRes.status });

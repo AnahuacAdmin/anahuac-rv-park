@@ -6,7 +6,7 @@
  */
 const router = require('express').Router();
 const { Resend } = require('resend');
-const { db } = require('../database');
+const { db, saveDb } = require('../database');
 const { authenticate, blockStaff } = require('../middleware');
 const pushService = require('../services/push-notifications');
 const { sendSms } = require('../twilio');
@@ -68,6 +68,7 @@ router.post('/:id/email', async (req, res) => {
       return res.status(429).json({ error: 'Email already sent for this invoice within the last 60 seconds. Please wait.' });
     }
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('last_email_' + req.params.id, String(now));
+    saveDb();
 
     const { pdfBase64 } = req.body || {};
     if (!pdfBase64 || typeof pdfBase64 !== 'string') {
@@ -196,6 +197,7 @@ function runLateFeeCheck() {
         SET late_fee = ?, total_amount = ?, balance_due = ?, late_fee_auto_applied = 1
         WHERE id = ?
       `).run(newLateFee, newTotal, newBalance, inv.id);
+      saveDb();
       feesApplied++;
       const inum = db.prepare('SELECT invoice_number FROM invoices WHERE id = ?').get(inv.id);
       if (inum) feeInvoiceNumbers.push(inum.invoice_number);
@@ -222,7 +224,7 @@ function runLateFeeCheck() {
 
     const wasNew = tenant.eviction_warning === 0;
     const result = db.prepare('UPDATE tenants SET eviction_warning = 1 WHERE id = ? AND eviction_warning = 0').run(tid);
-    if (result.changes) evictionWarnings++;
+    if (result.changes) { evictionWarnings++; saveDb(); }
 
     if (wasNew && result.changes) {
       const balance = db.prepare("SELECT COALESCE(SUM(balance_due),0) as b FROM invoices WHERE tenant_id = ? AND status IN ('pending','partial') AND COALESCE(deleted,0)=0").get(tid)?.b || 0;
@@ -247,6 +249,7 @@ function runLateFeeCheck() {
           try { resend.emails.send({ from: FROM_ADDRESS, reply_to: REPLY_TO, to: tenant.email, subject: `Hi ${tenant.first_name} — Important notice about your Anahuac RV Park account`, text: evictionMsg + EMAIL_FOOTER_TEXT, html: `<p>${evictionMsg.replace(/\n/g, '<br>')}</p><div style="text-align:center;margin:1rem 0"><a href="${APP_URL}/portal.html" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none">LOG IN TO PAY NOW</a></div>${EMAIL_FOOTER_HTML}`, headers: { 'List-Unsubscribe': '<mailto:support@anrvpark.com?subject=unsubscribe>' } }); } catch (e) { console.error('[eviction] guest email failed:', e.message); }
         }
         db.prepare('UPDATE tenants SET eviction_notified = 1 WHERE id = ?').run(tid);
+        saveDb();
       }
     }
   }
@@ -394,6 +397,7 @@ router.get('/:id', (req, res) => {
       const newBalance = newTotal - (Number(invoice.amount_paid) || 0);
       db.prepare('UPDATE invoices SET electric_amount=?, subtotal=?, total_amount=?, balance_due=? WHERE id=?')
         .run(meterCharge, newSubtotal, newTotal, Math.max(0, newBalance), invoice.id);
+      saveDb();
       invoice.electric_amount = meterCharge;
       invoice.subtotal = newSubtotal;
       invoice.total_amount = newTotal;
@@ -446,6 +450,7 @@ router.post('/', (req, res) => {
       refund_amount, str(b.refund_description),
       subtotal, late_fee, total, total, str(b.notes)
     );
+    saveDb();
     res.json({ id: result.lastInsertRowid, invoice_number: invoiceNum });
     // Push notification to tenant
     try { pushService.notifyTenant(tenant_id, { type: 'invoice', title: '\ud83d\udcb0 New Invoice \u2014 $' + total.toFixed(2) + ' due', body: 'Your monthly invoice is ready. Tap to view.', url: '/portal', priority: 'normal' }); } catch {}
@@ -580,6 +585,7 @@ router.post('/generate', (req, res) => {
     generated.push(tenant.lot_id);
   }
 
+  if (generated.length > 0) saveDb();
   res.json({ generated: generated.length, lots: generated });
 });
 
@@ -602,6 +608,7 @@ router.put('/:id', (req, res) => {
   `).run(rent_amount || 0, electric_amount || 0, other_charges || 0, other_description,
     mailbox_fee || 0, misc_fee || 0, misc_description, extra_occupancy_fee || 0, refund_amount || 0, refund_description,
     subtotal, late_fee || 0, total, Math.max(0, balance), effectiveStatus, notes, req.params.id);
+  saveDb();
   res.json({ success: true });
 });
 
@@ -636,6 +643,7 @@ router.patch('/:id', (req, res) => {
     subtotal, num(merged.late_fee), total, balance, status, merged.notes,
     req.params.id
   );
+  saveDb();
   res.json({
     id: Number(req.params.id),
     subtotal, total_amount: total, balance_due: balance, status,
@@ -705,6 +713,7 @@ router.delete('/:id', (req, res) => {
   const existing = db.prepare('SELECT id FROM invoices WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Invoice not found' });
   db.prepare('UPDATE invoices SET deleted = 1 WHERE id = ?').run(req.params.id);
+  saveDb();
   res.json({ success: true, soft: true });
 });
 
@@ -712,6 +721,7 @@ router.post('/:id/restore', (req, res) => {
   const existing = db.prepare('SELECT id FROM invoices WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Invoice not found' });
   db.prepare('UPDATE invoices SET deleted = 0 WHERE id = ?').run(req.params.id);
+  saveDb();
   res.json({ success: true });
 });
 

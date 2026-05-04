@@ -200,6 +200,7 @@ initializeDatabase()
       try { require('./jobs/weatherJob').start(); } catch (e) { console.error('[weather-job] failed to start:', e.message); }
       try { require('./jobs/reminderJob').start(); } catch (e) { console.error('[reminder-job] failed to start:', e.message); }
       try { require('./jobs/birthdayJob').start(); } catch (e) { console.error('[birthday-job] failed to start:', e.message); }
+      try { require('./jobs/backupJob').start(); } catch (e) { console.error('[backup-job] failed to start:', e.message); }
       // Flush queued push notifications every 15 minutes (catches quiet-hours queue)
       try {
         const pushService = require('./services/push-notifications');

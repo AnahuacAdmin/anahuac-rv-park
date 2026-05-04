@@ -5,7 +5,7 @@
  * Unauthorized copying, distribution, or use is strictly prohibited.
  */
 const router = require('express').Router();
-const { db } = require('../database');
+const { db, saveDb } = require('../database');
 const { authenticate } = require('../middleware');
 const { sendSms } = require('../twilio');
 const pushService = require('../services/push-notifications');
@@ -182,6 +182,7 @@ router.post('/', async (req, res) => {
     db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, payment_id, notes)
       VALUES (?, 'hold_as_credit', ?, ?, ?)`).run(tenant_id, creditAmount, payResult.lastInsertRowid,
       `$${creditAmount.toFixed(2)} held as credit via ${payment_method || 'cash'}`);
+    saveDb();
 
     // SMS receipt
     let smsResult = null;
@@ -201,6 +202,7 @@ router.post('/', async (req, res) => {
     INSERT INTO payments (tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(tenant_id, invoice_id, payment_date, amount, payment_method, reference_number, notes);
+  saveDb();
 
   // Update invoice if linked
   if (invoice_id) {
@@ -210,6 +212,7 @@ router.post('/', async (req, res) => {
     const status = balance <= 0.01 ? 'paid' : 'partial';
     db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
       .run(totalPaid.total, Math.max(0, balance), status, invoice_id);
+    saveDb();
     newBalance = Math.max(0, balance);
     invoiceNumber = invoice?.invoice_number;
 
@@ -220,6 +223,7 @@ router.post('/', async (req, res) => {
       db.prepare(`INSERT INTO credit_transactions (tenant_id, transaction_type, amount, payment_id, invoice_id, notes)
         VALUES (?, 'overpayment', ?, ?, ?, ?)`).run(tenant_id, overpayment, result.lastInsertRowid, invoice_id,
         `Overpayment of $${overpayment.toFixed(2)} on ${invoiceNumber || 'invoice #' + invoice_id}`);
+      saveDb();
       console.log(`[payments] overpayment of $${overpayment} added as credit to tenant ${tenant_id}`);
     }
 
@@ -230,6 +234,7 @@ router.post('/', async (req, res) => {
       ).get(tenant_id);
       if (!unpaid || unpaid.cnt === 0) {
         db.prepare('UPDATE tenants SET eviction_warning = 0, eviction_notified = 0, eviction_paused = 0, eviction_pause_note = NULL WHERE id = ?').run(tenant_id);
+        saveDb();
       }
     }
   }
@@ -318,6 +323,7 @@ router.post('/refund', async (req, res) => {
     const result = db.prepare(
       'INSERT INTO refunds (payment_id, invoice_id, tenant_id, amount, reason, stripe_refund_id, processed_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
     ).run(payment_id, payment.invoice_id, payment.tenant_id, amount, reason, stripeRefundId, req.user?.username || 'admin');
+    saveDb();
 
     // Update invoice: reduce amount_paid, increase balance_due
     if (payment.invoice_id) {
@@ -331,6 +337,7 @@ router.post('/refund', async (req, res) => {
         else if (newPaid > 0.005 || credits > 0.005) newStatus = 'partial';
         db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
           .run(newPaid, Math.max(0, newBalance), newStatus, inv.id);
+        saveDb();
       }
     }
 
@@ -364,6 +371,7 @@ router.get('/invoice-refunds/:invoiceId', (req, res) => {
 router.delete('/:id', (req, res) => {
   const payment = db.prepare('SELECT invoice_id, amount FROM payments WHERE id = ?').get(req.params.id);
   db.prepare('DELETE FROM payments WHERE id = ?').run(req.params.id);
+  saveDb();
 
   if (payment?.invoice_id) {
     const totalPaid = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoice_id = ?').get(payment.invoice_id);
@@ -374,6 +382,7 @@ router.delete('/:id', (req, res) => {
     else if (totalPaid.total > 0.005 || (invoice?.credit_applied || 0) > 0.005) delStatus = 'partial';
     db.prepare('UPDATE invoices SET amount_paid = ?, balance_due = ?, status = ? WHERE id = ?')
       .run(totalPaid.total, Math.max(0, balance), delStatus, payment.invoice_id);
+    saveDb();
   }
 
   res.json({ success: true });

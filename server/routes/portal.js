@@ -260,7 +260,12 @@ router.get('/me', tenantAuth, (req, res) => {
       // invoices stays [] — frontend shows empty list rather than crashing
     }
 
-    res.json({ ...tenant, balance, accountCredit, invoices });
+    // Google review banner settings
+    var reviewUrl = db.prepare("SELECT value FROM settings WHERE key = 'google_review_url'").get()?.value || 'https://search.google.com/local/writereview?placeid=ChIJgTxw3Pk-P4YRs2t_UMVRVa4';
+    var reviewEnabled = db.prepare("SELECT value FROM settings WHERE key = 'review_request_enabled'").get()?.value !== '0';
+    var reviewText = db.prepare("SELECT value FROM settings WHERE key = 'review_banner_text'").get()?.value || '';
+
+    res.json({ ...tenant, balance, accountCredit, invoices, reviewUrl, reviewEnabled, reviewText });
   } catch (err) {
     console.error('[CRITICAL] Portal /me endpoint failed:', err.message);
     res.status(500).json({ error: 'temporarily unavailable', balance: null });

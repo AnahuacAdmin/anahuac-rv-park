@@ -238,15 +238,8 @@ async function loadAdmin() {
     </div>
 
     <div class="card" style="border-left:4px solid #f59e0b">
-      <h3>🍽️ Portal Restaurants</h3>
-      <p><small>Manage the restaurant links shown to tenants on the portal.</small></p>
-      <div id="admin-restaurants-list" style="margin:0.75rem 0">Loading...</div>
-      <button class="btn btn-sm btn-primary" id="btn-add-restaurant">➕ Add Restaurant</button>
-    </div>
-
-    <div class="card" style="border-left:4px solid #ea580c">
-      <h3>🍴 Local Eats Directory</h3>
-      <p><small>Manage the full Local Eats restaurant directory shown on the tenant portal (with address, phone, hours, categories, ratings, etc.).</small></p>
+      <h3>🍽️ Local Eats</h3>
+      <p><small>Manage restaurants shown to guests on the portal. Guests can vote and comment on menu items.</small></p>
       <div id="admin-local-eats-list" style="margin:0.75rem 0">Loading...</div>
       <button class="btn btn-sm btn-primary" id="btn-add-local-eat">➕ Add Restaurant</button>
     </div>
@@ -306,24 +299,15 @@ async function loadAdmin() {
   loadNWSCurrentAlerts();
   loadWeatherAlertHistory();
   loadOfflineAdminStatus();
-  loadAdminRestaurants();
   loadAdminLocalEats();
   loadAdminLocalLinks();
   // Wire add buttons
   setTimeout(function() {
     var llBtn = document.getElementById('btn-add-local-link');
     if (llBtn) llBtn.addEventListener('click', showAddLocalLink);
+    var leBtn = document.getElementById('btn-add-local-eat');
+    if (leBtn) leBtn.addEventListener('click', showAddLocalEat);
   }, 60);
-  // Wire add restaurant button
-  setTimeout(function() {
-    var btn = document.getElementById('btn-add-restaurant');
-    if (btn) btn.addEventListener('click', showAddRestaurant);
-  }, 50);
-  // Wire add local eat button
-  setTimeout(function() {
-    var btn = document.getElementById('btn-add-local-eat');
-    if (btn) btn.addEventListener('click', showAddLocalEat);
-  }, 50);
 
   // Password eyeball toggles
   addPasswordToggle('pw-current');
@@ -744,9 +728,9 @@ async function deleteRestaurant(id, name) {
   loadAdminRestaurants();
 }
 
-// --- Local Eats Directory Admin ---
-var LE_CATEGORIES = ['american', 'mexican', 'seafood', 'bbq', 'asian', 'pizza', 'cajun', 'deli', 'breakfast', 'bakery', 'bar', 'fast-food', 'other'];
-var LE_PRICE_LEVELS = ['$', '$$', '$$$', '$$$$'];
+// --- Local Eats Admin (simplified) ---
+var LE_CATEGORIES = ['mexican','seafood','american','bbq','cajun','pizza','asian','cafe','diner','other'];
+var LE_EMOJIS = ['🌮','🦞','🍔','🥩','🥡','🍕','🍜','☕','🍳','🍽️','🌯','🍲','🍗','🍝','🥪','🍦','🐟'];
 
 async function loadAdminLocalEats() {
   var el = document.getElementById('admin-local-eats-list');
@@ -754,24 +738,26 @@ async function loadAdminLocalEats() {
   try {
     var list = await API.get('/local-restaurants/admin');
     if (!list || !list.length) { el.innerHTML = '<p style="font-size:0.82rem;color:#78716c">No restaurants yet. Click Add to create one.</p>'; return; }
-    el.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="border-bottom:2px solid #e5e7eb"><th style="text-align:left;padding:4px">Name</th><th>City</th><th>Category</th><th>Price</th><th>Rating</th><th>Rec</th><th>Active</th><th>Actions</th></tr></thead><tbody>' +
-      list.map(function(r) {
-        return '<tr style="border-bottom:1px solid #f3f4f6">' +
-          '<td style="padding:4px"><strong>' + escapeHtml(r.name) + '</strong></td>' +
-          '<td style="padding:4px;font-size:0.75rem">' + escapeHtml(r.city || '') + '</td>' +
-          '<td style="padding:4px;font-size:0.75rem">' + escapeHtml(r.category || '') + '</td>' +
-          '<td style="padding:4px">' + escapeHtml(r.price_level || '') + '</td>' +
-          '<td style="padding:4px">' + (r.rating ? r.rating.toFixed(1) : '—') + '</td>' +
-          '<td style="padding:4px">' + (r.is_recommended ? '⭐' : '') + '</td>' +
-          '<td style="padding:4px">' + (r.is_active ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-gray">No</span>') + '</td>' +
-          '<td style="padding:4px" class="btn-group"><button class="btn btn-sm btn-outline" onclick="showEditLocalEat(' + r.id + ')">Edit</button><button class="btn btn-sm btn-warning" onclick="toggleRecommendLocalEat(' + r.id + ')">Rec</button><button class="btn btn-sm btn-danger" onclick="deleteLocalEat(' + r.id + ',\'' + escapeHtml(r.name).replace(/'/g, "\\'") + '\')">Del</button></td>' +
-        '</tr>';
-      }).join('') + '</tbody></table>';
+    el.innerHTML = list.map(function(r, i) {
+      return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid #f3f4f6">' +
+        '<span style="font-size:1.3rem">' + (r.emoji || '🍽️') + '</span>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-weight:600;font-size:0.88rem">' + escapeHtml(r.name) + (r.is_recommended ? ' <span style="background:#fef3c7;color:#92400e;font-size:0.6rem;padding:1px 4px;border-radius:3px;font-weight:700">PARK PICK</span>' : '') + '</div>' +
+          '<div style="font-size:0.72rem;color:#78716c">' + escapeHtml(r.category || '') + ' &middot; ' + escapeHtml(r.city || '') + '</div>' +
+        '</div>' +
+        '<div class="btn-group">' +
+          '<button class="btn btn-sm btn-outline" onclick="showEditLocalEat(' + r.id + ')">Edit</button>' +
+          (i > 0 ? '<button class="btn btn-sm btn-outline" onclick="moveLocalEat(' + r.id + ',-1)" title="Move up">&uarr;</button>' : '') +
+          (i < list.length - 1 ? '<button class="btn btn-sm btn-outline" onclick="moveLocalEat(' + r.id + ',1)" title="Move down">&darr;</button>' : '') +
+          '<button class="btn btn-sm btn-danger" onclick="deleteLocalEat(' + r.id + ',\'' + escapeHtml(r.name).replace(/'/g, "\\'") + '\')">Del</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
   } catch { el.innerHTML = '<p style="color:#dc2626;font-size:0.82rem">Failed to load local eats</p>'; }
 }
 
 function showAddLocalEat() {
-  showModal('🍴 Add Local Restaurant', localEatFormHtml());
+  showModal('🍽️ Add Restaurant', localEatFormHtml());
   setTimeout(function() {
     var form = document.getElementById('local-eat-form');
     if (form) form.addEventListener('submit', function(e) { saveLocalEat(e, null); });
@@ -782,7 +768,7 @@ async function showEditLocalEat(id) {
   var list = await API.get('/local-restaurants/admin');
   var r = (list || []).find(function(x) { return x.id === id; });
   if (!r) return;
-  showModal('🍴 Edit Restaurant', localEatFormHtml(r));
+  showModal('🍽️ Edit Restaurant', localEatFormHtml(r));
   setTimeout(function() {
     var form = document.getElementById('local-eat-form');
     if (form) form.addEventListener('submit', function(e) { saveLocalEat(e, id); });
@@ -791,53 +777,30 @@ async function showEditLocalEat(id) {
 
 function localEatFormHtml(r) {
   r = r || {};
-  return '<form id="local-eat-form" style="max-height:70vh;overflow-y:auto;padding-right:0.5rem">' +
+  return '<form id="local-eat-form">' +
+    '<div class="form-group"><label>Restaurant Name *</label><input name="name" value="' + escapeHtml(r.name || '') + '" required></div>' +
     '<div class="form-row">' +
-      '<div class="form-group" style="flex:2"><label>Restaurant Name *</label><input name="name" value="' + escapeHtml(r.name || '') + '" required></div>' +
-      '<div class="form-group"><label>Category</label><select name="category">' + LE_CATEGORIES.map(function(c) { return '<option value="' + c + '"' + (r.category === c ? ' selected' : '') + '>' + c.charAt(0).toUpperCase() + c.slice(1) + '</option>'; }).join('') + '</select></div>' +
-    '</div>' +
-    '<div class="form-group"><label>Cuisine Type</label><input name="cuisine_type" value="' + escapeHtml(r.cuisine_type || '') + '" placeholder="e.g. Tex-Mex, Southern, Italian"></div>' +
-    '<div class="form-row">' +
-      '<div class="form-group" style="flex:2"><label>Address</label><input name="address" value="' + escapeHtml(r.address || '') + '"></div>' +
-      '<div class="form-group"><label>City</label><input name="city" value="' + escapeHtml(r.city || 'Anahuac') + '"></div>' +
+      '<div class="form-group"><label>Emoji</label><select name="emoji" style="font-size:1.2rem">' + LE_EMOJIS.map(function(e) { return '<option value="' + e + '"' + (r.emoji === e ? ' selected' : '') + '>' + e + '</option>'; }).join('') + '</select></div>' +
+      '<div class="form-group" style="flex:2"><label>Cuisine</label><select name="category">' + LE_CATEGORIES.map(function(c) { return '<option value="' + c + '"' + (r.category === c ? ' selected' : '') + '>' + c.charAt(0).toUpperCase() + c.slice(1) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="form-group" style="flex:2"><label>City</label><input name="city" value="' + escapeHtml(r.city || 'Anahuac') + '"></div>' +
     '</div>' +
     '<div class="form-row">' +
-      '<div class="form-group"><label>Phone</label><input name="phone" value="' + escapeHtml(r.phone || '') + '" placeholder="(409) 555-1234"></div>' +
-      '<div class="form-group"><label>Website</label><input name="website" value="' + escapeHtml(r.website || '') + '" placeholder="https://..."></div>' +
+      '<div class="form-group" style="flex:2"><label>Menu / Website URL</label><input name="website" value="' + escapeHtml(r.website || '') + '" placeholder="https://..."></div>' +
+      '<div class="form-group"><label>Phone</label><input name="phone" value="' + escapeHtml(r.phone || '') + '" placeholder="409-555-1234"></div>' +
     '</div>' +
-    '<div class="form-group"><label>Hours</label><input name="hours" value="' + escapeHtml(r.hours || '') + '" placeholder="Mon-Sat 7am-9pm, Sun 8am-3pm"></div>' +
-    '<div class="form-row">' +
-      '<div class="form-group"><label>Price Level</label><select name="price_level">' + LE_PRICE_LEVELS.map(function(p) { return '<option value="' + p + '"' + (r.price_level === p ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></div>' +
-      '<div class="form-group"><label>Rating (0-5)</label><input type="number" name="rating" value="' + (r.rating || '') + '" min="0" max="5" step="0.1" style="max-width:80px"></div>' +
-      '<div class="form-group"><label>Distance (mi)</label><input type="number" name="distance_miles" value="' + (r.distance_miles || '') + '" min="0" step="0.1" style="max-width:80px"></div>' +
-    '</div>' +
-    '<div class="form-group"><label>Description</label><textarea name="description" rows="2" style="width:100%">' + escapeHtml(r.description || '') + '</textarea></div>' +
-    '<div class="form-group"><label>Notable For</label><input name="notable_for" value="' + escapeHtml(r.notable_for || '') + '" placeholder="Best burgers in town, Fresh Gulf shrimp..."></div>' +
-    '<div class="form-row">' +
-      '<div class="form-group"><label>Display Order</label><input type="number" name="display_order" value="' + (r.display_order || 0) + '" min="0" style="max-width:80px"></div>' +
-    '</div>' +
-    '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin:0.75rem 0">' +
-      '<label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" name="has_delivery" value="1" ' + (r.has_delivery ? 'checked' : '') + '> Delivery</label>' +
-      '<label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" name="has_takeout" value="1" ' + (r.has_takeout !== 0 ? 'checked' : '') + '> Takeout</label>' +
-      '<label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" name="has_dine_in" value="1" ' + (r.has_dine_in !== 0 ? 'checked' : '') + '> Dine-In</label>' +
-      '<label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" name="is_recommended" value="1" ' + (r.is_recommended ? 'checked' : '') + '> Park Recommended</label>' +
-      '<label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" name="is_active" value="1" ' + (r.is_active !== 0 ? 'checked' : '') + '> Active</label>' +
-    '</div>' +
-    '<button type="submit" class="btn btn-primary btn-full">' + (r.id ? 'Update' : 'Add') + ' Restaurant</button></form>';
+    '<div class="form-group"><label>Map Address</label><input name="address" value="' + escapeHtml(r.address || '') + '" placeholder="123 Main St, Anahuac TX"></div>' +
+    '<label style="display:flex;align-items:center;gap:0.3rem;margin:0.75rem 0"><input type="checkbox" name="is_recommended" value="1" ' + (r.is_recommended ? 'checked' : '') + '> Park Recommended (shows badge on card)</label>' +
+    '<button type="submit" class="btn btn-primary btn-full">' + (r.id ? 'Save Changes' : 'Add Restaurant') + '</button></form>';
 }
 
 async function saveLocalEat(e, id) {
   e.preventDefault();
   var f = new FormData(e.target);
   var data = {
-    name: f.get('name'), category: f.get('category'), cuisine_type: f.get('cuisine_type'),
-    address: f.get('address'), city: f.get('city'), phone: f.get('phone'),
-    website: f.get('website'), hours: f.get('hours'), price_level: f.get('price_level'),
-    description: f.get('description'), rating: f.get('rating'), distance_miles: f.get('distance_miles'),
-    notable_for: f.get('notable_for'), display_order: f.get('display_order'),
-    has_delivery: f.get('has_delivery') === '1', has_takeout: f.get('has_takeout') === '1',
-    has_dine_in: f.get('has_dine_in') === '1', is_recommended: f.get('is_recommended') === '1',
-    is_active: f.get('is_active') === '1'
+    name: f.get('name'), emoji: f.get('emoji'), category: f.get('category'),
+    cuisine_type: f.get('category') ? f.get('category').charAt(0).toUpperCase() + f.get('category').slice(1) : '',
+    city: f.get('city'), website: f.get('website'), phone: f.get('phone'),
+    address: f.get('address'), is_recommended: f.get('is_recommended') === '1'
   };
   if (id) await API.post('/local-restaurants/' + id + '/update', data);
   else await API.post('/local-restaurants/add', data);
@@ -845,13 +808,21 @@ async function saveLocalEat(e, id) {
   loadAdminLocalEats();
 }
 
-async function toggleRecommendLocalEat(id) {
-  await API.post('/local-restaurants/' + id + '/recommend');
+async function moveLocalEat(id, direction) {
+  var list = await API.get('/local-restaurants/admin');
+  var ids = list.map(function(r) { return r.id; });
+  var idx = ids.indexOf(id);
+  if (idx < 0) return;
+  var newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= ids.length) return;
+  ids.splice(idx, 1);
+  ids.splice(newIdx, 0, id);
+  await API.post('/local-restaurants/reorder', { order: ids });
   loadAdminLocalEats();
 }
 
 async function deleteLocalEat(id, name) {
-  if (!confirm('Deactivate "' + name + '" from Local Eats?')) return;
+  if (!confirm('Delete "' + name + '" from Local Eats? This also removes all votes and menu comments for this restaurant.')) return;
   await API.del('/local-restaurants/' + id);
   loadAdminLocalEats();
 }

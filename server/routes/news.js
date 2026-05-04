@@ -31,6 +31,10 @@ const ANAHUAC_KEYWORDS = [
   // Roads
   'fm-563', 'fm 563', 'fm-1985', 'fm 1985', 'fm-562', 'fm 562',
   'sh-146', 'sh 146', 'state highway 146',
+  // Additional local identifiers
+  'cedar bayou', 'cotton lake', 'lake charlotte',
+  'chambers county courthouse', 'anahuac chamber',
+  'icu bridge', 'i-10 east',
 ];
 
 const REJECT_KEYWORDS = [
@@ -58,26 +62,70 @@ function isLocalToAnahuac(article) {
 }
 
 // ── Feed definitions ──
-// Local: Houston-area stations (filtered for Chambers County mentions)
-// + Galveston/coastal sources for bay area relevance
+// Local: Google News search-as-RSS (pre-filtered for our area keywords)
+// + City of Anahuac WordPress RSS (if available)
 const LOCAL_FEEDS = [
-  { name: 'KHOU 11', url: 'https://www.khou.com/feeds/syndication/rss/news/local', filter: true },
-  { name: 'KPRC 2', url: 'https://www.click2houston.com/arc/outboundfeeds/rss/category/news/?outputType=xml', filter: true },
-  { name: 'ABC13', url: 'https://abc13.com/feed/', filter: true },
-  { name: 'Fox 26', url: 'https://www.fox26houston.com/feeds/syndication/rss/news/local', filter: true },
-  // Galveston Bay / coastal — more relevant to our area
-  { name: 'Galveston Daily News', url: 'https://www.galvnews.com/search/?f=rss&t=article&l=25&s=start_time&sd=desc', filter: false, section: 'coastal' },
+  { name: 'Google News - Anahuac Texas', url: 'https://news.google.com/rss/search?q=%22Anahuac%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 100, googleNews: true },
+  { name: 'Google News - Chambers County Texas', url: 'https://news.google.com/rss/search?q=%22Chambers+County%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 95, googleNews: true },
+  { name: 'Google News - Mont Belvieu', url: 'https://news.google.com/rss/search?q=%22Mont+Belvieu%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 80, googleNews: true },
+  { name: 'Google News - Trinity Bay Texas', url: 'https://news.google.com/rss/search?q=%22Trinity+Bay%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 70, googleNews: true },
+  { name: 'Google News - Winnie Texas', url: 'https://news.google.com/rss/search?q=%22Winnie%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 60, googleNews: true,
+    requireKeywords: ['chambers', 'jefferson', 'winnie tx', 'east chambers'] },
+];
+
+// City of Anahuac WordPress RSS (best-effort, may not exist)
+const CITY_RSS_URLS = [
+  'https://anahuac.us/feed/',
+  'https://anahuac.us/category/news/feed/',
 ];
 
 const TEXAS_FEEDS = [
-  // Houston metro (broader stories that don't match local filter)
-  { name: 'KHOU 11', url: 'https://www.khou.com/feeds/syndication/rss/news/local', houstonOverflow: true },
-  { name: 'ABC13', url: 'https://abc13.com/feed/', houstonOverflow: true },
-  // Statewide
+  { name: 'Google News - Houston Texas', url: 'https://news.google.com/rss/search?q=%22Houston%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 100, googleNews: true },
+  { name: 'Google News - Texas State', url: 'https://news.google.com/rss/search?q=%22Texas%22+state&hl=en-US&gl=US&ceid=US:en', weight: 95, googleNews: true,
+    requireKeywords: ['texas', 'tx '] },
+  { name: 'Google News - Galveston', url: 'https://news.google.com/rss/search?q=%22Galveston%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 85, googleNews: true },
+  { name: 'Google News - Beaumont Texas', url: 'https://news.google.com/rss/search?q=%22Beaumont%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 75, googleNews: true },
+  { name: 'Google News - Austin Texas', url: 'https://news.google.com/rss/search?q=%22Austin+Texas%22&hl=en-US&gl=US&ceid=US:en', weight: 70, googleNews: true },
+  { name: 'Google News - Dallas Texas', url: 'https://news.google.com/rss/search?q=%22Dallas%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 65, googleNews: true },
+  { name: 'Google News - San Antonio Texas', url: 'https://news.google.com/rss/search?q=%22San+Antonio%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 60, googleNews: true },
+  // Direct feeds (already Texas-focused)
   { name: 'Texas Tribune', url: 'https://www.texastribune.org/feeds/articles.rss' },
-  { name: 'KHOU Texas', url: 'https://www.khou.com/feeds/syndication/rss/news/texas' },
-  { name: 'Texas DPS', url: 'https://www.dps.texas.gov/rss/press-releases.xml' },
 ];
+
+// ── Texas keyword filter (safety net for Google News results) ──
+const TEXAS_KEYWORDS = [
+  'texas', 'tx ', 'houston', 'dallas', 'austin', 'san antonio',
+  'fort worth', 'el paso', 'galveston', 'corpus christi',
+  'beaumont', 'plano', 'arlington', 'amarillo', 'lubbock',
+  'waco', 'tyler', 'longview', 'killeen', 'mcallen',
+  'longhorns', 'aggies', 'rangers', 'astros', 'cowboys', 'mavericks',
+  'rockets', 'spurs', 'texans', 'governor abbott', 'lt. governor patrick',
+  'chambers county', 'anahuac', 'mont belvieu', 'baytown',
+];
+
+const NON_TEXAS_REJECT = [
+  'washington monument', 'white house', 'capitol hill', 'congress passes',
+  'middle east', 'ukraine', 'russia', 'china', 'gaza', 'israel',
+  'florida zoo', 'california fires', 'new york city', 'chicago shooting',
+  'wall street', 'pentagon', 'supreme court rules',
+];
+
+function isAboutTexas(article) {
+  var text = ((article.title || '') + ' ' + (article.snippet || '')).toLowerCase();
+  return TEXAS_KEYWORDS.some(function(k) { return text.includes(k); });
+}
+
+function isNonTexas(article) {
+  var text = ((article.title || '') + ' ' + (article.snippet || '')).toLowerCase();
+  for (var i = 0; i < NON_TEXAS_REJECT.length; i++) {
+    if (text.includes(NON_TEXAS_REJECT[i])) {
+      // Allow if it ALSO mentions Texas explicitly
+      if (TEXAS_KEYWORDS.some(function(k) { return text.includes(k); })) return false;
+      return true;
+    }
+  }
+  return false;
+}
 
 const NATIONAL_FEEDS = [
   { name: 'AP News', url: 'https://rsshub.app/apnews/topics/apf-topnews' },
@@ -117,34 +165,56 @@ router.get('/headlines', async (req, res) => {
   // Fetch fresh from all sources
   var result = { local: [], texas: [], national: [] };
 
-  // ── LOCAL: fetch and filter for Chambers County ──
-  var localRaw = [];
+  // ── LOCAL: Google News search + City of Anahuac RSS ──
+  var allLocalItems = [];
+
+  // Try City of Anahuac WordPress RSS (best-effort)
+  for (var cityUrl of CITY_RSS_URLS) {
+    try {
+      var cityFeed = await parser.parseURL(cityUrl);
+      if (cityFeed && cityFeed.items && cityFeed.items.length > 0) {
+        console.log('[news] City of Anahuac RSS found at ' + cityUrl + ' — ' + cityFeed.items.length + ' items');
+        cityFeed.items.slice(0, 5).forEach(function(ci) {
+          allLocalItems.push({
+            title: (ci.title || '').trim(),
+            link: ci.link || '',
+            source: 'City of Anahuac',
+            published: ci.pubDate || ci.isoDate || '',
+            snippet: ci.contentSnippet ? ci.contentSnippet.replace(/\s+/g, ' ').trim().slice(0, 200) : '',
+            image: ci.enclosure?.url || ci['media:content']?.$.url || '',
+            badge: 'OFFICIAL',
+          });
+        });
+        break; // Found working RSS, no need to try more URLs
+      }
+    } catch (e) {
+      // Try next URL silently
+    }
+  }
+
+  // Fetch Google News feeds
   var localPromises = LOCAL_FEEDS.map(source =>
-    fetchFeed(source).catch(() => ({ items: [] }))
+    fetchFeed(source).catch(() => ({ items: [], _source: source }))
   );
   var localResults = await Promise.all(localPromises);
   for (var lr of localResults) {
-    if (lr.items) localRaw.push(...lr.items.map(item => ({ ...item, _filter: lr._filter, _section: lr._section })));
-  }
-
-  // Apply Anahuac keyword filter to filtered sources
-  var allLocalItems = [];
-  for (var item of localRaw) {
-    if (item._filter) {
-      if (isLocalToAnahuac(item)) {
-        item.section = 'local';
-        allLocalItems.push(item);
+    if (!lr.items) continue;
+    for (var item of lr.items) {
+      // Apply requireKeywords filter if specified (e.g. Winnie)
+      if (lr._requireKeywords) {
+        var text = ((item.title || '') + ' ' + (item.snippet || '')).toLowerCase();
+        if (!lr._requireKeywords.some(function(k) { return text.includes(k); })) continue;
       }
-      // Non-matching items become Texas tab candidates (Houston overflow)
-    } else {
-      // Unfiltered sources (e.g., Galveston coastal) go straight to local
-      item.section = item._section || 'local';
       allLocalItems.push(item);
     }
   }
 
-  // Sort by date, deduplicate by title similarity, limit
-  allLocalItems.sort((a, b) => new Date(b.published || 0) - new Date(a.published || 0));
+  // Sort: OFFICIAL badge first, then by date. Deduplicate, limit.
+  allLocalItems.sort((a, b) => {
+    if (a.badge === 'OFFICIAL' && b.badge !== 'OFFICIAL') return -1;
+    if (b.badge === 'OFFICIAL' && a.badge !== 'OFFICIAL') return 1;
+    return new Date(b.published || 0) - new Date(a.published || 0);
+  });
   result.local = deduplicateNews(allLocalItems).slice(0, 15);
 
   // Tag local items with subsection for frontend grouping
@@ -166,22 +236,24 @@ router.get('/headlines', async (req, res) => {
     }
   });
 
-  // ── TEXAS: statewide + Houston overflow ──
+  // ── TEXAS: Google News + Texas Tribune ──
   var texasRaw = [];
-  // Houston overflow: local-feed items that didn't pass the Anahuac filter
-  for (var item of localRaw) {
-    if (item._filter && !isLocalToAnahuac(item)) {
-      texasRaw.push(item);
-    }
-  }
-  // Dedicated Texas feeds
-  var texasPromises = TEXAS_FEEDS.filter(s => !s.houstonOverflow).map(source =>
+  var texasPromises = TEXAS_FEEDS.map(source =>
     fetchFeed(source).catch(() => ({ items: [] }))
   );
   var texasResults = await Promise.all(texasPromises);
   for (var tr of texasResults) {
-    if (tr.items) texasRaw.push(...tr.items);
+    if (!tr.items) continue;
+    for (var tItem of tr.items) {
+      if (tr._requireKeywords) {
+        var tText = ((tItem.title || '') + ' ' + (tItem.snippet || '')).toLowerCase();
+        if (!tr._requireKeywords.some(function(k) { return tText.includes(k); })) continue;
+      }
+      texasRaw.push(tItem);
+    }
   }
+  // Filter: must be about Texas, must not be clearly non-Texas
+  texasRaw = texasRaw.filter(function(a) { return isAboutTexas(a) && !isNonTexas(a); });
   texasRaw.sort((a, b) => new Date(b.published || 0) - new Date(a.published || 0));
   result.texas = deduplicateNews(texasRaw).slice(0, 12);
 
@@ -212,15 +284,31 @@ router.get('/headlines', async (req, res) => {
 
 async function fetchFeed(source) {
   var feed = await parser.parseURL(source.url);
-  var items = (feed.items || []).slice(0, 10).map(item => ({
-    title: (item.title || '').trim(),
-    link: item.link || '',
-    source: source.name,
-    published: item.pubDate || item.isoDate || '',
-    snippet: item.contentSnippet ? item.contentSnippet.replace(/\s+/g, ' ').trim().slice(0, 200) : '',
-    image: item.enclosure?.url || item['media:content']?.$.url || ''
-  }));
-  return { items, _filter: source.filter, _section: source.section };
+  var items = (feed.items || []).slice(0, 10).map(function(item) {
+    var title = (item.title || '').trim();
+    var itemSource = source.name;
+
+    // Google News includes publisher in title: "Story Title - Publisher Name"
+    if (source.googleNews) {
+      var dashIdx = title.lastIndexOf(' - ');
+      if (dashIdx > 0) {
+        itemSource = title.slice(dashIdx + 3).trim();
+        title = title.slice(0, dashIdx).trim();
+      }
+      // Google News search name → cleaner display
+      itemSource = itemSource || source.name.replace('Google News - ', '');
+    }
+
+    return {
+      title: title,
+      link: item.link || '',
+      source: itemSource,
+      published: item.pubDate || item.isoDate || '',
+      snippet: item.contentSnippet ? item.contentSnippet.replace(/\s+/g, ' ').trim().slice(0, 200) : '',
+      image: item.enclosure?.url || item['media:content']?.$.url || '',
+    };
+  });
+  return { items, _filter: source.filter, _section: source.section, _requireKeywords: source.requireKeywords };
 }
 
 // Remove near-duplicate headlines (same title from different sources)
