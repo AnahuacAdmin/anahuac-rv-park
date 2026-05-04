@@ -1603,6 +1603,8 @@ async function showPortal() {
       ['traffic-routes', '\u26A0\uFE0F Traffic data unavailable. <a href="#" onclick="loadTrafficEnhanced();return false" style="color:#1a5c32;font-weight:600">Retry</a>'],
       ['portal-community-feed', 'No community posts yet.'],
       ['portal-lf-feed', 'No lost & found posts yet.'],
+      ['p-payment-history', 'Unable to load payment history. <a href="#" onclick="loadPaymentHistory();return false" style="color:#1a5c32;font-weight:600">Retry</a>'],
+      ['p-invoices', 'Unable to load invoices. <a href="#" onclick="window.location.reload()" style="color:#1a5c32;font-weight:600">Refresh</a>'],
     ];
     fallbacks.forEach(function(f) {
       var el = document.getElementById(f[0]);
@@ -1751,10 +1753,6 @@ async function showPortal() {
       try { celebratePayment(); } catch(e) {}
     }
 
-    // Load payment history
-    loadPaymentHistory();
-    loadSavedCardsDisplay();
-
     // Show credit badge in payment history header
     var creditBadgeEl = document.getElementById('p-credit-badge');
     if (creditBadgeEl && data.accountCredit > 0) {
@@ -1826,6 +1824,11 @@ async function showPortal() {
     document.getElementById('pay-section').innerHTML = '<p style="text-align:center;color:#dc2626;font-weight:600;font-size:0.92rem;line-height:1.4">Could not load your account<br><span style="font-size:0.82rem;color:#78716c;font-weight:400">Please try again or call <a href="tel:4092676603" style="color:#2563eb">409-267-6603</a></span></p>';
     document.getElementById('p-invoices').innerHTML = '';
   }
+
+  // ALWAYS attempt to load payment history and saved cards —
+  // they fetch their own data independently of /me
+  try { loadPaymentHistory(); } catch (e) { console.warn('[portal] loadPaymentHistory error:', e); }
+  try { loadSavedCardsDisplay(); } catch (e) { console.warn('[portal] loadSavedCardsDisplay error:', e); }
 }
 
 // --- Holiday System ---
