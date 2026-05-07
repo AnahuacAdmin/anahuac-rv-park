@@ -1,10 +1,12 @@
 {
-  "name": "Anahuac RV Park",
-  "short_name": "AnahuacRV",
-  "description": "Anahuac RV Park Management System",
+  "name": "Anahuac RV Park Admin",
+  "short_name": "RV Admin",
+  "description": "Anahuac RV Park management dashboard",
+  "id": "/admin",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#000000",
+  "theme_color": "#1a5c32",
   "background_color": "#ffffff",
   "orientation": "any",
   "icons": [
