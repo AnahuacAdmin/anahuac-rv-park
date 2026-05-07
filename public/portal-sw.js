@@ -3,7 +3,7 @@
  * Handles push notifications, notification clicks, and app badge updates.
  */
 
-var CACHE_VERSION = 'portal-v2';
+var CACHE_VERSION = 'portal-v3';
 
 self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', (event) => {

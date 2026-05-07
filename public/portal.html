@@ -9,14 +9,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#16a34a">
-  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="/icons/favicon.ico?v=2026-05-07" sizes="any">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png?v=2026-05-07">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png?v=2026-05-07">
+  <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48x48.png?v=2026-05-07">
   <link rel="manifest" href="/manifest-portal.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Anahuac RV">
-  <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
-  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png">
+  <meta property="og:image" content="/icons/og-image-1200x630.png?v=2026-05-07">
+  <meta name="twitter:image" content="/icons/twitter-card-1200x630.png?v=2026-05-07">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152x152.png?v=2026-05-07">
+  <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon-167x167.png?v=2026-05-07">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png?v=2026-05-07">
   <title>Guest Portal - Anahuac RV Park</title>
   <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -664,6 +671,46 @@
     <div id="p-payment-history" style="font-size:0.88rem;color:#a8a29e">Loading...</div>
   </div>
 
+  <!-- ===== QUICK ACTIONS — Moved here for immediate access ===== -->
+  <div class="quick-actions" data-tab-section="home" style="margin-bottom:0.6rem">
+    <a class="qa-btn" href="#msg-form" onclick="event.preventDefault();switchPortalTab('contact');setTimeout(function(){document.getElementById('msg-form')?.scrollIntoView({behavior:'smooth'})},100)">
+      <span class="qa-icon">💬</span><span class="qa-label">Message Us</span>
+    </a>
+    <a class="qa-btn" href="#" onclick="event.preventDefault();openQuarterRequestModal()" style="border-color:#78716c">
+      <span class="qa-icon" style="font-size:1.6rem;line-height:1">🪙</span><span class="qa-label">Need Quarters?</span>
+    </a>
+    <a class="qa-btn" href="#portal-community-feed" onclick="event.preventDefault();switchPortalTab('community');setTimeout(function(){document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth'})},100)">
+      <span class="qa-icon">🏘️</span><span class="qa-label">Community Chat</span>
+    </a>
+    <a class="qa-btn" href="#maint-form" onclick="event.preventDefault();switchPortalTab('maint-tab');setTimeout(function(){document.getElementById('maint-form')?.scrollIntoView({behavior:'smooth'})},100)">
+      <span class="qa-icon">🔧</span><span class="qa-label">Report Problem</span>
+    </a>
+    <a class="qa-btn" href="/rules.html" target="_blank" style="border-color:#166534">
+      <span class="qa-icon">📜</span><span class="qa-label">Park Rules</span>
+    </a>
+    <a class="qa-btn" id="qa-call-btn" href="tel:4092676603" onclick="return handleCallBtn(event)" style="position:relative">
+      <span class="qa-icon" style="display:block;text-align:center;width:100%">📞</span><span class="qa-label" style="display:block;text-align:center;width:100%">Call Us</span>
+      <div id="call-tooltip" style="display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;background:#fff;border:1.5px solid #1a5c32;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);padding:0.85rem 1rem;width:220px;z-index:50;text-align:center">
+        <div style="font-size:0.78rem;color:#78716c;margin-bottom:0.3rem">📞 Call us at:</div>
+        <div style="font-size:1.2rem;font-weight:800;color:#1a5c32;margin-bottom:0.6rem">(409) 267-6603</div>
+        <button onclick="event.stopPropagation();navigator.clipboard?.writeText('4092676603').then(function(){var b=event.target;b.textContent='✅ Copied!';setTimeout(function(){b.textContent='📋 Copy Number'},1500)})" style="display:block;width:100%;padding:0.5rem;border:1.5px solid #1a5c32;border-radius:10px;background:#f0fdf4;color:#1a5c32;font-weight:700;font-size:0.82rem;cursor:pointer;margin-bottom:0.4rem">📋 Copy Number</button>
+        <a href="skype:14092676603?call" onclick="event.stopPropagation()" style="display:block;width:100%;padding:0.5rem;border:1.5px solid #d1d5db;border-radius:10px;background:#fff;color:#44403c;font-weight:600;font-size:0.82rem;text-decoration:none;text-align:center">💻 Open Skype</a>
+        <button onclick="event.stopPropagation();document.getElementById('call-tooltip').style.display='none'" style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:0.75rem;color:#a8a29e;cursor:pointer">✕</button>
+      </div>
+    </a>
+  </div>
+
+  <!-- My Quarter Requests -->
+  <div id="my-quarter-requests" data-tab-section="home" style="display:none;width:100%;max-width:800px;margin-bottom:0.6rem">
+    <div class="card" style="padding:0.85rem 1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <div class="card-title" style="margin:0;font-size:0.85rem">🪙 My Quarter Requests</div>
+        <button onclick="openQuarterRequestModal()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.3rem 0.7rem;font-size:0.72rem;font-weight:700;cursor:pointer">+ New</button>
+      </div>
+      <div id="quarter-requests-list" style="font-size:0.85rem"></div>
+    </div>
+  </div>
+
   <!-- Dad Joke Gator 🐊 -->
   <div id="portal-dad-joke" data-tab-section="home" style="width:100%;max-width:800px"></div>
 
@@ -832,45 +879,7 @@
     <div style="font-size:0.82rem;color:#78350f;margin-top:0.5rem;font-style:italic">Sincerely, Park Management ❤️</div>
   </div>
 
-  <!-- ===== 3. QUICK ACTIONS ===== -->
-  <div class="quick-actions" data-tab-section="home" style="margin-bottom:0.6rem">
-    <a class="qa-btn" href="#maint-form" onclick="event.preventDefault();switchPortalTab('maint-tab');setTimeout(function(){document.getElementById('maint-form')?.scrollIntoView({behavior:'smooth'})},100)">
-      <span class="qa-icon">🔧</span><span class="qa-label">Report Problem</span>
-    </a>
-    <a class="qa-btn" href="#msg-form" onclick="event.preventDefault();switchPortalTab('contact');setTimeout(function(){document.getElementById('msg-form')?.scrollIntoView({behavior:'smooth'})},100)">
-      <span class="qa-icon">💬</span><span class="qa-label">Message Us</span>
-    </a>
-    <a class="qa-btn" href="#portal-community-feed" onclick="event.preventDefault();switchPortalTab('community');setTimeout(function(){document.getElementById('portal-community-feed')?.scrollIntoView({behavior:'smooth'})},100)">
-      <span class="qa-icon">🏘️</span><span class="qa-label">Community Chat</span>
-    </a>
-    <a class="qa-btn" href="#" onclick="event.preventDefault();openQuarterRequestModal()" style="border-color:#78716c">
-      <span class="qa-icon" style="font-size:1.6rem;line-height:1">🪙</span><span class="qa-label">Need Quarters?</span>
-    </a>
-    <a class="qa-btn" href="/rules.html" target="_blank" style="border-color:#166534">
-      <span class="qa-icon">📜</span><span class="qa-label">Park Rules</span>
-    </a>
-    <a class="qa-btn" id="qa-call-btn" href="tel:4092676603" onclick="return handleCallBtn(event)" style="position:relative">
-      <span class="qa-icon">📞</span><span class="qa-label">Call Us</span>
-      <div id="call-tooltip" style="display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;background:#fff;border:1.5px solid #1a5c32;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);padding:0.85rem 1rem;width:220px;z-index:50;text-align:center">
-        <div style="font-size:0.78rem;color:#78716c;margin-bottom:0.3rem">📞 Call us at:</div>
-        <div style="font-size:1.2rem;font-weight:800;color:#1a5c32;margin-bottom:0.6rem">(409) 267-6603</div>
-        <button onclick="event.stopPropagation();navigator.clipboard?.writeText('4092676603').then(function(){var b=event.target;b.textContent='✅ Copied!';setTimeout(function(){b.textContent='📋 Copy Number'},1500)})" style="display:block;width:100%;padding:0.5rem;border:1.5px solid #1a5c32;border-radius:10px;background:#f0fdf4;color:#1a5c32;font-weight:700;font-size:0.82rem;cursor:pointer;margin-bottom:0.4rem">📋 Copy Number</button>
-        <a href="skype:14092676603?call" onclick="event.stopPropagation()" style="display:block;width:100%;padding:0.5rem;border:1.5px solid #d1d5db;border-radius:10px;background:#fff;color:#44403c;font-weight:600;font-size:0.82rem;text-decoration:none;text-align:center">💻 Open Skype</a>
-        <button onclick="event.stopPropagation();document.getElementById('call-tooltip').style.display='none'" style="position:absolute;top:6px;right:8px;background:none;border:none;font-size:0.75rem;color:#a8a29e;cursor:pointer">✕</button>
-      </div>
-    </a>
-  </div>
-
-  <!-- My Quarter Requests -->
-  <div id="my-quarter-requests" data-tab-section="home" style="display:none;width:100%;max-width:800px;margin-bottom:0.6rem">
-    <div class="card" style="padding:0.85rem 1rem">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-        <div class="card-title" style="margin:0;font-size:0.85rem">🪙 My Quarter Requests</div>
-        <button onclick="openQuarterRequestModal()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.3rem 0.7rem;font-size:0.72rem;font-weight:700;cursor:pointer">+ New</button>
-      </div>
-      <div id="quarter-requests-list" style="font-size:0.85rem"></div>
-    </div>
-  </div>
+  <!-- Quick Actions and Quarter Requests moved up to after Payment History -->
 
   <!-- ===== 4. COMMUNITY CHAT STRIP — slim banner ===== -->
   <div class="card" data-tab-section="community" style="padding:0.4rem 0.75rem;margin-bottom:0.5rem">
@@ -2413,12 +2422,16 @@ function renderNewsFeed(tab) {
     if (tab === 'local') {
       feed.innerHTML = '<div style="text-align:center;padding:1.5rem">' +
         '<div style="font-size:1.5rem;margin-bottom:0.4rem">🌅</div>' +
-        '<div style="font-family:Georgia,serif;font-size:0.92rem;color:#57534e;font-weight:600">Quiet news day in Chambers County</div>' +
-        '<div style="font-size:0.78rem;color:#a09080;margin-top:0.25rem">No local headlines right now. Enjoy the peace!</div>' +
+        '<div style="font-family:Georgia,serif;font-size:0.92rem;color:#57534e;font-weight:600">Quiet day in Chambers County</div>' +
+        '<div style="font-size:0.78rem;color:#a09080;margin-top:0.25rem">No local news from today yet. Check back later!</div>' +
         '<button onclick="switchNewsTab(\'texas\')" class="news-more-btn" style="margin-top:0.5rem;border-radius:6px">Browse Texas News →</button>' +
       '</div>';
     } else {
-      feed.innerHTML = '<div style="text-align:center;padding:1.5rem;color:#a09080;font-size:0.82rem;font-style:italic">No ' + tab + ' headlines right now. Check back soon.</div>';
+      feed.innerHTML = '<div style="text-align:center;padding:1.5rem">' +
+        '<div style="font-size:1.2rem;margin-bottom:0.3rem">📅</div>' +
+        '<div style="font-size:0.82rem;color:#a09080">No ' + tab + ' news from today yet</div>' +
+        '<div style="font-size:0.72rem;color:#c0b0a0;margin-top:0.2rem">Check back later for fresh stories</div>' +
+      '</div>';
     }
     return;
   }
@@ -2489,9 +2502,11 @@ function _newsTimeAgo(dateStr) {
     if (isNaN(diff) || diff < 0) return '';
     if (diff < 60000) return 'just now';
     if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
-    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
-    if (diff < 172800000) return 'yesterday';
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    var hours = Math.floor(diff / 3600000);
+    if (hours < 6) return hours + 'h ago';
+    if (hours < 12) return 'this morning';
+    if (hours < 24) return hours + 'h ago';
+    return 'yesterday';
   } catch { return ''; }
 }
 
