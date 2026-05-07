@@ -384,6 +384,18 @@
     .notif-badge { position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.3) }
     .notif-badge:empty { display:none }
 
+    /* ===== PUSH NOTIFICATION BANNER ===== */
+    .push-banner { background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);border:1px solid #bbf7d0;border-radius:10px;padding:0.65rem 0.85rem;margin:0 auto 0.5rem;max-width:800px;width:100%;display:none;align-items:center;gap:0.6rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);animation:pushBannerIn 0.4s ease }
+    @keyframes pushBannerIn { from { opacity:0;transform:translateY(-8px) } to { opacity:1;transform:translateY(0) } }
+    .push-banner-icon { font-size:1.3rem;flex-shrink:0 }
+    .push-banner-text { flex:1;font-size:0.82rem;color:#1c4428;line-height:1.35 }
+    .push-banner-actions { display:flex;gap:0.4rem;flex-shrink:0 }
+    .push-banner-enable { background:#16a34a;color:#fff;border:none;border-radius:7px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap }
+    .push-banner-enable:hover { background:#15803d }
+    .push-banner-dismiss { background:none;border:none;color:#6b7280;font-size:0.78rem;cursor:pointer;padding:0.35rem 0.4rem;white-space:nowrap }
+    .push-banner-dismiss:hover { color:#374151 }
+    @media (max-width:420px) { .push-banner { flex-wrap:wrap } .push-banner-actions { width:100%;justify-content:flex-end } }
+
     /* ===== NOTIFICATION INBOX ===== */
     .notif-inbox { display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:8000;background:rgba(0,0,0,0.45);backdrop-filter:blur(2px) }
     .notif-inbox.open { display:block }
@@ -546,6 +558,16 @@
 
   <!-- Weather alert banner -->
   <div id="portal-weather-banner" data-tab-section="home" style="width:100%;max-width:800px;display:none"></div>
+
+  <!-- Push notification opt-in banner -->
+  <div class="push-banner" id="push-opt-in-banner" data-tab-section="home">
+    <span class="push-banner-icon">🔔</span>
+    <span class="push-banner-text">Get instant alerts for payments, weather, and park announcements</span>
+    <div class="push-banner-actions">
+      <button class="push-banner-enable" onclick="pushBannerEnable()">Enable Notifications</button>
+      <button class="push-banner-dismiss" onclick="pushBannerDismiss()">Not now</button>
+    </div>
+  </div>
 
   <!-- Founding Angler celebration banner -->
   <div id="portal-founding-angler" data-tab-section="home" style="width:100%;max-width:800px"></div>
@@ -1260,6 +1282,7 @@
         <button onclick="closeNotifPrefs()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#78716c">✕</button>
       </div>
       <div class="notif-inbox-body" style="padding:1rem 1.15rem">
+        <div id="np-push-status"></div>
         <div style="font-size:0.85rem;font-weight:700;color:#44403c;margin-bottom:0.75rem">Push Notifications</div>
         <div class="notif-pref-row"><label>Enabled</label><button class="notif-toggle" id="np-enabled" onclick="toggleNotifPref(this,'enabled')"></button></div>
         <div style="font-size:0.85rem;font-weight:700;color:#44403c;margin:1rem 0 0.5rem">Notify me about:</div>
@@ -1282,6 +1305,8 @@
         <div style="font-size:0.72rem;color:#a8a29e;margin-top:0.5rem;font-style:italic">Severe weather alerts will always come through, even during quiet hours.</div>
         <div style="font-size:0.85rem;font-weight:700;color:#44403c;margin:1.25rem 0 0.5rem">My Devices</div>
         <div id="np-devices" style="font-size:0.82rem;color:#78716c">Loading...</div>
+        <button id="np-test-push" onclick="sendTestPush()" style="display:none;margin-top:0.75rem;background:#16a34a;color:#fff;border:none;border-radius:7px;padding:0.4rem 0.85rem;font-size:0.8rem;font-weight:600;cursor:pointer;width:100%">📲 Send Test Notification</button>
+        <div id="np-test-result" style="font-size:0.78rem;margin-top:0.3rem"></div>
       </div>
     </div>
   </div>
@@ -1646,6 +1671,7 @@ async function showPortal() {
   const data = results[0].status === 'fulfilled' ? results[0].value : null;
   // Initialize push notifications and badge
   initPushNotifications();
+  checkPushBanner();
   updateNotifBadge();
   // Auto-refresh badge every 60 seconds
   setInterval(updateNotifBadge, 60000);
@@ -6538,6 +6564,56 @@ function detectDeviceLabel() {
 }
 
 // ═══════════════════════════════════════════
+// PUSH OPT-IN BANNER
+// ═══════════════════════════════════════════
+async function checkPushBanner() {
+  var banner = document.getElementById('push-opt-in-banner');
+  if (!banner || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+
+  // If permission was denied, never show banner
+  if (Notification.permission === 'denied') return;
+  // If permission already granted, check for existing subscription
+  if (Notification.permission === 'granted') {
+    try {
+      var reg = await navigator.serviceWorker.ready;
+      var sub = await reg.pushManager.getSubscription();
+      if (sub) return; // already subscribed — no banner needed
+    } catch { return; }
+  }
+
+  // Check localStorage dismiss timestamp
+  var dismissed = localStorage.getItem('push_banner_dismissed');
+  if (dismissed) {
+    var elapsed = Date.now() - parseInt(dismissed, 10);
+    if (elapsed < 7 * 24 * 60 * 60 * 1000) return; // less than 7 days
+  }
+
+  banner.style.display = 'flex';
+}
+
+async function pushBannerEnable() {
+  var banner = document.getElementById('push-opt-in-banner');
+  var ok = await subscribeToPush();
+  if (ok) {
+    localStorage.setItem('push_banner_subscribed', '1');
+    localStorage.removeItem('push_banner_dismissed');
+    if (banner) { banner.style.display = 'none'; }
+  } else {
+    // Permission denied or subscribe failed
+    if (Notification.permission === 'denied' && banner) {
+      banner.querySelector('.push-banner-text').textContent = 'Notifications are blocked. Enable in your browser settings, then reload.';
+      banner.querySelector('.push-banner-actions').innerHTML = '<button class="push-banner-dismiss" onclick="pushBannerDismiss()">OK</button>';
+    }
+  }
+}
+
+function pushBannerDismiss() {
+  var banner = document.getElementById('push-opt-in-banner');
+  if (banner) banner.style.display = 'none';
+  localStorage.setItem('push_banner_dismissed', String(Date.now()));
+}
+
+// ═══════════════════════════════════════════
 // NOTIFICATION BELL / INBOX / BADGE
 // ═══════════════════════════════════════════
 var _notifData = [];
@@ -6681,12 +6757,24 @@ async function openNotifPrefs() {
   // Load devices
   loadNotifDevices();
 
+  // Show push status in prefs panel
+  var statusEl = document.getElementById('np-push-status');
+  if (statusEl && 'Notification' in window) {
+    if (Notification.permission === 'denied') {
+      statusEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.75rem;font-size:0.8rem;color:#991b1b">⚠️ Notifications are blocked. Enable in your browser settings, then reload this page.</div>';
+    } else if (Notification.permission === 'default') {
+      statusEl.innerHTML = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.75rem;font-size:0.8rem;color:#1c4428;display:flex;align-items:center;gap:0.5rem"><span style="flex:1">Push notifications are not yet enabled on this device.</span><button onclick="pushBannerEnable();openNotifPrefs()" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap">Enable</button></div>';
+    } else {
+      statusEl.innerHTML = '';
+    }
+  }
+
   // If push not yet subscribed, try subscribing when they enable
   if (_notifPrefs.enabled !== 0 && 'PushManager' in window) {
     var reg = await navigator.serviceWorker.ready.catch(function() { return null; });
     if (reg) {
       var sub = await reg.pushManager.getSubscription();
-      if (!sub) subscribeToPush();
+      if (!sub && Notification.permission === 'granted') subscribeToPush();
     }
   }
 }
@@ -6723,9 +6811,14 @@ async function saveNotifPrefs() {
 async function loadNotifDevices() {
   var el = document.getElementById('np-devices');
   if (!el) return;
+  var testBtn = document.getElementById('np-test-push');
   try {
     var devices = await portalFetch('/push/devices') || [];
-    if (!devices.length) { el.innerHTML = '<div style="color:#a8a29e;font-size:0.82rem">No devices registered. Enable notifications to add this device.</div>'; return; }
+    if (!devices.length) {
+      el.innerHTML = '<div style="color:#a8a29e;font-size:0.82rem">No devices registered. Enable notifications to add this device.</div>';
+      if (testBtn) testBtn.style.display = 'none';
+      return;
+    }
     el.innerHTML = devices.map(function(d) {
       var label = d.device_label || 'Unknown device';
       var lastSeen = d.last_used_at ? _notifTimeAgo(d.last_used_at) : 'Never';
@@ -6734,7 +6827,25 @@ async function loadNotifDevices() {
         '<button onclick="removeNotifDevice(' + d.id + ')" style="background:none;border:none;color:#ef4444;font-size:0.78rem;cursor:pointer">Remove</button>' +
       '</div>';
     }).join('');
+    if (testBtn) testBtn.style.display = 'block';
   } catch { el.innerHTML = '<div style="color:#dc2626">Failed to load devices</div>'; }
+}
+
+async function sendTestPush() {
+  var btn = document.getElementById('np-test-push');
+  var result = document.getElementById('np-test-result');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  try {
+    var resp = await portalFetch('/push/test', { method: 'POST' });
+    if (resp && resp.success) {
+      if (result) { result.style.color = '#16a34a'; result.textContent = 'Test sent to ' + resp.devices + ' device(s). Check for a notification!'; }
+    } else {
+      if (result) { result.style.color = '#dc2626'; result.textContent = resp?.error || 'Failed to send test'; }
+    }
+  } catch (e) {
+    if (result) { result.style.color = '#dc2626'; result.textContent = 'Error sending test notification'; }
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '📲 Send Test Notification'; }
 }
 
 async function removeNotifDevice(id) {

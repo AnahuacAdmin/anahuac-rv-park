@@ -1053,6 +1053,26 @@ router.delete('/push/devices/:id', tenantAuth, (req, res) => {
   } catch { res.status(500).json({ error: 'Failed to remove device' }); }
 });
 
+// Send a test push notification to this tenant's devices
+router.post('/push/test', tenantAuth, (req, res) => {
+  try {
+    const subs = db.prepare('SELECT * FROM push_subscriptions WHERE tenant_id = ? AND is_admin = 0').all(req.tenant.id);
+    if (!subs.length) return res.status(400).json({ error: 'No push subscriptions found. Enable notifications first.' });
+    const pushService = require('../services/push-notifications');
+    pushService.notifyTenant(req.tenant.id, {
+      type: 'announcement',
+      title: '✅ Push notifications working!',
+      body: 'You will now receive alerts for payments, weather, and park announcements.',
+      url: '/portal',
+      priority: 'normal'
+    });
+    res.json({ success: true, devices: subs.length });
+  } catch (e) {
+    console.error('[push] test error:', e.message);
+    res.status(500).json({ error: 'Failed to send test notification' });
+  }
+});
+
 // ── Quarter Requests (Tenant) ──
 const pushService = require('../services/push-notifications');
 
