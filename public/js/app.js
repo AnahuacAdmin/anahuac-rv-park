@@ -16,7 +16,34 @@ function injectMainApp() {
       <header class="mobile-header">
         <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Open menu">&#9776;</button>
         <h2>\u{1F40A} Anahuac RV Park</h2>
+        <button id="admin-notif-bell" onclick="toggleAdminNotifInbox()" style="position:relative;background:none;border:none;font-size:1.1rem;cursor:pointer;color:rgba(255,255,255,0.85);padding:0.15rem 0.4rem;margin-left:auto" title="Notifications">\u{1F514}<span id="admin-notif-badge" style="position:absolute;top:-4px;right:-2px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 3px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></span></button>
       </header>
+      <div id="admin-push-banner" style="display:none;background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);border:1px solid #bbf7d0;border-radius:10px;padding:0.65rem 0.85rem;margin:0.5rem 1rem;align-items:center;gap:0.6rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);animation:adminBannerIn 0.4s ease;flex-wrap:wrap">
+        <span style="font-size:1.3rem;flex-shrink:0">\u{1F514}</span>
+        <span style="flex:1;font-size:0.82rem;color:#1c4428;line-height:1.35">Get instant alerts for payments, maintenance, and tenant activity</span>
+        <div style="display:flex;gap:0.4rem;flex-shrink:0">
+          <button onclick="adminPushBannerEnable()" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap">Enable Notifications</button>
+          <button onclick="adminPushBannerDismiss()" style="background:none;border:none;color:#6b7280;font-size:0.78rem;cursor:pointer;padding:0.35rem 0.4rem;white-space:nowrap">Not now</button>
+        </div>
+      </div>
+      <div id="admin-notif-inbox" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:8000;background:rgba(0,0,0,0.45);backdrop-filter:blur(2px)" onclick="if(event.target===this)toggleAdminNotifInbox()">
+        <div style="position:absolute;top:50px;right:10px;width:340px;max-width:calc(100vw - 20px);max-height:70vh;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;border-bottom:1px solid #e5e7eb;background:#fafaf9">
+            <h3 style="font-size:0.95rem;font-weight:700;margin:0">\u{1F514} Admin Notifications</h3>
+            <div style="display:flex;gap:0.5rem">
+              <button onclick="markAllAdminNotifRead()" style="background:none;border:none;color:#16a34a;font-size:0.78rem;cursor:pointer;font-weight:600">Mark All Read</button>
+              <button onclick="toggleAdminNotifInbox()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#78716c">\u2715</button>
+            </div>
+          </div>
+          <div id="admin-notif-inbox-body" style="overflow-y:auto;max-height:55vh;padding:0.25rem 0">
+            <div style="padding:2rem 1rem;text-align:center;color:#a8a29e;font-size:0.85rem">No notifications yet</div>
+          </div>
+          <div id="admin-notif-test-area" style="display:none;padding:0.5rem 0.75rem;border-top:1px solid #e5e7eb;background:#fafaf9">
+            <button id="admin-test-push-btn" onclick="sendAdminTestPush()" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:0.4rem 0.85rem;font-size:0.8rem;font-weight:600;cursor:pointer;width:100%">\u{1F4F2} Send Test Notification</button>
+            <div id="admin-test-result" style="font-size:0.78rem;margin-top:0.3rem;text-align:center"></div>
+          </div>
+        </div>
+      </div>
       <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
       <nav id="sidebar">
         <div class="sidebar-header">
@@ -428,6 +455,194 @@ if ('serviceWorker' in navigator) {
       .catch((err) => console.warn('[pwa] service worker registration failed:', err));
   });
 }
+
+// ═══════════════════════════════════════════
+// ADMIN PUSH NOTIFICATIONS
+// ═══════════════════════════════════════════
+let _adminVapidKey = null;
+let _adminNotifData = [];
+let _adminNotifUnread = 0;
+
+async function initAdminPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+  if (!API.token) return;
+  try {
+    var resp = await API.get('/admin/push/vapid-key');
+    if (!resp || !resp.key) return;
+    _adminVapidKey = resp.key;
+    var reg = await navigator.serviceWorker.ready;
+    var existing = await reg.pushManager.getSubscription();
+    if (existing) {
+      await sendAdminSubscription(existing);
+    }
+  } catch (e) { console.error('[admin-push] init error:', e); }
+}
+
+async function subscribeAdminPush() {
+  if (!_adminVapidKey || !('PushManager' in window)) return false;
+  try {
+    var permission = await Notification.requestPermission();
+    if (permission !== 'granted') return false;
+    var reg = await navigator.serviceWorker.ready;
+    var sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: _urlBase64ToUint8Array(_adminVapidKey) });
+    await sendAdminSubscription(sub);
+    return true;
+  } catch (e) { console.error('[admin-push] subscribe error:', e); return false; }
+}
+
+async function sendAdminSubscription(sub) {
+  var j = sub.toJSON();
+  var ua = navigator.userAgent;
+  var label = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : 'Browser';
+  await API.post('/admin/push/subscribe', { endpoint: j.endpoint, keys: { p256dh: j.keys.p256dh, auth: j.keys.auth }, device_label: 'Admin — ' + label });
+}
+
+function _urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var raw = atob(base64);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+// Banner
+async function checkAdminPushBanner() {
+  var banner = document.getElementById('admin-push-banner');
+  if (!banner || !('Notification' in window) || !('PushManager' in window)) return;
+  if (Notification.permission === 'denied') return;
+  if (Notification.permission === 'granted') {
+    try {
+      var reg = await navigator.serviceWorker.ready;
+      var sub = await reg.pushManager.getSubscription();
+      if (sub) return;
+    } catch { return; }
+  }
+  var dismissed = localStorage.getItem('admin_push_banner_dismissed');
+  if (dismissed && (Date.now() - parseInt(dismissed, 10)) < 7 * 24 * 60 * 60 * 1000) return;
+  banner.style.display = 'flex';
+}
+
+async function adminPushBannerEnable() {
+  var banner = document.getElementById('admin-push-banner');
+  var ok = await subscribeAdminPush();
+  if (ok) {
+    localStorage.removeItem('admin_push_banner_dismissed');
+    if (banner) banner.style.display = 'none';
+  } else if (Notification.permission === 'denied' && banner) {
+    banner.querySelector('span:nth-child(2)').textContent = 'Notifications are blocked. Enable in your browser settings, then reload.';
+    banner.querySelector('div:last-child').innerHTML = '<button onclick="adminPushBannerDismiss()" style="background:none;border:none;color:#6b7280;font-size:0.78rem;cursor:pointer;padding:0.35rem 0.4rem">OK</button>';
+  }
+}
+
+function adminPushBannerDismiss() {
+  var banner = document.getElementById('admin-push-banner');
+  if (banner) banner.style.display = 'none';
+  localStorage.setItem('admin_push_banner_dismissed', String(Date.now()));
+}
+
+// Badge + inbox
+async function updateAdminNotifBadge() {
+  if (!API.token) return;
+  try {
+    var resp = await API.get('/admin/notifications/unread-count');
+    _adminNotifUnread = resp?.count || 0;
+    var badge = document.getElementById('admin-notif-badge');
+    if (badge) {
+      badge.textContent = _adminNotifUnread > 0 ? (_adminNotifUnread > 99 ? '99+' : _adminNotifUnread) : '';
+      badge.style.display = _adminNotifUnread > 0 ? 'flex' : 'none';
+    }
+    if ('setAppBadge' in navigator) {
+      if (_adminNotifUnread > 0) navigator.setAppBadge(_adminNotifUnread).catch(function(){});
+      else navigator.clearAppBadge().catch(function(){});
+    }
+  } catch {}
+}
+
+function toggleAdminNotifInbox() {
+  var inbox = document.getElementById('admin-notif-inbox');
+  if (!inbox) return;
+  var isOpen = inbox.style.display === 'block';
+  inbox.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) loadAdminNotifications();
+}
+
+async function loadAdminNotifications() {
+  if (!API.token) return;
+  try {
+    _adminNotifData = await API.get('/admin/notifications') || [];
+    renderAdminNotifInbox();
+  } catch {}
+}
+
+function renderAdminNotifInbox() {
+  var body = document.getElementById('admin-notif-inbox-body');
+  if (!body) return;
+  if (!_adminNotifData.length) { body.innerHTML = '<div style="padding:2rem 1rem;text-align:center;color:#a8a29e;font-size:0.85rem">No notifications yet</div>'; return; }
+  body.innerHTML = _adminNotifData.map(function(n) {
+    var isUnread = !n.is_read;
+    var ago = _adminTimeAgo(n.created_at);
+    return '<div style="padding:0.6rem 0.85rem;border-bottom:1px solid #f5f5f4;cursor:pointer;' + (isUnread ? 'background:#f0fdf4;' : '') + '" onclick="openAdminNotification(' + n.id + ')">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
+      '<strong style="font-size:0.82rem;color:#1c1917;' + (isUnread ? '' : 'font-weight:500;color:#78716c;') + '">' + _escAdminHtml(n.title) + '</strong>' +
+      '<span style="font-size:0.68rem;color:#a8a29e;flex-shrink:0;margin-left:0.5rem">' + ago + '</span></div>' +
+      '<div style="font-size:0.78rem;color:#78716c;margin-top:2px">' + _escAdminHtml(n.body || '') + '</div></div>';
+  }).join('');
+  // Show test button if subscribed
+  var testArea = document.getElementById('admin-notif-test-area');
+  if (testArea) {
+    if ('PushManager' in window && Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then(function(reg) {
+        reg.pushManager.getSubscription().then(function(sub) {
+          testArea.style.display = sub ? 'block' : 'none';
+        });
+      });
+    }
+  }
+}
+
+async function openAdminNotification(id) {
+  try { await API.post('/admin/notifications/mark-read', { notification_ids: [id] }); } catch {}
+  updateAdminNotifBadge();
+  _adminNotifData.forEach(function(n) { if (n.id === id) n.is_read = 1; });
+  renderAdminNotifInbox();
+}
+
+async function markAllAdminNotifRead() {
+  try { await API.post('/admin/notifications/mark-read', {}); } catch {}
+  _adminNotifData.forEach(function(n) { n.is_read = 1; });
+  renderAdminNotifInbox();
+  updateAdminNotifBadge();
+}
+
+async function sendAdminTestPush() {
+  var btn = document.getElementById('admin-test-push-btn');
+  var result = document.getElementById('admin-test-result');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  try {
+    var resp = await API.post('/admin/push/test', {});
+    if (resp && resp.success) {
+      if (result) { result.style.color = '#16a34a'; result.textContent = 'Test sent to ' + resp.devices + ' device(s). Check for a notification!'; }
+    } else {
+      if (result) { result.style.color = '#dc2626'; result.textContent = resp?.error || 'Failed to send test'; }
+    }
+  } catch (e) {
+    if (result) { result.style.color = '#dc2626'; result.textContent = 'Error: ' + (e.message || 'Failed'); }
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '\u{1F4F2} Send Test Notification'; }
+}
+
+function _adminTimeAgo(dateStr) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr + (dateStr.includes('Z') || dateStr.includes('+') ? '' : 'Z'));
+  var s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+function _escAdminHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 // Capture the beforeinstallprompt event so we can show our own Install button.
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -1232,6 +1447,11 @@ document.addEventListener('DOMContentLoaded', () => {
       injectMainApp();
       document.getElementById('main-app').style.display = '';
       navigateTo('dashboard');
+      // Admin push notifications
+      initAdminPush();
+      checkAdminPushBanner();
+      updateAdminNotifBadge();
+      setInterval(updateAdminNotifBadge, 60000);
     } catch (err) {
       errEl.textContent = err.message;
       errEl.style.display = '';
@@ -1305,6 +1525,11 @@ document.addEventListener('DOMContentLoaded', () => {
         injectMainApp();
         document.getElementById('main-app').style.display = '';
         navigateTo('dashboard');
+        // Admin push notifications
+        initAdminPush();
+        checkAdminPushBanner();
+        updateAdminNotifBadge();
+        setInterval(updateAdminNotifBadge, 60000);
       } catch (e) {
         // Token expired or invalid — show login screen
         console.warn('[auto-login] token invalid, showing login:', e.message);

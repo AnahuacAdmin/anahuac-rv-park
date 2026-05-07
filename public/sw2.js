@@ -3,7 +3,7 @@
  * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
  * Service Worker — Offline & Caching
  */
-const CACHE_NAME = 'rvpark-v85';
+const CACHE_NAME = 'rvpark-v86';
 
 const APP_SHELL = [
   // NOTE: '/' intentionally excluded — handled separately as network-first to prevent caching stale HTML
@@ -85,6 +85,53 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+});
+
+// Push notification handler
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let data;
+  try { data = event.data.json(); } catch { return; }
+
+  const options = {
+    body: data.body || '',
+    icon: data.icon || '/icons/icon-192x192.png',
+    badge: '/icons/favicon-32x32.png',
+    tag: data.tag || 'admin',
+    data: { url: data.url || '/' },
+    requireInteraction: data.priority === 'critical' || data.priority === 'high',
+    vibrate: data.priority === 'critical' ? [200, 100, 200, 100, 200] : [100],
+    renotify: true,
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Anahuac RV Park', options)
+  );
+
+  if (self.navigator && self.navigator.setAppBadge && data.badge_count != null) {
+    try { self.navigator.setAppBadge(data.badge_count); } catch {}
+  }
+});
+
+// Notification click handler — open or focus admin dashboard
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if ((client.url.endsWith('/') || client.url.includes('/#')) && 'focus' in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
 });
 
 // Fetch strategy

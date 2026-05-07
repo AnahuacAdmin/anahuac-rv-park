@@ -225,4 +225,61 @@ router.get('/push/vapid-key', requireAdmin, (req, res) => {
   res.json({ key: process.env.VAPID_PUBLIC_KEY || '' });
 });
 
+// Admin push devices
+router.get('/push/devices', requireAdmin, (req, res) => {
+  try {
+    const devices = db.prepare('SELECT id, device_label, user_agent, created_at, last_used_at FROM push_subscriptions WHERE is_admin = 1').all();
+    res.json(devices || []);
+  } catch { res.json([]); }
+});
+
+router.delete('/push/devices/:id', requireAdmin, (req, res) => {
+  try {
+    db.prepare('DELETE FROM push_subscriptions WHERE id = ? AND is_admin = 1').run(parseInt(req.params.id));
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed to remove device' }); }
+});
+
+// Admin notifications
+router.get('/notifications/unread-count', requireAdmin, (req, res) => {
+  try {
+    const count = db.prepare('SELECT COUNT(*) as c FROM notifications WHERE is_admin = 1 AND is_read = 0').get()?.c || 0;
+    res.json({ count });
+  } catch { res.json({ count: 0 }); }
+});
+
+router.get('/notifications', requireAdmin, (req, res) => {
+  try {
+    const rows = db.prepare('SELECT * FROM notifications WHERE is_admin = 1 ORDER BY created_at DESC LIMIT 50').all();
+    res.json(rows || []);
+  } catch { res.json([]); }
+});
+
+router.post('/notifications/mark-read', requireAdmin, (req, res) => {
+  try {
+    const ids = req.body?.notification_ids;
+    if (ids && Array.isArray(ids) && ids.length) {
+      const placeholders = ids.map(() => '?').join(',');
+      db.prepare('UPDATE notifications SET is_read = 1, read_at = CURRENT_TIMESTAMP WHERE is_admin = 1 AND id IN (' + placeholders + ')').run(...ids);
+    } else {
+      db.prepare('UPDATE notifications SET is_read = 1, read_at = CURRENT_TIMESTAMP WHERE is_admin = 1 AND is_read = 0').run();
+    }
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed' }); }
+});
+
+// Send test push to all admin devices
+router.post('/push/test', requireAdmin, (req, res) => {
+  try {
+    const subs = db.prepare('SELECT * FROM push_subscriptions WHERE is_admin = 1').all();
+    if (!subs.length) return res.status(400).json({ error: 'No admin push subscriptions found. Enable notifications first.' });
+    const pushService = require('../services/push-notifications');
+    pushService.notifyAdmin({ type: 'test', title: '✅ Admin push notifications working!', body: 'You will now receive alerts for payments, maintenance, check-ins, and more.', url: '/', priority: 'normal' });
+    res.json({ success: true, devices: subs.length });
+  } catch (e) {
+    console.error('[push] admin test error:', e.message);
+    res.status(500).json({ error: 'Failed to send test notification' });
+  }
+});
+
 module.exports = router;

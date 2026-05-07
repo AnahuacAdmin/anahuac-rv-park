@@ -7,6 +7,7 @@
 const router = require('express').Router();
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
+const pushService = require('../services/push-notifications');
 
 router.use(authenticate);
 
@@ -132,6 +133,10 @@ router.post('/support-request', (req, res) => {
   }
 
   console.log('[support] request from', name, ':', message.slice(0, 100));
+
+  // Push notification to admin
+  try { pushService.notifyAdmin({ type: 'support', title: '📩 Support Request from ' + name, body: message.slice(0, 100), url: '/', priority: 'normal' }); } catch {}
+
   res.json({ success: true });
 });
 

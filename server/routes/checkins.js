@@ -8,6 +8,7 @@ const router = require('express').Router();
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
 const { sendSms } = require('../twilio');
+const pushService = require('../services/push-notifications');
 
 router.use(authenticate);
 
@@ -94,6 +95,13 @@ router.post('/checkin', (req, res) => {
     } catch (smsErr) {
       console.error('[checkins] welcome SMS setup failed (non-fatal):', smsErr.message);
     }
+
+    // Push notification to admin
+    try {
+      const tn = db.prepare('SELECT first_name, last_name FROM tenants WHERE id = ?').get(tenant_id);
+      const name = tn ? tn.first_name + ' ' + tn.last_name : 'New Guest';
+      pushService.notifyAdmin({ type: 'checkin', title: '✅ New Check-In — Lot ' + (lot_id || '?'), body: name + ' checked in' + (check_in_date ? ' on ' + check_in_date : ''), url: '/', priority: 'normal' });
+    } catch {}
 
     res.json({ id: result.lastInsertRowid });
   } catch (err) {

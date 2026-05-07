@@ -10,6 +10,7 @@ const { Resend } = require('resend');
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
 const { sendSms } = require('../twilio');
+const pushService = require('../services/push-notifications');
 
 const APP_URL = process.env.APP_URL || 'https://web-production-89794.up.railway.app';
 const FROM_ADDRESS = 'Anahuac RV Park <invoices@anrvpark.com>';
@@ -280,6 +281,13 @@ function runPastDueCheck() {
 
       db.prepare('INSERT INTO late_fee_checks (invoice_id, email_sent, sms_sent) VALUES (?, ?, ?)')
         .run(inv.id, emailSent ? 1 : 0, smsSent ? 1 : 0);
+
+      // Push notification to admin
+      try {
+        const name = `${inv.first_name} ${inv.last_name}`;
+        pushService.notifyAdmin({ type: 'past_due', title: '⚠️ Past Due — ' + name + ' (Lot ' + inv.lot_id + ')', body: '$' + Number(inv.balance_due).toFixed(2) + ' overdue by ' + daysLate + ' days', url: '/', priority: 'high' });
+      } catch {}
+
       notified++;
     }
 
