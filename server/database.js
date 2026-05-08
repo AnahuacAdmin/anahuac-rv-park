@@ -1468,6 +1468,104 @@ async function initializeDatabase() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // ── Reservation System (Phase 1) ─────────────────────────────────────────
+
+  // Lots: booking-related columns
+  addCol("ALTER TABLE lots ADD COLUMN current_status TEXT DEFAULT 'long_term_vacant'");
+  addCol("ALTER TABLE lots ADD COLUMN site_type TEXT DEFAULT 'back_in'");
+  addCol("ALTER TABLE lots ADD COLUMN default_transient INTEGER DEFAULT 0");
+  addCol("ALTER TABLE lots ADD COLUMN base_nightly_rate REAL DEFAULT 0");
+  addCol("ALTER TABLE lots ADD COLUMN base_weekly_rate REAL DEFAULT 0");
+
+  // Reservations: extended columns for public booking flow
+  addCol("ALTER TABLE reservations ADD COLUMN rv_type_length TEXT");
+  addCol("ALTER TABLE reservations ADD COLUMN rate_type TEXT DEFAULT 'nightly'");
+  addCol("ALTER TABLE reservations ADD COLUMN total_quoted REAL DEFAULT 0");
+  addCol("ALTER TABLE reservations ADD COLUMN source TEXT");
+  addCol("ALTER TABLE reservations ADD COLUMN source_other TEXT");
+  addCol("ALTER TABLE reservations ADD COLUMN policy_acknowledged_at DATETIME");
+  addCol("ALTER TABLE reservations ADD COLUMN stripe_customer_id TEXT");
+  addCol("ALTER TABLE reservations ADD COLUMN stripe_payment_method_id TEXT");
+  addCol("ALTER TABLE reservations ADD COLUMN stripe_setup_intent_id TEXT");
+  addCol("ALTER TABLE reservations ADD COLUMN no_show_charge_id TEXT");
+  addCol("ALTER TABLE reservations ADD COLUMN no_show_charge_amount REAL");
+  addCol("ALTER TABLE reservations ADD COLUMN cancelled_at DATETIME");
+  addCol("ALTER TABLE reservations ADD COLUMN cancelled_by TEXT");
+  addCol("ALTER TABLE reservations ADD COLUMN cancellation_reason TEXT");
+  addCol("ALTER TABLE reservations ADD COLUMN checked_in_at DATETIME");
+  addCol("ALTER TABLE reservations ADD COLUMN updated_at DATETIME");
+
+  // Lot status audit trail
+  db.run(`CREATE TABLE IF NOT EXISTS lot_status_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id TEXT NOT NULL REFERENCES lots(id),
+    previous_status TEXT,
+    new_status TEXT NOT NULL,
+    changed_by_user_id INTEGER,
+    reason TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Reservation event log
+  db.run(`CREATE TABLE IF NOT EXISTS reservation_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reservation_id INTEGER NOT NULL REFERENCES reservations(id),
+    event_type TEXT NOT NULL,
+    actor TEXT NOT NULL DEFAULT 'system',
+    user_id INTEGER,
+    metadata TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Indexes for reservation queries
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_reservations_lot_dates ON reservations(lot_id, arrival_date, departure_date)"); } catch (e) {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_reservations_status_arrival ON reservations(status, arrival_date)"); } catch (e) {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_lots_current_status ON lots(current_status)"); } catch (e) {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_lot_status_history_lot ON lot_status_history(lot_id)"); } catch (e) {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_reservation_events_res ON reservation_events(reservation_id)"); } catch (e) {}
+
+  // One-time seed: backfill current_status from existing status for all lots
+  try {
+    const needsBackfill = db.exec("SELECT COUNT(*) FROM lots WHERE current_status = 'long_term_vacant' AND status = 'occupied'");
+    const count = needsBackfill[0]?.values[0]?.[0] || 0;
+    if (count > 0) {
+      db.run("UPDATE lots SET current_status = 'long_term_occupied' WHERE status = 'occupied' AND current_status = 'long_term_vacant'");
+      db.run("UPDATE lots SET current_status = 'out_of_service' WHERE status = 'maintenance' AND current_status = 'long_term_vacant'");
+      console.log(`[database] backfilled current_status for ${count} occupied lots`);
+    }
+  } catch (e) { /* first run, table may not have rows yet */ }
+
+  // One-time seed: mark C1, C2, D1, D2 as default transient lots
+  try {
+    const c1 = db.exec("SELECT default_transient FROM lots WHERE id = 'C1'");
+    if (c1[0]?.values[0]?.[0] === 0) {
+      for (const lotId of ['C1', 'C2', 'D1', 'D2']) {
+        db.run(`UPDATE lots SET default_transient = 1, current_status = 'transient_available'
+                WHERE id = ? AND default_transient = 0`, [lotId]);
+      }
+      console.log('[database] seeded C1, C2, D1, D2 as default transient lots');
+    }
+  } catch (e) { /* lots may not exist yet on fresh DB */ }
+
+  // ── Pricing correction (Phase 1b) ──────────────────────────────────────
+  // cement_pad is the pricing tier source of truth: cement=$35/night, grass/gravel=$30/night
+  addCol("ALTER TABLE lots ADD COLUMN cement_pad INTEGER DEFAULT 0");
+
+  // Fix rates on default transient lots (C1-D2 are grass/gravel)
+  try {
+    for (const lotId of ['C1', 'C2', 'D1', 'D2']) {
+      db.run(`UPDATE lots SET cement_pad = 0, base_nightly_rate = 30.00, base_weekly_rate = 150.00
+              WHERE id = ? AND default_transient = 1`, [lotId]);
+    }
+  } catch (e) { /* lots may not exist yet on fresh DB */ }
+
+  // Ensure all non-transient lots have zero rates (don't pre-set rates on long-term lots)
+  try {
+    db.run("UPDATE lots SET base_nightly_rate = 0, base_weekly_rate = 0 WHERE default_transient = 0 AND base_nightly_rate != 0");
+  } catch (e) {}
+
+  // ── End Reservation System (Phase 1) ───────────────────────────────────
+
   saveDb();
   console.log('Database initialized successfully');
 

@@ -13,6 +13,36 @@ const parser = new Parser({
   headers: { 'User-Agent': 'AnahuacRVPark/1.0 (RSS Reader)' }
 });
 
+// ── Strict date filter: only show articles from TODAY (last 24 hours) ──
+const MAX_ARTICLE_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function isRecentArticle(article) {
+  var pubDate = article.published || article.pubDate || article.isoDate;
+  if (!pubDate) return false; // No date = skip
+
+  var articleDate = new Date(pubDate);
+  if (isNaN(articleDate.getTime())) return false; // Invalid date = skip
+
+  var ageMs = Date.now() - articleDate.getTime();
+  if (ageMs > MAX_ARTICLE_AGE_MS) return false; // Older than 24 hours = skip
+  if (ageMs < 0) return false; // Future date = broken feed = skip
+
+  return true;
+}
+
+// Clear stale news cache on first request after deploy
+let _cacheCleared = false;
+function clearStaleCacheOnce() {
+  if (_cacheCleared) return;
+  _cacheCleared = true;
+  try {
+    db.prepare("DELETE FROM content_cache WHERE cache_key LIKE 'news_%'").run();
+    console.log('[news] Cleared stale news cache (first request after deploy)');
+  } catch (e) {
+    console.log('[news] Cache clear skipped:', e.message);
+  }
+}
+
 // ── Keyword filters for Chambers County / Anahuac local focus ──
 
 const ANAHUAC_KEYWORDS = [
@@ -135,10 +165,12 @@ const NATIONAL_FEEDS = [
 
 // In-memory cache with TTL
 let _newsCache = { data: null, timestamp: 0 };
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 // ── Public: get news headlines ──
 router.get('/headlines', async (req, res) => {
+  clearStaleCacheOnce(); // Ensure stale DB cache is cleared on first request after deploy
+
   var now = Date.now();
   var category = req.query.category || 'all';
 
@@ -174,8 +206,8 @@ router.get('/headlines', async (req, res) => {
       var cityFeed = await parser.parseURL(cityUrl);
       if (cityFeed && cityFeed.items && cityFeed.items.length > 0) {
         console.log('[news] City of Anahuac RSS found at ' + cityUrl + ' — ' + cityFeed.items.length + ' items');
-        cityFeed.items.slice(0, 5).forEach(function(ci) {
-          allLocalItems.push({
+        cityFeed.items.slice(0, 10).forEach(function(ci) {
+          var cityArticle = {
             title: (ci.title || '').trim(),
             link: ci.link || '',
             source: 'City of Anahuac',
@@ -183,7 +215,10 @@ router.get('/headlines', async (req, res) => {
             snippet: ci.contentSnippet ? ci.contentSnippet.replace(/\s+/g, ' ').trim().slice(0, 200) : '',
             image: ci.enclosure?.url || ci['media:content']?.$.url || '',
             badge: 'OFFICIAL',
-          });
+          };
+          // ⭐ Skip old city articles too
+          if (!isRecentArticle(cityArticle)) return;
+          allLocalItems.push(cityArticle);
         });
         break; // Found working RSS, no need to try more URLs
       }
@@ -284,7 +319,10 @@ router.get('/headlines', async (req, res) => {
 
 async function fetchFeed(source) {
   var feed = await parser.parseURL(source.url);
-  var items = (feed.items || []).slice(0, 10).map(function(item) {
+  var items = [];
+  var rawItems = (feed.items || []).slice(0, 20); // Check more items since we'll filter some out
+
+  for (var item of rawItems) {
     var title = (item.title || '').trim();
     var itemSource = source.name;
 
@@ -299,7 +337,7 @@ async function fetchFeed(source) {
       itemSource = itemSource || source.name.replace('Google News - ', '');
     }
 
-    return {
+    var article = {
       title: title,
       link: item.link || '',
       source: itemSource,
@@ -307,7 +345,14 @@ async function fetchFeed(source) {
       snippet: item.contentSnippet ? item.contentSnippet.replace(/\s+/g, ' ').trim().slice(0, 200) : '',
       image: item.enclosure?.url || item['media:content']?.$.url || '',
     };
-  });
+
+    // ⭐ Skip articles older than 7 days or with no valid date
+    if (!isRecentArticle(article)) continue;
+
+    items.push(article);
+    if (items.length >= 10) break; // Cap at 10 recent items per feed
+  }
+
   return { items, _filter: source.filter, _section: source.section, _requireKeywords: source.requireKeywords };
 }
 

@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/icons/favicon.ico?v=2026-05-07">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png?v=2026-05-07">
+  <title>Book Your Stay - Anahuac RV Park</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #1a5c32;
+      --green-dark: #145228;
+      --green-light: #2d8a52;
+      --amber: #f59e0b;
+      --amber-dark: #d97706;
+      --brown: #92400e;
+      --gray-50: #fafaf9;
+      --gray-100: #f5f5f4;
+      --gray-200: #e7e5e4;
+      --gray-300: #d6d3d1;
+      --gray-400: #a8a29e;
+      --gray-500: #78716c;
+      --gray-600: #57534e;
+      --gray-700: #44403c;
+      --gray-800: #292524;
+      --gray-900: #1c1917;
+      --info: #0284c7;
+      --info-bg: #e0f2fe;
+      --success: #16a34a;
+      --success-bg: #dcfce7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --radius: 10px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-800);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    .site-header {
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-light) 100%);
+      color: white;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(26,92,50,0.25);
+    }
+    .site-header .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: white;
+    }
+    .site-header img { height: 50px; border-radius: 8px; }
+    .site-header h1 { font-size: 1.15rem; font-weight: 700; }
+    .site-header .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.85rem;
+    }
+    .site-header a { color: white; text-decoration: none; font-weight: 600; }
+    .site-header a:hover { text-decoration: underline; }
+
+    /* ── Progress Bar ───────────────────────────────────────────────── */
+    .progress-bar {
+      background: white;
+      padding: 1rem 0.5rem;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      max-width: 640px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      position: relative;
+    }
+    .progress-step .circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--gray-200);
+      color: var(--gray-500);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      z-index: 1;
+      transition: all 0.3s;
+    }
+    .progress-step.active .circle {
+      background: var(--green);
+      color: white;
+      box-shadow: 0 0 0 4px rgba(26,92,50,0.15);
+    }
+    .progress-step.completed .circle {
+      background: var(--success);
+      color: white;
+    }
+    .progress-step .label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--gray-400);
+      margin-top: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .progress-step.active .label,
+    .progress-step.completed .label { color: var(--green); }
+    .progress-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: calc(50% + 20px);
+      width: calc(100% - 40px);
+      height: 3px;
+      background: var(--gray-200);
+      z-index: 0;
+    }
+    .progress-step.completed:not(:last-child)::after { background: var(--success); }
+
+    /* ── Wizard Container ───────────────────────────────────────────── */
+    .wizard-container {
+      max-width: 640px;
+      width: 100%;
+      margin: 1.5rem auto;
+      padding: 0 1rem;
+      flex: 1;
+    }
+    .step { display: none; }
+    .step.step-active { display: block; }
+
+    .card {
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--green);
+      margin-bottom: 1rem;
+    }
+
+    /* ── Form Elements ──────────────────────────────────────────────── */
+    .form-group { margin-bottom: 1rem; }
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--gray-600);
+      margin-bottom: 0.35rem;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: var(--gray-800);
+      background: white;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(26,92,50,0.1);
+    }
+    .form-group input.error, .form-group select.error {
+      border-color: var(--danger);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .form-group .hint {
+      font-size: 0.75rem;
+      color: var(--gray-400);
+      margin-top: 0.25rem;
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.65rem 1.5rem;
+      border-radius: var(--radius-full);
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      text-decoration: none;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-light) 100%);
+      color: white;
+      box-shadow: 0 2px 8px rgba(26,92,50,0.25);
+    }
+    .btn-primary:hover { box-shadow: 0 4px 12px rgba(26,92,50,0.35); }
+
+    .btn-confirm {
+      background: linear-gradient(135deg, var(--amber-dark) 0%, var(--amber) 100%);
+      color: white;
+      box-shadow: 0 2px 8px rgba(217,119,6,0.3);
+    }
+    .btn-confirm:hover { box-shadow: 0 4px 12px rgba(217,119,6,0.4); }
+
+    .btn-outline {
+      background: white;
+      color: var(--gray-700);
+      border: 1.5px solid var(--gray-300);
+    }
+    .btn-outline:hover { border-color: var(--gray-400); }
+
+    .btn-full { width: 100%; }
+    .btn-group { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+    .btn-group .btn { flex: 1; }
+
+    /* ── Info / Error boxes ──────────────────────────────────────────── */
+    .info-box {
+      background: var(--info-bg);
+      border: 1px solid #bae6fd;
+      border-radius: var(--radius);
+      padding: 0.85rem 1rem;
+      font-size: 0.85rem;
+      color: #0369a1;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    .info-box strong { display: block; font-size: 0.9rem; margin-bottom: 0.15rem; }
+
+    .error-box {
+      background: var(--danger-bg);
+      border: 1px solid #fecaca;
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      color: var(--danger);
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .success-box {
+      background: var(--success-bg);
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      color: #15803d;
+    }
+
+    /* ── Lot Cards ───────────────────────────────────────────────────── */
+    .lot-grid { display: flex; flex-direction: column; gap: 0.75rem; }
+    .lot-card {
+      background: white;
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .lot-card:hover { border-color: var(--green); box-shadow: var(--shadow); }
+    .lot-card.selected {
+      border-color: var(--green);
+      background: #f0fdf4;
+      box-shadow: 0 0 0 3px rgba(26,92,50,0.12);
+    }
+    .lot-card .lot-info { display: flex; align-items: center; gap: 0.85rem; }
+    .lot-card .lot-id {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--green);
+      background: #f0fdf4;
+      padding: 0.35rem 0.65rem;
+      border-radius: 8px;
+      min-width: 42px;
+      text-align: center;
+    }
+    .lot-card.selected .lot-id { background: var(--green); color: white; }
+    .lot-card .lot-details { font-size: 0.82rem; color: var(--gray-600); }
+    .lot-card .lot-details .badges { display: flex; gap: 0.4rem; margin-top: 0.25rem; }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .badge-type { background: #ede9fe; color: #7c3aed; }
+    .badge-surface { background: #fef3c7; color: var(--brown); }
+    .lot-card .lot-price { text-align: right; }
+    .lot-card .lot-price .rate {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gray-800);
+    }
+    .lot-card .lot-price .total {
+      font-size: 0.78rem;
+      color: var(--gray-500);
+    }
+    .weekly-savings {
+      background: #fef3c7;
+      color: var(--brown);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      border-radius: var(--radius);
+      text-align: center;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── Filter Tabs ─────────────────────────────────────────────────── */
+    .filter-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .filter-tab {
+      padding: 0.4rem 0.85rem;
+      border-radius: var(--radius-full);
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: 1.5px solid var(--gray-300);
+      background: white;
+      color: var(--gray-600);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-tab.active {
+      background: var(--green);
+      color: white;
+      border-color: var(--green);
+    }
+
+    /* ── Review Table ────────────────────────────────────────────────── */
+    .review-table {
+      width: 100%;
+      font-size: 0.88rem;
+    }
+    .review-table td {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .review-table td:first-child {
+      color: var(--gray-500);
+      font-weight: 500;
+      width: 40%;
+    }
+    .review-table td:last-child { font-weight: 600; }
+    .review-table .total-row td {
+      border-top: 2px solid var(--gray-300);
+      border-bottom: none;
+      font-size: 1.05rem;
+      padding-top: 0.75rem;
+    }
+    .review-table .total-row td:last-child { color: var(--green); font-weight: 700; }
+
+    /* ── Confirmation ────────────────────────────────────────────────── */
+    .confirmation-number {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--green);
+      text-align: center;
+      padding: 1rem;
+      background: #f0fdf4;
+      border-radius: var(--radius-lg);
+      border: 2px solid #bbf7d0;
+      margin-bottom: 1.25rem;
+      letter-spacing: 0.02em;
+    }
+    .upsell-box {
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-top: 1.25rem;
+      text-align: center;
+    }
+    .upsell-box h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--brown);
+      margin-bottom: 0.5rem;
+    }
+    .upsell-box p {
+      font-size: 0.88rem;
+      color: var(--gray-700);
+      line-height: 1.6;
+    }
+    .upsell-box a { color: var(--green); font-weight: 600; }
+
+    .directions-box {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }
+    .directions-box a { color: var(--green); font-weight: 600; }
+
+    /* ── Checkbox ─────────────────────────────────────────────────────── */
+    .checkbox-group {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      margin: 1rem 0;
+    }
+    .checkbox-group input[type="checkbox"] {
+      margin-top: 0.2rem;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--green);
+      flex-shrink: 0;
+    }
+    .checkbox-group label {
+      font-size: 0.85rem;
+      color: var(--gray-700);
+      cursor: pointer;
+      text-transform: none;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+    .checkbox-group label a { color: var(--green); font-weight: 600; }
+
+    /* ── Stripe Element ──────────────────────────────────────────────── */
+    .stripe-element {
+      padding: 0.7rem 0.85rem;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius);
+      background: white;
+      transition: border-color 0.2s;
+    }
+    .stripe-element.StripeElement--focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(26,92,50,0.1);
+    }
+    .stripe-element.StripeElement--invalid { border-color: var(--danger); }
+
+    /* ── Spinner ──────────────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 0.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    .site-footer {
+      background: var(--gray-800);
+      color: var(--gray-400);
+      text-align: center;
+      padding: 1.5rem 1rem;
+      font-size: 0.78rem;
+      line-height: 1.8;
+      margin-top: auto;
+    }
+    .site-footer a { color: var(--gray-300); text-decoration: none; }
+    .site-footer a:hover { color: white; }
+    .site-footer .sep { margin: 0 0.4rem; }
+
+    /* ── Responsive ──────────────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .site-header h1 { font-size: 0.95rem; }
+      .site-header img { height: 40px; }
+      .form-row { grid-template-columns: 1fr; }
+      .btn-group { flex-direction: column; }
+      .progress-step .label { font-size: 0.55rem; }
+      .progress-step .circle { width: 28px; height: 28px; font-size: 0.7rem; }
+      .lot-card { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+      .lot-card .lot-price { text-align: left; }
+    }
+
+    @media print {
+      .site-header, .site-footer, .progress-bar, .btn, .no-print { display: none !important; }
+      .wizard-container { max-width: 100%; }
+      .card { box-shadow: none; border: 1px solid #ddd; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <a href="https://anrvpark.com" class="brand">
+      <img src="/park_Logo.png" alt="Anahuac RV Park">
+      <h1>Anahuac RV Park</h1>
+    </a>
+    <div class="header-right">
+      <a href="tel:4092676603">409-267-6603</a>
+      <a href="https://anrvpark.com">Home</a>
+    </div>
+  </header>
+
+  <!-- Progress Bar -->
+  <div class="progress-bar" id="progress-bar">
+    <div class="progress-step active" data-step="1">
+      <div class="circle">1</div>
+      <div class="label">Dates</div>
+    </div>
+    <div class="progress-step" data-step="2">
+      <div class="circle">2</div>
+      <div class="label">Site</div>
+    </div>
+    <div class="progress-step" data-step="3">
+      <div class="circle">3</div>
+      <div class="label">Details</div>
+    </div>
+    <div class="progress-step" data-step="4">
+      <div class="circle">4</div>
+      <div class="label">Card</div>
+    </div>
+    <div class="progress-step" data-step="5">
+      <div class="circle">5</div>
+      <div class="label">Confirm</div>
+    </div>
+  </div>
+
+  <!-- Wizard -->
+  <main class="wizard-container">
+
+    <!-- ═══ Step 1: Dates ═══ -->
+    <section id="step-1" class="step step-active">
+      <div class="card">
+        <h2>When would you like to stay?</h2>
+        <div class="error-box" id="dates-error"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="arrival">Arrival Date</label>
+            <input type="date" id="arrival" required>
+          </div>
+          <div class="form-group">
+            <label for="departure">Departure Date</label>
+            <input type="date" id="departure" required>
+          </div>
+        </div>
+        <div id="nights-display" style="font-size:0.88rem;color:var(--gray-600);margin-bottom:1rem;display:none">
+          <strong id="nights-count"></strong> night stay
+        </div>
+        <button class="btn btn-primary btn-full" onclick="checkAvailability()">Check Availability</button>
+      </div>
+    </section>
+
+    <!-- ═══ Step 2: Site Selection ═══ -->
+    <section id="step-2" class="step">
+      <div class="card">
+        <h2>Choose your site</h2>
+        <div class="error-box" id="lots-error"></div>
+        <div id="weekly-savings-banner" class="weekly-savings" style="display:none"></div>
+        <div class="filter-tabs" id="filter-tabs">
+          <button class="filter-tab active" data-filter="all" onclick="filterLots('all')">All</button>
+          <button class="filter-tab" data-filter="back_in" onclick="filterLots('back_in')">Back-in</button>
+          <button class="filter-tab" data-filter="pull_through" onclick="filterLots('pull_through')">Pull-through</button>
+        </div>
+        <div class="lot-grid" id="lot-grid"></div>
+        <div class="btn-group">
+          <button class="btn btn-outline" onclick="goToStep(1)">Back</button>
+          <button class="btn btn-primary" id="btn-select-lot" onclick="selectLotAndContinue()" disabled>Continue</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Step 3: Guest Details ═══ -->
+    <section id="step-3" class="step">
+      <div class="card">
+        <h2>Guest information</h2>
+        <div class="error-box" id="guest-error"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="first-name">First Name *</label>
+            <input type="text" id="first-name" required autocomplete="given-name">
+          </div>
+          <div class="form-group">
+            <label for="last-name">Last Name *</label>
+            <input type="text" id="last-name" required autocomplete="family-name">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="guest-phone">Phone *</label>
+            <input type="tel" id="guest-phone" placeholder="(555) 555-5555" required autocomplete="tel">
+            <div class="hint">US 10-digit phone number</div>
+          </div>
+          <div class="form-group">
+            <label for="guest-email">Email *</label>
+            <input type="email" id="guest-email" required autocomplete="email">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rv-type">RV Type & Length</label>
+            <input type="text" id="rv-type" placeholder="e.g., Class A - 35ft" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="source">How did you hear about us?</label>
+            <select id="source">
+              <option value="">Select...</option>
+              <option value="Google">Google</option>
+              <option value="Facebook">Facebook</option>
+              <option value="Word of Mouth">Word of Mouth</option>
+              <option value="Drive-by">Drive-by</option>
+              <option value="Returning Guest">Returning Guest</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" id="source-other-group" style="display:none">
+          <label for="source-other">Please specify</label>
+          <input type="text" id="source-other">
+        </div>
+        <div class="checkbox-group">
+          <input type="checkbox" id="policy-agree">
+          <label for="policy-agree">I agree to the <a href="/rules" target="_blank">park rules</a> and <a href="/terms" target="_blank">cancellation policy</a> *</label>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-outline" onclick="goToStep(2)">Back</button>
+          <button class="btn btn-primary" onclick="submitGuestDetails()">Continue</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Step 4: Card on File ═══ -->
+    <section id="step-4" class="step">
+      <div class="card">
+        <h2>Card on file</h2>
+        <div class="info-box">
+          <strong>NO CHARGE TODAY</strong>
+          Your card is kept on file for your reservation. You will only be charged if you don't show up for your reservation without cancelling.
+        </div>
+        <div class="error-box" id="card-error"></div>
+        <div class="form-group">
+          <label>Card Details</label>
+          <div id="card-element" class="stripe-element"></div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-outline" onclick="goToStep(3)">Back</button>
+          <button class="btn btn-primary" id="btn-card-continue" onclick="submitCard()">Continue</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Step 5: Review & Confirm ═══ -->
+    <section id="step-5" class="step">
+      <div class="card">
+        <h2>Review your reservation</h2>
+        <div class="error-box" id="confirm-error"></div>
+        <table class="review-table" id="review-table"></table>
+        <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--gray-200)">
+          <h3 style="font-size:0.9rem;font-weight:600;color:var(--gray-700);margin-bottom:0.5rem">Guest Information</h3>
+          <div id="review-guest" style="font-size:0.88rem;color:var(--gray-600)"></div>
+        </div>
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--gray-200)">
+          <h3 style="font-size:0.9rem;font-weight:600;color:var(--gray-700);margin-bottom:0.5rem">Payment Method</h3>
+          <div id="review-card" style="font-size:0.88rem;color:var(--gray-600)"></div>
+        </div>
+        <div class="checkbox-group" style="margin-top:1.25rem">
+          <input type="checkbox" id="confirm-agree">
+          <label for="confirm-agree">I confirm this reservation and understand the <a href="/terms" target="_blank">cancellation policy</a> *</label>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-outline" onclick="goToStep(4)">Back</button>
+          <button class="btn btn-confirm" id="btn-confirm" onclick="confirmBooking()">Confirm Booking</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Confirmation Page ═══ -->
+    <section id="step-confirmation" class="step">
+      <div class="card" style="text-align:center">
+        <div style="font-size:2rem;margin-bottom:0.5rem">&#10003;</div>
+        <h2 style="color:var(--success);font-size:1.3rem;margin-bottom:0.5rem">Reservation Confirmed!</h2>
+        <p style="color:var(--gray-500);font-size:0.88rem;margin-bottom:1rem">Your site is reserved. No charge today.</p>
+        <div class="confirmation-number" id="conf-number"></div>
+        <table class="review-table" id="conf-summary" style="text-align:left"></table>
+      </div>
+
+      <div class="upsell-box">
+        <h3>Considering a longer stay?</h3>
+        <p>Many of our guests love the Anahuac area so much they extend their stay. If you'd like to explore weekly or monthly options, give us a call at <a href="tel:4092676603">409-267-6603</a> &mdash; we'd love to have you longer!</p>
+      </div>
+
+      <div class="directions-box">
+        <strong>Getting Here</strong><br>
+        Anahuac RV Park<br>
+        1003 Davis Ave., Anahuac, TX 77514<br>
+        <a href="https://maps.google.com/?q=1003+Davis+Ave+Anahuac+TX+77514" target="_blank">Open in Google Maps</a>
+      </div>
+
+      <div class="btn-group no-print" style="margin-top:1.25rem">
+        <button class="btn btn-outline" onclick="window.print()">Print Confirmation</button>
+        <a class="btn btn-primary" href="https://anrvpark.com">Return to anrvpark.com</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    Anahuac RV Park, LLC &middot; 1003 Davis Ave., Anahuac, TX 77514<br>
+    <a href="tel:4092676603">409-267-6603</a>
+    <span class="sep">|</span>
+    <a href="/privacy">Privacy</a>
+    <span class="sep">|</span>
+    <a href="/terms">Terms</a>
+    <span class="sep">|</span>
+    <a href="/rules">Park Rules</a>
+    <br>&copy; 2026 Anahuac RV Park, LLC
+  </footer>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════════
+    // State
+    // ═══════════════════════════════════════════════════════════════════════════
+    const state = {
+      arrival: null,
+      departure: null,
+      nights: 0,
+      lots: [],
+      selectedLot: null,
+      guest: {},
+      stripeCustomerId: null,
+      paymentMethodId: null,
+      setupIntentId: null,
+      cardBrand: null,
+      cardLast4: null,
+      filter: 'all',
+    };
+
+    let stripe = null;
+    let cardElement = null;
+    let stripeInitialized = false;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Init
+    // ═══════════════════════════════════════════════════════════════════════════
+    (function init() {
+      // Set min date to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('arrival').min = today;
+      document.getElementById('departure').min = today;
+
+      // Pre-fill from URL params
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('arrival')) document.getElementById('arrival').value = params.get('arrival');
+      if (params.get('departure')) document.getElementById('departure').value = params.get('departure');
+
+      // Live night count
+      document.getElementById('arrival').addEventListener('change', updateNightCount);
+      document.getElementById('departure').addEventListener('change', updateNightCount);
+      updateNightCount();
+
+      // Source "Other" toggle
+      document.getElementById('source').addEventListener('change', function() {
+        document.getElementById('source-other-group').style.display =
+          this.value === 'Other' ? 'block' : 'none';
+      });
+
+      // Phone formatting
+      document.getElementById('guest-phone').addEventListener('input', function() {
+        let digits = this.value.replace(/\D/g, '').slice(0, 10);
+        if (digits.length >= 6) {
+          this.value = '(' + digits.slice(0,3) + ') ' + digits.slice(3,6) + '-' + digits.slice(6);
+        } else if (digits.length >= 3) {
+          this.value = '(' + digits.slice(0,3) + ') ' + digits.slice(3);
+        }
+      });
+    })();
+
+    function updateNightCount() {
+      const a = document.getElementById('arrival').value;
+      const d = document.getElementById('departure').value;
+      const display = document.getElementById('nights-display');
+      if (a && d) {
+        const nights = Math.round((new Date(d) - new Date(a)) / 86400000);
+        if (nights > 0) {
+          document.getElementById('nights-count').textContent = nights;
+          display.style.display = 'block';
+          // Update departure min
+          const minDep = new Date(a);
+          minDep.setDate(minDep.getDate() + 1);
+          document.getElementById('departure').min = minDep.toISOString().split('T')[0];
+          return;
+        }
+      }
+      display.style.display = 'none';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Navigation
+    // ═══════════════════════════════════════════════════════════════════════════
+    function goToStep(n) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('step-active'));
+      const target = n === 'confirmation' ? 'step-confirmation' : 'step-' + n;
+      document.getElementById(target).classList.add('step-active');
+
+      // Update progress bar
+      if (n !== 'confirmation') {
+        document.querySelectorAll('.progress-step').forEach(step => {
+          const sn = parseInt(step.dataset.step);
+          step.classList.remove('active', 'completed');
+          if (sn === n) step.classList.add('active');
+          else if (sn < n) step.classList.add('completed');
+        });
+      }
+      document.getElementById('progress-bar').style.display = n === 'confirmation' ? 'none' : 'flex';
+      window.scrollTo(0, 0);
+
+      // Init Stripe when entering step 4
+      if (n === 4 && !stripeInitialized) initStripe();
+    }
+
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+    function hideError(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+    function setLoading(btn, loading, text) {
+      btn.disabled = loading;
+      btn.innerHTML = loading ? '<span class="spinner"></span>' + (text || 'Loading...') : (text || btn.dataset.label || 'Continue');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Step 1: Check Availability
+    // ═══════════════════════════════════════════════════════════════════════════
+    async function checkAvailability() {
+      hideError('dates-error');
+      const arrival = document.getElementById('arrival').value;
+      const departure = document.getElementById('departure').value;
+      if (!arrival || !departure) return showError('dates-error', 'Please select both dates.');
+
+      const arrDate = new Date(arrival);
+      const depDate = new Date(departure);
+      const today = new Date(); today.setHours(0,0,0,0);
+
+      if (arrDate < today) return showError('dates-error', 'Arrival date cannot be in the past.');
+      if (depDate <= arrDate) return showError('dates-error', 'Departure must be after arrival.');
+
+      const nights = Math.round((depDate - arrDate) / 86400000);
+      if (nights > 30) return showError('dates-error', 'Maximum stay is 30 nights. For longer stays, please call 409-267-6603.');
+
+      const btn = document.querySelector('#step-1 .btn-primary');
+      btn.dataset.label = 'Check Availability';
+      setLoading(btn, true, 'Checking...');
+
+      try {
+        const resp = await fetch('/api/booking/available-lots?arrival=' + arrival + '&departure=' + departure);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Could not check availability');
+
+        state.arrival = arrival;
+        state.departure = departure;
+        state.nights = data.nights;
+        state.lots = data.lots;
+
+        if (data.lots.length === 0) {
+          showError('dates-error', 'No sites available for those dates. Try different dates or call 409-267-6603.');
+          return;
+        }
+        renderLots();
+        goToStep(2);
+      } catch (err) {
+        showError('dates-error', err.message);
+      } finally {
+        setLoading(btn, false, 'Check Availability');
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Step 2: Site Selection
+    // ═══════════════════════════════════════════════════════════════════════════
+    function renderLots() {
+      const grid = document.getElementById('lot-grid');
+      const banner = document.getElementById('weekly-savings-banner');
+
+      // Weekly savings banner
+      if (state.nights >= 7) {
+        const sampleLot = state.lots[0];
+        if (sampleLot) {
+          const nightlyTotal = state.nights * sampleLot.nightly_rate;
+          const savings = nightlyTotal - sampleLot.total;
+          if (savings > 0) {
+            banner.textContent = 'Weekly rate applied! Save up to $' + savings.toFixed(0) + ' on your ' + state.nights + '-night stay';
+            banner.style.display = 'block';
+          }
+        }
+      } else {
+        banner.style.display = 'none';
+      }
+
+      const filtered = state.filter === 'all' ? state.lots : state.lots.filter(l => l.site_type === state.filter);
+      grid.innerHTML = filtered.length === 0
+        ? '<p style="text-align:center;color:var(--gray-500);padding:1rem">No sites match this filter.</p>'
+        : filtered.map(lot => `
+          <div class="lot-card ${state.selectedLot && state.selectedLot.id === lot.id ? 'selected' : ''}"
+               onclick="selectLot('${lot.id}')">
+            <div class="lot-info">
+              <div class="lot-id">${lot.id}</div>
+              <div class="lot-details">
+                <div class="badges">
+                  <span class="badge badge-type">${lot.site_type === 'pull_through' ? 'Pull-through' : 'Back-in'}</span>
+                  <span class="badge badge-surface">${lot.surface}</span>
+                </div>
+              </div>
+            </div>
+            <div class="lot-price">
+              <div class="rate">$${lot.nightly_rate}/night</div>
+              <div class="total">${state.nights} nights &mdash; $${lot.total.toFixed(2)} total</div>
+            </div>
+          </div>
+        `).join('');
+    }
+
+    function selectLot(id) {
+      state.selectedLot = state.lots.find(l => l.id === id);
+      document.getElementById('btn-select-lot').disabled = false;
+      renderLots();
+    }
+
+    function filterLots(filter) {
+      state.filter = filter;
+      document.querySelectorAll('.filter-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.filter === filter);
+      });
+      renderLots();
+    }
+
+    function selectLotAndContinue() {
+      if (!state.selectedLot) return;
+      goToStep(3);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Step 3: Guest Details
+    // ═══════════════════════════════════════════════════════════════════════════
+    function submitGuestDetails() {
+      hideError('guest-error');
+      const first = document.getElementById('first-name').value.trim();
+      const last = document.getElementById('last-name').value.trim();
+      const phone = document.getElementById('guest-phone').value.trim();
+      const email = document.getElementById('guest-email').value.trim();
+      const rvType = document.getElementById('rv-type').value.trim();
+      const source = document.getElementById('source').value;
+      const sourceOther = document.getElementById('source-other').value.trim();
+      const policyAgreed = document.getElementById('policy-agree').checked;
+
+      // Validate
+      if (!first || !last) return showError('guest-error', 'First and last name are required.');
+      const phoneDigits = phone.replace(/\D/g, '');
+      if (phoneDigits.length !== 10) return showError('guest-error', 'Please enter a valid 10-digit US phone number.');
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError('guest-error', 'Please enter a valid email address.');
+      if (!policyAgreed) return showError('guest-error', 'You must agree to the park rules and cancellation policy.');
+
+      state.guest = {
+        firstName: first,
+        lastName: last,
+        name: first + ' ' + last,
+        phone: phoneDigits,
+        email: email,
+        rvType: rvType,
+        source: source,
+        sourceOther: source === 'Other' ? sourceOther : '',
+        policyAcknowledgedAt: new Date().toISOString(),
+      };
+      goToStep(4);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Step 4: Stripe Card
+    // ═══════════════════════════════════════════════════════════════════════════
+    async function initStripe() {
+      try {
+        const resp = await fetch('/api/booking/stripe-key');
+        const data = await resp.json();
+        if (!resp.ok || !data.publishableKey) throw new Error('Payment system unavailable');
+
+        stripe = Stripe(data.publishableKey);
+        const elements = stripe.elements();
+        cardElement = elements.create('card', {
+          style: {
+            base: {
+              fontFamily: 'Inter, -apple-system, sans-serif',
+              fontSize: '16px',
+              color: '#292524',
+              '::placeholder': { color: '#a8a29e' },
+            },
+            invalid: { color: '#dc2626' },
+          }
+        });
+        cardElement.mount('#card-element');
+        stripeInitialized = true;
+      } catch (err) {
+        showError('card-error', 'Could not load payment form. Please refresh and try again.');
+      }
+    }
+
+    async function submitCard() {
+      hideError('card-error');
+      const btn = document.getElementById('btn-card-continue');
+      btn.dataset.label = 'Continue';
+      setLoading(btn, true, 'Securing card...');
+
+      try {
+        // Create SetupIntent
+        const siResp = await fetch('/api/booking/setup-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: state.guest.name,
+            email: state.guest.email,
+            phone: state.guest.phone,
+          }),
+        });
+        const siData = await siResp.json();
+        if (!siResp.ok) throw new Error(siData.error || 'Could not start card setup');
+
+        state.stripeCustomerId = siData.customer_id;
+        state.setupIntentId = siData.setup_intent_id;
+
+        // Confirm card setup
+        const { setupIntent, error } = await stripe.confirmCardSetup(siData.client_secret, {
+          payment_method: { card: cardElement },
+        });
+
+        if (error) throw new Error(error.message);
+
+        state.paymentMethodId = setupIntent.payment_method;
+
+        // Get card details for display
+        try {
+          const pm = await stripe.paymentMethods.retrieve
+            ? null // not available client-side
+            : null;
+        } catch(_) {}
+
+        // Try to get card info from the element
+        // We'll show generic info — Stripe Elements doesn't expose card details client-side
+        // The confirm endpoint returns what we need
+        state.cardBrand = 'Card';
+        state.cardLast4 = '****';
+
+        // Build review and go to step 5
+        buildReview();
+        goToStep(5);
+      } catch (err) {
+        showError('card-error', err.message);
+      } finally {
+        setLoading(btn, false, 'Continue');
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Step 5: Review & Confirm
+    // ═══════════════════════════════════════════════════════════════════════════
+    function buildReview() {
+      const lot = state.selectedLot;
+      let rateBreakdown = '';
+      if (lot.rate_type === 'weekly') {
+        const fullWeeks = Math.floor(state.nights / 7);
+        const remaining = state.nights % 7;
+        rateBreakdown = fullWeeks + ' week' + (fullWeeks > 1 ? 's' : '') + ' x $' + lot.weekly_rate.toFixed(2);
+        if (remaining > 0) rateBreakdown += ' + ' + remaining + ' night' + (remaining > 1 ? 's' : '') + ' x $' + lot.nightly_rate.toFixed(2);
+      } else {
+        rateBreakdown = state.nights + ' nights x $' + lot.nightly_rate.toFixed(2);
+      }
+
+      document.getElementById('review-table').innerHTML = `
+        <tr><td>Site</td><td>Lot ${lot.id} (${lot.site_type === 'pull_through' ? 'Pull-through' : 'Back-in'}, ${lot.surface})</td></tr>
+        <tr><td>Arrival</td><td>${formatDate(state.arrival)}</td></tr>
+        <tr><td>Departure</td><td>${formatDate(state.departure)}</td></tr>
+        <tr><td>Duration</td><td>${state.nights} night${state.nights > 1 ? 's' : ''}</td></tr>
+        <tr><td>Rate</td><td>${rateBreakdown}</td></tr>
+        <tr class="total-row"><td>Total</td><td>$${lot.total.toFixed(2)}</td></tr>
+      `;
+
+      document.getElementById('review-guest').innerHTML = `
+        <strong>${state.guest.name}</strong><br>
+        ${state.guest.phone.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}<br>
+        ${state.guest.email}
+        ${state.guest.rvType ? '<br>' + state.guest.rvType : ''}
+      `;
+
+      document.getElementById('review-card').innerHTML = `
+        Card on file (no charge today)
+      `;
+    }
+
+    async function confirmBooking() {
+      hideError('confirm-error');
+      if (!document.getElementById('confirm-agree').checked) {
+        return showError('confirm-error', 'Please confirm your reservation by checking the box above.');
+      }
+
+      const btn = document.getElementById('btn-confirm');
+      btn.dataset.label = 'Confirm Booking';
+      setLoading(btn, true, 'Confirming...');
+
+      try {
+        const resp = await fetch('/api/booking/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lot_id: state.selectedLot.id,
+            arrival_date: state.arrival,
+            departure_date: state.departure,
+            guest_name: state.guest.name,
+            phone: state.guest.phone,
+            email: state.guest.email,
+            rv_type_length: state.guest.rvType || null,
+            source: state.guest.source || 'website',
+            source_other: state.guest.sourceOther || null,
+            policy_acknowledged_at: state.guest.policyAcknowledgedAt,
+            stripe_customer_id: state.stripeCustomerId,
+            stripe_payment_method_id: state.paymentMethodId,
+            stripe_setup_intent_id: state.setupIntentId,
+          }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Could not complete reservation');
+
+        // Show confirmation
+        document.getElementById('conf-number').textContent = data.confirmation_number;
+
+        let rateInfo = '';
+        if (data.rate_type === 'weekly') {
+          const fullWeeks = Math.floor(data.nights / 7);
+          const remaining = data.nights % 7;
+          rateInfo = fullWeeks + ' week' + (fullWeeks > 1 ? 's' : '') + ' x $' + data.weekly_rate.toFixed(2);
+          if (remaining > 0) rateInfo += ' + ' + remaining + ' night' + (remaining > 1 ? 's' : '') + ' x $' + data.nightly_rate.toFixed(2);
+        } else {
+          rateInfo = data.nights + ' nights x $' + data.nightly_rate.toFixed(2);
+        }
+
+        document.getElementById('conf-summary').innerHTML = `
+          <tr><td>Guest</td><td>${data.guest_name}</td></tr>
+          <tr><td>Site</td><td>Lot ${data.lot_id}</td></tr>
+          <tr><td>Arrival</td><td>${formatDate(data.arrival_date)}</td></tr>
+          <tr><td>Departure</td><td>${formatDate(data.departure_date)}</td></tr>
+          <tr><td>Duration</td><td>${data.nights} night${data.nights > 1 ? 's' : ''}</td></tr>
+          <tr><td>Rate</td><td>${rateInfo}</td></tr>
+          <tr class="total-row"><td>Total</td><td>$${data.total.toFixed(2)}</td></tr>
+        `;
+
+        goToStep('confirmation');
+      } catch (err) {
+        showError('confirm-error', err.message);
+      } finally {
+        setLoading(btn, false, 'Confirm Booking');
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Helpers
+    // ═══════════════════════════════════════════════════════════════════════════
+    function formatDate(dateStr) {
+      const d = new Date(dateStr + 'T12:00:00');
+      return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  </script>
+
+</body>
+</html>

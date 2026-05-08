@@ -237,6 +237,22 @@ async function loadAdmin() {
       </div>
     </div>
 
+    <div class="card" style="border-left:4px solid #1a5c32">
+      <h3>📋 Booking Notifications</h3>
+      <p><small>Get notified when a guest books online. Email is always sent to anrvpark@gmail.com. SMS requires Twilio approval.</small></p>
+      <div class="form-group mt-1">
+        <label>SMS Phone Numbers <small style="text-transform:none;font-weight:400">(comma-separated)</small></label>
+        <input type="text" id="booking-notif-phones" placeholder="4095551234, 4095555678" value="${settings.booking_notification_phones || ''}">
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0">
+        <input type="checkbox" id="booking-sms-toggle" ${settings.booking_sms_enabled === '1' ? 'checked' : ''} style="width:18px;height:18px;accent-color:#1a5c32">
+        <label for="booking-sms-toggle" style="font-size:0.85rem;cursor:pointer">Enable SMS notifications</label>
+        <span style="font-size:0.75rem;color:#d97706;font-weight:600;margin-left:0.5rem">(Pending Twilio approval)</span>
+      </div>
+      <button class="btn btn-sm btn-primary mt-1" onclick="saveBookingNotifSettings()">Save</button>
+      <div id="booking-notif-msg" style="margin-top:0.5rem;font-size:0.82rem"></div>
+    </div>
+
     <div class="card" style="border-left:4px solid #f59e0b">
       <h3>🍽️ Local Eats</h3>
       <p><small>Manage restaurants shown to guests on the portal. Guests can vote and comment on menu items.</small></p>
@@ -313,6 +329,24 @@ async function loadAdmin() {
   addPasswordToggle('pw-current');
   addPasswordToggle('pw-new');
   addPasswordToggle('pw-confirm');
+}
+
+async function saveBookingNotifSettings() {
+  const phones = document.getElementById('booking-notif-phones').value.trim();
+  const smsEnabled = document.getElementById('booking-sms-toggle').checked ? '1' : '0';
+  const msg = document.getElementById('booking-notif-msg');
+  try {
+    const resp = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('token') },
+      body: JSON.stringify({ booking_notification_phones: phones, booking_sms_enabled: smsEnabled }),
+    });
+    if (!resp.ok) throw new Error('Save failed');
+    msg.innerHTML = '<span style="color:#16a34a">Saved!</span>';
+    setTimeout(() => msg.textContent = '', 3000);
+  } catch (err) {
+    msg.innerHTML = '<span style="color:#dc2626">Error: ' + err.message + '</span>';
+  }
 }
 
 async function saveEvictionSettings() {

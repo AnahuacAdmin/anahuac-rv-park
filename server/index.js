@@ -100,6 +100,16 @@ const paymentLimiter = rateLimit({
 });
 app.use('/api/payments/create-checkout-session', paymentLimiter);
 
+const bookingLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many booking attempts. Please call 409-267-6603.' },
+});
+app.use('/api/booking/confirm', bookingLimiter);
+app.use('/api/booking/setup-intent', bookingLimiter);
+
 // Health check (used by Railway) — verifies DB is loaded.
 let dbReady = false;
 function healthHandler(req, res) {
@@ -160,10 +170,19 @@ const lateFeesRouter = require('./routes/late-fees');
 app.use('/api/late-fees', lateFeesRouter);
 app.use('/api/quarter-requests', require('./routes/quarter-requests'));
 
+// SMS consent routes (Twilio A2P 10DLC compliance)
+app.use('/api', require('./routes/sms-consent'));
+
+// Public booking API (no auth)
+app.use('/api/booking', require('./routes/booking'));
+
 // Public pages — serve without .html extension so /privacy and /terms work
 app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'privacy.html')));
 app.get('/terms', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'terms.html')));
 app.get('/rules', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'rules.html')));
+app.get('/sms-consent', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'sms-consent.html')));
+app.get('/sms-terms', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'sms-terms.html')));
+app.get('/book', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'book.html')));
 
 // SPA fallback
 app.get('*', (req, res) => {
