@@ -353,12 +353,12 @@ function updateRateLabel(sel) {
     if (label) label.textContent = 'Daily Rate ($)';
     if (input && isKnownDefault) input.value = '30';
     if (depGroup) depGroup.style.display = '';
-    if (depInput) { depInput.required = true; if (!depInput.value) _autoPopulateDeparture(sel.form, 1); }
+    if (depInput) { depInput.required = true; _autoPopulateDeparture(sel.form, 1); updateStayPreview(sel.form); }
   } else if (type === 'weekly') {
     if (label) label.textContent = 'Weekly Rate ($)';
     if (input && isKnownDefault) input.value = '150';
     if (depGroup) depGroup.style.display = '';
-    if (depInput) { depInput.required = true; if (!depInput.value) _autoPopulateDeparture(sel.form, 7); }
+    if (depInput) { depInput.required = true; _autoPopulateDeparture(sel.form, 7); updateStayPreview(sel.form); }
   } else {
     if (label) label.textContent = 'Monthly Rate ($)';
     if (input && isKnownDefault) input.value = '295';
