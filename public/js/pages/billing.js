@@ -1117,7 +1117,7 @@ function invoiceStandardNotesHtml() {
   `;
 }
 
-// Email Invoice — generates PDF client-side, sends as base64 to server via Resend.
+// Email Invoice — server generates PDF and sends via Resend.
 async function emailInvoice(id) {
   // Nuclear-level duplicate prevention
   const key = 'email_' + id;
@@ -1135,20 +1135,8 @@ async function emailInvoice(id) {
 
     showStatusToast('📧', 'Sending email...', -1);
 
-    // Generate PDF
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;top:-99999px;left:0;width:800px;background:#fff;z-index:-9999;pointer-events:none;';
-    wrap.innerHTML = await renderInvoiceHtml(inv);
-    document.body.appendChild(wrap);
-    await new Promise(r => setTimeout(r, 500));
+    const result = await API.post(`/invoices/${id}/email`, {});
 
-    const pdfBlob = await html2pdf().set(_pdfOptions(inv.invoice_number)).from(wrap.firstElementChild).outputPdf('blob');
-    wrap.remove();
-
-    const pdfBase64 = await blobToBase64(pdfBlob);
-    const result = await API.post(`/invoices/${id}/email`, { pdfBase64 });
-
-    // Always dismiss the "Sending..." toast first
     dismissToast();
 
     if (result?.success) {
