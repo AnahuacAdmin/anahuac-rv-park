@@ -5,7 +5,11 @@
  * Unauthorized copying, distribution, or use is strictly prohibited.
  */
 const router = require('express').Router();
+const path = require('path');
+const fs = require('fs');
 const { Resend } = require('resend');
+const PDFDocument = require('pdfkit');
+const QRCode = require('qrcode');
 const { db, saveDb } = require('../database');
 const { authenticate, blockStaff } = require('../middleware');
 const pushService = require('../services/push-notifications');
@@ -387,6 +391,392 @@ router.get('/:id', (req, res) => {
   }
 
   res.json({ ...invoice, payments, meter, meters });
+});
+
+// ── Server-side Invoice PDF (pdfkit) ────────────────────────────────────────
+// GET /api/invoices/:id/pdf — streams a branded PDF directly to the browser.
+router.get('/:id/pdf', async (req, res) => {
+  try {
+    // ── Data lookup (duplicated from GET /:id for Round 1) ──────────────
+    const invoice = db.prepare(`
+      SELECT i.*, t.first_name, t.last_name, t.lot_id, t.phone, t.email
+      FROM invoices i
+      JOIN tenants t ON i.tenant_id = t.id
+      WHERE i.id = ?
+    `).get(req.params.id);
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    const payments = db.prepare('SELECT * FROM payments WHERE invoice_id = ? ORDER BY payment_date DESC').all(req.params.id);
+
+    let meter = null;
+    if (invoice.billing_period_start && invoice.billing_period_end) {
+      meter = db.prepare(
+        `SELECT previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, reading_date
+         FROM meter_readings WHERE lot_id = ? AND reading_date BETWEEN ? AND ?
+         ORDER BY reading_date DESC LIMIT 1`
+      ).get(invoice.lot_id, invoice.billing_period_start, invoice.billing_period_end);
+    }
+    if (!meter && invoice.billing_period_end) {
+      meter = db.prepare(
+        `SELECT previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, reading_date
+         FROM meter_readings WHERE lot_id = ? AND reading_date <= ?
+         ORDER BY reading_date DESC LIMIT 1`
+      ).get(invoice.lot_id, invoice.billing_period_end);
+    }
+    if (!meter) {
+      meter = db.prepare(
+        `SELECT previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, reading_date
+         FROM meter_readings WHERE lot_id = ? ORDER BY reading_date DESC LIMIT 1`
+      ).get(invoice.lot_id);
+    }
+
+    let meters = [];
+    if (invoice.billing_period_start && invoice.billing_period_end) {
+      meters = db.prepare(`
+        SELECT lot_id, previous_reading, current_reading, kwh_used, rate_per_kwh, electric_charge, reading_date, notes
+        FROM meter_readings WHERE tenant_id = ? AND reading_date BETWEEN ? AND ?
+        ORDER BY reading_date ASC, id ASC
+      `).all(invoice.tenant_id, invoice.billing_period_start, invoice.billing_period_end);
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────
+    const n = (v) => Number(v) || 0;
+    const fmt = (v) => '$' + n(v).toFixed(2);
+    const fmtNum = (v) => Number(v ?? 0).toLocaleString();
+
+    function meterCharge(m) {
+      return Number(m.electric_charge) || +(Number(m.kwh_used) * Number(m.rate_per_kwh || 0.15)).toFixed(2);
+    }
+
+    function formatPeriod(start, end) {
+      if (!start || !end) return '';
+      try {
+        const s = new Date(start + 'T00:00:00');
+        const e = new Date(end + 'T00:00:00');
+        const mo = s.toLocaleString('en-US', { month: 'long' });
+        return `${mo} ${s.getDate()} – ${e.toLocaleString('en-US', { month: 'long' })} ${e.getDate()}, ${e.getFullYear()}`;
+      } catch { return `${start} – ${end}`; }
+    }
+
+    function formatDate(d) {
+      if (!d) return '';
+      try {
+        const dt = new Date(d + 'T00:00:00');
+        return `${dt.getMonth() + 1}/${dt.getDate()}/${dt.getFullYear()}`;
+      } catch { return d; }
+    }
+
+    // ── Logo ────────────────────────────────────────────────────────────
+    let logoBuffer = null;
+    try {
+      const logoPath = path.join(process.cwd(), 'public', 'park_Logo.png');
+      logoBuffer = fs.readFileSync(logoPath);
+    } catch (err) {
+      console.warn('[invoices] PDF logo not found, skipping:', err.message);
+    }
+
+    // ── PDF setup ───────────────────────────────────────────────────────
+    const doc = new PDFDocument({ size: 'LETTER', margin: 50 });
+    const invDate = invoice.invoice_date || new Date().toISOString().slice(0, 10);
+    const filename = `Invoice-${invoice.invoice_number || invoice.id}-${invDate}.pdf`;
+    const disposition = req.query.download === '1' || req.query.download === 'true' ? 'attachment' : 'inline';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
+    doc.pipe(res);
+
+    const leftX = 50;
+    const rightX = 462; // right-aligned column for amounts (50 + 412)
+    const pageW = 612 - 100; // letter width minus margins
+    const colAmtW = 100;
+    const colDescW = pageW - colAmtW;
+
+    // ── Colors ──────────────────────────────────────────────────────────
+    const GREEN = '#1a5c32';
+    const TEXT_DARK = '#1a1a1a';
+    const TEXT_SEC = '#57534e';
+    const TEXT_MUTED = '#78716c';
+    const TBL_HDR_BG = '#f5f5f4';
+    const TBL_BORDER = '#d6d3d1';
+    const ROW_SEP = '#e7e5e4';
+    const RED = '#b91c1c';
+    const RED_BG = '#fef2f2';
+    const GREEN_PAID = '#15803d';
+    const GREEN_BG = '#f0fdf4';
+    const WARN = '#92400e';
+
+    // ── HEADER ──────────────────────────────────────────────────────────
+    let headerY = 50;
+    const logoW = 56;
+    const logoH = 56;
+    if (logoBuffer) {
+      try {
+        doc.image(logoBuffer, leftX, headerY, { width: logoW, height: logoH });
+      } catch (err) {
+        console.warn('[invoices] PDF logo render failed:', err.message);
+      }
+    }
+
+    const textStartX = leftX + (logoBuffer ? logoW + 12 : 0);
+    doc.fontSize(12).font('Helvetica-Bold').fillColor(GREEN)
+      .text('Anahuac RV Park, LLC', textStartX, headerY + 4);
+    doc.fontSize(9).font('Helvetica').fillColor(TEXT_SEC)
+      .text('1003 Davis Ave, Anahuac, TX 77514', textStartX, headerY + 20)
+      .text('Phone: 409-267-6603', textStartX, headerY + 32);
+
+    // Right side: INVOICE label + number + due date
+    doc.fontSize(18).font('Helvetica-Bold').fillColor(GREEN)
+      .text('INVOICE', 350, headerY, { align: 'right', width: 212, characterSpacing: 1.5 });
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(TEXT_DARK)
+      .text(invoice.invoice_number || '', 350, headerY + 22, { align: 'right', width: 212 });
+    doc.fontSize(9).font('Helvetica').fillColor(TEXT_SEC)
+      .text(`Due: ${formatDate(invoice.due_date || invoice.invoice_date)}`, 350, headerY + 37, { align: 'right', width: 212 });
+
+    // Green line under header
+    const lineY = headerY + logoH + 10;
+    doc.moveTo(leftX, lineY).lineTo(562, lineY).lineWidth(3).strokeColor(GREEN).stroke();
+    doc.y = lineY + 16;
+
+    // ── BILL TO / BILLING PERIOD ────────────────────────────────────────
+    const billY = doc.y;
+    // Left: Bill To
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(TEXT_MUTED)
+      .text('BILL TO', leftX, billY, { characterSpacing: 0.5 });
+    const tenantName = [invoice.first_name, invoice.last_name].filter(Boolean).join(' ') || `Lot ${invoice.lot_id}`;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(TEXT_DARK)
+      .text(tenantName, leftX, billY + 14);
+    doc.fontSize(9).font('Helvetica').fillColor(TEXT_SEC)
+      .text(`Lot ${invoice.lot_id}`, leftX, billY + 28);
+    if (invoice.phone) {
+      doc.text(invoice.phone, leftX, billY + 40);
+    }
+
+    // Right: Billing Period
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(TEXT_MUTED)
+      .text('BILLING PERIOD', 350, billY, { align: 'right', width: 212, characterSpacing: 0.5 });
+    const periodStr = formatPeriod(invoice.billing_period_start, invoice.billing_period_end);
+    if (periodStr) {
+      doc.fontSize(9).font('Helvetica').fillColor(TEXT_SEC)
+        .text(periodStr, 350, billY + 14, { align: 'right', width: 212 });
+    }
+
+    doc.y = billY + 60;
+
+    // ── LINE ITEMS TABLE ────────────────────────────────────────────────
+    let y = doc.y;
+    const rowH = 22;
+
+    // Table header
+    doc.rect(leftX, y, pageW, rowH).fill(TBL_HDR_BG);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(TEXT_SEC);
+    doc.text('DESCRIPTION', leftX + 8, y + 6, { characterSpacing: 0.3 });
+    doc.text('AMOUNT', leftX + colDescW, y + 6, { width: colAmtW - 8, align: 'right', characterSpacing: 0.3 });
+    y += rowH;
+    doc.moveTo(leftX, y).lineTo(leftX + pageW, y).lineWidth(1).strokeColor(TBL_BORDER).stroke();
+
+    // Line item helper
+    function addLineItem(label, amount, opts = {}) {
+      const amt = n(amount);
+      const { color, negative, description, force } = opts;
+      if (!force && Math.abs(amt) < 0.005) return;
+      doc.fontSize(10).font('Helvetica').fillColor(color || TEXT_DARK)
+        .text(label, leftX + 8, y + 5);
+      const displayAmt = negative ? `-${fmt(Math.abs(amt))}` : fmt(amt);
+      doc.fontSize(10).font('Helvetica').fillColor(color || TEXT_DARK)
+        .text(displayAmt, leftX + colDescW, y + 5, { width: colAmtW - 8, align: 'right' });
+      y += rowH;
+      doc.moveTo(leftX, y).lineTo(leftX + pageW, y).lineWidth(0.5).strokeColor(ROW_SEP).stroke();
+      if (description) {
+        doc.fontSize(8).font('Helvetica-Oblique').fillColor(TEXT_MUTED)
+          .text(description, leftX + 16, y + 3);
+        y += 16;
+      }
+    }
+
+    addLineItem('Monthly Rent', invoice.rent_amount);
+    addLineItem('Electric Charges', invoice.electric_amount, { force: true });
+    addLineItem(invoice.other_description || 'Other Charges', invoice.other_charges, { description: invoice.other_charges > 0 && invoice.other_description ? undefined : undefined });
+    addLineItem('Mailbox Fee', invoice.mailbox_fee);
+    addLineItem(invoice.misc_description || 'Miscellaneous Fee', invoice.misc_fee, { description: n(invoice.misc_fee) > 0 && invoice.misc_description ? invoice.misc_description : undefined });
+    addLineItem('Extra Occupancy Fee', invoice.extra_occupancy_fee);
+    addLineItem('Late Fee', invoice.late_fee);
+    addLineItem(invoice.refund_description || 'Refund / Credit', invoice.refund_amount, { negative: true, color: GREEN_PAID, description: n(invoice.refund_amount) > 0 && invoice.refund_description ? invoice.refund_description : undefined });
+    addLineItem('Credit Applied', invoice.credit_applied, { negative: true, color: GREEN_PAID });
+
+    // Subtotal row
+    doc.moveTo(leftX, y).lineTo(leftX + pageW, y).lineWidth(1).strokeColor(TBL_BORDER).stroke();
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(TEXT_DARK)
+      .text('Subtotal', leftX + 8, y + 5);
+    doc.text(fmt(invoice.total_amount), leftX + colDescW, y + 5, { width: colAmtW - 8, align: 'right' });
+    y += rowH;
+
+    // Amount Paid row (if paid anything)
+    if (n(invoice.amount_paid) > 0) {
+      doc.fontSize(10).font('Helvetica').fillColor(TEXT_SEC)
+        .text('Amount Paid', leftX + 8, y + 5);
+      doc.text(fmt(invoice.amount_paid), leftX + colDescW, y + 5, { width: colAmtW - 8, align: 'right' });
+      y += rowH;
+    }
+
+    doc.y = y + 8;
+
+    // ── METER READING SECTION ───────────────────────────────────────────
+    const storedElectric = n(invoice.electric_amount);
+    let showMeter = false;
+
+    if (Array.isArray(meters) && meters.length > 1) {
+      const meterTotal = meters.reduce((s, m) => s + meterCharge(m), 0);
+      if (Math.abs(meterTotal - storedElectric) < 0.01) {
+        showMeter = true;
+        y = doc.y;
+        doc.fontSize(10).font('Helvetica-Bold').fillColor(TEXT_DARK)
+          .text('Electric Meter Readings', leftX, y);
+        y += 16;
+        for (const m of meters) {
+          doc.fontSize(9).font('Helvetica-Bold').fillColor(TEXT_SEC)
+            .text(`Lot ${m.lot_id}${m.notes ? ' (' + m.notes + ')' : ''}`, leftX + 8, y);
+          y += 14;
+          const rate = Number(m.rate_per_kwh || 0.15).toFixed(2);
+          doc.fontSize(9).font('Helvetica').fillColor(TEXT_SEC);
+          doc.text(`Previous: ${fmtNum(m.previous_reading)}   Current: ${fmtNum(m.current_reading)}   kWh Used: ${fmtNum(m.kwh_used)}   Rate: $${rate}/kWh   Charge: ${fmt(meterCharge(m))}`, leftX + 16, y);
+          y += 16;
+        }
+        doc.y = y + 4;
+      }
+    } else if (meter && Math.abs(meterCharge(meter) - storedElectric) < 0.01) {
+      showMeter = true;
+      y = doc.y;
+      doc.fontSize(10).font('Helvetica-Bold').fillColor(TEXT_DARK)
+        .text('Electric Meter Reading', leftX, y);
+      y += 16;
+      const rate = Number(meter.rate_per_kwh || 0.15).toFixed(2);
+
+      // Mini table: Previous | Current | kWh Used | Rate | Charge
+      const mCols = [
+        { label: 'Previous', value: fmtNum(meter.previous_reading) },
+        { label: 'Current', value: fmtNum(meter.current_reading) },
+        { label: 'kWh Used', value: fmtNum(meter.kwh_used) },
+        { label: 'Rate', value: `$${rate}/kWh` },
+        { label: 'Charge', value: fmt(meterCharge(meter)) },
+      ];
+      const mColW = pageW / mCols.length;
+      // Header
+      doc.rect(leftX, y, pageW, 18).fill(TBL_HDR_BG);
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(TEXT_SEC);
+      mCols.forEach((c, i) => doc.text(c.label, leftX + i * mColW + 4, y + 4));
+      y += 18;
+      // Values
+      doc.fontSize(9).font('Helvetica').fillColor(TEXT_DARK);
+      mCols.forEach((c, i) => doc.text(c.value, leftX + i * mColW + 4, y + 4));
+      y += 20;
+      doc.moveTo(leftX, y).lineTo(leftX + pageW, y).lineWidth(0.5).strokeColor(ROW_SEP).stroke();
+      doc.y = y + 8;
+    }
+
+    // ── BALANCE DUE CALLOUT ─────────────────────────────────────────────
+    y = doc.y;
+    const balanceDue = n(invoice.balance_due);
+    const isPaid = invoice.status === 'paid' || balanceDue <= 0;
+
+    if (isPaid) {
+      // Green "Paid in Full" box
+      doc.rect(leftX, y, pageW, 32).fill(GREEN_BG);
+      doc.rect(leftX, y, 3, 32).fill(GREEN_PAID);
+      doc.fontSize(12).font('Helvetica-Bold').fillColor(GREEN_PAID)
+        .text('Paid in Full', leftX + 14, y + 9);
+    } else {
+      // Red "Balance Due" box
+      const cardTotal = Math.round(balanceDue * 103) / 100;
+      doc.rect(leftX, y, pageW, 52).fill(RED_BG);
+      doc.rect(leftX, y, 3, 52).fill(RED);
+      doc.fontSize(12).font('Helvetica-Bold').fillColor(RED)
+        .text('Balance Due', leftX + 14, y + 8);
+      doc.fontSize(16).font('Helvetica-Bold').fillColor(RED)
+        .text(fmt(balanceDue), leftX + colDescW, y + 6, { width: colAmtW - 8, align: 'right' });
+      doc.fontSize(9).font('Helvetica').fillColor(RED)
+        .text('If paying by card (includes 3% fee)', leftX + 14, y + 30);
+      doc.fontSize(11).font('Helvetica-Bold').fillColor(RED)
+        .text(fmt(cardTotal), leftX + colDescW, y + 28, { width: colAmtW - 8, align: 'right' });
+    }
+    doc.y = y + (isPaid ? 40 : 60);
+
+    // ── QR CODE (only if balance > 0) ───────────────────────────────────
+    if (!isPaid && balanceDue > 0) {
+      try {
+        const payUrl = `${APP_URL}/pay.html?pay=${invoice.id}`;
+        const qrBuffer = await QRCode.toBuffer(payUrl, { width: 100, margin: 1 });
+        y = doc.y;
+        // Light gray background box
+        doc.rect(leftX, y, pageW, 90).fill(TBL_HDR_BG);
+        doc.image(qrBuffer, leftX + 10, y + 8, { width: 74, height: 74 });
+        doc.fontSize(11).font('Helvetica-Bold').fillColor(GREEN)
+          .text('Scan to Pay Online', leftX + 96, y + 12);
+        doc.fontSize(9).font('Helvetica').fillColor(TEXT_SEC)
+          .text('Scan the QR code with your phone to pay securely.', leftX + 96, y + 28, { width: pageW - 110 })
+          .text('A 3% convenience fee applies to credit/debit card payments.', leftX + 96, y + 42, { width: pageW - 110 });
+        doc.y = y + 98;
+      } catch (err) {
+        console.warn('[invoices] PDF QR code generation failed:', err.message);
+      }
+    }
+
+    // ── PAYMENT HISTORY ─────────────────────────────────────────────────
+    if (payments.length > 0) {
+      y = doc.y + 4;
+      doc.fontSize(11).font('Helvetica-Bold').fillColor(TEXT_DARK)
+        .text('Payment History', leftX, y);
+      y += 18;
+
+      // Table header
+      const pColW = [130, 100, 130, pageW - 360]; // Date, Amount, Method, Reference
+      doc.rect(leftX, y, pageW, 18).fill(TBL_HDR_BG);
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(TEXT_SEC);
+      doc.text('DATE', leftX + 8, y + 4);
+      doc.text('AMOUNT', leftX + pColW[0] + 8, y + 4);
+      doc.text('METHOD', leftX + pColW[0] + pColW[1] + 8, y + 4);
+      doc.text('REFERENCE', leftX + pColW[0] + pColW[1] + pColW[2] + 8, y + 4);
+      y += 18;
+      doc.moveTo(leftX, y).lineTo(leftX + pageW, y).lineWidth(1).strokeColor(TBL_BORDER).stroke();
+
+      for (const p of payments) {
+        doc.fontSize(9).font('Helvetica').fillColor(TEXT_DARK);
+        doc.text(formatDate(p.payment_date), leftX + 8, y + 4);
+        doc.text(fmt(p.amount), leftX + pColW[0] + 8, y + 4);
+        doc.text(p.payment_method || '—', leftX + pColW[0] + pColW[1] + 8, y + 4);
+        doc.text(p.reference_number || '—', leftX + pColW[0] + pColW[1] + pColW[2] + 8, y + 4, { width: pColW[3] - 8 });
+        y += 18;
+        doc.moveTo(leftX, y).lineTo(leftX + pageW, y).lineWidth(0.5).strokeColor(ROW_SEP).stroke();
+      }
+      doc.y = y + 8;
+    }
+
+    // ── FOOTER ──────────────────────────────────────────────────────────
+    y = doc.y + 8;
+    doc.moveTo(leftX, y).lineTo(leftX + pageW, y).lineWidth(1).strokeColor(ROW_SEP).stroke();
+    y += 8;
+
+    if (!isPaid) {
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(WARN)
+        .text('A $25.00 late fee will be applied if payment is not received within 3 days of the invoice date.', leftX, y, { width: pageW });
+      y += 14;
+      doc.text('An eviction notice will be served if payment is not received within 5 days.', leftX, y, { width: pageW });
+      y += 18;
+    }
+
+    doc.fontSize(9).font('Helvetica').fillColor(TEXT_SEC)
+      .text('Pay by debit/credit card online, or deliver payment to the night deposit box at the front of the warehouse.', leftX, y, { width: pageW });
+    y += 20;
+
+    doc.fontSize(9).font('Helvetica-Oblique').fillColor(TEXT_SEC)
+      .text('Thank you for your continued business.', leftX, y, { width: pageW, align: 'center' });
+
+    doc.end();
+
+  } catch (err) {
+    console.error('[invoices] PDF generation failed:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate invoice PDF' });
+    }
+  }
 });
 
 router.post('/', (req, res) => {

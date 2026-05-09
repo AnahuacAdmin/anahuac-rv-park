@@ -669,7 +669,7 @@ async function viewInvoice(id) {
     <div id="invoice-refund-history" style="margin-top:0.75rem"></div>
     <div class="no-print mt-2 btn-group">
       <button class="btn btn-primary" onclick="event.stopPropagation(); printInvoice(${inv.id})">Print Invoice</button>
-      <button class="btn btn-outline" onclick="event.stopPropagation(); downloadInvoicePdfFromView('${inv.invoice_number}')">Download PDF</button>
+      <button class="btn btn-outline" onclick="event.stopPropagation(); downloadInvoicePdfFromView(${inv.id})">Download PDF</button>
       <button class="btn btn-outline" onclick="event.stopPropagation(); emailInvoice(${inv.id})">Email Invoice</button>
     </div>
   `);
@@ -757,47 +757,46 @@ function _downloadPdfBlob(blob, filename) {
   setTimeout(function() { a.remove(); URL.revokeObjectURL(url); }, 1000);
 }
 
-async function downloadInvoicePdfFromView(invoiceNumber) {
-  const el = document.getElementById('printable-invoice');
-  if (!el) return;
-  var filename = `${invoiceNumber || 'Invoice'}.pdf`;
+async function downloadInvoicePdfFromView(id) {
   try {
     showStatusToast('📄', 'Generating PDF...');
-    var blob = await html2pdf().set(_pdfOptions(invoiceNumber)).from(el).outputPdf('blob');
+    const resp = await fetch(`/api/invoices/${id}/pdf?download=1`, {
+      headers: { Authorization: 'Bearer ' + localStorage.getItem('rv_token') }
+    });
+    if (!resp.ok) throw new Error('Server returned ' + resp.status);
+    const blob = await resp.blob();
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `Invoice-${id}.pdf`;
     _downloadPdfBlob(blob, filename);
     dismissToast();
     showStatusToast('✅', 'PDF downloaded');
   } catch (err) {
     dismissToast();
     console.error('[billing] PDF from view failed:', err);
-    showStatusToast('❌', 'PDF generation failed');
+    showStatusToast('❌', 'PDF download failed');
   }
 }
 
-// Generate PDF without opening the modal — renders off-screen.
+// Generate PDF via server-side endpoint — no html2pdf needed.
 async function downloadInvoicePdf(id) {
   try {
     showStatusToast('📄', 'Generating PDF...');
-    const inv = await API.get(`/invoices/${id}`);
-    if (!inv) { dismissToast(); return; }
-    var filename = `${inv.invoice_number || 'Invoice'}.pdf`;
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;top:-99999px;left:0;width:800px;background:#fff;z-index:-9999;pointer-events:none;';
-    wrap.innerHTML = await renderInvoiceHtml(inv);
-    document.body.appendChild(wrap);
-    await new Promise(r => setTimeout(r, 500));
-    try {
-      var blob = await html2pdf().set(_pdfOptions(inv.invoice_number)).from(wrap.firstElementChild).outputPdf('blob');
-      _downloadPdfBlob(blob, filename);
-      dismissToast();
-      showStatusToast('✅', 'PDF downloaded');
-    } finally {
-      wrap.remove();
-    }
+    const resp = await fetch(`/api/invoices/${id}/pdf?download=1`, {
+      headers: { Authorization: 'Bearer ' + localStorage.getItem('rv_token') }
+    });
+    if (!resp.ok) throw new Error('Server returned ' + resp.status);
+    const blob = await resp.blob();
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `Invoice-${id}.pdf`;
+    _downloadPdfBlob(blob, filename);
+    dismissToast();
+    showStatusToast('✅', 'PDF downloaded');
   } catch (err) {
     dismissToast();
     console.error('[billing] PDF failed:', err);
-    showStatusToast('❌', 'PDF generation failed');
+    showStatusToast('❌', 'PDF download failed');
   }
 }
 
