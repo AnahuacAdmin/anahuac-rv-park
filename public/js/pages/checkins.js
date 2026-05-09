@@ -346,18 +346,22 @@ function updateRateLabel(sel) {
   const type = sel.value;
   const depGroup = document.getElementById('departure-date-group');
   const depInput = document.getElementById('checkin-departure-date');
+  const KNOWN_DEFAULTS = [30, 150, 295];
+  const currentVal = parseFloat(input?.value);
+  const isKnownDefault = !isNaN(currentVal) && KNOWN_DEFAULTS.includes(currentVal);
   if (type === 'daily') {
     if (label) label.textContent = 'Daily Rate ($)';
-    if (input && input.value === '295') input.value = '30';
+    if (input && isKnownDefault) input.value = '30';
     if (depGroup) depGroup.style.display = '';
     if (depInput) { depInput.required = true; if (!depInput.value) _autoPopulateDeparture(sel.form, 1); }
   } else if (type === 'weekly') {
     if (label) label.textContent = 'Weekly Rate ($)';
-    if (input && input.value === '295') input.value = '150';
+    if (input && isKnownDefault) input.value = '150';
     if (depGroup) depGroup.style.display = '';
     if (depInput) { depInput.required = true; if (!depInput.value) _autoPopulateDeparture(sel.form, 7); }
   } else {
     if (label) label.textContent = 'Monthly Rate ($)';
+    if (input && isKnownDefault) input.value = '295';
     if (depGroup) depGroup.style.display = 'none';
     if (depInput) { depInput.required = false; depInput.value = ''; }
   }
@@ -428,6 +432,13 @@ async function processCheckIn(e) {
   if (errEl) errEl.style.display = 'none';
   const form = new FormData(e.target);
   const data = Object.fromEntries(form);
+
+  // Pre-open blank tab for Stripe BEFORE any async calls (popup-blocker safe)
+  var stripeTab = null;
+  var paymentMethod = (data.payment_method || '');
+  if (paymentMethod === 'card') {
+    try { stripeTab = window.open('about:blank', '_blank'); } catch(e) {}
+  }
 
   if (!data.first_name || !data.last_name) {
     if (errEl) { errEl.textContent = 'First and last name are required.'; errEl.style.display = ''; }
@@ -576,7 +587,6 @@ async function processCheckIn(e) {
 
   // === COLLECT PAYMENT (if requested) ===
   var paymentAmount = parseFloat(data.payment_amount) || 0;
-  var paymentMethod = data.payment_method || '';
 
   if (paymentAmount > 0 && paymentMethod && paymentMethod !== 'card') {
     // Cash / Check / Money Order — record directly
@@ -597,28 +607,69 @@ async function processCheckIn(e) {
     }
   }
 
-  // Card via Stripe — redirect AFTER check-in is complete (non-blocking)
+  // === STRIPE CARD PAYMENT (new-tab flow) ===
   var stripeRedirectPending = false;
+  var cardPaymentStarted = false;
   if (paymentAmount > 0 && paymentMethod === 'card') {
     if (generatedInvoiceId) {
       stripeRedirectPending = true;
     } else {
-      if (typeof showStatusToast === 'function') showStatusToast('ℹ️', 'No invoice generated yet — collect card payment from the Payments page');
+      if (stripeTab) try { stripeTab.close(); } catch(e) {}
+      if (typeof showStatusToast === 'function') showStatusToast('ℹ️', 'No invoice generated — collect card payment from the Billing page');
+    }
+  } else {
+    // Not a card payment — close the pre-opened tab if any
+    if (stripeTab) try { stripeTab.close(); } catch(e) {}
+  }
+
+  if (stripeRedirectPending && generatedInvoiceId) {
+    try {
+      var session = await API.post('/payments/create-checkout-session', { invoice_id: generatedInvoiceId });
+      if (session?.url) {
+        if (stripeTab && !stripeTab.closed) {
+          stripeTab.location.href = session.url;
+          cardPaymentStarted = true;
+        } else {
+          // Popup was blocked — fallback
+          if (typeof showStatusToast === 'function') showStatusToast('💳', 'Popup blocked — opening Stripe in this tab');
+          window.location.href = session.url;
+          return; // navigating away, stop here
+        }
+      }
+    } catch (err) {
+      console.error('Stripe session failed:', err);
+      if (stripeTab) try { stripeTab.close(); } catch(e) {}
+      closeModal();
+      showPaymentResolutionModal(generatedInvoiceId, { id: tenant.id, name: data.first_name + ' ' + data.last_name, lot_id: data.lot_id }, 'session_failed');
+      return;
     }
   }
 
   closeModal();
 
-  // Show success with option to send welcome text.
+  // === SUCCESS MODAL ===
   const tenantName = `${data.first_name} ${data.last_name}`;
   const phone = data.phone;
   window._lastCheckinTenant = Object.assign({}, data, { id: tenant.id });
   celebrateTenantCheckIn(data.first_name, data.lot_id);
+
+  var cardStatusHtml = '';
+  if (cardPaymentStarted) {
+    cardStatusHtml = `
+      <div style="border:2px solid #3b82f6;border-radius:10px;padding:1rem;margin:0.75rem 0;background:#eff6ff">
+        <div id="checkin-card-status" style="font-size:1rem;font-weight:600;color:#1e40af">&#9203; Waiting for payment...</div>
+        <p style="font-size:0.8rem;color:#64748b;margin:0.25rem 0 0">Stripe payment page opened in a new tab. Status updates here automatically.</p>
+      </div>
+      <button class="btn btn-outline btn-full" id="checkin-card-problem-btn" onclick="stopCheckinPolling();closeModal();showPaymentResolutionModal(${generatedInvoiceId},{id:${tenant.id},name:'${tenantName.replace(/'/g, "\\'")}',lot_id:'${data.lot_id}'},'manual_decline')" style="color:#dc2626;border-color:#dc2626;margin-bottom:0.5rem">Card didn't go through</button>
+    `;
+  }
+
   setTimeout(() => showModal('Check-In Complete', `
     <div style="text-align:center;padding:1rem 0">
       <div style="font-size:2.5rem;margin-bottom:0.5rem">&#9989;</div>
       <h3>${tenantName} checked in to Lot ${data.lot_id}</h3>
-      <p style="color:var(--gray-500);margin:0.5rem 0 1.5rem">Guest record created and lot marked occupied.</p>
+      <p style="color:var(--gray-500);margin:0.5rem 0 ${cardPaymentStarted ? '0.5rem' : '1.5rem'}">Guest record created and lot marked occupied.</p>
+      ${cardStatusHtml}
       ${phone ? `
         <button class="btn btn-success btn-full" onclick="sendWelcomeText(${tenant.id}, '${tenantName.replace(/'/g, "\\'")}')">
           &#128241; Send Welcome Text to ${phone}
@@ -638,24 +689,167 @@ async function processCheckIn(e) {
         </div>
       </div>
 
-      <button class="btn btn-outline btn-full mt-2" onclick="closeModal();loadCheckins()">Done</button>
+      <button class="btn btn-outline btn-full mt-2" onclick="stopCheckinPolling();closeModal();loadCheckins()">Done</button>
     </div>
-  `), 3200);
+  `), cardPaymentStarted ? 500 : 3200);
 
-  // Stripe card redirect — fires AFTER check-in is fully complete
-  if (stripeRedirectPending && generatedInvoiceId) {
-    setTimeout(async function() {
+  // === PAYMENT POLLING (card only) ===
+  if (cardPaymentStarted && generatedInvoiceId) {
+    window._checkinPollHandle = setInterval(async function() {
       try {
-        var session = await API.post('/payments/create-checkout-session', { invoice_id: generatedInvoiceId });
-        if (session?.url) {
-          if (typeof showStatusToast === 'function') showStatusToast('💳', 'Redirecting to Stripe for card payment...');
-          setTimeout(function() { window.location.href = session.url; }, 1500);
+        var inv = await API.get('/invoices/' + generatedInvoiceId);
+        if (Number(inv.balance_due) <= 0.005) {
+          stopCheckinPolling();
+          var statusEl = document.getElementById('checkin-card-status');
+          if (statusEl) {
+            statusEl.innerHTML = '&#9989; Payment received — $' + Number(inv.amount_paid).toFixed(2) + ' via card';
+            statusEl.style.color = '#16a34a';
+          }
+          var probBtn = document.getElementById('checkin-card-problem-btn');
+          if (probBtn) probBtn.style.display = 'none';
         }
-      } catch (err) {
-        console.error('Stripe session failed (non-fatal):', err);
-        if (typeof showStatusToast === 'function') showStatusToast('⚠️', 'Check-in complete! Card payment can be collected later from the Payments page.');
+      } catch (e) { /* swallow, keep polling */ }
+    }, 3000);
+
+    window._checkinPollTimeout = setTimeout(function() {
+      clearInterval(window._checkinPollHandle);
+      window._checkinPollHandle = null;
+      var statusEl = document.getElementById('checkin-card-status');
+      if (statusEl) {
+        statusEl.innerHTML = '&#10071; Payment not yet received. Was there a problem?';
+        statusEl.style.color = '#dc2626';
       }
-    }, 4000);
+      var probBtn = document.getElementById('checkin-card-problem-btn');
+      if (probBtn) { probBtn.style.fontWeight = '700'; probBtn.style.background = '#fef2f2'; }
+    }, 180000);
+  }
+}
+
+function stopCheckinPolling() {
+  if (window._checkinPollHandle) { clearInterval(window._checkinPollHandle); window._checkinPollHandle = null; }
+  if (window._checkinPollTimeout) { clearTimeout(window._checkinPollTimeout); window._checkinPollTimeout = null; }
+}
+
+function showPaymentResolutionModal(invoiceId, tenantInfo, reason) {
+  var tenantName = tenantInfo.name || 'Guest';
+  var lotId = tenantInfo.lot_id || '?';
+  var defaultDue = new Date();
+  defaultDue.setDate(defaultDue.getDate() + 3);
+  var defaultDueStr = defaultDue.toISOString().slice(0, 10);
+
+  showModal("Card didn't go through — what now?", `
+    <div style="padding:0.5rem 0">
+      <p style="color:var(--gray-500);margin-bottom:1rem;font-size:0.85rem">${tenantName} — Lot ${lotId}. Check-in is complete. Choose how to handle payment:</p>
+
+      <button class="btn btn-full" style="background:#3b82f6;color:#fff;margin-bottom:0.5rem" onclick="retryCardPayment(${invoiceId},${tenantInfo.id})">&#128260; Try card again</button>
+
+      <button class="btn btn-outline btn-full" style="margin-bottom:0.5rem" onclick="document.getElementById('pr-switch-form').style.display='';this.style.display='none'">&#128181; Switch payment method (cash/check/money order)</button>
+      <div id="pr-switch-form" style="display:none;border:1px solid var(--gray-200);border-radius:8px;padding:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group"><label>Payment Method</label>
+          <select id="pr-switch-method"><option value="cash">Cash</option><option value="check">Check</option><option value="money_order">Money Order</option></select>
+        </div>
+        <div class="form-group"><label>Amount ($)</label><input id="pr-switch-amount" type="number" step="0.01" value="0"></div>
+        <div class="form-group"><label>Reference # (optional)</label><input id="pr-switch-ref" placeholder="Check number, etc."></div>
+        <button class="btn btn-success btn-full" onclick="saveAlternatePayment(${invoiceId},${tenantInfo.id})">Save Payment</button>
+      </div>
+
+      <button class="btn btn-outline btn-full" style="margin-bottom:0.5rem" onclick="document.getElementById('pr-override-form').style.display='';this.style.display='none'">&#128275; Request management override</button>
+      <div id="pr-override-form" style="display:none;border:1px solid var(--gray-200);border-radius:8px;padding:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group"><label>Reason</label><textarea id="pr-override-reason" maxlength="1000" rows="2" required></textarea></div>
+        <div class="form-group"><label>Expected Payment Method</label>
+          <select id="pr-override-method"><option value="cash">Cash</option><option value="check">Check</option><option value="card_retry">Card retry</option><option value="other">Other</option></select>
+        </div>
+        <div class="form-group"><label>Due Date</label><input id="pr-override-due" type="date" value="${defaultDueStr}" required></div>
+        <div class="form-group"><label>Manager Initials</label><input id="pr-override-initials" maxlength="10" placeholder="e.g. JD" required></div>
+        <button class="btn btn-success btn-full" onclick="submitOverride(${invoiceId})">Submit Override</button>
+      </div>
+
+      <button class="btn btn-outline btn-full mt-2" onclick="closeModal();loadCheckins()" style="color:var(--gray-500)">Close — resolve later from Billing page</button>
+    </div>
+  `);
+
+  // Pre-fill the switch-payment amount from invoice balance
+  try {
+    API.get('/invoices/' + invoiceId).then(function(inv) {
+      var el = document.getElementById('pr-switch-amount');
+      if (el && inv) el.value = (Number(inv.balance_due) || 0).toFixed(2);
+    }).catch(function() {});
+  } catch(e) {}
+}
+
+async function retryCardPayment(invoiceId, tenantId) {
+  var retryTab = null;
+  try { retryTab = window.open('about:blank', '_blank'); } catch(e) {}
+  try {
+    var session = await API.post('/payments/retry-checkout-session', { invoice_id: invoiceId });
+    if (session?.url) {
+      if (retryTab && !retryTab.closed) {
+        retryTab.location.href = session.url;
+        if (typeof showStatusToast === 'function') showStatusToast('💳', session.reused ? 'Reopened existing Stripe session' : 'New Stripe payment page opened');
+      } else {
+        if (typeof showStatusToast === 'function') showStatusToast('💳', 'Popup blocked — opening in this tab');
+        window.location.href = session.url;
+        return;
+      }
+    }
+  } catch (err) {
+    if (retryTab) try { retryTab.close(); } catch(e) {}
+    var msg = err.message || 'Failed';
+    if (msg.includes('already paid')) {
+      if (typeof showStatusToast === 'function') showStatusToast('✅', 'Invoice is already paid!');
+      closeModal();
+      loadCheckins();
+      return;
+    }
+    if (typeof showStatusToast === 'function') showStatusToast('⚠️', 'Card retry failed: ' + msg);
+  }
+}
+
+async function saveAlternatePayment(invoiceId, tenantId) {
+  var method = document.getElementById('pr-switch-method')?.value;
+  var amount = parseFloat(document.getElementById('pr-switch-amount')?.value) || 0;
+  var ref = document.getElementById('pr-switch-ref')?.value || null;
+  if (amount <= 0) { alert('Enter a payment amount'); return; }
+  try {
+    await API.post('/payments', {
+      tenant_id: tenantId,
+      invoice_id: invoiceId,
+      payment_date: new Date().toISOString().split('T')[0],
+      amount: amount,
+      payment_method: method,
+      reference_number: ref,
+      notes: 'Collected at check-in (switched from card)',
+    });
+    stopCheckinPolling();
+    closeModal();
+    if (typeof showStatusToast === 'function') showStatusToast('✅', 'Payment of $' + amount.toFixed(2) + ' recorded');
+    loadCheckins();
+  } catch (err) {
+    alert('Payment failed: ' + (err.message || 'unknown error'));
+  }
+}
+
+async function submitOverride(invoiceId) {
+  var reason = (document.getElementById('pr-override-reason')?.value || '').trim();
+  var method = document.getElementById('pr-override-method')?.value;
+  var dueDate = document.getElementById('pr-override-due')?.value;
+  var initials = (document.getElementById('pr-override-initials')?.value || '').trim();
+  if (!reason) { alert('Reason is required'); return; }
+  if (!dueDate) { alert('Due date is required'); return; }
+  if (!initials) { alert('Manager initials are required'); return; }
+  try {
+    await API.post('/invoices/' + invoiceId + '/override', {
+      reason: reason,
+      expected_method: method,
+      due_date: dueDate,
+      manager_initials: initials,
+    });
+    stopCheckinPolling();
+    closeModal();
+    if (typeof showStatusToast === 'function') showStatusToast('✅', 'Override recorded — payment expected by ' + dueDate);
+    loadCheckins();
+  } catch (err) {
+    alert('Override failed: ' + (err.message || 'unknown error'));
   }
 }
 

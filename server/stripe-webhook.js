@@ -165,6 +165,14 @@ function registerStripeWebhook(app) {
             .run(newPaid, Math.max(0, newBalance), newStatus, inv.id);
           saveDb();
 
+          // Mark checkout session as completed in our tracking table.
+          try {
+            db.prepare("UPDATE checkout_sessions SET status='completed', completed_at=? WHERE id=?")
+              .run(Math.floor(Date.now()/1000), session.id);
+          } catch (e) {
+            console.error('[stripe] checkout_sessions update failed for session', session.id, e.message);
+          }
+
           // Clear eviction warning if tenant has no remaining unpaid invoices.
           if (newBalance <= 0.005) {
             const unpaid = db.prepare(

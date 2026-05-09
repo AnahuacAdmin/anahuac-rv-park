@@ -78,6 +78,16 @@ router.post('/create-checkout-session', async (req, res) => {
       cancel_url:  `${origin}/pay.html?cancelled=1`,
     });
 
+    // Track session for double-charge protection
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      db.prepare(
+        "INSERT INTO checkout_sessions (id, invoice_id, status, amount_cents, created_at, expires_at) VALUES (?, ?, 'open', ?, ?, ?)"
+      ).run(session.id, invoice.id, balanceCents + feeCents, now, session.expires_at || null);
+    } catch (e) {
+      console.error('[payments] checkout_sessions insert failed (non-fatal):', e.message);
+    }
+
     res.json({ url: session.url });
   } catch (err) {
     console.error('[payments] create-checkout-session failed:', err);
@@ -89,6 +99,119 @@ router.post('/create-checkout-session', async (req, res) => {
 router.use(authenticate);
 const { blockStaff } = require('../middleware');
 router.use(blockStaff);
+
+// Retry / reuse a Stripe checkout session for an invoice (double-charge protected).
+router.post('/retry-checkout-session', async (req, res) => {
+  try {
+    const invoiceId = parseInt(req.body?.invoice_id);
+    if (!invoiceId) return res.status(400).json({ error: 'invoice_id is required' });
+
+    const invoice = db.prepare(`
+      SELECT i.*, t.first_name, t.last_name, t.email, t.lot_id
+      FROM invoices i JOIN tenants t ON i.tenant_id = t.id
+      WHERE i.id = ? AND COALESCE(i.deleted, 0) = 0
+    `).get(invoiceId);
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    const balance = Number(invoice.balance_due) || 0;
+    if (balance <= 0.005) return res.status(400).json({ error: 'Invoice already paid' });
+
+    const stripe = getStripe();
+    const now = Math.floor(Date.now() / 1000);
+    const STALE_SECONDS = 30 * 60; // 30 minutes
+
+    // Transaction: lookup existing open session + maybe create new one
+    db.exec('BEGIN');
+    try {
+      // Check for existing open session
+      const existing = db.prepare(
+        "SELECT id, created_at FROM checkout_sessions WHERE invoice_id = ? AND status = 'open' ORDER BY created_at DESC LIMIT 1"
+      ).get(invoiceId);
+
+      if (existing && existing.created_at > (now - STALE_SECONDS)) {
+        // Recent session — verify it's still open on Stripe
+        try {
+          const stripeSession = await stripe.checkout.sessions.retrieve(existing.id);
+          if (stripeSession.status === 'open' && stripeSession.payment_status !== 'paid') {
+            db.exec('COMMIT');
+            return res.json({ url: stripeSession.url, session_id: existing.id, reused: true });
+          }
+          // Session is no longer open on Stripe — update our record
+          const newStatus = stripeSession.payment_status === 'paid' ? 'completed' : 'expired';
+          db.prepare("UPDATE checkout_sessions SET status=?, completed_at=? WHERE id=?")
+            .run(newStatus, now, existing.id);
+          if (newStatus === 'completed') {
+            db.exec('COMMIT');
+            return res.status(400).json({ error: 'Invoice already paid' });
+          }
+        } catch (e) {
+          // Stripe retrieve failed — treat session as stale
+          console.error('[payments] stripe session retrieve failed:', e.message);
+          db.prepare("UPDATE checkout_sessions SET status='expired' WHERE id=?").run(existing.id);
+        }
+      } else if (existing) {
+        // Stale session (>30 min) — expire it
+        db.prepare("UPDATE checkout_sessions SET status='expired' WHERE id=?").run(existing.id);
+        try { await stripe.checkout.sessions.expire(existing.id); } catch (e) {
+          console.error('[payments] stripe session expire failed (non-fatal):', e.message);
+        }
+      }
+
+      // Create new Stripe checkout session
+      const balanceCents = Math.round(balance * 100);
+      const feeCents = Math.round(balanceCents * 0.03);
+      const origin = req.headers.origin || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'payment',
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: { name: 'Anahuac RV Park — Invoice Payment' },
+              unit_amount: balanceCents,
+            },
+            quantity: 1,
+          },
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: { name: 'Convenience Fee (3%)' },
+              unit_amount: feeCents,
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          invoice_id: String(invoice.id),
+          invoice_number: invoice.invoice_number,
+          lot_id: invoice.lot_id,
+        },
+        success_url: `${origin}/?paid=1`,
+        cancel_url: `${origin}/pay.html?cancelled=1`,
+      });
+
+      // Record the new session
+      db.prepare(
+        "INSERT INTO checkout_sessions (id, invoice_id, status, amount_cents, created_at, expires_at) VALUES (?, ?, 'open', ?, ?, ?)"
+      ).run(session.id, invoice.id, balanceCents + feeCents, now, session.expires_at || null);
+
+      db.exec('COMMIT');
+      saveDb();
+      res.json({ url: session.url, session_id: session.id, reused: false });
+    } catch (innerErr) {
+      try { db.exec('ROLLBACK'); } catch (e) {}
+      throw innerErr;
+    }
+  } catch (err) {
+    console.error('[payments] retry-checkout-session failed:', err.message);
+    if (!res.headersSent) {
+      res.status(err.type === 'StripeInvalidRequestError' ? 502 : 500)
+        .json({ error: 'Payment session creation failed' });
+    }
+  }
+});
 
 // Diagnostic: detailed invoice breakdown for investigation
 router.get('/invoice-audit', (req, res) => {

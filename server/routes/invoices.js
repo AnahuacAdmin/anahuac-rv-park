@@ -1086,6 +1086,55 @@ router.post('/:id/restore', (req, res) => {
   res.json({ success: true });
 });
 
+// Management override — append note to invoice and extend due date.
+router.post('/:id/override', (req, res) => {
+  try {
+    const { reason, expected_method, due_date, manager_initials } = req.body || {};
+
+    // Validate required fields
+    const trimmedReason = (reason || '').trim();
+    if (!trimmedReason || trimmedReason.length > 1000) {
+      return res.status(400).json({ error: 'reason is required (max 1000 chars)' });
+    }
+    const VALID_METHODS = ['cash', 'check', 'card_retry', 'other'];
+    if (!expected_method || !VALID_METHODS.includes(expected_method)) {
+      return res.status(400).json({ error: 'expected_method is required (cash, check, card_retry, other)' });
+    }
+    if (!due_date || !/^\d{4}-\d{2}-\d{2}$/.test(due_date)) {
+      return res.status(400).json({ error: 'due_date is required (YYYY-MM-DD)' });
+    }
+    const dueDateObj = new Date(due_date + 'T00:00:00');
+    const todayObj = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00');
+    if (dueDateObj < todayObj) {
+      return res.status(400).json({ error: 'due_date cannot be in the past' });
+    }
+    const initials = (manager_initials || '').trim();
+    if (!initials || initials.length > 10 || !/^[a-zA-Z0-9 ]+$/.test(initials)) {
+      return res.status(400).json({ error: 'manager_initials is required (1-10 chars, alphanumeric)' });
+    }
+
+    // Look up invoice
+    const invoice = db.prepare('SELECT id, notes, balance_due FROM invoices WHERE id = ? AND COALESCE(deleted, 0) = 0').get(req.params.id);
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+    if ((Number(invoice.balance_due) || 0) <= 0.005) {
+      return res.status(400).json({ error: 'Invoice is already paid, no override needed' });
+    }
+
+    // Build override note (newest at top)
+    const today = new Date().toISOString().slice(0, 10);
+    const note = `[OVERRIDE by ${initials} on ${today}] ${trimmedReason}.\nExpected: ${expected_method} by ${due_date}.`;
+    const existingNotes = (invoice.notes || '').trim();
+    const newNotes = existingNotes ? note + '\n\n' + existingNotes : note;
+
+    db.prepare('UPDATE invoices SET notes = ?, due_date = ? WHERE id = ?').run(newNotes, due_date, invoice.id);
+    saveDb();
+    res.json({ success: true, invoice_id: invoice.id });
+  } catch (err) {
+    console.error('[invoices] override failed:', err.message);
+    res.status(500).json({ error: 'Override failed' });
+  }
+});
+
 module.exports = router;
 // Expose the late-fee runner so the daily scheduler in server/index.js can call it directly.
 module.exports.runLateFeeCheck = runLateFeeCheck;

@@ -907,6 +907,21 @@ async function initializeDatabase() {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS checkout_sessions (
+      id TEXT PRIMARY KEY,
+      invoice_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      amount_cents INTEGER,
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER,
+      completed_at INTEGER,
+      FOREIGN KEY (invoice_id) REFERENCES invoices(id)
+    )
+  `);
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_checkout_sessions_invoice ON checkout_sessions(invoice_id)"); } catch (e) {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_checkout_sessions_status ON checkout_sessions(invoice_id, status)"); } catch (e) {}
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS checkins (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tenant_id INTEGER REFERENCES tenants(id),
