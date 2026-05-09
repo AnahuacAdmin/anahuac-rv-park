@@ -692,25 +692,23 @@ async function viewInvoice(id) {
 //   Electric Charge (548 kWh x $0.15) = $82.20
 function meterRowsHtml(inv) {
   const fmtNum = (v) => Number(v ?? 0).toLocaleString();
-  // Resolve electric amount: use stored invoice value, but if it's 0 and meter data
-  // shows actual usage, recalculate from meter data (handles invoices generated before readings).
-  function resolveElectric(inv) {
-    const stored = Number(inv.electric_amount) || 0;
-    if (stored > 0) return stored;
-    if (inv.meter) {
-      const charge = Number(inv.meter.electric_charge) || 0;
-      if (charge > 0) return charge;
-      const kwh = Number(inv.meter.kwh_used) || 0;
-      const rate = Number(inv.meter.rate_per_kwh) || 0.15;
-      if (kwh > 0) return +(kwh * rate).toFixed(2);
-    }
-    return stored;
+  const storedElectric = Number(inv.electric_amount) || 0;
+
+  // Helper: calculate what the meter says the charge should be.
+  function meterCharge(m) {
+    return Number(m.electric_charge) || +(Number(m.kwh_used) * Number(m.rate_per_kwh || 0.15)).toFixed(2);
   }
+
   // Multi-meter mode (mid-month move): render one block per lot reading.
+  // Only show the kWh breakdown if the sum of meter charges matches the stored electric_amount.
   if (Array.isArray(inv.meters) && inv.meters.length > 1) {
+    const meterTotal = inv.meters.reduce((s, m) => s + meterCharge(m), 0);
+    if (Math.abs(meterTotal - storedElectric) >= 0.01) {
+      return `<tr><td>Electric Charges</td><td class="text-right">${formatMoney(storedElectric)}</td></tr>`;
+    }
     return inv.meters.map(m => {
       const rate = Number(m.rate_per_kwh).toFixed(2);
-      const charge = Number(m.electric_charge) || +(Number(m.kwh_used) * Number(m.rate_per_kwh || 0.15)).toFixed(2);
+      const charge = meterCharge(m);
       return `
         <tr><td colspan="2"><strong>Electric — Lot ${m.lot_id}</strong>${m.notes ? ` <small>(${m.notes})</small>` : ''}</td></tr>
         <tr><td>&nbsp;&nbsp;Previous Reading</td><td class="text-right">${fmtNum(m.previous_reading)}</td></tr>
@@ -720,10 +718,10 @@ function meterRowsHtml(inv) {
       `;
     }).join('');
   }
-  // Single-meter mode.
-  const electricAmt = resolveElectric(inv);
-  if (!inv.meter) {
-    return `<tr><td>Electric Charges</td><td class="text-right">${formatMoney(electricAmt)}</td></tr>`;
+
+  // Single-meter mode: only show kWh breakdown if meter charge matches stored electric_amount.
+  if (!inv.meter || Math.abs(meterCharge(inv.meter) - storedElectric) >= 0.01) {
+    return `<tr><td>Electric Charges</td><td class="text-right">${formatMoney(storedElectric)}</td></tr>`;
   }
   const m = inv.meter;
   const rate = Number(m.rate_per_kwh).toFixed(2);
@@ -731,7 +729,7 @@ function meterRowsHtml(inv) {
     <tr><td>Previous Reading</td><td class="text-right">${fmtNum(m.previous_reading)}</td></tr>
     <tr><td>Current Reading</td><td class="text-right">${fmtNum(m.current_reading)}</td></tr>
     <tr><td>kWh Used</td><td class="text-right">${fmtNum(m.kwh_used)}</td></tr>
-    <tr><td>Electric Charge (${fmtNum(m.kwh_used)} kWh &times; $${rate})</td><td class="text-right">${formatMoney(electricAmt)}</td></tr>
+    <tr><td>Electric Charge (${fmtNum(m.kwh_used)} kWh &times; $${rate})</td><td class="text-right">${formatMoney(storedElectric)}</td></tr>
   `;
 }
 
