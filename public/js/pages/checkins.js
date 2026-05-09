@@ -109,8 +109,14 @@ async function showCheckIn() {
           </div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label id="rate-label">Monthly Rate ($)</label><input name="monthly_rent" type="number" step="0.01" value="295"></div>
-          <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${new Date().toISOString().split('T')[0]}" required onchange="calcProration(this.form)"></div>
+          <div class="form-group"><label id="rate-label">Monthly Rate ($)</label><input name="monthly_rent" type="number" step="0.01" value="295" onchange="updateStayPreview(this.form)"></div>
+          <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${new Date().toISOString().split('T')[0]}" required onchange="calcProration(this.form);updateStayPreview(this.form)"></div>
+        </div>
+        <div class="form-row" id="departure-date-group" style="display:none">
+          <div class="form-group"><label>Departure Date</label><input name="departure_date" id="checkin-departure-date" type="date" onchange="updateStayPreview(this.form)"></div>
+          <div class="form-group" style="display:flex;align-items:flex-end">
+            <div id="stay-preview" style="font-size:0.85rem;font-weight:600;color:#1a5c32;padding-bottom:0.4rem"></div>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" id="checkin-deposit-amt" type="number" step="0.01" value="0"></div>
@@ -338,10 +344,54 @@ function updateRateLabel(sel) {
   const label = document.getElementById('rate-label');
   const input = sel.form.monthly_rent;
   const type = sel.value;
-  if (type === 'daily') { if (label) label.textContent = 'Daily Rate ($)'; if (input && input.value === '295') input.value = '30'; }
-  else if (type === 'weekly') { if (label) label.textContent = 'Weekly Rate ($)'; if (input && input.value === '295') input.value = '150'; }
-  else { if (label) label.textContent = 'Monthly Rate ($)'; }
+  const depGroup = document.getElementById('departure-date-group');
+  const depInput = document.getElementById('checkin-departure-date');
+  if (type === 'daily') {
+    if (label) label.textContent = 'Daily Rate ($)';
+    if (input && input.value === '295') input.value = '30';
+    if (depGroup) depGroup.style.display = '';
+    if (depInput) { depInput.required = true; if (!depInput.value) _autoPopulateDeparture(sel.form, 1); }
+  } else if (type === 'weekly') {
+    if (label) label.textContent = 'Weekly Rate ($)';
+    if (input && input.value === '295') input.value = '150';
+    if (depGroup) depGroup.style.display = '';
+    if (depInput) { depInput.required = true; if (!depInput.value) _autoPopulateDeparture(sel.form, 7); }
+  } else {
+    if (label) label.textContent = 'Monthly Rate ($)';
+    if (depGroup) depGroup.style.display = 'none';
+    if (depInput) { depInput.required = false; depInput.value = ''; }
+  }
   calcProration(sel.form);
+  updateStayPreview(sel.form);
+}
+
+function _autoPopulateDeparture(form, addDays) {
+  var checkin = form.check_in_date?.value;
+  if (!checkin) return;
+  var d = new Date(checkin + 'T00:00:00');
+  d.setDate(d.getDate() + addDays);
+  var dep = document.getElementById('checkin-departure-date');
+  if (dep) dep.value = d.toISOString().slice(0, 10);
+}
+
+function updateStayPreview(form) {
+  var preview = document.getElementById('stay-preview');
+  if (!preview) return;
+  var type = form.rent_type?.value || 'monthly';
+  if (type === 'monthly') { preview.textContent = ''; return; }
+  var checkin = form.check_in_date?.value;
+  var dep = form.departure_date?.value;
+  var rate = parseFloat(form.monthly_rent?.value) || 0;
+  if (!checkin || !dep || !rate) { preview.textContent = ''; return; }
+  var nights = Math.round((new Date(dep + 'T00:00:00') - new Date(checkin + 'T00:00:00')) / 86400000);
+  if (nights < 1) { preview.textContent = 'Departure must be after check-in'; return; }
+  var total;
+  if (type === 'weekly') {
+    total = +(nights * +(rate / 7).toFixed(4)).toFixed(2);
+  } else {
+    total = +(nights * rate).toFixed(2);
+  }
+  preview.textContent = nights + ' night' + (nights > 1 ? 's' : '') + ' \u00B7 $' + total.toFixed(2) + ' total';
 }
 
 function calcProration(form) {
@@ -455,34 +505,72 @@ async function processCheckIn(e) {
     console.error('Checkin record failed:', err);
   }
 
-  // Auto-generate prorated invoice for mid-month move-in (monthly tenants only)
+  // Auto-generate check-in invoice for ALL rent types
   var generatedInvoiceId = null;
   const rentType = data.rent_type || 'monthly';
   const moveInDate = new Date(data.check_in_date + 'T00:00:00');
-  const moveDay = moveInDate.getDate();
-  if (rentType === 'monthly' && moveDay > 1) {
+  const rate = parseFloat(data.monthly_rent) || 0;
+  let invoiceAmount = 0;
+  let invoiceNotes = '';
+  let billingStart = data.check_in_date;
+  let billingEnd = null;
+
+  if (rentType === 'daily') {
+    var departure = data.departure_date ? new Date(data.departure_date + 'T00:00:00') : null;
+    if (!departure || departure <= moveInDate) {
+      if (typeof showStatusToast === 'function') showStatusToast('⚠️', 'Departure date is required for daily guests');
+    } else {
+      var nights = Math.round((departure - moveInDate) / 86400000);
+      invoiceAmount = +(nights * rate).toFixed(2);
+      invoiceNotes = nights + ' night' + (nights > 1 ? 's' : '') + ' × $' + rate.toFixed(2) + '/night';
+      billingEnd = data.departure_date;
+    }
+  } else if (rentType === 'weekly') {
+    var departure = data.departure_date ? new Date(data.departure_date + 'T00:00:00') : null;
+    if (!departure || departure <= moveInDate) {
+      if (typeof showStatusToast === 'function') showStatusToast('⚠️', 'Departure date is required for weekly guests');
+    } else {
+      var nights = Math.round((departure - moveInDate) / 86400000);
+      var nightlyFromWeekly = +(rate / 7).toFixed(4);
+      invoiceAmount = +(nights * nightlyFromWeekly).toFixed(2);
+      invoiceNotes = nights + ' night' + (nights > 1 ? 's' : '') + ' (weekly rate $' + rate.toFixed(2) + '/wk)';
+      billingEnd = data.departure_date;
+    }
+  } else {
+    // Monthly
+    var moveDay = moveInDate.getDate();
+    var yr = moveInDate.getFullYear();
+    var mo = moveInDate.getMonth();
+    var dim = new Date(yr, mo + 1, 0).getDate();
+    var moName = moveInDate.toLocaleString('default', { month: 'long' });
+    if (moveDay > 1) {
+      var remaining = dim - moveDay + 1;
+      invoiceAmount = +((rate / dim) * remaining).toFixed(2);
+      invoiceNotes = 'Prorated - ' + moName + ' ' + yr + ' (' + remaining + '/' + dim + ' days)';
+    } else {
+      invoiceAmount = rate;
+      invoiceNotes = 'Monthly rent - ' + moName + ' ' + yr;
+    }
+    billingStart = yr + '-' + String(mo + 1).padStart(2, '0') + '-01';
+    billingEnd = yr + '-' + String(mo + 1).padStart(2, '0') + '-' + String(dim).padStart(2, '0');
+  }
+
+  if (invoiceAmount > 0) {
     try {
-      const monthlyRate = parseFloat(data.monthly_rent) || 0;
-      const yr = moveInDate.getFullYear();
-      const mo = moveInDate.getMonth();
-      const dim = new Date(yr, mo + 1, 0).getDate();
-      const remaining = dim - moveDay + 1;
-      const prorated = +((monthlyRate / dim) * remaining).toFixed(2);
-      const moName = moveInDate.toLocaleString('default', { month: 'long' });
-      const endDate = `${yr}-${String(mo + 1).padStart(2, '0')}-${dim}`;
       var invResult = await API.post('/invoices', {
         tenant_id: tenant.id,
         invoice_date: data.check_in_date,
         due_date: data.check_in_date,
-        billing_period_start: data.check_in_date,
-        billing_period_end: endDate,
-        rent_amount: prorated,
-        notes: `Prorated - ${moName} ${yr} (${remaining}/${dim} days)`,
+        billing_period_start: billingStart,
+        billing_period_end: billingEnd,
+        rent_amount: invoiceAmount,
+        notes: invoiceNotes,
       });
       generatedInvoiceId = invResult?.id || null;
-      console.log(`Prorated invoice created: $${prorated} for ${remaining} days, id=${generatedInvoiceId}`);
+      console.log('Check-in invoice created: $' + invoiceAmount.toFixed(2) + ', type=' + rentType + ', id=' + generatedInvoiceId);
     } catch (err) {
-      console.error('Prorated invoice failed (non-fatal):', err);
+      console.error('Check-in invoice failed (non-fatal):', err);
+      if (typeof showStatusToast === 'function') showStatusToast('⚠️', 'Check-in complete but invoice failed to create — create it manually on the Billing page');
     }
   }
 
