@@ -791,26 +791,48 @@ async function _doCheckIn(formEl) {
       billingEnd = data.departure_date;
     }
   } else {
-    // Monthly
+    // Monthly — read the manager's First Invoice radio choice
     var moveDay = moveInDate.getDate();
     var yr = moveInDate.getFullYear();
     var mo = moveInDate.getMonth();
     var dim = new Date(yr, mo + 1, 0).getDate();
     var moName = moveInDate.toLocaleString('default', { month: 'long' });
-    if (moveDay > 1) {
+
+    // Determine which radio was selected (already validated by processCheckIn submit guard)
+    var fiChoice = null;
+    var fiRadios = document.getElementsByName('first_invoice_choice');
+    for (var fri = 0; fri < fiRadios.length; fri++) { if (fiRadios[fri].checked) { fiChoice = fiRadios[fri].value; break; } }
+
+    if (fiChoice === 'prorate') {
       var remaining = dim - moveDay + 1;
       invoiceAmount = +((rate / dim) * remaining).toFixed(2);
       invoiceNotes = 'Prorated - ' + moName + ' ' + yr + ' (' + remaining + '/' + dim + ' days)';
-    } else {
+    } else if (fiChoice === 'full') {
       invoiceAmount = rate;
       invoiceNotes = 'Monthly rent - ' + moName + ' ' + yr;
+    } else if (fiChoice === 'custom') {
+      var customAmt = parseFloat(document.getElementById('fi-custom-amt')?.value) || 0;
+      invoiceAmount = customAmt;
+      invoiceNotes = 'Custom rent - ' + moName + ' ' + yr + ' ($' + customAmt.toFixed(2) + ')';
+    } else {
+      // Should never happen — submit guard prevents this — but fall back to prorate just in case
+      console.warn('No First Invoice choice selected; falling back to prorate');
+      var remaining = dim - moveDay + 1;
+      invoiceAmount = +((rate / dim) * remaining).toFixed(2);
+      invoiceNotes = 'Prorated - ' + moName + ' ' + yr + ' (' + remaining + '/' + dim + ' days)';
     }
-    billingStart = yr + '-' + String(mo + 1).padStart(2, '0') + '-01';
+
+    // Billing period covers from check-in to end of month for monthly
+    billingStart = data.check_in_date;
     billingEnd = yr + '-' + String(mo + 1).padStart(2, '0') + '-' + String(dim).padStart(2, '0');
   }
 
-  if (invoiceAmount > 0) {
+  // Compute deposit early so we can decide whether to create the invoice
+  var _depForGuard = (data.deposit_waived !== '1') ? (parseFloat(data.deposit_amount) || 0) : 0;
+  if (invoiceAmount > 0 || _depForGuard > 0) {
     try {
+      var depositForInvoice = _depForGuard;
+
       var invResult = await API.post('/invoices', {
         tenant_id: tenant.id,
         invoice_date: data.check_in_date,
@@ -818,10 +840,11 @@ async function _doCheckIn(formEl) {
         billing_period_start: billingStart,
         billing_period_end: billingEnd,
         rent_amount: invoiceAmount,
+        deposit_amount: depositForInvoice,
         notes: invoiceNotes,
       });
       generatedInvoiceId = invResult?.id || null;
-      console.log('Check-in invoice created: $' + invoiceAmount.toFixed(2) + ', type=' + rentType + ', id=' + generatedInvoiceId);
+      console.log('Check-in invoice created: rent=$' + invoiceAmount.toFixed(2) + ', deposit=$' + depositForInvoice.toFixed(2) + ', type=' + rentType + ', id=' + generatedInvoiceId);
     } catch (err) {
       console.error('Check-in invoice failed (non-fatal):', err);
       if (typeof showStatusToast === 'function') showStatusToast('⚠️', 'Check-in complete but invoice failed to create — create it manually on the Billing page');
