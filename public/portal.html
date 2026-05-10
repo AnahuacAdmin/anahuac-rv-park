@@ -6266,11 +6266,15 @@ async function submitGardenComment(postId) {
 }
 
 async function submitGardenPost() {
+  if (window._gardenSubmitting) return; // prevent double-submit
   var caption = document.getElementById('garden-caption');
   var plantName = document.getElementById('garden-plant-name');
   var stage = document.getElementById('garden-stage');
   var growingTips = document.getElementById('garden-growing-tips');
   if ((!caption || !caption.value.trim()) && !_gardenPhotos.length) { alert('Add a photo or write about your plant'); return; }
+  window._gardenSubmitting = true;
+  var postBtn = document.querySelector('#garden-post-form button[onclick="submitGardenPost()"]');
+  if (postBtn) { postBtn.disabled = true; postBtn.textContent = 'Posting...'; postBtn.style.opacity = '0.6'; }
   try {
     var r = await fetch('/api/garden/submit', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -6296,6 +6300,11 @@ async function submitGardenPost() {
       }
     } else { alert(data.error || 'Could not post'); }
   } catch { alert('Could not post'); }
+  finally {
+    window._gardenSubmitting = false;
+    var postBtn = document.querySelector('#garden-post-form button[onclick="submitGardenPost()"]');
+    if (postBtn) { postBtn.disabled = false; postBtn.textContent = 'Post'; postBtn.style.opacity = '1'; }
+  }
 }
 
 // ═══════════════════════════════════════════
