@@ -402,6 +402,13 @@ function updateRateLabel(sel) {
   const KNOWN_DEFAULTS = [30, 150, 295];
   const currentVal = parseFloat(input?.value);
   const isKnownDefault = !isNaN(currentVal) && KNOWN_DEFAULTS.includes(currentVal);
+  // Reset state when rate type changes — clears leftover values from previous type
+  var payInput = document.getElementById('checkin-payment-amount');
+  if (payInput) payInput.value = '';
+  var fiRadios = document.getElementsByName('first_invoice_choice');
+  for (var ri = 0; ri < fiRadios.length; ri++) fiRadios[ri].checked = false;
+  var fiCustom = document.getElementById('fi-custom-amt');
+  if (fiCustom) fiCustom.value = '';
   if (type === 'daily') {
     if (label) label.textContent = 'Daily Rate ($)';
     if (input && isKnownDefault) input.value = '30';
