@@ -112,6 +112,31 @@ async function showCheckIn() {
           <div class="form-group"><label id="rate-label">Monthly Rate ($)</label><input name="monthly_rent" type="number" step="0.01" value="295" onchange="updateStayPreview(this.form)"></div>
           <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${new Date().toISOString().split('T')[0]}" required onchange="calcProration(this.form);updateStayPreview(this.form)"></div>
         </div>
+        <div id="first-invoice-block" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.5rem">
+          <strong style="color:#1e40af">First Invoice — Choose Rent Amount</strong>
+          <div id="fi-required-warning" style="font-size:0.8rem;font-weight:600;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:0.3rem 0.6rem;margin:0.3rem 0">&#9888;&#65039; Required — choose one to continue</div>
+          <div style="font-size:0.8rem;color:#475569;margin:0.2rem 0 0.5rem">Required for monthly check-ins. Choose how much rent to charge on the first invoice.</div>
+          <div style="display:flex;flex-direction:column;gap:0.4rem">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem">
+              <input type="radio" name="first_invoice_choice" value="prorate" id="fi-radio-prorate">
+              <span><strong>Prorate</strong> — <span id="fi-prorate-detail" style="color:#475569">(set check-in date)</span></span>
+            </label>
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem">
+              <input type="radio" name="first_invoice_choice" value="full" id="fi-radio-full">
+              <span><strong>Full month</strong> — <span id="fi-full-detail" style="color:#475569">(set rate)</span></span>
+            </label>
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem">
+              <input type="radio" name="first_invoice_choice" value="custom" id="fi-radio-custom">
+              <span><strong>Custom</strong> — <input type="number" step="0.01" min="0" id="fi-custom-amt" placeholder="0.00" style="width:100px;padding:0.15rem 0.4rem;font-size:0.9rem;margin-left:0.25rem" disabled></span>
+            </label>
+          </div>
+          <div id="fi-deposit-line" style="display:none;font-size:0.85rem;color:#16a34a;margin-top:0.5rem;padding-top:0.5rem;border-top:1px dashed #93c5fd">
+            <span id="fi-deposit-text">+ Security deposit: $0.00</span>
+          </div>
+          <div id="fi-total-line" style="display:none;font-size:0.95rem;font-weight:700;color:#1e40af;margin-top:0.4rem">
+            First invoice total: <span id="fi-total-amount">$0.00</span>
+          </div>
+        </div>
         <div class="form-row" id="departure-date-group" style="display:none">
           <div class="form-group"><label>Departure Date</label><input name="departure_date" id="checkin-departure-date" type="date" onchange="updateStayPreview(this.form)"></div>
           <div class="form-group" style="display:flex;align-items:flex-end">
@@ -144,30 +169,6 @@ async function showCheckIn() {
         </div>
         <div id="short-term-monthly-warn" style="display:none;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.5rem;font-size:0.82rem;color:#92400e">
           ⚠️ Monthly rate on a short-term lot requires manager approval
-        </div>
-        <div id="first-invoice-block" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.5rem">
-          <strong style="color:#1e40af">First Invoice — Choose Rent Amount</strong>
-          <div style="font-size:0.8rem;color:#475569;margin:0.2rem 0 0.5rem">Required for monthly check-ins. Choose how much rent to charge on the first invoice.</div>
-          <div style="display:flex;flex-direction:column;gap:0.4rem">
-            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem">
-              <input type="radio" name="first_invoice_choice" value="prorate" id="fi-radio-prorate">
-              <span><strong>Prorate</strong> — <span id="fi-prorate-detail" style="color:#475569">(set check-in date)</span></span>
-            </label>
-            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem">
-              <input type="radio" name="first_invoice_choice" value="full" id="fi-radio-full">
-              <span><strong>Full month</strong> — <span id="fi-full-detail" style="color:#475569">(set rate)</span></span>
-            </label>
-            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem">
-              <input type="radio" name="first_invoice_choice" value="custom" id="fi-radio-custom">
-              <span><strong>Custom</strong> — <input type="number" step="0.01" min="0" id="fi-custom-amt" placeholder="0.00" style="width:100px;padding:0.15rem 0.4rem;font-size:0.9rem;margin-left:0.25rem" disabled></span>
-            </label>
-          </div>
-          <div id="fi-deposit-line" style="display:none;font-size:0.85rem;color:#16a34a;margin-top:0.5rem;padding-top:0.5rem;border-top:1px dashed #93c5fd">
-            <span id="fi-deposit-text">+ Security deposit: $0.00</span>
-          </div>
-          <div id="fi-total-line" style="display:none;font-size:0.95rem;font-weight:700;color:#1e40af;margin-top:0.4rem">
-            First invoice total: <span id="fi-total-amount">$0.00</span>
-          </div>
         </div>
       </fieldset>
 
@@ -498,6 +499,17 @@ function updateFirstInvoiceBlock(form) {
   var choice = null;
   for (var i = 0; i < choiceEls.length; i++) { if (choiceEls[i].checked) { choice = choiceEls[i].value; break; } }
 
+  // Show/hide required warning + amber border treatment
+  var requiredWarn = document.getElementById('fi-required-warning');
+  if (requiredWarn) requiredWarn.style.display = choice ? 'none' : '';
+  if (choice) {
+    block.style.borderColor = '#93c5fd';
+    block.style.background = '#eff6ff';
+  } else {
+    block.style.borderColor = '#fcd34d';
+    block.style.background = '#fffbeb';
+  }
+
   // Enable/disable Custom input based on selection
   var customInput = document.getElementById('fi-custom-amt');
   if (customInput) customInput.disabled = (choice !== 'custom');
@@ -560,6 +572,29 @@ function processCheckIn(e) {
   if (!data.lot_id) {
     if (errEl) { errEl.textContent = 'Please select a lot.'; errEl.style.display = ''; }
     return;
+  }
+
+  // Guard: monthly check-in requires a First Invoice radio choice
+  if ((data.rent_type || 'monthly') === 'monthly') {
+    var fiChoice = null;
+    var fiRadios = document.getElementsByName('first_invoice_choice');
+    for (var fri = 0; fri < fiRadios.length; fri++) { if (fiRadios[fri].checked) { fiChoice = fiRadios[fri].value; break; } }
+    if (!fiChoice) {
+      if (errEl) { errEl.textContent = 'Please choose a First Invoice option (Prorate, Full month, or Custom) before continuing.'; errEl.style.display = ''; }
+      else alert('Please choose a First Invoice option (Prorate, Full month, or Custom) before continuing.');
+      var fiBlock = document.getElementById('first-invoice-block');
+      if (fiBlock && fiBlock.scrollIntoView) fiBlock.scrollIntoView({behavior: 'smooth', block: 'center'});
+      return;
+    }
+    if (fiChoice === 'custom') {
+      var customAmt = parseFloat(document.getElementById('fi-custom-amt')?.value) || 0;
+      if (customAmt <= 0) {
+        if (errEl) { errEl.textContent = 'Custom amount must be greater than 0.'; errEl.style.display = ''; }
+        else alert('Custom amount must be greater than 0.');
+        document.getElementById('fi-custom-amt')?.focus();
+        return;
+      }
+    }
   }
 
   // Build confirmation summary
