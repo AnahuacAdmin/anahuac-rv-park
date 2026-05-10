@@ -11,7 +11,7 @@ async function loadHuntingFishing() {
     return;
   }
   document.getElementById('page-content').innerHTML =
-    '<div class="page-header"><h2>🎣 Hunting & Fishing Board</h2></div>' +
+    '<div class="page-header" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap"><button class="btn btn-outline" onclick="navigateTo(\'dashboard\')">← Back</button><h2 style="margin:0">🎣 Hunting & Fishing Board</h2></div>' +
     '<div id="hf-admin-list">Loading...</div>';
   // Load admin reactions then render
   try {

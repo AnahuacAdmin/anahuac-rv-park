@@ -8,7 +8,7 @@ async function loadGarden() {
     return;
   }
   document.getElementById('page-content').innerHTML =
-    '<div class="page-header"><h2>🌻 Park Gardens</h2></div>' +
+    '<div class="page-header" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap"><button class="btn btn-outline" onclick="navigateTo(\'dashboard\')">← Back</button><h2 style="margin:0">🌻 Park Gardens</h2></div>' +
     '<div id="garden-admin-list">Loading...</div>';
   refreshGardenAdmin();
 }
