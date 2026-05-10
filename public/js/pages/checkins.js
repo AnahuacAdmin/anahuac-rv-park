@@ -151,7 +151,7 @@ async function showCheckIn() {
         </div>
       </fieldset>
 
-      <details style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+      <details open style="border:2px solid #16a34a;padding:0.75rem;margin-bottom:0.75rem;border-radius:8px;background:#f0fdf4">
         <summary style="cursor:pointer;font-weight:700;font-size:0.92rem;user-select:none;list-style:none;display:flex;align-items:center;gap:0.4rem">
           <span>💰 Collect Payment</span>
           <span style="font-size:0.75rem;font-weight:400;color:var(--gray-500);margin-left:0.25rem">(optional)</span>
@@ -160,11 +160,11 @@ async function showCheckIn() {
           <div class="form-row">
             <div class="form-group">
               <label>Amount ($)</label>
-              <input name="payment_amount" type="number" step="0.01" min="0" placeholder="0.00" id="checkin-payment-amount">
+              <input name="payment_amount" type="number" step="0.01" min="0" placeholder="0.00" id="checkin-payment-amount" style="font-size:1.1rem;font-weight:600;border:2px solid #d1d5db">
             </div>
             <div class="form-group">
               <label>Payment Method</label>
-              <select name="payment_method" id="checkin-payment-method" onchange="toggleCheckinPaymentNote(this.value)">
+              <select name="payment_method" id="checkin-payment-method" onchange="toggleCheckinPaymentNote(this.value)" style="font-size:1.1rem;font-weight:600;border:2px solid #d1d5db">
                 <option value="">— Skip —</option>
                 <option value="cash">Cash</option>
                 <option value="check">Check</option>
