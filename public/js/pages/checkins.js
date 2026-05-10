@@ -623,14 +623,24 @@ function processCheckIn(e) {
     }
   } else {
     var moveIn = data.check_in_date ? new Date(data.check_in_date + 'T00:00:00') : null;
-    if (moveIn && moveIn.getDate() === 1) {
-      durationLine = 'Full month';
-      invoiceTotal = rate;
-    } else if (moveIn) {
+    if (moveIn) {
       var dim = new Date(moveIn.getFullYear(), moveIn.getMonth() + 1, 0).getDate();
       var rem = dim - moveIn.getDate() + 1;
-      durationLine = 'Prorated for ' + rem + ' days (' + data.check_in_date + ' → end of month)';
-      invoiceTotal = +((rate / dim) * rem).toFixed(2);
+      // Read the manager's First Invoice choice (validated by submit guard above)
+      var fiChoice = null;
+      var fiRadios = document.getElementsByName('first_invoice_choice');
+      for (var fri2 = 0; fri2 < fiRadios.length; fri2++) { if (fiRadios[fri2].checked) { fiChoice = fiRadios[fri2].value; break; } }
+      if (fiChoice === 'prorate') {
+        durationLine = 'Prorated for ' + rem + ' days (' + data.check_in_date + ' → end of month)';
+        invoiceTotal = +((rate / dim) * rem).toFixed(2);
+      } else if (fiChoice === 'full') {
+        durationLine = 'Full month rate';
+        invoiceTotal = rate;
+      } else if (fiChoice === 'custom') {
+        var customAmt2 = parseFloat(document.getElementById('fi-custom-amt')?.value) || 0;
+        durationLine = 'Custom rent ($' + customAmt2.toFixed(2) + ')';
+        invoiceTotal = customAmt2;
+      }
     }
   }
   var paymentLine = '';
@@ -647,6 +657,21 @@ function processCheckIn(e) {
     paymentLine = '$' + payAmt.toFixed(2) + ' via ' + methodLabel;
   }
 
+  // Compute deposit + breakdown for the modal
+  var modalDeposit = 0;
+  var modalDepWaived = data.deposit_waived === '1';
+  var modalDepEntered = parseFloat(data.deposit_amount) || 0;
+  if (!modalDepWaived) modalDeposit = modalDepEntered;
+  var grandTotal = +(invoiceTotal + modalDeposit).toFixed(2);
+  var totalBreakdown;
+  if (modalDeposit > 0) {
+    totalBreakdown = '$' + invoiceTotal.toFixed(2) + ' rent + $' + modalDeposit.toFixed(2) + ' deposit = <strong>$' + grandTotal.toFixed(2) + '</strong>';
+  } else if (modalDepWaived && modalDepEntered > 0) {
+    totalBreakdown = '$' + invoiceTotal.toFixed(2) + ' rent <span style="color:#78716c;font-weight:400">(deposit waived)</span>';
+  } else {
+    totalBreakdown = '$' + invoiceTotal.toFixed(2) + ' rent';
+  }
+
   // Store form reference for confirmation
   window._checkinFormEl = formEl;
 
@@ -657,7 +682,7 @@ function processCheckIn(e) {
         <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">LOT</td><td style="padding:0.4rem 0">${escapeHtml(data.lot_id)}</td></tr>
         <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">RATE TYPE</td><td style="padding:0.4rem 0">${escapeHtml(rateLine)}</td></tr>
         <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">DURATION</td><td style="padding:0.4rem 0">${escapeHtml(durationLine || 'N/A')}</td></tr>
-        <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">INVOICE TOTAL</td><td style="padding:0.4rem 0;font-weight:600;color:#16a34a">$${invoiceTotal.toFixed(2)}</td></tr>
+        <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">INVOICE TOTAL</td><td style="padding:0.4rem 0;font-weight:600;color:#16a34a">${totalBreakdown}</td></tr>
         <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">PAYMENT</td><td style="padding:0.4rem 0">${escapeHtml(paymentLine)}</td></tr>
       </table>
     </div>
