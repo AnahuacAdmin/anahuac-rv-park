@@ -281,6 +281,7 @@ function renderInvoiceRow(inv, rowBg) {
           ${Number(inv.late_fee) > 0 && !inv.late_fee_waived ? `<button class="inv-act-btn" onclick="event.stopPropagation();waiveLateFeeOnInvoice(${inv.id})" title="Waive late fee">Waive</button>` : ''}
           ${Number(inv.late_fee) > 0 ? `<button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();removeLateFeeFromInvoice(${inv.id})" title="Remove late fee">-Late</button>` : ''}
           ${invoicePauseBtnCompact(inv)}
+          ${inv.balance_due > 0.005 ? `<button class="inv-act-btn inv-act-green" onclick="event.stopPropagation();chargeCardForInvoice(${inv.id},${inv.tenant_id})" title="Open Stripe payment">💳 Charge</button>` : ''}
           <button class="inv-act-btn" onclick="event.stopPropagation();editInvoice(${inv.id})">Edit</button>
           ${inv.amount_paid > 0.005 ? `<button class="inv-act-btn inv-act-orange" onclick="event.stopPropagation();showRefundModal(${inv.id})">Refund</button>` : ''}
           <button class="inv-act-btn inv-act-red" onclick="event.stopPropagation();deleteInvoice(${inv.id})">Delete</button>
@@ -573,9 +574,9 @@ async function showCreateInvoice() {
     <form onsubmit="createInvoice(event)">
       <div class="form-group">
         <label>Guest</label>
-        <select name="tenant_id" required>
+        <select name="tenant_id" required onchange="(function(sel){var opt=sel.options[sel.selectedIndex];var rate=opt&&opt.dataset.rate;var inp=sel.form.querySelector('[name=rent_amount]');if(inp&&rate)inp.value=rate;})(this)">
           <option value="">Select guest...</option>
-          ${tenants.map(t => `<option value="${t.id}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
+          ${tenants.map(t => `<option value="${t.id}" data-rate="${t.monthly_rent || 0}">${t.lot_id} - ${t.first_name} ${t.last_name}</option>`).join('')}
         </select>
       </div>
       <div class="form-row">
@@ -583,7 +584,7 @@ async function showCreateInvoice() {
         <div class="form-group"><label>Due Date</label><input name="due_date" type="date" value="${new Date().toISOString().split('T')[0]}" required></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Rent Amount</label><input name="rent_amount" type="number" step="0.01" value="295"></div>
+        <div class="form-group"><label>Rent Amount</label><input name="rent_amount" type="number" step="0.01" value=""></div>
         <div class="form-group"><label>Electric Amount</label><input name="electric_amount" type="number" step="0.01" value="0"></div>
       </div>
       <div class="form-row">
@@ -1613,6 +1614,7 @@ async function checkLateFees() {
 // Late fee admin actions from billing row
 async function applyLateFeeToInvoice(invoiceId) {
   var amt = prompt('Late fee amount (leave blank for default from settings):');
+  if (amt === null) return; // User clicked Cancel
   var body = { invoice_id: invoiceId };
   if (amt && !isNaN(parseFloat(amt))) body.amount = parseFloat(amt);
   try {
@@ -1638,6 +1640,32 @@ async function removeLateFeeFromInvoice(invoiceId) {
     showStatusToast('OK', 'Late fee of $' + Number(r.removedAmount).toFixed(2) + ' removed');
     loadBilling();
   } catch (err) { alert('Failed: ' + (err.message || 'unknown')); }
+}
+
+// --- Charge Card (Stripe) for unpaid invoice ---
+async function chargeCardForInvoice(invoiceId, tenantId) {
+  // Pre-open blank tab synchronously for popup-blocker safety
+  var stripeTab = null;
+  try { stripeTab = window.open('about:blank', '_blank'); } catch(e) {}
+  try {
+    var session = await API.post('/payments/retry-checkout-session', { invoice_id: invoiceId });
+    if (session?.url) {
+      if (stripeTab && !stripeTab.closed) {
+        stripeTab.location.href = session.url;
+        showStatusToast('💳', session.reused ? 'Reopened existing Stripe session' : 'Stripe payment page opened');
+      } else {
+        showStatusToast('💳', 'Popup blocked — opening in this tab');
+        window.location.href = session.url;
+        return;
+      }
+    } else {
+      if (stripeTab) try { stripeTab.close(); } catch(e) {}
+      alert('Could not create Stripe session. Try again or use manual payment.');
+    }
+  } catch (err) {
+    if (stripeTab) try { stripeTab.close(); } catch(e) {}
+    alert('Stripe error: ' + (err.message || 'unknown'));
+  }
 }
 
 // --- Excel export of currently filtered invoices ---

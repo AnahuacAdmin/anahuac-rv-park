@@ -256,7 +256,11 @@ async function buildInvoicePdfBuffer(invoice, payments, meter, meters) {
     }
   }
 
-  addLineItem('Monthly Rent', invoice.rent_amount);
+  // Use invoice notes as line item label if it's a short stay description
+  const rentLabel = (invoice.notes && invoice.notes.length < 80 && !invoice.notes.includes('[OVERRIDE'))
+    ? invoice.notes.split('\n')[0]
+    : 'Rent';
+  addLineItem(rentLabel, invoice.rent_amount);
   addLineItem('Electric Charges', invoice.electric_amount, { force: true });
   addLineItem(invoice.other_description || 'Other Charges', invoice.other_charges);
   addLineItem('Mailbox Fee', invoice.mailbox_fee);

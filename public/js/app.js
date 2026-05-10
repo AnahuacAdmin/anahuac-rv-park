@@ -207,8 +207,8 @@ function celebrateTenantCheckIn(firstName, lotId) {
   for (let i = 0; i < 35; i++) {
     const c = colors[i % colors.length];
     const left = Math.random() * 100;
-    const delay = Math.random() * 1.2;
-    const dur = 2.5 + Math.random() * 1.5;
+    const delay = Math.random() * 1.8;
+    const dur = 4.5 + Math.random() * 2.5;
     const rot = Math.random() * 720 - 360;
     const size = 6 + Math.random() * 6;
     const shape = Math.random() > 0.5 ? '50%' : '2px';
@@ -222,7 +222,7 @@ function celebrateTenantCheckIn(firstName, lotId) {
   for (let i = 0; i < 7; i++) {
     const [x, y] = fwPositions[i];
     const c = fwColors[i];
-    const delay = i * 0.12;
+    const delay = i * 0.22;
     // Each firework = center dot + 8 particles shooting outward
     let particles = '';
     for (let p = 0; p < 8; p++) {
@@ -239,7 +239,7 @@ function celebrateTenantCheckIn(firstName, lotId) {
   }
 
   // Gator running across bottom
-  const gatorHtml = `<div style="position:absolute;bottom:10%;left:-80px;font-size:4.5rem;animation:gatorRun 2.5s ease-in-out 0.3s forwards;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3))">
+  const gatorHtml = `<div style="position:absolute;bottom:10%;left:-80px;font-size:4.5rem;animation:gatorRun 4.5s ease-in-out 0.3s forwards;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3))">
     <span style="display:inline-block;animation:gatorBounce 0.3s ease-in-out infinite alternate">🐊</span>
     <span style="position:absolute;right:-15px;bottom:5px;font-size:1.5rem;opacity:0.5;animation:gatorDust 0.4s ease-out infinite">💨</span>
   </div>`;
@@ -253,12 +253,12 @@ function celebrateTenantCheckIn(firstName, lotId) {
   overlay.innerHTML = confettiHtml + fireworkHtml + gatorHtml + msgHtml;
   document.body.appendChild(overlay);
 
-  // Fade out after 3.5s
+  // Fade out after 6.5s
   setTimeout(() => {
-    overlay.style.transition = 'opacity 0.5s ease';
+    overlay.style.transition = 'opacity 0.8s ease';
     overlay.style.opacity = '0';
-    setTimeout(() => overlay.remove(), 600);
-  }, 3500);
+    setTimeout(() => overlay.remove(), 900);
+  }, 6500);
 }
 
 let _toastTimer = null;

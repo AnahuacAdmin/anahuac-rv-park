@@ -151,6 +151,38 @@ async function showCheckIn() {
         </div>
       </fieldset>
 
+      <details style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
+        <summary style="cursor:pointer;font-weight:700;font-size:0.92rem;user-select:none;list-style:none;display:flex;align-items:center;gap:0.4rem">
+          <span>💰 Collect Payment</span>
+          <span style="font-size:0.75rem;font-weight:400;color:var(--gray-500);margin-left:0.25rem">(optional)</span>
+        </summary>
+        <div style="margin-top:0.75rem">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Amount ($)</label>
+              <input name="payment_amount" type="number" step="0.01" min="0" placeholder="0.00" id="checkin-payment-amount">
+            </div>
+            <div class="form-group">
+              <label>Payment Method</label>
+              <select name="payment_method" id="checkin-payment-method" onchange="toggleCheckinPaymentNote(this.value)">
+                <option value="">— Skip —</option>
+                <option value="cash">Cash</option>
+                <option value="check">Check</option>
+                <option value="money_order">Money Order</option>
+                <option value="card">Credit/Debit Card (Stripe)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" id="checkin-payment-ref-group" style="display:none">
+            <label>Reference # (optional)</label>
+            <input name="payment_reference" placeholder="Check number, receipt number, etc.">
+          </div>
+          <div id="checkin-payment-card-note" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.6rem 0.75rem;font-size:0.82rem;color:#1e40af">
+            💳 Card payment will open Stripe checkout after check-in is complete. A 3% convenience fee applies.
+          </div>
+        </div>
+      </details>
+
       <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
         <legend><strong>Vehicle / RV</strong></legend>
         <div class="form-row">
@@ -185,38 +217,6 @@ async function showCheckIn() {
       </fieldset>
 
       <div class="form-group"><label>Notes</label><textarea name="notes"></textarea></div>
-
-      <details style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
-        <summary style="cursor:pointer;font-weight:700;font-size:0.92rem;user-select:none;list-style:none;display:flex;align-items:center;gap:0.4rem">
-          <span>💰 Collect Payment</span>
-          <span style="font-size:0.75rem;font-weight:400;color:var(--gray-500);margin-left:0.25rem">(optional)</span>
-        </summary>
-        <div style="margin-top:0.75rem">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Amount ($)</label>
-              <input name="payment_amount" type="number" step="0.01" min="0" placeholder="0.00">
-            </div>
-            <div class="form-group">
-              <label>Payment Method</label>
-              <select name="payment_method" id="checkin-payment-method" onchange="toggleCheckinPaymentNote(this.value)">
-                <option value="">— Skip —</option>
-                <option value="cash">Cash</option>
-                <option value="check">Check</option>
-                <option value="money_order">Money Order</option>
-                <option value="card">Credit/Debit Card (Stripe)</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group" id="checkin-payment-ref-group" style="display:none">
-            <label>Reference # (optional)</label>
-            <input name="payment_reference" placeholder="Check number, receipt number, etc.">
-          </div>
-          <div id="checkin-payment-card-note" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.6rem 0.75rem;font-size:0.82rem;color:#1e40af">
-            💳 Card payment will open Stripe checkout after check-in is complete. A 3% convenience fee applies.
-          </div>
-        </div>
-      </details>
 
       <button type="submit" class="btn btn-success btn-full mt-2">Check In</button>
       <p id="checkin-error" class="error-text" style="display:none"></p>
@@ -396,6 +396,9 @@ function updateStayPreview(form) {
     total = +(nights * rate).toFixed(2);
   }
   preview.textContent = nights + ' night' + (nights > 1 ? 's' : '') + ' \u00B7 $' + total.toFixed(2) + ' total';
+  // Auto-fill payment amount if empty or zero
+  var payInput = document.getElementById('checkin-payment-amount');
+  if (payInput && (!payInput.value || parseFloat(payInput.value) === 0)) payInput.value = total.toFixed(2);
 }
 
 function calcProration(form) {
@@ -412,7 +415,13 @@ function calcProration(form) {
 
   const moveIn = new Date(dateVal + 'T00:00:00');
   const day = moveIn.getDate();
-  if (day === 1) { infoEl.style.display = 'none'; return; } // 1st of month = no proration
+  if (day === 1) {
+    infoEl.style.display = 'none';
+    // Auto-fill full monthly rate
+    var payInput = document.getElementById('checkin-payment-amount');
+    if (payInput && (!payInput.value || parseFloat(payInput.value) === 0)) payInput.value = rate.toFixed(2);
+    return;
+  }
 
   const year = moveIn.getFullYear();
   const month = moveIn.getMonth();
@@ -424,21 +433,18 @@ function calcProration(form) {
   detailEl.innerHTML = `Move-in: ${monthName} ${day} = <strong>${remainingDays} days remaining</strong> of ${daysInMonth}<br>` +
     `$${rate.toFixed(2)} / ${daysInMonth} days × ${remainingDays} days = <strong style="color:#16a34a">$${prorated.toFixed(2)} prorated</strong>`;
   infoEl.style.display = '';
+  // Auto-fill payment amount for prorated monthly
+  var payInput = document.getElementById('checkin-payment-amount');
+  if (payInput && (!payInput.value || parseFloat(payInput.value) === 0)) payInput.value = prorated.toFixed(2);
 }
 
-async function processCheckIn(e) {
+function processCheckIn(e) {
   e.preventDefault();
   const errEl = document.getElementById('checkin-error');
   if (errEl) errEl.style.display = 'none';
-  const form = new FormData(e.target);
+  const formEl = e.target;
+  const form = new FormData(formEl);
   const data = Object.fromEntries(form);
-
-  // Pre-open blank tab for Stripe BEFORE any async calls (popup-blocker safe)
-  var stripeTab = null;
-  var paymentMethod = (data.payment_method || '');
-  if (paymentMethod === 'card') {
-    try { stripeTab = window.open('about:blank', '_blank'); } catch(e) {}
-  }
 
   if (!data.first_name || !data.last_name) {
     if (errEl) { errEl.textContent = 'First and last name are required.'; errEl.style.display = ''; }
@@ -448,6 +454,91 @@ async function processCheckIn(e) {
     if (errEl) { errEl.textContent = 'Please select a lot.'; errEl.style.display = ''; }
     return;
   }
+
+  // Build confirmation summary
+  var guestLine = data.first_name + ' ' + data.last_name;
+  if (data.phone) guestLine += ' (' + data.phone + ')';
+  if (data.email) guestLine += ' — ' + data.email;
+  var rateLine = (data.rent_type || 'monthly').charAt(0).toUpperCase() + (data.rent_type || 'monthly').slice(1);
+  var durationLine = '';
+  var invoiceTotal = 0;
+  var rate = parseFloat(data.monthly_rent) || 0;
+  if (data.rent_type === 'daily' || data.rent_type === 'weekly') {
+    if (data.check_in_date && data.departure_date) {
+      var nights = Math.round((new Date(data.departure_date + 'T00:00:00') - new Date(data.check_in_date + 'T00:00:00')) / 86400000);
+      durationLine = nights + ' night' + (nights > 1 ? 's' : '') + ' (' + data.check_in_date + ' → ' + data.departure_date + ')';
+      invoiceTotal = data.rent_type === 'weekly' ? +(nights * +(rate / 7).toFixed(4)).toFixed(2) : +(nights * rate).toFixed(2);
+    }
+  } else {
+    var moveIn = data.check_in_date ? new Date(data.check_in_date + 'T00:00:00') : null;
+    if (moveIn && moveIn.getDate() === 1) {
+      durationLine = 'Full month';
+      invoiceTotal = rate;
+    } else if (moveIn) {
+      var dim = new Date(moveIn.getFullYear(), moveIn.getMonth() + 1, 0).getDate();
+      var rem = dim - moveIn.getDate() + 1;
+      durationLine = 'Prorated for ' + rem + ' days (' + data.check_in_date + ' → end of month)';
+      invoiceTotal = +((rate / dim) * rem).toFixed(2);
+    }
+  }
+  var paymentLine = '';
+  var payAmt = parseFloat(data.payment_amount) || 0;
+  var payMethod = data.payment_method || '';
+  if (!payMethod || payAmt <= 0) {
+    paymentLine = 'No payment collected at check-in';
+  } else if (payMethod === 'card') {
+    var feeCents = Math.round(payAmt * 100 * 0.03);
+    var cardTotal = (payAmt + feeCents / 100).toFixed(2);
+    paymentLine = '$' + payAmt.toFixed(2) + ' via Stripe ($' + cardTotal + ' including 3% fee)';
+  } else {
+    var methodLabel = payMethod === 'money_order' ? 'Money Order' : payMethod.charAt(0).toUpperCase() + payMethod.slice(1);
+    paymentLine = '$' + payAmt.toFixed(2) + ' via ' + methodLabel;
+  }
+
+  // Store form reference for confirmation
+  window._checkinFormEl = formEl;
+
+  showModal('Confirm Check-In', `
+    <div style="text-align:left;font-size:0.92rem;line-height:1.6">
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">GUEST</td><td style="padding:0.4rem 0">${escapeHtml(guestLine)}</td></tr>
+        <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">LOT</td><td style="padding:0.4rem 0">${escapeHtml(data.lot_id)}</td></tr>
+        <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">RATE TYPE</td><td style="padding:0.4rem 0">${escapeHtml(rateLine)}</td></tr>
+        <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">DURATION</td><td style="padding:0.4rem 0">${escapeHtml(durationLine || 'N/A')}</td></tr>
+        <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">INVOICE TOTAL</td><td style="padding:0.4rem 0;font-weight:600;color:#16a34a">$${invoiceTotal.toFixed(2)}</td></tr>
+        <tr><td style="font-weight:700;padding:0.4rem 0.75rem 0.4rem 0;white-space:nowrap;vertical-align:top">PAYMENT</td><td style="padding:0.4rem 0">${escapeHtml(paymentLine)}</td></tr>
+      </table>
+    </div>
+    <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
+      <button class="btn btn-success" style="flex:1" onclick="_confirmCheckIn()">Confirm Check-In</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal()">Back to Form</button>
+    </div>
+  `);
+}
+
+function _confirmCheckIn() {
+  closeModal();
+  var formEl = window._checkinFormEl;
+  if (!formEl) return;
+  // Pre-open Stripe tab synchronously from user's confirm click (popup-blocker safe)
+  var data = Object.fromEntries(new FormData(formEl));
+  var paymentMethod = data.payment_method || '';
+  window._checkinStripeTab = null;
+  if (paymentMethod === 'card') {
+    try { window._checkinStripeTab = window.open('about:blank', '_blank'); } catch(e) {}
+  }
+  _doCheckIn(formEl);
+}
+
+async function _doCheckIn(formEl) {
+  const errEl = document.getElementById('checkin-error');
+  if (errEl) errEl.style.display = 'none';
+  const form = new FormData(formEl);
+  const data = Object.fromEntries(form);
+
+  // Use pre-opened Stripe tab from _confirmCheckIn
+  var stripeTab = window._checkinStripeTab || null;
+  var paymentMethod = (data.payment_method || '');
 
   // Check for red-flagged guests with matching name
   if (!window._checkinFlagBypass) {
@@ -857,15 +948,19 @@ async function proceedCheckinWithData() {
   // Re-open the check-in modal pre-filled and auto-submit with bypass flag
   const data = window._checkinPendingData;
   if (!data) return;
-  // Re-create a minimal fake event that processCheckIn can handle
+  // Re-create a minimal fake form and go directly to _doCheckIn (skip confirmation — user already confirmed via flag bypass)
   const fakeForm = document.createElement('form');
   Object.keys(data).forEach(k => {
     const inp = document.createElement('input');
     inp.name = k; inp.value = data[k] || '';
     fakeForm.appendChild(inp);
   });
-  const fakeEvent = { preventDefault: () => {}, target: fakeForm };
-  await processCheckIn(fakeEvent);
+  // Pre-open Stripe tab if card payment
+  window._checkinStripeTab = null;
+  if ((data.payment_method || '') === 'card') {
+    try { window._checkinStripeTab = window.open('about:blank', '_blank'); } catch(e) {}
+  }
+  await _doCheckIn(fakeForm);
 }
 
 async function sendWelcomeText(tenantId, tenantName) {
