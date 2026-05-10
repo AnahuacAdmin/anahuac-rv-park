@@ -1005,15 +1005,15 @@
         </select>
       </div>
       <textarea id="garden-caption" rows="2" placeholder="Tell us about your plant..." style="width:100%;font-size:0.85rem;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;resize:vertical;box-sizing:border-box" maxlength="1000"></textarea>
+      <textarea id="garden-growing-tips" rows="2" placeholder="Growing tips to share (optional)" style="width:100%;font-size:0.85rem;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;resize:vertical;box-sizing:border-box;margin-top:0.3rem;background:#fefce8" maxlength="500"></textarea>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.4rem">
         <div>
-          <label style="cursor:pointer;font-size:0.78rem;color:#16a34a;font-weight:600"><input type="file" accept="image/*" id="garden-photo-input" style="display:none"> 📷 Add Photo</label>
+          <label style="cursor:pointer;font-size:0.78rem;color:#16a34a;font-weight:600"><input type="file" accept="image/*" multiple id="garden-photo-input" style="display:none"> 📷 Add Photos</label>
           <span id="garden-photo-status" style="font-size:0.7rem;color:#78716c;margin-left:0.3rem"></span>
-          <input type="hidden" id="garden-photo-data">
         </div>
         <button onclick="submitGardenPost()" class="btn btn-sm" style="background:#16a34a;color:#fff;font-weight:700;padding:0.35rem 1rem;border-radius:8px;font-size:0.82rem">Post</button>
       </div>
-      <div id="garden-photo-preview" style="margin-top:0.3rem"></div>
+      <div id="garden-photo-preview" style="margin-top:0.3rem;display:flex;flex-wrap:wrap;gap:0.3rem"></div>
     </div>
     <!-- Feed -->
     <div id="garden-feed" style="padding:0.5rem 1rem;max-height:600px;overflow-y:auto">
@@ -3020,6 +3020,7 @@ var _hfSort = 'latest';
 var _hfFilter = '';
 var _hfMyReactions = {};
 var _hfPhotos = []; // staged photos for upload (base64 strings)
+var _gardenPhotos = []; // staged garden photos (base64 strings)
 
 var HF_FISH_SPECIES = ['Largemouth Bass','Striped Bass','Catfish','Crappie','Redfish','Flounder','Speckled Trout','Alligator Gar','Carp','Blue Crab','Shrimp','Other'];
 var HF_FISH_LOCATIONS = ['Trinity Bay','East Bay','Double Bayou','Anahuac Channel','Lake Anahuac','Umbrella Point','Park Pond','Other nearby'];
@@ -6013,27 +6014,36 @@ async function loadPortalGarden() {
   }
   try { loadGardenTip(); } catch {}
   try { loadGardenFeed(); } catch {}
-  // Wire photo input
+  // Wire photo input (multi-photo)
   var photoInput = document.getElementById('garden-photo-input');
   if (photoInput && !photoInput._wired) {
     photoInput._wired = true;
     photoInput.addEventListener('change', function(e) {
-      var file = e.target.files[0]; if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function(ev) {
-        var img = new Image(); img.onload = function() {
-          var max = 1200, w = img.width, h = img.height;
-          if (w > max || h > max) { var s = max / Math.max(w,h); w = Math.round(w*s); h = Math.round(h*s); }
-          var c = document.createElement('canvas'); c.width = w; c.height = h;
-          c.getContext('2d').drawImage(img, 0, 0, w, h);
-          var dataUrl = c.toDataURL('image/jpeg', 0.8);
-          document.getElementById('garden-photo-data').value = dataUrl.split(',')[1];
-          document.getElementById('garden-photo-status').textContent = '✅ Photo ready';
-          document.getElementById('garden-photo-preview').innerHTML = '<img src="' + dataUrl + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid #16a34a">';
-        }; img.src = ev.target.result;
-      }; reader.readAsDataURL(file);
+      var files = Array.from(e.target.files); if (!files.length) return;
+      files.forEach(function(file) {
+        _resizeImage(file, 1920, function(base64) {
+          _gardenPhotos.push(base64);
+          _renderGardenPhotoPreviews();
+        });
+      });
+      photoInput.value = '';
     });
   }
+}
+
+function _renderGardenPhotoPreviews() {
+  var container = document.getElementById('garden-photo-preview');
+  var status = document.getElementById('garden-photo-status');
+  if (!container) return;
+  container.innerHTML = '';
+  _gardenPhotos.forEach(function(b64, idx) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;display:inline-block';
+    wrap.innerHTML = '<img src="data:image/jpeg;base64,' + b64 + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid #16a34a">' +
+      '<button onclick="_gardenPhotos.splice(' + idx + ',1);_renderGardenPhotoPreviews()" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:18px">✕</button>';
+    container.appendChild(wrap);
+  });
+  if (status) status.textContent = _gardenPhotos.length ? _gardenPhotos.length + ' photo' + (_gardenPhotos.length > 1 ? 's' : '') + ' ready' : '';
 }
 
 async function loadGardenTip() {
@@ -6178,25 +6188,31 @@ async function submitGardenPost() {
   var caption = document.getElementById('garden-caption');
   var plantName = document.getElementById('garden-plant-name');
   var stage = document.getElementById('garden-stage');
-  var photoData = document.getElementById('garden-photo-data');
-  if ((!caption || !caption.value.trim()) && (!photoData || !photoData.value)) { alert('Add a photo or write about your plant'); return; }
+  var growingTips = document.getElementById('garden-growing-tips');
+  if ((!caption || !caption.value.trim()) && !_gardenPhotos.length) { alert('Add a photo or write about your plant'); return; }
   try {
     var r = await fetch('/api/garden/submit', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         caption: caption ? caption.value.trim() : '', plant_name: plantName ? plantName.value.trim() : '',
         stage: stage ? stage.value : '', tenant_id: _portalTenant ? _portalTenant.id : null,
-        photo_data: photoData ? photoData.value || null : null
+        growing_tips: growingTips ? growingTips.value.trim() : '',
+        photos: _gardenPhotos.slice()
       })
     });
     var data = await r.json();
     if (data.id) {
       if (caption) caption.value = ''; if (plantName) plantName.value = '';
-      if (stage) stage.value = ''; if (photoData) photoData.value = '';
-      document.getElementById('garden-photo-preview').innerHTML = '';
-      document.getElementById('garden-photo-status').textContent = '';
+      if (stage) stage.value = ''; if (growingTips) growingTips.value = '';
+      _gardenPhotos = [];
+      _renderGardenPhotoPreviews();
       document.getElementById('garden-post-form').style.display = 'none';
       loadGardenFeed();
+      if (data.is_first_plant) {
+        setTimeout(function() {
+          alert('🌱 Congratulations! You are a Founding Gardener of Anahuac RV Park! Your green thumb will be remembered forever.');
+        }, 500);
+      }
     } else { alert(data.error || 'Could not post'); }
   } catch { alert('Could not post'); }
 }
