@@ -271,33 +271,33 @@ async function showCheckIn() {
     var fiRadios = document.getElementsByName('first_invoice_choice');
     for (var k = 0; k < fiRadios.length; k++) {
       fiRadios[k].addEventListener('change', function() {
-        var fForm = document.querySelector('form');
+        var fForm = document.querySelector('#modal-body form');
         if (fForm) updateFirstInvoiceBlock(fForm);
       });
     }
     var fiCustom = document.getElementById('fi-custom-amt');
     if (fiCustom) {
       fiCustom.addEventListener('input', function() {
-        var fForm = document.querySelector('form');
+        var fForm = document.querySelector('#modal-body form');
         if (fForm) updateFirstInvoiceBlock(fForm);
       });
     }
     var fiDepAmt = document.getElementById('checkin-deposit-amt');
     if (fiDepAmt) {
       fiDepAmt.addEventListener('input', function() {
-        var fForm = document.querySelector('form');
+        var fForm = document.querySelector('#modal-body form');
         if (fForm) updateFirstInvoiceBlock(fForm);
       });
     }
     var fiDepWaiveCb = document.getElementById('checkin-deposit-waived');
     if (fiDepWaiveCb) {
       fiDepWaiveCb.addEventListener('change', function() {
-        var fForm = document.querySelector('form');
+        var fForm = document.querySelector('#modal-body form');
         if (fForm) updateFirstInvoiceBlock(fForm);
       });
     }
     // Initial render: trigger the block to show on form open
-    var initForm = document.querySelector('form');
+    var initForm = document.querySelector('#modal-body form');
     if (initForm && typeof updateFirstInvoiceBlock === 'function') updateFirstInvoiceBlock(initForm);
     // Document scan: compress + preview
     document.querySelectorAll('.doc-scan-btn input[type="file"]').forEach(function(input) {
