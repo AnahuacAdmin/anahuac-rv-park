@@ -29,6 +29,7 @@ router.get('/public', (req, res) => {
     p.growing_tips, p.created_at,
     CASE WHEN p.photo_data IS NOT NULL AND p.photo_data != '' THEN 1 ELSE 0 END as has_photo,
     (SELECT COUNT(*) FROM garden_photos WHERE post_id=p.id) as extra_photo_count,
+    (SELECT GROUP_CONCAT(id) FROM garden_photos WHERE post_id=p.id ORDER BY display_order) as extra_photo_ids_csv,
     CASE WHEN p.is_management = 1 THEN 'Park Management'
          WHEN p.tenant_id IS NULL THEN 'Visitor'
          ELSE t.first_name END as author_first,
@@ -43,6 +44,11 @@ router.get('/public', (req, res) => {
     FROM garden_posts p LEFT JOIN tenants t ON p.tenant_id = t.id
     ORDER BY p.created_at DESC LIMIT 50`).all();
   attachReactions(posts);
+  // Convert extra_photo_ids_csv string to array
+  posts.forEach(function(p) {
+    p.extra_photo_ids = p.extra_photo_ids_csv ? p.extra_photo_ids_csv.split(',').map(function(s) { return parseInt(s, 10); }) : [];
+    delete p.extra_photo_ids_csv;
+  });
   res.json(posts);
 });
 

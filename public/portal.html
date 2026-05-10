@@ -571,6 +571,8 @@
 
   <!-- Founding Angler celebration banner -->
   <div id="portal-founding-angler" data-tab-section="home" style="width:100%;max-width:800px"></div>
+  <!-- Founding Gardener celebration banner -->
+  <div id="portal-founding-gardener" data-tab-section="home" style="width:100%;max-width:800px"></div>
 
   <!-- ===== 2. BALANCE HERO CARD ===== -->
   <div class="card payment-hub" data-tab-section="home" style="border-top:4px solid #1a5c32;padding:1rem 1.25rem;margin-bottom:0.6rem">
@@ -1655,6 +1657,7 @@ async function showPortal() {
     _safe('news', loadDailyEdition),
     _safe('banner', loadLatestCommunityBanner),
     _safe('angler', loadFoundingAnglerBanner),
+    _safe('gardener', loadFoundingGardenerBanner),
     _safe('activity', loadPortalCommunityActivity),
     _safe('inspections', loadPortalInspections),
     _safe('birthday', loadPortalBirthday),
@@ -3022,6 +3025,28 @@ var _hfFilter = '';
 var _hfMyReactions = {};
 var _hfPhotos = []; // staged photos for upload (base64 strings)
 var _gardenPhotos = []; // staged garden photos (base64 strings)
+var _gardenPhotoCache = {}; // postId -> [url1, url2, ...]
+function cycleGardenPhoto(container, postId, totalPhotos) {
+  if (!_gardenPhotoCache[postId]) {
+    var post = (_gardenLastFeed || []).find(function(p) { return p.id === postId; });
+    if (!post) return;
+    var urls = ['/api/garden/' + postId + '/photo'];
+    (post.extra_photo_ids || []).forEach(function(eid) {
+      urls.push('/api/garden/photo/' + eid);
+    });
+    _gardenPhotoCache[postId] = urls;
+  }
+  var urls = _gardenPhotoCache[postId];
+  var currentIdx = parseInt(container.dataset.photoIdx || '0', 10);
+  var nextIdx = (currentIdx + 1) % urls.length;
+  container.dataset.photoIdx = nextIdx;
+  var img = container.querySelector('img');
+  if (img) img.src = urls[nextIdx];
+  var badge = container.querySelector('[data-photo-badge]');
+  if (badge) badge.textContent = '📷 ' + (nextIdx + 1) + '/' + totalPhotos;
+  var dots = container.querySelectorAll('[data-dot]');
+  dots.forEach(function(d, i) { d.style.background = i === nextIdx ? '#fff' : 'rgba(255,255,255,0.4)'; });
+}
 
 var HF_FISH_SPECIES = ['Largemouth Bass','Striped Bass','Catfish','Crappie','Redfish','Flounder','Speckled Trout','Alligator Gar','Carp','Blue Crab','Shrimp','Other'];
 var HF_FISH_LOCATIONS = ['Trinity Bay','East Bay','Double Bayou','Anahuac Channel','Lake Anahuac','Umbrella Point','Park Pond','Other nearby'];
@@ -4316,6 +4341,45 @@ async function loadFoundingAnglerBanner() {
       _launchPortalConfetti();
     }
   } catch { el.innerHTML = ''; }
+}
+
+// ── Founding Gardener Celebration Banner ──
+async function loadFoundingGardenerBanner() {
+  var el = document.getElementById('portal-founding-gardener');
+  if (!el) return;
+  try {
+    var r = await fetch('/api/garden/first-plant-status');
+    var data = await r.json();
+    if (data && data.first_plant) {
+      var fp = data.first_plant;
+      var photoHtml = fp.has_photo
+        ? '<div style="flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:#1a1a1a;border:2px solid #16a34a"><img src="/api/garden/' + fp.id + '/photo" style="width:100%;height:100%;object-fit:cover"></div>'
+        : '<div style="flex-shrink:0;width:64px;height:64px;border-radius:8px;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:2rem">🌱</div>';
+      el.style.display = 'block';
+      el.innerHTML =
+        '<div style="background:linear-gradient(135deg,#dcfce7,#f0fdf4);border:2px solid #16a34a;border-radius:14px;padding:0.75rem;margin-bottom:0.75rem;display:flex;gap:0.75rem;align-items:center">' +
+          photoHtml +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-weight:800;font-size:0.82rem;color:#166534;letter-spacing:0.03em">🌻 FOUNDING GARDENER OF ANAHUAC RV PARK 🌱</div>' +
+            '<div style="font-size:0.85rem;color:#1c1917;margin-top:0.15rem;line-height:1.35">' +
+              'Congratulations to <strong>' + _escPortal(fp.author) + '</strong>' + (fp.author_lot ? ' (' + _escPortal(fp.author_lot) + ')' : '') +
+              ' for being the <strong>FIRST</strong> gardener to share a plant!' +
+            '</div>' +
+            '<div style="font-size:0.78rem;color:#78716c;margin-top:0.15rem">' +
+              '🌱 ' + _escPortal(fp.plant_name || 'A growing plant') +
+            '</div>' +
+            '<div style="margin-top:0.35rem"><span style="background:#16a34a;color:#fff;padding:3px 10px;border-radius:6px;font-size:0.72rem;font-weight:700">View Garden 🌻</span></div>' +
+          '</div>' +
+        '</div>';
+      if (!sessionStorage.getItem('founding_gardener_seen')) {
+        sessionStorage.setItem('founding_gardener_seen', '1');
+        if (typeof _launchPortalConfetti === 'function') _launchPortalConfetti();
+      }
+    } else {
+      el.innerHTML = '';
+      el.style.display = 'none';
+    }
+  } catch { el.innerHTML = ''; el.style.display = 'none'; }
 }
 
 function _launchPortalConfetti() {
@@ -6068,12 +6132,15 @@ async function loadGardenTip() {
   } catch { el.style.display = 'none'; }
 }
 
+var _gardenLastFeed = [];
 async function loadGardenFeed() {
   var el = document.getElementById('garden-feed');
   if (!el) return;
+  _gardenPhotoCache = {}; // reset cache on each feed reload
   try {
     var r = await fetch('/api/garden/public');
     var posts = await r.json();
+    _gardenLastFeed = posts || [];
     if (!posts || !posts.length) {
       el.innerHTML = '<div style="text-align:center;padding:2rem 1rem"><div style="font-size:2.5rem;margin-bottom:0.5rem">🌱</div><div style="font-size:1rem;font-weight:700;color:#1c1917;margin-bottom:0.3rem">No Plants Yet!</div><div style="font-size:0.85rem;color:#57534e">Share what you\'re growing — flowers, veggies, herbs, anything green!</div></div>';
       return;
@@ -6095,7 +6162,20 @@ async function loadGardenFeed() {
       var commentBtn = '<button onclick="toggleGardenComments(' + p.id + ')" style="background:none;border:none;cursor:pointer;font-size:0.78rem;color:#78716c;display:flex;align-items:center;gap:3px;padding:3px 0"><span>💬</span><span style="font-weight:600">' + commentCount + '</span>' + (commentCount > 0 ? '<span style="color:#16a34a;font-size:0.7rem;margin-left:2px">View</span>' : '<span style="font-size:0.7rem;margin-left:2px">Comment</span>') + '</button>';
 
       return '<div style="border:1.5px solid #86efac;border-radius:14px;overflow:hidden;margin-bottom:0.65rem;background:#fff" id="garden-post-' + p.id + '">' +
-        (p.has_photo ? '<div style="background:#1a1a1a;text-align:center"><img src="/api/garden/' + p.id + '/photo" style="width:100%;max-height:400px;height:auto;object-fit:contain;display:block" onerror="this.parentElement.style.display=\'none\'" loading="lazy"></div>' : '') +
+        (p.has_photo ? (function() {
+          var totalPhotos = 1 + (p.extra_photo_count || 0);
+          if (totalPhotos > 1) {
+            return '<div style="position:relative;cursor:pointer;background:#1a1a1a;text-align:center" onclick="cycleGardenPhoto(this,' + p.id + ',' + totalPhotos + ')" data-photo-idx="0">' +
+              '<img src="/api/garden/' + p.id + '/photo" style="width:100%;max-height:400px;height:auto;object-fit:contain;display:block" onerror="this.style.display=\'none\'" loading="lazy">' +
+              '<div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:12px" data-photo-badge>📷 1/' + totalPhotos + '</div>' +
+              '<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:4px">' +
+                Array.from({length: totalPhotos}, function(_, i) { return '<div style="width:6px;height:6px;border-radius:50%;background:' + (i === 0 ? '#fff' : 'rgba(255,255,255,0.4)') + '" data-dot="' + i + '"></div>'; }).join('') +
+              '</div>' +
+            '</div>';
+          } else {
+            return '<div style="background:#1a1a1a;text-align:center"><img src="/api/garden/' + p.id + '/photo" style="width:100%;max-height:400px;height:auto;object-fit:contain;display:block" onerror="this.parentElement.style.display=\'none\'" loading="lazy"></div>';
+          }
+        })() : '') +
         '<div style="padding:0.65rem 0.75rem">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.2rem">' +
             '<div>' +
