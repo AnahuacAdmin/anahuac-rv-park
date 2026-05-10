@@ -889,6 +889,10 @@ router.post('/generate', (req, res) => {
         db.prepare('UPDATE tenants SET credit_balance = credit_balance - ? WHERE id = ?').run(creditApplied, tenant.id);
       }
       const total = +(flatAmount - creditApplied).toFixed(2);
+      if (total <= 0) {
+        // Skip $0 invoices — tenants with $0 flat rate or fully credit-covered owe nothing
+        continue;
+      }
       const flatInvResult = db.prepare(`
         INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
           rent_amount, electric_amount, subtotal, total_amount, balance_due, status, notes, credit_applied)
@@ -935,6 +939,10 @@ router.post('/generate', (req, res) => {
       db.prepare('UPDATE tenants SET credit_balance = credit_balance - ? WHERE id = ?').run(creditApplied, tenant.id);
     }
     const total = +(totalBeforeCredit - creditApplied).toFixed(2);
+    if (total <= 0) {
+      // Skip $0 invoices — tenants with $0 rent + no electric/fees, or fully credit-covered
+      continue;
+    }
 
     const stdInvResult = db.prepare(`
       INSERT INTO invoices (tenant_id, lot_id, invoice_number, invoice_date, due_date, billing_period_start, billing_period_end,
