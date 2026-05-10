@@ -552,6 +552,11 @@ async function updateAdminNotifBadge() {
       badge.textContent = _adminNotifUnread > 0 ? (_adminNotifUnread > 99 ? '99+' : _adminNotifUnread) : '';
       badge.style.display = _adminNotifUnread > 0 ? 'flex' : 'none';
     }
+    var dBadge = document.getElementById('desktop-notif-badge');
+    if (dBadge) {
+      dBadge.textContent = _adminNotifUnread > 0 ? (_adminNotifUnread > 99 ? '99+' : _adminNotifUnread) : '';
+      dBadge.style.display = _adminNotifUnread > 0 ? 'flex' : 'none';
+    }
     if ('setAppBadge' in navigator) {
       if (_adminNotifUnread > 0) navigator.setAppBadge(_adminNotifUnread).catch(function(){});
       else navigator.clearAppBadge().catch(function(){});
