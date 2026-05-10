@@ -145,9 +145,29 @@ async function showCheckIn() {
         <div id="short-term-monthly-warn" style="display:none;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.5rem;font-size:0.82rem;color:#92400e">
           ⚠️ Monthly rate on a short-term lot requires manager approval
         </div>
-        <div id="proration-info" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.5rem">
-          <strong style="color:#1e40af">Prorated First Month</strong>
-          <div id="proration-detail" style="font-size:0.9rem;margin-top:0.25rem"></div>
+        <div id="first-invoice-block" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.5rem">
+          <strong style="color:#1e40af">First Invoice — Choose Rent Amount</strong>
+          <div style="font-size:0.8rem;color:#475569;margin:0.2rem 0 0.5rem">Required for monthly check-ins. Choose how much rent to charge on the first invoice.</div>
+          <div style="display:flex;flex-direction:column;gap:0.4rem">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem">
+              <input type="radio" name="first_invoice_choice" value="prorate" id="fi-radio-prorate">
+              <span><strong>Prorate</strong> — <span id="fi-prorate-detail" style="color:#475569">(set check-in date)</span></span>
+            </label>
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem">
+              <input type="radio" name="first_invoice_choice" value="full" id="fi-radio-full">
+              <span><strong>Full month</strong> — <span id="fi-full-detail" style="color:#475569">(set rate)</span></span>
+            </label>
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem">
+              <input type="radio" name="first_invoice_choice" value="custom" id="fi-radio-custom">
+              <span><strong>Custom</strong> — <input type="number" step="0.01" min="0" id="fi-custom-amt" placeholder="0.00" style="width:100px;padding:0.15rem 0.4rem;font-size:0.9rem;margin-left:0.25rem" disabled></span>
+            </label>
+          </div>
+          <div id="fi-deposit-line" style="display:none;font-size:0.85rem;color:#16a34a;margin-top:0.5rem;padding-top:0.5rem;border-top:1px dashed #93c5fd">
+            <span id="fi-deposit-text">+ Security deposit: $0.00</span>
+          </div>
+          <div id="fi-total-line" style="display:none;font-size:0.95rem;font-weight:700;color:#1e40af;margin-top:0.4rem">
+            First invoice total: <span id="fi-total-amount">$0.00</span>
+          </div>
         </div>
       </fieldset>
 
@@ -244,6 +264,35 @@ async function showCheckIn() {
       waiveCb.addEventListener('change', function() {
         depAmt.disabled = this.checked;
         if (this.checked) depAmt.value = '0';
+      });
+    }
+    // First Invoice block — wire up events
+    var fiRadios = document.getElementsByName('first_invoice_choice');
+    for (var k = 0; k < fiRadios.length; k++) {
+      fiRadios[k].addEventListener('change', function() {
+        var fForm = document.querySelector('form');
+        if (fForm) updateFirstInvoiceBlock(fForm);
+      });
+    }
+    var fiCustom = document.getElementById('fi-custom-amt');
+    if (fiCustom) {
+      fiCustom.addEventListener('input', function() {
+        var fForm = document.querySelector('form');
+        if (fForm) updateFirstInvoiceBlock(fForm);
+      });
+    }
+    var fiDepAmt = document.getElementById('checkin-deposit-amt');
+    if (fiDepAmt) {
+      fiDepAmt.addEventListener('input', function() {
+        var fForm = document.querySelector('form');
+        if (fForm) updateFirstInvoiceBlock(fForm);
+      });
+    }
+    var fiDepWaiveCb = document.getElementById('checkin-deposit-waived');
+    if (fiDepWaiveCb) {
+      fiDepWaiveCb.addEventListener('change', function() {
+        var fForm = document.querySelector('form');
+        if (fForm) updateFirstInvoiceBlock(fForm);
       });
     }
     // Document scan: compress + preview
@@ -367,6 +416,7 @@ function updateRateLabel(sel) {
   }
   calcProration(sel.form);
   updateStayPreview(sel.form);
+  updateFirstInvoiceBlock(sel.form);
 }
 
 function _autoPopulateDeparture(form, addDays) {
@@ -399,43 +449,100 @@ function updateStayPreview(form) {
   // Auto-fill payment amount if empty or zero
   var payInput = document.getElementById('checkin-payment-amount');
   if (payInput && (!payInput.value || parseFloat(payInput.value) === 0)) payInput.value = total.toFixed(2);
+  updateFirstInvoiceBlock(form);
+}
+
+function updateFirstInvoiceBlock(form) {
+  var block = document.getElementById('first-invoice-block');
+  if (!block) return;
+  var type = form.rent_type?.value || 'monthly';
+  var checkin = form.check_in_date?.value;
+  var rate = parseFloat(form.monthly_rent?.value) || 0;
+
+  // Visible only for monthly with a date set
+  if (type !== 'monthly' || !checkin) {
+    block.style.display = 'none';
+    return;
+  }
+  block.style.display = '';
+
+  // Compute prorate amount
+  var moveIn = new Date(checkin + 'T00:00:00');
+  var moveDay = moveIn.getDate();
+  var dim = new Date(moveIn.getFullYear(), moveIn.getMonth() + 1, 0).getDate();
+  var remaining = dim - moveDay + 1;
+  var prorateAmt = +((rate / dim) * remaining).toFixed(2);
+
+  // Update Prorate label
+  var prorateDetail = document.getElementById('fi-prorate-detail');
+  if (prorateDetail) {
+    if (rate > 0) {
+      prorateDetail.textContent = '$' + prorateAmt.toFixed(2) + ' (' + remaining + '/' + dim + ' days remaining)';
+    } else {
+      prorateDetail.textContent = '(set rate)';
+    }
+  }
+
+  // Update Full month label
+  var fullDetail = document.getElementById('fi-full-detail');
+  if (fullDetail) {
+    if (rate > 0) {
+      fullDetail.textContent = '$' + rate.toFixed(2);
+    } else {
+      fullDetail.textContent = '(set rate)';
+    }
+  }
+
+  // Determine the chosen rent amount based on selected radio
+  var choiceEls = document.getElementsByName('first_invoice_choice');
+  var choice = null;
+  for (var i = 0; i < choiceEls.length; i++) { if (choiceEls[i].checked) { choice = choiceEls[i].value; break; } }
+
+  // Enable/disable Custom input based on selection
+  var customInput = document.getElementById('fi-custom-amt');
+  if (customInput) customInput.disabled = (choice !== 'custom');
+
+  var rentAmt = 0;
+  if (choice === 'prorate') rentAmt = prorateAmt;
+  else if (choice === 'full') rentAmt = rate;
+  else if (choice === 'custom') rentAmt = parseFloat(customInput?.value) || 0;
+
+  // Compute deposit
+  var waivedCb = document.getElementById('checkin-deposit-waived');
+  var depAmtInput = document.getElementById('checkin-deposit-amt');
+  var waived = waivedCb && waivedCb.checked;
+  var depositAmt = waived ? 0 : (parseFloat(depAmtInput?.value) || 0);
+
+  // Update deposit + total lines
+  var depLine = document.getElementById('fi-deposit-line');
+  var depText = document.getElementById('fi-deposit-text');
+  var totLine = document.getElementById('fi-total-line');
+  var totAmt = document.getElementById('fi-total-amount');
+
+  if (depositAmt > 0) {
+    if (depLine) depLine.style.display = '';
+    if (depText) depText.textContent = '+ Security deposit: $' + depositAmt.toFixed(2);
+  } else {
+    if (depLine) depLine.style.display = 'none';
+  }
+
+  if (choice && rentAmt > 0) {
+    var total = +(rentAmt + depositAmt).toFixed(2);
+    if (totLine) totLine.style.display = '';
+    if (totAmt) totAmt.textContent = '$' + total.toFixed(2);
+    // Auto-fill payment amount only if currently empty/zero (never overwrite manager input)
+    var payInput = document.getElementById('checkin-payment-amount');
+    if (payInput && (!payInput.value || parseFloat(payInput.value) === 0)) {
+      payInput.value = total.toFixed(2);
+    }
+  } else {
+    if (totLine) totLine.style.display = 'none';
+  }
 }
 
 function calcProration(form) {
-  const infoEl = document.getElementById('proration-info');
-  const detailEl = document.getElementById('proration-detail');
-  if (!infoEl || !detailEl) return;
-
-  const type = form.rent_type?.value || 'monthly';
-  const dateVal = form.check_in_date?.value;
-  const rate = parseFloat(form.monthly_rent?.value) || 0;
-
-  // No proration for daily/weekly
-  if (type !== 'monthly' || !dateVal || !rate) { infoEl.style.display = 'none'; return; }
-
-  const moveIn = new Date(dateVal + 'T00:00:00');
-  const day = moveIn.getDate();
-  if (day === 1) {
-    infoEl.style.display = 'none';
-    // Auto-fill full monthly rate
-    var payInput = document.getElementById('checkin-payment-amount');
-    if (payInput && (!payInput.value || parseFloat(payInput.value) === 0)) payInput.value = rate.toFixed(2);
-    return;
-  }
-
-  const year = moveIn.getFullYear();
-  const month = moveIn.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const remainingDays = daysInMonth - day + 1; // Include move-in day
-  const prorated = +((rate / daysInMonth) * remainingDays).toFixed(2);
-  const monthName = moveIn.toLocaleString('default', { month: 'long' });
-
-  detailEl.innerHTML = `Move-in: ${monthName} ${day} = <strong>${remainingDays} days remaining</strong> of ${daysInMonth}<br>` +
-    `$${rate.toFixed(2)} / ${daysInMonth} days × ${remainingDays} days = <strong style="color:#16a34a">$${prorated.toFixed(2)} prorated</strong>`;
-  infoEl.style.display = '';
-  // Auto-fill payment amount for prorated monthly
-  var payInput = document.getElementById('checkin-payment-amount');
-  if (payInput && (!payInput.value || parseFloat(payInput.value) === 0)) payInput.value = prorated.toFixed(2);
+  // Legacy wrapper — proration logic now lives in updateFirstInvoiceBlock
+  updateFirstInvoiceBlock(form);
 }
 
 function processCheckIn(e) {
