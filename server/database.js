@@ -355,6 +355,8 @@ async function initializeDatabase() {
 
   addCol("ALTER TABLE hunting_fishing_posts ADD COLUMN is_first_catch INTEGER DEFAULT 0");
   addCol("ALTER TABLE catch_comments ADD COLUMN is_management INTEGER DEFAULT 0");
+  addCol("ALTER TABLE garden_posts ADD COLUMN is_first_plant INTEGER DEFAULT 0");
+  addCol("ALTER TABLE garden_posts ADD COLUMN growing_tips TEXT");
 
   // Bird Sightings
   db.run(`CREATE TABLE IF NOT EXISTS bird_sightings (
