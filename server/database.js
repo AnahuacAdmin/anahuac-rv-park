@@ -482,6 +482,7 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN emergency_contact_relationship TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN recurring_extra_occupancy_fee REAL DEFAULT 0");
   addCol("ALTER TABLE invoices ADD COLUMN extra_occupancy_fee REAL DEFAULT 0");
+  addCol("ALTER TABLE invoices ADD COLUMN deposit_amount REAL DEFAULT 0");
 
   // SSN last 4 and DL/ID tracking
   addCol("ALTER TABLE tenants ADD COLUMN ssn_last4 TEXT");
