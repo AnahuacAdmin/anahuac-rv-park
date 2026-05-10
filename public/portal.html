@@ -1799,11 +1799,12 @@ async function showPortal() {
       balEl.style.fontSize = '1.8rem';
       payEl.innerHTML = '<p style="text-align:center;color:#dc2626;font-weight:600;font-size:0.92rem;line-height:1.4">Balance temporarily unavailable<br><span style="font-size:0.82rem;color:#78716c;font-weight:400">Contact office at <a href="tel:4092676603" style="color:#2563eb">409-267-6603</a></span></p>';
     } else if (bal < 0) {
-      // Tenant has a CREDIT (overpaid)
+      // Tenant has a CREDIT (overpaid) — display as friendly green message, NOT scary red negative
       var credit = Math.abs(bal);
-      balEl.textContent = '-$' + credit.toFixed(2);
+      balEl.textContent = '$0.00';
       balEl.className = 'balance-amount balance-paid';
-      payEl.innerHTML = '<p style="text-align:center;color:#16a34a;font-weight:700;margin-bottom:0.5rem;font-size:1.05rem">✅ Account Credit: $' + credit.toFixed(2) + '</p>' +
+      payEl.innerHTML = '<p style="text-align:center;color:#16a34a;font-weight:700;margin-bottom:0.5rem;font-size:1.05rem">✅ All paid up!</p>' +
+        '<p style="text-align:center;font-size:0.92rem;color:#16a34a;font-weight:700;margin-bottom:0.25rem">Account Credit on file: $' + credit.toFixed(2) + '</p>' +
         '<p style="text-align:center;font-size:0.8rem;color:#78716c">This credit will be applied to your next invoice</p>';
     } else if (bal > 0) {
       balEl.textContent = '$' + bal.toFixed(2);
