@@ -4357,7 +4357,7 @@ async function loadFoundingGardenerBanner() {
         : '<div style="flex-shrink:0;width:64px;height:64px;border-radius:8px;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:2rem">🌱</div>';
       el.style.display = 'block';
       el.innerHTML =
-        '<div style="background:linear-gradient(135deg,#dcfce7,#f0fdf4);border:2px solid #16a34a;border-radius:14px;padding:0.75rem;margin-bottom:0.75rem;display:flex;gap:0.75rem;align-items:center">' +
+        '<div style="background:linear-gradient(135deg,#dcfce7,#f0fdf4);border:2px solid #16a34a;border-radius:14px;padding:0.75rem;margin-bottom:0.75rem;display:flex;gap:0.75rem;align-items:center;cursor:pointer" onclick="switchPortalTab(\'community\');setTimeout(function(){var el=document.getElementById(\'portal-garden\');if(el)el.scrollIntoView({behavior:\'smooth\',block:\'start\'})},350)">' +
           photoHtml +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-weight:800;font-size:0.82rem;color:#166534;letter-spacing:0.03em">🌻 FOUNDING GARDENER OF ANAHUAC RV PARK 🌱</div>' +
