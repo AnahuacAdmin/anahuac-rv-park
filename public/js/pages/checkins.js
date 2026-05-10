@@ -296,6 +296,9 @@ async function showCheckIn() {
         if (fForm) updateFirstInvoiceBlock(fForm);
       });
     }
+    // Initial render: trigger the block to show on form open
+    var initForm = document.querySelector('form');
+    if (initForm && typeof updateFirstInvoiceBlock === 'function') updateFirstInvoiceBlock(initForm);
     // Document scan: compress + preview
     document.querySelectorAll('.doc-scan-btn input[type="file"]').forEach(function(input) {
       input.addEventListener('change', function() {
