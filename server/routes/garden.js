@@ -24,7 +24,9 @@ function attachReactions(posts) {
 
 // ── Public: list posts ──
 router.get('/public', (req, res) => {
-  var posts = db.prepare(`SELECT p.id, p.plant_name, p.stage, p.caption, p.is_management, p.created_at,
+  var posts = db.prepare(`SELECT p.id, p.plant_name, p.stage, p.caption, p.is_management,
+    COALESCE(p.is_first_plant, 0) as is_first_plant,
+    p.growing_tips, p.created_at,
     CASE WHEN p.photo_data IS NOT NULL AND p.photo_data != '' THEN 1 ELSE 0 END as has_photo,
     (SELECT COUNT(*) FROM garden_photos WHERE post_id=p.id) as extra_photo_count,
     CASE WHEN p.is_management = 1 THEN 'Park Management'
@@ -42,6 +44,22 @@ router.get('/public', (req, res) => {
     ORDER BY p.created_at DESC LIMIT 50`).all();
   attachReactions(posts);
   res.json(posts);
+});
+
+// ── Public: check first-plant status (Founding Gardener) ──
+router.get('/first-plant-status', (req, res) => {
+  var total = db.prepare('SELECT COUNT(*) as c FROM garden_posts').get().c;
+  var firstPlant = null;
+  if (total > 0) {
+    firstPlant = db.prepare(`SELECT p.id, p.plant_name, p.created_at,
+      CASE WHEN p.photo_data IS NOT NULL AND p.photo_data != '' THEN 1 ELSE 0 END as has_photo,
+      CASE WHEN p.tenant_id IS NULL THEN 'Visitor' ELSE t.first_name END as author_first,
+      CASE WHEN p.tenant_id IS NULL THEN 'Visitor' ELSE t.first_name || ' ' || t.last_name END as author,
+      CASE WHEN p.tenant_id IS NULL THEN '' ELSE 'Lot ' || COALESCE(t.lot_id, '') END as author_lot
+      FROM garden_posts p LEFT JOIN tenants t ON p.tenant_id = t.id
+      WHERE COALESCE(p.is_first_plant, 0) = 1 LIMIT 1`).get();
+  }
+  res.json({ total_posts: total, first_plant: firstPlant });
 });
 
 // ── Public: main photo ──
@@ -70,10 +88,17 @@ router.post('/submit', (req, res) => {
   }
   var mainPhoto = b.photo_data || (b.photos && b.photos[0]) || null;
   if (mainPhoto && mainPhoto.length > MAX_PHOTO_SIZE) return res.status(400).json({ error: 'Photo too large' });
-  var result = db.prepare('INSERT INTO garden_posts (tenant_id, plant_name, stage, caption, photo_data) VALUES (?,?,?,?,?)').run(
+
+  // Determine if this is the first-ever garden post (Founding Gardener award)
+  var existingFirstPlant = db.prepare('SELECT COUNT(*) as c FROM garden_posts WHERE is_first_plant = 1').get().c;
+  var isFirstPlant = existingFirstPlant === 0 ? 1 : 0;
+
+  var result = db.prepare('INSERT INTO garden_posts (tenant_id, plant_name, stage, caption, photo_data, growing_tips, is_first_plant) VALUES (?,?,?,?,?,?,?)').run(
     b.tenant_id || null, b.plant_name || null,
     STAGES.includes(b.stage) ? b.stage : null,
-    b.caption ? b.caption.trim() : null, mainPhoto
+    b.caption ? b.caption.trim() : null, mainPhoto,
+    b.growing_tips ? b.growing_tips.trim() : null,
+    isFirstPlant
   );
   var postId = result.lastInsertRowid;
   if (b.photos && b.photos.length > 1) {
@@ -82,7 +107,7 @@ router.post('/submit', (req, res) => {
       if (b.photos[i] && b.photos[i].length <= MAX_PHOTO_SIZE) ins.run(postId, b.photos[i], i);
     }
   }
-  res.json({ id: postId });
+  res.json({ id: postId, is_first_plant: !!isFirstPlant });
 });
 
 // ── Public: toggle reaction ──
