@@ -1270,7 +1270,10 @@ tbody tr:nth-child(even):hover { background: var(--gray-50); }
 
 /* === PRINT === */
 @media print {
-  #sidebar, .no-print, .modal-header button { display: none !important; }
+  #sidebar, .no-print, .modal-header button,
+  #refreshBtn, #desktop-notif-bell, #portalQuickBtn,
+  .help-fab, #help-fab, #help-button,
+  .mobile-header { display: none !important; }
   #content { margin-left: 0 !important; }
   .modal-overlay { position: static; background: none; padding: 0; }
   .modal { box-shadow: none; max-width: 100%; max-height: none; overflow: visible; }
