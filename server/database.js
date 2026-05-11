@@ -317,17 +317,6 @@ async function initializeDatabase() {
   try { db.run(`ALTER TABLE hunting_fishing_posts ADD COLUMN is_first_fish INTEGER DEFAULT 0`); } catch (e) { /* column already exists */ }
   try { db.run(`ALTER TABLE hunting_fishing_posts ADD COLUMN is_first_hunt INTEGER DEFAULT 0`); } catch (e) { /* column already exists */ }
 
-  // Backfill is_first_fish / is_first_hunt from legacy is_first_catch (only if not already populated)
-  try {
-    var fishFirstCount = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_fish = 1').get().c;
-    if (fishFirstCount === 0) {
-      db.run(`UPDATE hunting_fishing_posts SET is_first_fish = 1 WHERE is_first_catch = 1 AND post_type = 'fishing'`);
-    }
-    var huntFirstCount = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_hunt = 1').get().c;
-    if (huntFirstCount === 0) {
-      db.run(`UPDATE hunting_fishing_posts SET is_first_hunt = 1 WHERE is_first_catch = 1 AND post_type = 'hunting'`);
-    }
-  } catch (e) { /* table or columns not ready */ }
 
   // Extra photos for hunting/fishing posts (multi-photo support)
   db.run(`CREATE TABLE IF NOT EXISTS catch_photos (
@@ -1609,9 +1598,39 @@ async function initializeDatabase() {
 
   saveDb();
   console.log('Database initialized successfully');
+  // Run idempotent data backfills (runs every boot, only does work if needed)
+  try {
+    runDataBackfills();
+  } catch (e) {
+    console.error('[backfill] FATAL during backfill run:', e.message);
+  }
 
   // === STARTUP HEALTH CHECK ===
   runStartupHealthCheck();
+}
+
+// ── Idempotent data backfills (runs every boot) ──
+function runDataBackfills() {
+  // Backfill: is_first_fish / is_first_hunt from legacy is_first_catch
+  try {
+    var fishFirstCount = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_fish = 1').get().c;
+    if (fishFirstCount === 0) {
+      var fishUpdate = db.prepare(`UPDATE hunting_fishing_posts SET is_first_fish = 1 WHERE is_first_catch = 1 AND post_type = 'fishing'`).run();
+      console.log('[backfill] is_first_fish set on', fishUpdate.changes, 'row(s)');
+    } else {
+      console.log('[backfill] is_first_fish already populated (' + fishFirstCount + ' row(s)), skip');
+    }
+    var huntFirstCount = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_hunt = 1').get().c;
+    if (huntFirstCount === 0) {
+      var huntUpdate = db.prepare(`UPDATE hunting_fishing_posts SET is_first_hunt = 1 WHERE is_first_catch = 1 AND post_type = 'hunting'`).run();
+      console.log('[backfill] is_first_hunt set on', huntUpdate.changes, 'row(s)');
+    } else {
+      console.log('[backfill] is_first_hunt already populated (' + huntFirstCount + ' row(s)), skip');
+    }
+  } catch (e) {
+    console.error('[backfill] is_first_fish/hunt FAILED:', e.message);
+    throw e;
+  }
 }
 
 // Validate that required columns exist in a table. Returns list of missing columns.
