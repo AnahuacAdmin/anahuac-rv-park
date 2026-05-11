@@ -87,7 +87,7 @@ async function submitGardenAdminComment(postId) {
   var btn = input.nextElementSibling;
   if (btn) { btn.disabled = true; btn.textContent = '...'; }
   try {
-    await API.post('/garden/' + postId + '/comments', { comment: input.value.trim(), is_management: 1 });
+    await API.post('/garden/' + postId + '/comments/admin', { comment: input.value.trim() });
     toggleGardenAdminComments(postId);
     toggleGardenAdminComments(postId);
   } catch {

@@ -205,6 +205,18 @@ router.get('/tip-of-the-day', (req, res) => {
 // ══════ Admin routes ══════
 router.use(authenticate);
 
+// ── Admin: comment on a garden post (as Park Management) ──
+router.post('/:id/comments/admin', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var postId = parseInt(req.params.id);
+  var { comment } = req.body || {};
+  if (!comment || !comment.trim()) return res.status(400).json({ error: 'Comment is required' });
+  if (comment.length > 500) return res.status(400).json({ error: 'Comment too long (max 500 chars)' });
+  db.prepare('INSERT INTO garden_comments (post_id, tenant_id, author_name, comment, is_management) VALUES (?,NULL,?,?,1)')
+    .run(postId, req.user.username || 'Park Management', comment.trim());
+  res.json({ success: true });
+});
+
 router.delete('/:id', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   var postId = parseInt(req.params.id);
