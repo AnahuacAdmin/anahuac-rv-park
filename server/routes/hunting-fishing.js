@@ -14,7 +14,7 @@ const MAX_PHOTO_SIZE = 14_000_000; // ~10MB base64 ≈ 14M chars
 function postQuery(where, orderBy, limit) {
   return `SELECT p.id, p.post_type, p.species, p.weight_lbs, p.weight_oz, p.length_inches,
     p.location, p.method, p.bait_used, p.description, p.likes_count,
-    p.is_featured, p.is_biggest_of_month, p.is_first_catch, p.created_at,
+    p.is_featured, p.is_biggest_of_month, p.is_first_catch, p.is_first_fish, p.is_first_hunt, p.created_at,
     CASE WHEN p.photo_data IS NOT NULL AND p.photo_data != '' THEN 1 ELSE 0 END as has_photo,
     (SELECT COUNT(*) FROM catch_photos WHERE post_id=p.id) as extra_photo_count,
     CASE WHEN p.tenant_id IS NULL THEN 'Visitor' ELSE t.first_name END as author_first,
@@ -188,7 +188,21 @@ router.post('/submit', (req, res) => {
   if (!b.species) return res.status(400).json({ error: 'Species/game type is required' });
   if (!b.photo_data && (!b.photos || !b.photos.length)) return res.status(400).json({ error: 'At least one photo is required' });
 
-  // Determine if this is the first-ever catch (safe even if old posts exist from before upgrade)
+  // Determine post type
+  var postType = b.post_type || 'fishing';
+
+  // Type-aware founding flag: first fisher gets is_first_fish, first hunter gets is_first_hunt
+  var isFirstFish = 0;
+  var isFirstHunt = 0;
+  if (postType === 'fishing') {
+    var existingFirstFish = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_fish = 1').get().c;
+    isFirstFish = existingFirstFish === 0 ? 1 : 0;
+  } else if (postType === 'hunting') {
+    var existingFirstHunt = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_hunt = 1').get().c;
+    isFirstHunt = existingFirstHunt === 0 ? 1 : 0;
+  }
+
+  // Legacy is_first_catch: still set on the very first overall post (kept for backward compat with old code paths)
   var existingFirstCatch = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_catch = 1').get().c;
   var isFirstCatch = existingFirstCatch === 0 ? 1 : 0;
 
@@ -198,12 +212,12 @@ router.post('/submit', (req, res) => {
 
   var result = db.prepare(`INSERT INTO hunting_fishing_posts
     (tenant_id, post_type, species, weight_lbs, weight_oz, length_inches,
-     location, method, bait_used, photo_data, description, is_first_catch)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-    b.tenant_id || null, b.post_type || 'fishing', b.species,
+     location, method, bait_used, photo_data, description, is_first_catch, is_first_fish, is_first_hunt)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    b.tenant_id || null, postType, b.species,
     Number(b.weight_lbs) || 0, Number(b.weight_oz) || 0, Number(b.length_inches) || 0,
     b.location || null, b.method || null, b.bait_used || null,
-    mainPhoto, b.description || null, isFirstCatch
+    mainPhoto, b.description || null, isFirstCatch, isFirstFish, isFirstHunt
   );
   var postId = result.lastInsertRowid;
 
@@ -268,23 +282,32 @@ router.post('/submit', (req, res) => {
     } catch (e) { console.warn('[hunting-fishing] First-catch badge/email error:', e.message); }
   }
 
-  res.json({ id: postId, is_first_catch: !!isFirstCatch });
+  res.json({ id: postId, is_first_catch: !!isFirstCatch, is_first_fish: !!isFirstFish, is_first_hunt: !!isFirstHunt });
 });
 
-// ── Public: check first-catch status ──
+// ── Public: check founding status (fishing + hunting separately) ──
 router.get('/first-catch-status', (req, res) => {
   var total = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts').get().c;
-  var firstCatch = null;
+  var firstFish = null;
+  var firstHunt = null;
   if (total > 0) {
-    firstCatch = db.prepare(`SELECT p.species, p.location, p.created_at, p.id,
+    firstFish = db.prepare(`SELECT p.species, p.location, p.created_at, p.id,
       CASE WHEN p.photo_data IS NOT NULL AND p.photo_data != '' THEN 1 ELSE 0 END as has_photo,
       CASE WHEN p.tenant_id IS NULL THEN 'Visitor' ELSE t.first_name END as author_first,
       CASE WHEN p.tenant_id IS NULL THEN 'Visitor' ELSE t.first_name || ' ' || t.last_name END as author,
       CASE WHEN p.tenant_id IS NULL THEN '' ELSE 'Lot ' || COALESCE(t.lot_id, '') END as author_lot
       FROM hunting_fishing_posts p LEFT JOIN tenants t ON p.tenant_id = t.id
-      WHERE p.is_first_catch = 1 LIMIT 1`).get();
+      WHERE p.is_first_fish = 1 LIMIT 1`).get() || null;
+    firstHunt = db.prepare(`SELECT p.species, p.location, p.created_at, p.id,
+      CASE WHEN p.photo_data IS NOT NULL AND p.photo_data != '' THEN 1 ELSE 0 END as has_photo,
+      CASE WHEN p.tenant_id IS NULL THEN 'Visitor' ELSE t.first_name END as author_first,
+      CASE WHEN p.tenant_id IS NULL THEN 'Visitor' ELSE t.first_name || ' ' || t.last_name END as author,
+      CASE WHEN p.tenant_id IS NULL THEN '' ELSE 'Lot ' || COALESCE(t.lot_id, '') END as author_lot
+      FROM hunting_fishing_posts p LEFT JOIN tenants t ON p.tenant_id = t.id
+      WHERE p.is_first_hunt = 1 LIMIT 1`).get() || null;
   }
-  res.json({ total_posts: total, first_catch: firstCatch });
+  // Legacy field 'first_catch' = whichever founding record exists (prefers fishing for backward compat)
+  res.json({ total_posts: total, first_catch: firstFish || firstHunt, first_fish: firstFish, first_hunt: firstHunt });
 });
 
 // ── Public: tenant badges ──

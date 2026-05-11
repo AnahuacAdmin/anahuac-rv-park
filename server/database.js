@@ -314,6 +314,20 @@ async function initializeDatabase() {
     is_biggest_of_month INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+  try { db.run(`ALTER TABLE hunting_fishing_posts ADD COLUMN is_first_fish INTEGER DEFAULT 0`); } catch (e) { /* column already exists */ }
+  try { db.run(`ALTER TABLE hunting_fishing_posts ADD COLUMN is_first_hunt INTEGER DEFAULT 0`); } catch (e) { /* column already exists */ }
+
+  // Backfill is_first_fish / is_first_hunt from legacy is_first_catch (only if not already populated)
+  try {
+    var fishFirstCount = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_fish = 1').get().c;
+    if (fishFirstCount === 0) {
+      db.run(`UPDATE hunting_fishing_posts SET is_first_fish = 1 WHERE is_first_catch = 1 AND post_type = 'fishing'`);
+    }
+    var huntFirstCount = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_hunt = 1').get().c;
+    if (huntFirstCount === 0) {
+      db.run(`UPDATE hunting_fishing_posts SET is_first_hunt = 1 WHERE is_first_catch = 1 AND post_type = 'hunting'`);
+    }
+  } catch (e) { /* table or columns not ready */ }
 
   // Extra photos for hunting/fishing posts (multi-photo support)
   db.run(`CREATE TABLE IF NOT EXISTS catch_photos (

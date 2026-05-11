@@ -573,6 +573,8 @@
   <div id="portal-founding-angler" data-tab-section="home" style="width:100%;max-width:800px"></div>
   <!-- Founding Gardener celebration banner -->
   <div id="portal-founding-gardener" data-tab-section="home" style="width:100%;max-width:800px"></div>
+  <!-- Founding Hunter celebration banner -->
+  <div id="portal-founding-hunter" data-tab-section="home" style="width:100%;max-width:800px"></div>
 
   <!-- ===== 2. BALANCE HERO CARD ===== -->
   <div class="card payment-hub" data-tab-section="home" style="border-top:4px solid #1a5c32;padding:1rem 1.25rem;margin-bottom:0.6rem">
@@ -1658,6 +1660,7 @@ async function showPortal() {
     _safe('banner', loadLatestCommunityBanner),
     _safe('angler', loadFoundingAnglerBanner),
     _safe('gardener', loadFoundingGardenerBanner),
+    _safe('hunter', loadFoundingHunterBanner),
     _safe('activity', loadPortalCommunityActivity),
     _safe('inspections', loadPortalInspections),
     _safe('birthday', loadPortalBirthday),
@@ -3242,7 +3245,7 @@ async function loadHFFeed(type) {
       el.innerHTML = '<div style="text-align:center;padding:2rem 1rem">' +
         '<div style="font-size:3rem;margin-bottom:0.5rem">' + (type === 'fishing' ? '🎣' : '🦆') + '</div>' +
         '<div style="font-size:1.1rem;font-weight:700;color:#1c1917;margin-bottom:0.4rem">Be the First!</div>' +
-        '<div style="font-size:0.88rem;color:#57534e;line-height:1.5;max-width:300px;margin:0 auto">Our community is brand new and waiting for its first catch. The very first angler to post will earn permanent recognition as our <strong style="color:#f59e0b">FOUNDING ANGLER</strong>! 🏆</div>' +
+        '<div style="font-size:0.88rem;color:#57534e;line-height:1.5;max-width:300px;margin:0 auto">Our community is brand new and waiting for its first ' + (type === 'fishing' ? 'catch' : 'hunt') + '. The very first ' + (type === 'fishing' ? 'angler' : 'hunter') + ' to post will earn permanent recognition as our <strong style="color:' + (type === 'fishing' ? '#f59e0b' : '#92400e') + '">FOUNDING ' + (type === 'fishing' ? 'ANGLER' : 'HUNTER') + '</strong>! 🏆</div>' +
         '<div style="margin-top:1rem"><button class="btn" onclick="showHFPostForm()" style="background:linear-gradient(135deg,#92400e,#b45309);color:#fff;font-size:0.95rem;padding:0.6rem 1.5rem;border-radius:10px;font-weight:700;box-shadow:0 3px 10px rgba(146,64,14,0.3)">📸 Share My Catch</button></div>' +
       '</div>';
       return;
@@ -3258,7 +3261,8 @@ async function loadHFFeed(type) {
 
       // Badges
       var badges = '';
-      if (p.is_first_catch) badges += '<span style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem;margin-right:0.25rem">🏆 FOUNDING ANGLER</span>';
+      if (p.is_first_fish) badges += '<span style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem;margin-right:0.25rem">🏆 FOUNDING ANGLER</span>';
+      if (p.is_first_hunt) badges += '<span style="background:linear-gradient(135deg,#fed7aa,#fdba74);color:#7c2d12;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem;margin-right:0.25rem">🏆 FOUNDING HUNTER</span>';
       if (p.is_biggest_of_month) badges += '<span style="background:#fef3c7;color:#f59e0b;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem;margin-right:0.25rem">🥇 BIGGEST OF THE MONTH</span>';
       if (p.is_featured) badges += '<span style="background:#f0fdf4;color:#16a34a;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem">⭐ FEATURED</span>';
 
@@ -4412,6 +4416,53 @@ async function loadFoundingAnglerBanner() {
     }
   } catch { el.innerHTML = ''; }
 }
+
+
+// ── Founding Hunter Celebration Banner ──
+async function loadFoundingHunterBanner() {
+  var el = document.getElementById('portal-founding-hunter');
+  if (!el) return;
+  try {
+    var r = await fetch('/api/hunting-fishing/first-catch-status');
+    var data = await r.json();
+    var fh = data.first_hunt;
+    if (!fh) { el.innerHTML = ''; return; }
+    // Show banner for 30 days after founding hunt
+    var huntDate = new Date(String(fh.created_at).replace(' ', 'T') + (fh.created_at.includes('Z') ? '' : 'Z'));
+    var daysSince = (Date.now() - huntDate.getTime()) / 86400000;
+    if (daysSince > 30) { el.innerHTML = ''; return; }
+
+    var photoHtml = fh.has_photo
+      ? '<img src="/api/hunting-fishing/' + fh.id + '/photo" style="width:70px;height:70px;object-fit:cover;border-radius:10px;border:3px solid #ea580c;flex-shrink:0" onerror="this.style.display=\'none\'">'
+      : '<div style="width:70px;height:70px;background:#fed7aa;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0;border:3px solid #ea580c">🦆</div>';
+
+    el.innerHTML =
+      '<div style="background:linear-gradient(135deg,#fed7aa,#ffedd5);border:2px solid #ea580c;border-radius:14px;padding:0.85rem 1rem;margin-bottom:0.6rem;cursor:pointer;position:relative;overflow:hidden" onclick="switchPortalTab(\'community\');setTimeout(function(){var el=document.getElementById(\'portal-hunting-fishing\');if(el)el.scrollIntoView({behavior:\'smooth\',block:\'start\'})},350)">' +
+        '<div style="position:absolute;top:-10px;right:-10px;font-size:3rem;opacity:0.12;pointer-events:none">🏆</div>' +
+        '<div style="display:flex;align-items:center;gap:0.75rem">' +
+          photoHtml +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-weight:800;font-size:0.82rem;color:#7c2d12;letter-spacing:0.03em">🏆 FOUNDING HUNTER OF ANAHUAC RV PARK 🦆</div>' +
+            '<div style="font-size:0.85rem;color:#1c1917;margin-top:0.15rem;line-height:1.35">' +
+              'Congratulations to <strong>' + _escPortal(fh.author) + '</strong>' + (fh.author_lot ? ' (' + _escPortal(fh.author_lot) + ')' : '') +
+              ' for being the <strong>FIRST</strong> hunter to share a harvest!' +
+            '</div>' +
+            '<div style="font-size:0.78rem;color:#78716c;margin-top:0.15rem">' +
+              '🦆 ' + _escPortal(fh.species || 'Unknown') + (fh.location ? ' taken at ' + _escPortal(fh.location) : '') +
+            '</div>' +
+            '<div style="margin-top:0.35rem"><span style="background:#7c2d12;color:#fff;padding:3px 10px;border-radius:6px;font-size:0.72rem;font-weight:700">View Hunt & Leave a 🦆</span></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    // One-time confetti for first view
+    if (!sessionStorage.getItem('founding_hunter_seen')) {
+      sessionStorage.setItem('founding_hunter_seen', '1');
+      if (typeof _launchPortalConfetti === 'function') _launchPortalConfetti();
+    }
+  } catch { el.innerHTML = ''; }
+}
+
 
 // ── Founding Gardener Celebration Banner ──
 async function loadFoundingGardenerBanner() {
