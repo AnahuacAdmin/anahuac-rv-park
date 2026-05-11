@@ -374,6 +374,15 @@ async function initializeDatabase() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS bird_sighting_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sighting_id INTEGER NOT NULL,
+    photo_data TEXT NOT NULL,
+    display_order INTEGER DEFAULT 0
+  )`);
+
+  try { db.run(`ALTER TABLE bird_sightings ADD COLUMN is_first_sighting INTEGER DEFAULT 0`); } catch (e) { /* column already exists */ }
+
   // Lost & Found Pets
   db.run(`CREATE TABLE IF NOT EXISTS lost_found_pets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

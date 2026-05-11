@@ -5,12 +5,17 @@ const router = require('express').Router();
 const { db } = require('../database');
 const { authenticate } = require('../middleware');
 
+const MAX_PHOTOS = 5;
+const MAX_PHOTO_SIZE = 14_000_000;
+
 // Public: recent sightings
 router.get('/public', (req, res) => {
   var rows = db.prepare(`
     SELECT s.id, s.bird_name, s.location, s.spotted_date, s.spotted_time, s.rarity,
-      s.notes, s.likes_count, s.is_featured, s.created_at,
+      s.notes, s.likes_count, s.is_featured, s.is_first_sighting, s.created_at,
       CASE WHEN s.photo_data IS NOT NULL AND s.photo_data != '' THEN 1 ELSE 0 END as has_photo,
+      (SELECT COUNT(*) FROM bird_sighting_photos WHERE sighting_id=s.id) as extra_photo_count,
+      (SELECT GROUP_CONCAT(id) FROM bird_sighting_photos WHERE sighting_id=s.id ORDER BY display_order) as extra_photo_ids_csv,
       CASE WHEN s.tenant_id IS NULL THEN 'Visitor' ELSE t.first_name || ' ' || t.last_name END as author,
       CASE WHEN s.tenant_id IS NULL THEN '' ELSE 'Lot ' || COALESCE(t.lot_id, '') END as author_lot
     FROM bird_sightings s LEFT JOIN tenants t ON s.tenant_id = t.id
@@ -28,24 +33,51 @@ router.get('/:id/photo', (req, res) => {
   res.send(Buffer.from(row.photo_data, 'base64'));
 });
 
+// Public: extra photo (from bird_sighting_photos side table)
+router.get('/photos/:photoId', (req, res) => {
+  var row = db.prepare('SELECT photo_data FROM bird_sighting_photos WHERE id=?').get(parseInt(req.params.photoId));
+  if (!row || !row.photo_data) return res.status(404).send('No photo');
+  res.set('Content-Type', 'image/jpeg');
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.send(Buffer.from(row.photo_data, 'base64'));
+});
+
 // Public: like
 router.post('/:id/like', (req, res) => {
   db.prepare('UPDATE bird_sightings SET likes_count = likes_count + 1 WHERE id=?').run(req.params.id);
   res.json({ success: true });
 });
 
-// Public: submit sighting
+// Public: submit sighting (multi-photo)
 router.post('/submit', (req, res) => {
   var b = req.body || {};
   if (!b.bird_name) return res.status(400).json({ error: 'Bird name is required' });
+
+  var mainPhoto = b.photo_data || (b.photos && b.photos[0]) || null;
+  if (mainPhoto && mainPhoto.length > MAX_PHOTO_SIZE) return res.status(400).json({ error: 'Photo too large' });
+
+  // Determine if this is the first-ever bird sighting (Founding Birder award)
+  var existingFirst = db.prepare('SELECT COUNT(*) as c FROM bird_sightings WHERE is_first_sighting = 1').get().c;
+  var isFirstSighting = existingFirst === 0 ? 1 : 0;
+
   var result = db.prepare(`INSERT INTO bird_sightings
-    (tenant_id, bird_name, location, spotted_date, spotted_time, rarity, photo_data, notes)
-    VALUES (?,?,?,?,?,?,?,?)`).run(
+    (tenant_id, bird_name, location, spotted_date, spotted_time, rarity, photo_data, notes, is_first_sighting)
+    VALUES (?,?,?,?,?,?,?,?,?)`).run(
     b.tenant_id || null, b.bird_name, b.location || null,
     b.spotted_date || new Date().toISOString().split('T')[0],
-    b.spotted_time || null, b.rarity || 'Common', b.photo_data || null, b.notes || null
+    b.spotted_time || null, b.rarity || 'Common', mainPhoto, b.notes || null,
+    isFirstSighting
   );
-  res.json({ id: result.lastInsertRowid });
+  var sightingId = result.lastInsertRowid;
+
+  if (b.photos && b.photos.length > 1) {
+    var ins = db.prepare('INSERT INTO bird_sighting_photos (sighting_id, photo_data, display_order) VALUES (?,?,?)');
+    for (var i = 1; i < Math.min(b.photos.length, MAX_PHOTOS); i++) {
+      if (b.photos[i] && b.photos[i].length <= MAX_PHOTO_SIZE) ins.run(sightingId, b.photos[i], i);
+    }
+  }
+
+  res.json({ id: sightingId, is_first_sighting: !!isFirstSighting });
 });
 
 // Admin routes
@@ -55,7 +87,9 @@ router.get('/', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   res.json(db.prepare(`
     SELECT s.*, t.first_name, t.last_name, t.lot_id,
-      CASE WHEN s.photo_data IS NOT NULL AND s.photo_data != '' THEN 1 ELSE 0 END as has_photo
+      CASE WHEN s.photo_data IS NOT NULL AND s.photo_data != '' THEN 1 ELSE 0 END as has_photo,
+      (SELECT COUNT(*) FROM bird_sighting_photos WHERE sighting_id=s.id) as extra_photo_count,
+      (SELECT GROUP_CONCAT(id) FROM bird_sighting_photos WHERE sighting_id=s.id ORDER BY display_order) as extra_photo_ids_csv
     FROM bird_sightings s LEFT JOIN tenants t ON s.tenant_id = t.id
     ORDER BY s.created_at DESC
   `).all());
@@ -70,6 +104,7 @@ router.put('/:id/feature', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  db.prepare('DELETE FROM bird_sighting_photos WHERE sighting_id=?').run(req.params.id);
   db.prepare('DELETE FROM bird_sightings WHERE id=?').run(req.params.id);
   res.json({ success: true });
 });

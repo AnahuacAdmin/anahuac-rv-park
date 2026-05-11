@@ -3025,7 +3025,10 @@ var _hfFilter = '';
 var _hfMyReactions = {};
 var _hfPhotos = []; // staged photos for upload (base64 strings)
 var _gardenPhotos = []; // staged garden photos (base64 strings)
+var _birdPhotos = []; // staged bird sighting photos (base64 strings)
 var _gardenPhotoCache = {}; // postId -> [url1, url2, ...]
+var _birdLastFeed = [];
+var _birdPhotoCache = {}; // sightingId -> [url1, url2, ...]
 function cycleGardenPhoto(container, postId, totalPhotos) {
   if (!_gardenPhotoCache[postId]) {
     var post = (_gardenLastFeed || []).find(function(p) { return p.id === postId; });
@@ -3037,6 +3040,32 @@ function cycleGardenPhoto(container, postId, totalPhotos) {
     _gardenPhotoCache[postId] = urls;
   }
   var urls = _gardenPhotoCache[postId];
+  var currentIdx = parseInt(container.dataset.photoIdx || '0', 10);
+  var nextIdx = (currentIdx + 1) % urls.length;
+  container.dataset.photoIdx = nextIdx;
+  var img = container.querySelector('img');
+  if (img) img.src = urls[nextIdx];
+  var badge = container.querySelector('[data-photo-badge]');
+  if (badge) badge.textContent = '📷 ' + (nextIdx + 1) + '/' + totalPhotos;
+  var dots = container.querySelectorAll('[data-dot]');
+  dots.forEach(function(d, i) { d.style.background = i === nextIdx ? '#fff' : 'rgba(255,255,255,0.4)'; });
+}
+
+function cycleBirdPhoto(container, sightingId, totalPhotos) {
+  if (!_birdPhotoCache[sightingId]) {
+    var post = (_birdLastFeed || []).find(function(p) { return p.id === sightingId; });
+    if (!post) return;
+    var urls = ['/api/birding/' + sightingId + '/photo'];
+    var csv = post.extra_photo_ids_csv || '';
+    if (csv) {
+      csv.split(',').forEach(function(eid) {
+        eid = parseInt(eid, 10);
+        if (eid) urls.push('/api/birding/photos/' + eid);
+      });
+    }
+    _birdPhotoCache[sightingId] = urls;
+  }
+  var urls = _birdPhotoCache[sightingId];
   var currentIdx = parseInt(container.dataset.photoIdx || '0', 10);
   var nextIdx = (currentIdx + 1) % urls.length;
   container.dataset.photoIdx = nextIdx;
@@ -3857,9 +3886,11 @@ function switchBirdTab(tab) {
 async function loadPortalBirdFeed() {
   var el = document.getElementById('portal-bird-content');
   if (!el) return;
+  _birdPhotoCache = {}; // reset cache on each feed reload
   try {
     var r = await fetch('/api/birding/public');
     var posts = await r.json();
+    _birdLastFeed = posts || [];
     if (!posts || !posts.length) {
       el.innerHTML = '<div style="text-align:center;padding:1.5rem 0;color:#a8a29e">No sightings yet! Be the first to post. 🐦</div>';
       return;
@@ -3867,11 +3898,27 @@ async function loadPortalBirdFeed() {
     el.innerHTML = posts.map(function(p) {
       var rarityColor = p.rarity === 'Very Rare' ? '#dc2626' : p.rarity === 'Rare' ? '#f59e0b' : p.rarity === 'Uncommon' ? '#3b82f6' : '#16a34a';
       var isRare = p.rarity === 'Rare' || p.rarity === 'Very Rare';
+      var totalPhotos = (p.has_photo ? 1 : 0) + (p.extra_photo_count || 0);
+      var photoBlock = '';
+      if (p.has_photo) {
+        if (totalPhotos > 1) {
+          photoBlock = '<div style="position:relative;cursor:pointer;background:#1a1a1a;text-align:center" onclick="cycleBirdPhoto(this,' + p.id + ',' + totalPhotos + ')" data-photo-idx="0">' +
+            '<img src="/api/birding/' + p.id + '/photo" style="width:100%;max-height:400px;height:auto;object-fit:contain;display:block" onerror="this.style.display=\'none\'" loading="lazy">' +
+            '<div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:12px" data-photo-badge>📷 1/' + totalPhotos + '</div>' +
+            '<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:4px">' +
+              Array.from({length: totalPhotos}, function(_, i) { return '<div style="width:6px;height:6px;border-radius:50%;background:' + (i === 0 ? '#fff' : 'rgba(255,255,255,0.4)') + '" data-dot="' + i + '"></div>'; }).join('') +
+            '</div>' +
+          '</div>';
+        } else {
+          photoBlock = '<img src="/api/birding/' + p.id + '/photo" style="width:100%;max-height:400px;height:auto;object-fit:contain;background:#1a1a1a;display:block" onerror="this.style.display=\'none\'">';
+        }
+      }
       return '<div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin-bottom:0.75rem' + (isRare ? ';border-color:#f59e0b;border-width:2px' : '') + '">' +
-        (p.has_photo ? '<img src="/api/birding/' + p.id + '/photo" style="width:100%;max-height:400px;height:auto;object-fit:contain;background:#1a1a1a;display:block" onerror="this.style.display=\'none\'">' : '') +
+        photoBlock +
         '<div style="padding:0.75rem">' +
           (isRare ? '<div style="background:#fffbeb;color:#f59e0b;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem">🌟 RARE SIGHTING!</div>' : '') +
           (p.is_featured ? '<div style="background:#f0fdf4;color:#16a34a;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem">⭐ FEATURED</div>' : '') +
+          (p.is_first_sighting ? '<div style="background:#dbeafe;color:#1e40af;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:0.3rem">🏆 FOUNDING BIRDER</div>' : '') +
           '<div style="font-weight:700;font-size:1.05rem;color:#1c1917">' + _escPortal(p.bird_name) + '</div>' +
           '<div style="font-size:0.82rem;color:#57534e;margin-top:0.15rem">' +
             '<span style="color:' + rarityColor + ';font-weight:600;font-size:0.72rem;background:' + rarityColor + '15;padding:1px 5px;border-radius:4px">' + p.rarity + '</span>' +
@@ -3936,7 +3983,7 @@ function showPortalBirdForm() {
   var now = new Date().toTimeString().slice(0, 5);
   var el = document.getElementById('portal-bird-content');
   if (!el) return;
-
+  _birdPhotos = []; // reset on each open
   el.innerHTML = '<div style="max-width:500px;margin:0 auto">' +
     '<form id="portal-bird-form">' +
     '<div class="form-group"><label>Bird Name *</label>' +
@@ -3950,39 +3997,62 @@ function showPortalBirdForm() {
     '</div>' +
     '<div class="form-group"><label>Rarity</label>' +
       '<select name="rarity" style="width:100%"><option>Common</option><option>Uncommon</option><option>Rare</option><option>Very Rare</option></select></div>' +
-    '<div class="form-group"><label>Photo <span style="color:#a8a29e">(optional)</span></label>' +
-      '<input type="file" id="bird-photo-input" accept="image/*">' +
-      '<div id="bird-photo-preview" style="margin-top:0.4rem"></div>' +
-      '<input type="hidden" id="bird-photo-data" name="photo_data">' +
+    '<div class="form-group"><label>📸 Photos <span style="color:#a8a29e">(optional, up to 5)</span></label>' +
+      '<div style="display:flex;align-items:center;gap:0.5rem">' +
+        '<label style="cursor:pointer;font-size:0.82rem;color:#0284c7;font-weight:600;border:1px solid #0284c7;padding:0.4rem 0.75rem;border-radius:8px;display:inline-block">' +
+          '<input type="file" id="bird-photo-input" accept="image/*" multiple style="display:none"> 📷 Add Photos</label>' +
+        '<span id="bird-photo-status" style="font-size:0.78rem;color:#78716c"></span>' +
+      '</div>' +
+      '<div id="bird-photo-preview" style="margin-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.3rem"></div>' +
     '</div>' +
     '<div class="form-group"><label>Notes</label><textarea name="notes" rows="2" placeholder="Any details — behavior, number of birds, etc." style="width:100%"></textarea></div>' +
     '<button type="submit" class="btn btn-full" style="background:#0284c7;color:#fff;font-size:0.95rem;min-height:48px">🐦 Post Sighting</button>' +
     '</form>' +
     '<div style="text-align:center;margin-top:0.75rem"><a href="#" onclick="event.preventDefault();switchBirdTab(\'sightings\')" style="color:#78716c;font-size:0.82rem">← Back to sightings</a></div></div>';
-
   setTimeout(function() {
     document.getElementById('bird-photo-input')?.addEventListener('change', function(ev) {
-      var file = ev.target.files && ev.target.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        document.getElementById('bird-photo-data').value = e.target.result.split(',')[1];
-        document.getElementById('bird-photo-preview').innerHTML = '<img src="' + e.target.result + '" style="max-width:200px;max-height:150px;border-radius:10px;border:1px solid #e5e7eb">';
-      };
-      reader.readAsDataURL(file);
+      var files = Array.from(ev.target.files); if (!files.length) return;
+      files.forEach(function(file) {
+        if (_birdPhotos.length >= 5) return;
+        _resizeImage(file, 1920, function(base64) {
+          if (_birdPhotos.length >= 5) return;
+          _birdPhotos.push(base64);
+          _renderBirdPhotoPreviews();
+        });
+      });
+      ev.target.value = '';
     });
-
     document.getElementById('portal-bird-form')?.addEventListener('submit', async function(ev) {
       ev.preventDefault();
+      if (window._birdSubmitting) return;
+      window._birdSubmitting = true;
+      var btn = ev.target.querySelector('button[type="submit"]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Posting...'; btn.style.opacity = '0.6'; }
       var fd = new FormData(ev.target);
       var data = Object.fromEntries(fd);
-      data.photo_data = document.getElementById('bird-photo-data')?.value || null;
+      data.photos = _birdPhotos.slice();
       if (_portalTenant) data.tenant_id = _portalTenant.id;
       try {
-        await fetch('/api/birding/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-        alert('🐦 Sighting posted! Thank you for contributing!');
-        switchBirdTab('sightings');
+        var r = await fetch('/api/birding/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        var resp = await r.json();
+        if (resp.id) {
+          _birdPhotos = [];
+          if (resp.is_first_sighting) {
+            setTimeout(function() {
+              alert('🐦 Congratulations! You are the FOUNDING BIRDER of Anahuac RV Park! Your discovery will be remembered forever.');
+            }, 400);
+          } else {
+            alert('🐦 Sighting posted! Thank you for contributing!');
+          }
+          switchBirdTab('sightings');
+        } else {
+          alert(resp.error || 'Failed to post. Please try again.');
+        }
       } catch { alert('Failed to post. Please try again.'); }
+      finally {
+        window._birdSubmitting = false;
+        if (btn) { btn.disabled = false; btn.textContent = '🐦 Post Sighting'; btn.style.opacity = '1'; }
+      }
     });
   }, 50);
 }
@@ -6109,6 +6179,21 @@ function _renderGardenPhotoPreviews() {
     container.appendChild(wrap);
   });
   if (status) status.textContent = _gardenPhotos.length ? _gardenPhotos.length + ' photo' + (_gardenPhotos.length > 1 ? 's' : '') + ' ready' : '';
+}
+
+function _renderBirdPhotoPreviews() {
+  var container = document.getElementById('bird-photo-preview');
+  var status = document.getElementById('bird-photo-status');
+  if (!container) return;
+  container.innerHTML = '';
+  _birdPhotos.forEach(function(b64, idx) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;display:inline-block';
+    wrap.innerHTML = '<img src="data:image/jpeg;base64,' + b64 + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid #0284c7">' +
+      '<button onclick="_birdPhotos.splice(' + idx + ',1);_renderBirdPhotoPreviews()" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:18px">✕</button>';
+    container.appendChild(wrap);
+  });
+  if (status) status.textContent = _birdPhotos.length ? _birdPhotos.length + ' photo' + (_birdPhotos.length > 1 ? 's' : '') + ' ready' : '';
 }
 
 async function loadGardenTip() {
