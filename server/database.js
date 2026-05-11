@@ -1612,17 +1612,21 @@ async function initializeDatabase() {
 // ── Idempotent data backfills (runs every boot) ──
 function runDataBackfills() {
   // Backfill: is_first_fish / is_first_hunt from legacy is_first_catch
+  // NOTE: must use dbWrapper (better-sqlite3-shaped API), not raw sql.js db.
+  // Raw sql.js Statement.get() returns an array, not an object — so .c is undefined.
   try {
-    var fishFirstCount = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_fish = 1').get().c;
+    var fishRow = dbWrapper.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_fish = 1').get();
+    var fishFirstCount = fishRow ? fishRow.c : 0;
     if (fishFirstCount === 0) {
-      var fishUpdate = db.prepare(`UPDATE hunting_fishing_posts SET is_first_fish = 1 WHERE is_first_catch = 1 AND post_type = 'fishing'`).run();
+      var fishUpdate = dbWrapper.prepare(`UPDATE hunting_fishing_posts SET is_first_fish = 1 WHERE is_first_catch = 1 AND post_type = 'fishing'`).run();
       console.log('[backfill] is_first_fish set on', fishUpdate.changes, 'row(s)');
     } else {
       console.log('[backfill] is_first_fish already populated (' + fishFirstCount + ' row(s)), skip');
     }
-    var huntFirstCount = db.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_hunt = 1').get().c;
+    var huntRow = dbWrapper.prepare('SELECT COUNT(*) as c FROM hunting_fishing_posts WHERE is_first_hunt = 1').get();
+    var huntFirstCount = huntRow ? huntRow.c : 0;
     if (huntFirstCount === 0) {
-      var huntUpdate = db.prepare(`UPDATE hunting_fishing_posts SET is_first_hunt = 1 WHERE is_first_catch = 1 AND post_type = 'hunting'`).run();
+      var huntUpdate = dbWrapper.prepare(`UPDATE hunting_fishing_posts SET is_first_hunt = 1 WHERE is_first_catch = 1 AND post_type = 'hunting'`).run();
       console.log('[backfill] is_first_hunt set on', huntUpdate.changes, 'row(s)');
     } else {
       console.log('[backfill] is_first_hunt already populated (' + huntFirstCount + ' row(s)), skip');
