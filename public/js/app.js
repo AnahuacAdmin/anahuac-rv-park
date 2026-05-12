@@ -1126,6 +1126,12 @@ function showShareApp() {
         </div>
       </div>
 
+      <!-- QR Code -->
+      <div style="text-align:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:0.75rem;margin-bottom:1rem">
+        <div style="font-size:0.78rem;color:var(--gray-500);margin-bottom:0.4rem">Or scan this QR code:</div>
+        <div id="share-qr" style="display:inline-block"></div>
+      </div>
+
       <!-- Share buttons -->
       <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
         <a class="btn btn-outline" style="flex:1;text-align:center;text-decoration:none;min-width:120px" href="mailto:?subject=${encodeURIComponent('Anahuac RV Park Management App')}&body=${encodeURIComponent('Here is your link to the Anahuac RV Park management app:\\n\\n' + appUrl + '\\n\\nTo add it to your phone home screen:\\niPhone: Tap Share → Add to Home Screen\\nAndroid: Tap menu → Add to Home Screen')}">
@@ -1185,6 +1191,12 @@ function showShareApp() {
       <p style="font-size:0.78rem;color:var(--gray-400);margin-top:1rem;text-align:center">The app works offline and looks like a native app when installed!</p>
     </div>
   `);
+  setTimeout(function() {
+    var qrEl = document.getElementById('share-qr');
+    if (qrEl && typeof QRCode !== 'undefined') {
+      new QRCode(qrEl, { text: appUrl, width: 180, height: 180, colorDark: '#1f2937', colorLight: '#ffffff' });
+    }
+  }, 50);
 }
 
 // =====================================================================
@@ -1296,46 +1308,6 @@ function showPageLoading() {
       </div>
       <div class="skeleton-pulse" style="height:300px"></div>
     </div>`;
-}
-
-function showShareApp() {
-  showModal('Share App', `
-    <div style="text-align:center">
-      <p style="margin-bottom:1rem;font-weight:600">Scan this QR code to open the app:</p>
-      <div id="share-qr" style="display:inline-block;margin-bottom:1rem"></div>
-      <p style="margin:1rem 0 0.5rem;font-size:0.9rem;word-break:break-all"><a href="${APP_URL}" target="_blank">${APP_URL}</a></p>
-      <button class="btn btn-outline" onclick="copyAppLink()" id="copy-link-btn">&#128203; Copy Link</button>
-    </div>
-    <hr style="margin:1.5rem 0">
-    <h4 style="margin-bottom:0.5rem">iPhone — Add to Home Screen</h4>
-    <ol style="font-size:0.9rem;line-height:1.6;padding-left:1.25rem;margin-bottom:1rem">
-      <li>Open the link above in <strong>Safari</strong>.</li>
-      <li>Tap the <strong>Share</strong> button (square with arrow).</li>
-      <li>Scroll down and tap <strong>"Add to Home Screen"</strong>.</li>
-      <li>Tap <strong>Add</strong>. The app icon will appear on your home screen.</li>
-    </ol>
-    <h4 style="margin-bottom:0.5rem">Android — Add to Home Screen</h4>
-    <ol style="font-size:0.9rem;line-height:1.6;padding-left:1.25rem">
-      <li>Open the link in <strong>Chrome</strong>.</li>
-      <li>Tap the <strong>Install App</strong> button if it appears, or tap the <strong>3-dot menu &rarr; "Add to Home screen"</strong>.</li>
-      <li>Tap <strong>Add</strong>. The app will work like a native app with no browser bars.</li>
-    </ol>
-  `);
-  setTimeout(() => {
-    const el = document.getElementById('share-qr');
-    if (el && typeof QRCode !== 'undefined') {
-      new QRCode(el, { text: APP_URL, width: 200, height: 200, colorDark: '#1f2937', colorLight: '#ffffff' });
-    }
-  }, 50);
-}
-
-function copyAppLink() {
-  navigator.clipboard?.writeText(APP_URL).then(() => {
-    const btn = document.getElementById('copy-link-btn');
-    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.innerHTML = '&#128203; Copy Link', 2000); }
-  }).catch(() => {
-    prompt('Copy this link:', APP_URL);
-  });
 }
 
 function showModal(title, bodyHtml) {
