@@ -1031,7 +1031,7 @@ function toggleHelp(id) {
   else { el.style.display = 'none'; caret.textContent = '▼'; }
 }
 
-const APP_URL = window.location.origin;
+const APP_URL = window.location.origin + '/portal.html';
 
 // =====================================================================
 // Global Branding — loads accent color, logo, park name from settings
@@ -1111,7 +1111,7 @@ function _darkenHex(hex, amt) {
 // Share App / Add to Home Screen
 // =====================================================================
 function showShareApp() {
-  var appUrl = window.location.origin;
+  var appUrl = window.location.origin + '/portal.html';
   var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
   var isAndroid = /Android/.test(navigator.userAgent);
 
