@@ -124,6 +124,13 @@ async function initializeDatabase() {
   addCol("ALTER TABLE invoices ADD COLUMN late_fee_waived INTEGER DEFAULT 0");
   addCol("ALTER TABLE invoices ADD COLUMN late_fee_waived_reason TEXT");
 
+  // Lost Pets banner: when to stop showing the lost-pet alert
+  // banner_expires_at = NULL means use created_at + 30 days (default behavior)
+  // banner_expires_at = ISO datetime overrides the default (admin-extended or canceled)
+  addCol("ALTER TABLE lost_found_pets ADD COLUMN banner_expires_at DATETIME");
+  // After a pet is marked reunited, show "REUNITED" closure banner until this timestamp (24h after reunion)
+  addCol("ALTER TABLE lost_found_pets ADD COLUMN reunited_until DATETIME");
+
   db.run(`CREATE TABLE IF NOT EXISTS late_fee_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     invoice_id INTEGER REFERENCES invoices(id),
