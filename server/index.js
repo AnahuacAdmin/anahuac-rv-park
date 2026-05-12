@@ -183,6 +183,7 @@ app.get('/rules', (req, res) => res.sendFile(path.join(__dirname, '..', 'public'
 app.get('/sms-consent', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'sms-consent.html')));
 app.get('/sms-terms', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'sms-terms.html')));
 app.get('/book', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'book.html')));
+app.get('/portal', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'portal.html')));
 
 // SPA fallback
 app.get('*', (req, res) => {
