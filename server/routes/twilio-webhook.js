@@ -8,9 +8,7 @@ const express = require('express');
 const twilio = require('twilio');
 const { db } = require('../database');
 const { sendSms, normalizePhone } = require('../twilio');
-
 const router = express.Router();
-
 // Public endpoint — no auth. Twilio POSTs here when a tenant replies to an SMS.
 router.post('/', express.urlencoded({ extended: false }), async (req, res) => {
   try {
@@ -27,19 +25,52 @@ router.post('/', express.urlencoded({ extended: false }), async (req, res) => {
     } else {
       console.warn('[twilio-webhook] TWILIO_AUTH_TOKEN not set — skipping signature verification');
     }
-
     const from = req.body.From || '';
     const body = req.body.Body || '';
     console.log(`[twilio-webhook] incoming SMS from ${from}: ${body}`);
 
-    // Look up tenant by phone
+    // Resolve tenant once (used by keyword handlers and the regular flow)
     const normalized = normalizePhone(from);
     let tenant = null;
     if (normalized) {
-      // Try exact match, then partial (last 10 digits)
       const digits = normalized.replace(/\D/g, '').slice(-10);
-      tenant = db.prepare("SELECT id, first_name, last_name, lot_id, phone FROM tenants WHERE is_active = 1 AND (phone = ? OR phone = ? OR phone LIKE ?)").get(normalized, from, `%${digits}`);
+      tenant = db.prepare("SELECT id, first_name, last_name, lot_id, phone, sms_opt_in FROM tenants WHERE is_active = 1 AND (phone = ? OR phone = ? OR phone LIKE ?)").get(normalized, from, `%${digits}`);
     }
+
+    // --- Carrier-required keyword handling (A2P 10DLC compliance) ---
+    const normalizedBody = body.trim().toUpperCase();
+    const STOP_WORDS  = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'];
+    const START_WORDS = ['START', 'UNSTOP', 'YES'];
+    const HELP_WORDS  = ['HELP', 'INFO'];
+
+    if (STOP_WORDS.includes(normalizedBody)) {
+      if (tenant) {
+        db.prepare("UPDATE tenants SET sms_opt_in = 0 WHERE id = ?").run(tenant.id);
+        console.log(`[twilio-webhook] STOP from tenant ${tenant.id} (${tenant.first_name} ${tenant.last_name}) — sms_opt_in=0`);
+      } else {
+        console.log(`[twilio-webhook] STOP from unknown number ${from}`);
+      }
+      res.type('text/xml');
+      return res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+    }
+
+    if (START_WORDS.includes(normalizedBody)) {
+      if (tenant) {
+        db.prepare("UPDATE tenants SET sms_opt_in = 1 WHERE id = ?").run(tenant.id);
+        console.log(`[twilio-webhook] START from tenant ${tenant.id} — sms_opt_in=1`);
+      } else {
+        console.log(`[twilio-webhook] START from unknown number ${from}`);
+      }
+      res.type('text/xml');
+      return res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+    }
+
+    if (HELP_WORDS.includes(normalizedBody)) {
+      console.log(`[twilio-webhook] HELP from ${from}`);
+      res.type('text/xml');
+      return res.send('<?xml version="1.0" encoding="UTF-8"?><Response><Message>Anahuac RV Park: For help call 409-267-6603 or email anrvpark@gmail.com. Reply STOP to unsubscribe.</Message></Response>');
+    }
+    // --- end keyword handling ---
 
     const tenantName = tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Unknown';
     const lotId = tenant?.lot_id || '?';
@@ -73,5 +104,4 @@ router.post('/', express.urlencoded({ extended: false }), async (req, res) => {
     res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
   }
 });
-
 module.exports = router;
