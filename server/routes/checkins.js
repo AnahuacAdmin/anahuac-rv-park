@@ -85,7 +85,7 @@ router.post('/checkin', (req, res) => {
       if (tenant?.phone) {
         const wifiRow = db.prepare("SELECT value FROM settings WHERE key = 'wifi_password'").get();
         const wifiLine = wifiRow?.value ? `\nWiFi Password: ${wifiRow.value}\n` : '';
-        const welcomeMsg = `Welcome to Anahuac RV Park! We're glad you're here!\n\nLot: ${lot_id}\nContact: 409-267-6603 | anrvpark.com${wifiLine}\n\nPARK RULES SUMMARY:\n- Rent due on time — late fees apply after 3 days\n- Speed limit: 5 MPH — children & ducks in park!\n- Quiet hours: 10pm–7am\n- Pets welcome on leash — clean up after them\n- Max 2 people/cars per space ($25/extra person)\n- No fires except pits/rings. No fireworks. No weapons.\n- Keep your site clean at all times\n- No subleasing. No sharing WiFi password.\n- Guests: max 2 visitors at a time\n\nYOUR GUEST PORTAL 🌐\nView bills, pay rent, see your account credit, and message us anytime:\n${APP_URL}/portal.html\n\nWelcome home! 🦆`;
+        const welcomeMsg = `Welcome to Anahuac RV Park! We're glad you're here!\n\nLot: ${lot_id}\nContact: 409-267-6603 | anrvpark.com${wifiLine}\n\nPARK RULES SUMMARY:\n- Rent due on time — late fees apply after 3 days\n- Speed limit: 5 MPH — children & ducks in park!\n- Quiet hours: 10pm–7am\n- Pets welcome on leash — clean up after them\n- Max 2 people/cars per space ($25/extra person)\n- No fires except pits/rings. No fireworks. No weapons.\n\nYOUR GUEST PORTAL 🌐\nView bills, pay rent, see your account credit, and message us anytime:\n${APP_URL}/portal.html\n\nWelcome home! 🦆`;
         sendSms(tenant.phone, welcomeMsg).then(r => {
           console.log(`[checkins] welcome SMS sent to ${r.to}, sid=${r.sid}`);
         }).catch(e => {
@@ -288,7 +288,7 @@ router.post('/welcome-sms/:tenantId', async (req, res) => {
     if (!tenant.phone) return res.json({ sent: false, reason: 'No phone on file' });
     const wifiRow = db.prepare("SELECT value FROM settings WHERE key = 'wifi_password'").get();
     const wifiLine = wifiRow?.value ? `\nWiFi Password: ${wifiRow.value}\n` : '';
-    const welcomeMsg = `Welcome to Anahuac RV Park! We're glad you're here!\n\nLot: ${tenant.lot_id}\nContact: 409-267-6603 | anrvpark.com${wifiLine}\n\nPARK RULES SUMMARY:\n- Rent due on time — late fees apply after 3 days\n- Speed limit: 5 MPH — children & ducks in park!\n- Quiet hours: 10pm–7am\n- Pets welcome on leash — clean up after them\n- Max 2 people/cars per space ($25/extra person)\n- No fires except pits/rings. No fireworks. No weapons.\n- Keep your site clean at all times\n- No subleasing. No sharing WiFi password.\n- Guests: max 2 visitors at a time\n\nYOUR GUEST PORTAL 🌐\nView bills, pay rent, see your account credit, and message us anytime:\n${APP_URL}/portal.html\n\nWelcome home! 🦆`;
+    const welcomeMsg = `Welcome to Anahuac RV Park! We're glad you're here!\n\nLot: ${tenant.lot_id}\nContact: 409-267-6603 | anrvpark.com${wifiLine}\n\nPARK RULES SUMMARY:\n- Rent due on time — late fees apply after 3 days\n- Speed limit: 5 MPH — children & ducks in park!\n- Quiet hours: 10pm–7am\n- Pets welcome on leash — clean up after them\n- Max 2 people/cars per space ($25/extra person)\n- No fires except pits/rings. No fireworks. No weapons.\n\nYOUR GUEST PORTAL 🌐\nView bills, pay rent, see your account credit, and message us anytime:\n${APP_URL}/portal.html\n\nWelcome home! 🦆`;
     await sendSms(tenant.phone, welcomeMsg);
     res.json({ sent: true, sentTo: tenant.phone });
   } catch (err) {
