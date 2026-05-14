@@ -68,7 +68,7 @@ router.post('/', express.urlencoded({ extended: false }), async (req, res) => {
     if (HELP_WORDS.includes(normalizedBody)) {
       console.log(`[twilio-webhook] HELP from ${from}`);
       res.type('text/xml');
-      return res.send('<?xml version="1.0" encoding="UTF-8"?><Response><Message>Anahuac RV Park: For help call 409-267-6603 or email anrvpark@gmail.com. Reply STOP to unsubscribe.</Message></Response>');
+      return res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
     }
     // --- end keyword handling ---
 
