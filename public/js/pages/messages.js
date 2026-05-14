@@ -83,7 +83,7 @@ async function loadMessages() {
                 <td>${m.first_name ? m.first_name + ' ' + m.last_name : 'All Tenants'}</td>
                 <td>${m.lot_id || '—'}</td>
                 <td>${m.subject || '(no subject)'}</td>
-                <td><span class="badge badge-${m.message_type === 'urgent' ? 'danger' : m.message_type === 'reminder' ? 'warning' : 'info'}">${m.message_type}</span>
+                <td><span class="badge badge-${m.message_type === 'sms_reply' ? 'success' : m.message_type === 'urgent' ? 'danger' : m.message_type === 'reminder' ? 'warning' : 'info'}">${m.message_type === 'sms_reply' ? '📥 GUEST REPLY' : m.message_type}</span>
                   ${m.is_broadcast ? '<span class="badge badge-gray">broadcast</span>' : ''}
                 </td>
                 <td class="btn-group">
@@ -106,7 +106,7 @@ async function loadMessages() {
           <div class="msg-card-subject">${m.subject || '(no subject)'}</div>
           <div class="msg-card-bottom">
             <div class="msg-card-badges">
-              <span class="badge badge-${m.message_type === 'urgent' ? 'danger' : m.message_type === 'reminder' ? 'warning' : 'info'}">${m.message_type}</span>
+              <span class="badge badge-${m.message_type === 'sms_reply' ? 'success' : m.message_type === 'urgent' ? 'danger' : m.message_type === 'reminder' ? 'warning' : 'info'}">${m.message_type === 'sms_reply' ? '📥 GUEST REPLY' : m.message_type}</span>
               ${m.is_broadcast ? '<span class="badge badge-gray">broadcast</span>' : ''}
             </div>
             <div class="msg-card-actions">
