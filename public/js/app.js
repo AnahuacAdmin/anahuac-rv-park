@@ -1137,9 +1137,9 @@ function showShareApp() {
         <a class="btn btn-outline" style="flex:1;text-align:center;text-decoration:none;min-width:120px" href="mailto:?subject=${encodeURIComponent('Anahuac RV Park Management App')}&body=${encodeURIComponent('Here is your link to the Anahuac RV Park management app:\\n\\n' + appUrl + '\\n\\nTo add it to your phone home screen:\\niPhone: Tap Share → Add to Home Screen\\nAndroid: Tap menu → Add to Home Screen')}">
           📧 Send via Email
         </a>
-        <a class="btn btn-outline" style="flex:1;text-align:center;text-decoration:none;min-width:120px" href="sms:&body=${encodeURIComponent('Anahuac RV Park app: ' + appUrl + ' — Add to home screen for quick access!')}">
+        <button class="btn btn-outline" style="flex:1;text-align:center;min-width:120px" onclick="shareAppViaSms()">
           📱 Send via SMS
-        </a>
+        </button>
       </div>
 
       <!-- Add to Home Screen Instructions -->
@@ -1522,3 +1522,18 @@ document.addEventListener('DOMContentLoaded', () => {
     })();
   }
 });
+
+async function shareAppViaSms() {
+  var phone = prompt('Enter guest phone number (10 digits):');
+  if (!phone) return;
+  phone = phone.replace(/\D/g, '');
+  if (phone.length === 11 && phone[0] === '1') phone = phone.slice(1);
+  if (phone.length !== 10) { alert('Please enter a valid 10-digit phone number.'); return; }
+  var appUrl = window.location.origin + '/portal.html';
+  try {
+    await API.post('/messages/send-raw-sms', { to: phone, body: 'Anahuac RV Park app: ' + appUrl + ' — Add to home screen for quick access!' });
+    showStatusToast('✅', 'App link sent via SMS');
+  } catch (err) {
+    showStatusToast('❌', 'Failed to send SMS: ' + (err.message || 'unknown'));
+  }
+}
