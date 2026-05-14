@@ -1137,7 +1137,7 @@ function showShareApp() {
         <a class="btn btn-outline" style="flex:1;text-align:center;text-decoration:none;min-width:120px" href="mailto:?subject=${encodeURIComponent('Anahuac RV Park Management App')}&body=${encodeURIComponent('Here is your link to the Anahuac RV Park management app:\\n\\n' + appUrl + '\\n\\nTo add it to your phone home screen:\\niPhone: Tap Share → Add to Home Screen\\nAndroid: Tap menu → Add to Home Screen')}">
           📧 Send via Email
         </a>
-        <a class="btn btn-outline" style="flex:1;text-align:center;text-decoration:none;min-width:120px" href="sms:?body=${encodeURIComponent('Anahuac RV Park app: ' + appUrl + ' — Add to home screen for quick access!')}">
+        <a class="btn btn-outline" style="flex:1;text-align:center;text-decoration:none;min-width:120px" href="sms:&body=${encodeURIComponent('Anahuac RV Park app: ' + appUrl + ' — Add to home screen for quick access!')}">
           📱 Send via SMS
         </a>
       </div>
