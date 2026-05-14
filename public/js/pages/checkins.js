@@ -85,7 +85,7 @@ async function showCheckIn() {
         </div>
         <div class="form-row">
           <div class="form-group"><label>ID / Driver's License #</label><input name="id_number" placeholder="For records only"></div>
-          <div class="form-group"><label>Date of Birth</label><input name="date_of_birth" type="date"></div>
+          <div class="form-group"><label>Date of Birth <span style="font-weight:400;color:#78716c;font-size:0.72rem">(type or pick)</span></label><input name="date_of_birth" type="date" min="1900-01-01" max="2020-12-31" placeholder="MM/DD/YYYY"></div>
         </div>
       </fieldset>
 
