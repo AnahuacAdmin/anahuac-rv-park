@@ -280,19 +280,16 @@ router.post('/checkout', async (req, res) => {
   }
 });
 
-// Send welcome SMS (two messages) to a newly checked-in tenant.
+// Send the same welcome SMS the auto-send uses, manually (e.g. re-send button).
 router.post('/welcome-sms/:tenantId', async (req, res) => {
   try {
-    const tenant = db.prepare('SELECT first_name, phone FROM tenants WHERE id = ?').get(req.params.tenantId);
+    const tenant = db.prepare('SELECT first_name, phone, lot_id FROM tenants WHERE id = ?').get(req.params.tenantId);
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
     if (!tenant.phone) return res.json({ sent: false, reason: 'No phone on file' });
-
-    const msg1 = `Welcome to Anahuac RV Park! We are so glad you chose us as your home. Here is your guest portal — view bills, pay rent, see your account credit, and message us: ${APP_URL}/portal.html`;
-    const msg2 = `PARK RULES: Quiet hours 10pm-7am. Speed limit 5mph. Keep your lot clean. Rent due 1st of month, late after 5th. No open fires. Pets on leash. Questions? Call 409-267-6603`;
-
-    await sendSms(tenant.phone, msg1);
-    await sendSms(tenant.phone, msg2);
-
+    const wifiRow = db.prepare("SELECT value FROM settings WHERE key = 'wifi_password'").get();
+    const wifiLine = wifiRow?.value ? `\nWiFi Password: ${wifiRow.value}\n` : '';
+    const welcomeMsg = `Welcome to Anahuac RV Park! We're glad you're here!\n\nLot: ${tenant.lot_id}\nContact: 409-267-6603 | anrvpark.com${wifiLine}\n\nPARK RULES SUMMARY:\n- Rent due on time — late fees apply after 3 days\n- Speed limit: 5 MPH — children & ducks in park!\n- Quiet hours: 10pm–7am\n- Pets welcome on leash — clean up after them\n- Max 2 people/cars per space ($25/extra person)\n- No fires except pits/rings. No fireworks. No weapons.\n- Keep your site clean at all times\n- No subleasing. No sharing WiFi password.\n- Guests: max 2 visitors at a time\n\nYOUR GUEST PORTAL 🌐\nView bills, pay rent, see your account credit, and message us anytime:\n${APP_URL}/portal.html\n\nWelcome home! 🦆`;
+    await sendSms(tenant.phone, welcomeMsg);
     res.json({ sent: true, sentTo: tenant.phone });
   } catch (err) {
     console.error('[checkins] welcome sms failed:', err);
