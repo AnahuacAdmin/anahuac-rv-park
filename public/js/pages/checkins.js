@@ -4,6 +4,11 @@
  * Proprietary and Confidential.
  * Unauthorized copying, distribution, or use is strictly prohibited.
  */
+function escapeAttr(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function toggleCheckinPaymentNote(method) {
   var cardNote = document.getElementById('checkin-payment-card-note');
   var refGroup = document.getElementById('checkin-payment-ref-group');
@@ -66,22 +71,30 @@ function toggleCheckinFlatRate(cb) {
   if (group) group.style.display = cb.checked ? '' : 'none';
 }
 
-async function showCheckIn() {
+async function showCheckIn(prefill) {
+  prefill = prefill || {};
   const [lots, settings] = await Promise.all([API.get('/lots'), API.get('/settings')]);
   _checkinDefaultFlatRate = parseFloat(settings?.default_flat_rate) || 0;
-  const vacantLots = lots.filter(l => l.status === 'vacant');
+  let vacantLots = lots.filter(l => l.status === 'vacant');
+  // If prefill specifies a reserved lot, ensure it appears in the dropdown even if not 'vacant'
+  if (prefill.lot_id && !vacantLots.find(l => l.id === prefill.lot_id)) {
+    const reservedLot = lots.find(l => l.id === prefill.lot_id);
+    if (reservedLot) vacantLots = [Object.assign({}, reservedLot, { _reserved: true }), ...vacantLots];
+  }
 
   showModal('Check-In New Guest', `
     <form onsubmit="processCheckIn(event)">
+      ${prefill.reservation_id ? `<input type="hidden" name="reservation_id" value="${prefill.reservation_id}">` : ''}
+      ${prefill.reservation_id ? `<div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.75rem;font-size:0.85rem;color:#1e40af"><strong>📋 Converting Reservation</strong>${prefill.confirmation_number ? ` — ${escapeHtml(prefill.confirmation_number)}` : ''}</div>` : ''}
       <fieldset style="border:1px solid var(--gray-200);padding:0.75rem;margin-bottom:0.75rem;border-radius:8px">
         <legend><strong>Guest Info</strong></legend>
         <div class="form-row">
-          <div class="form-group"><label>First Name</label><input name="first_name" required></div>
-          <div class="form-group"><label>Last Name</label><input name="last_name" required></div>
+          <div class="form-group"><label>First Name</label><input name="first_name" required value="${escapeAttr(prefill.first_name || '')}"></div>
+          <div class="form-group"><label>Last Name</label><input name="last_name" required value="${escapeAttr(prefill.last_name || '')}"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Phone</label><input name="phone"></div>
-          <div class="form-group"><label>Email</label><input name="email" type="email"></div>
+          <div class="form-group"><label>Phone</label><input name="phone" value="${escapeAttr(prefill.phone || '')}"></div>
+          <div class="form-group"><label>Email</label><input name="email" type="email" value="${escapeAttr(prefill.email || '')}"></div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>ID / Driver's License #</label><input name="id_number" placeholder="For records only"></div>
@@ -96,21 +109,21 @@ async function showCheckIn() {
             <label>Assign to Lot</label>
             <select name="lot_id" id="checkin-lot-select" required>
               <option value="">Select lot...</option>
-              ${vacantLots.map(l => `<option value="${l.id}" data-short="${l.short_term_only || 0}">${l.id}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}${l.short_term_only ? ' ⏱️' : ''}</option>`).join('')}
+              ${vacantLots.map(l => `<option value="${l.id}" data-short="${l.short_term_only || 0}"${prefill.lot_id === l.id ? ' selected' : ''}>${l.id}${l.size_restriction ? ' (' + l.size_restriction + ')' : ''}${l.short_term_only ? ' ⏱️' : ''}${l._reserved ? ' (reserved)' : ''}</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
             <label>Rate Type</label>
             <select name="rent_type" id="checkin-rent-type" onchange="updateRateLabel(this)">
-              <option value="monthly" selected>Monthly</option>
-              <option value="weekly">Weekly</option>
-              <option value="daily">Daily</option>
+              <option value="monthly"${(prefill.rent_type || 'monthly') === 'monthly' ? ' selected' : ''}>Monthly</option>
+              <option value="weekly"${prefill.rent_type === 'weekly' ? ' selected' : ''}>Weekly</option>
+              <option value="daily"${prefill.rent_type === 'daily' ? ' selected' : ''}>Daily</option>
             </select>
           </div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label id="rate-label">Monthly Rate ($)</label><input name="monthly_rent" type="number" step="0.01" value="295" onchange="updateStayPreview(this.form)"></div>
-          <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${new Date().toISOString().split('T')[0]}" required onchange="calcProration(this.form);updateStayPreview(this.form)"></div>
+          <div class="form-group"><label id="rate-label">Monthly Rate ($)</label><input name="monthly_rent" type="number" step="0.01" value="${prefill.monthly_rent != null ? Number(prefill.monthly_rent) : 295}" onchange="updateStayPreview(this.form)"></div>
+          <div class="form-group"><label>Check-In Date</label><input name="check_in_date" type="date" value="${prefill.check_in_date || new Date().toISOString().split('T')[0]}" required onchange="calcProration(this.form);updateStayPreview(this.form)"></div>
         </div>
         <div id="first-invoice-block" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.5rem">
           <strong style="color:#1e40af">First Invoice — Choose Rent Amount</strong>
@@ -138,13 +151,13 @@ async function showCheckIn() {
           </div>
         </div>
         <div class="form-row" id="departure-date-group" style="display:none">
-          <div class="form-group"><label>Departure Date</label><input name="departure_date" id="checkin-departure-date" type="date" onchange="updateStayPreview(this.form)"></div>
+          <div class="form-group"><label>Departure Date</label><input name="departure_date" id="checkin-departure-date" type="date" value="${prefill.departure_date || ''}" onchange="updateStayPreview(this.form)"></div>
           <div class="form-group" style="display:flex;align-items:flex-end">
             <div id="stay-preview" style="font-size:0.85rem;font-weight:600;color:#1a5c32;padding-bottom:0.4rem"></div>
           </div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" id="checkin-deposit-amt" type="number" step="0.01" value="0"></div>
+          <div class="form-group"><label>Deposit Paid ($)</label><input name="deposit_amount" id="checkin-deposit-amt" type="number" step="0.01" value="${prefill.deposit_amount != null ? Number(prefill.deposit_amount) : 0}"></div>
           <div class="form-group" style="display:flex;align-items:flex-end">
             <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem">
               <input type="checkbox" name="deposit_waived" id="checkin-deposit-waived" value="1"> Waive Deposit
@@ -181,7 +194,7 @@ async function showCheckIn() {
           <div class="form-row">
             <div class="form-group">
               <label>Amount ($)</label>
-              <input name="payment_amount" type="number" step="0.01" min="0" placeholder="0.00" id="checkin-payment-amount" style="font-size:1.1rem;font-weight:600;border:2px solid #d1d5db">
+              <input name="payment_amount" type="number" step="0.01" min="0" placeholder="0.00" value="${prefill.payment_amount != null && Number(prefill.payment_amount) > 0 ? Number(prefill.payment_amount).toFixed(2) : ''}" id="checkin-payment-amount" style="font-size:1.1rem;font-weight:600;border:2px solid #d1d5db">
             </div>
             <div class="form-group">
               <label>Payment Method</label>
@@ -359,6 +372,20 @@ async function showCheckIn() {
       });
     });
   }, 50);
+  // If prefill provided, trigger proration + stay preview + first-invoice block after render
+  if (prefill && (prefill.rent_type || prefill.check_in_date)) {
+    setTimeout(function() {
+      var form = document.querySelector('#modal-body form');
+      if (!form) return;
+      if (typeof updateRateLabel === 'function' && form.rent_type) {
+        // Only call if rent_type isn't monthly (which is the default state)
+        if (form.rent_type.value !== 'monthly') updateRateLabel(form.rent_type);
+      }
+      if (typeof calcProration === 'function') calcProration(form);
+      if (typeof updateStayPreview === 'function') updateStayPreview(form);
+      if (typeof updateFirstInvoiceBlock === 'function') updateFirstInvoiceBlock(form);
+    }, 100);
+  }
 }
 
 // Upload documents after check-in
