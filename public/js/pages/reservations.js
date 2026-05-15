@@ -309,6 +309,19 @@ async function checkinReservation(id) {
     const nameParts = (r.guest_name || '').trim().split(/\s+/);
     const firstName = nameParts.slice(0, -1).join(' ') || nameParts[0] || '';
     const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+    // Infer rent type from stay length — manager can override in the check-in form
+    var nights = r.nights || 0;
+    var rent_type, monthly_rent;
+    if (nights < 7) {
+      rent_type = 'daily';
+      monthly_rent = r.rate_per_night || 30;
+    } else if (nights < 30) {
+      rent_type = 'weekly';
+      monthly_rent = r.rate_per_night ? (r.rate_per_night * 7) : 150;
+    } else {
+      rent_type = 'monthly';
+      monthly_rent = r.rate_per_night ? (r.rate_per_night * 30) : 295;
+    }
     showCheckIn({
       reservation_id: r.id,
       confirmation_number: r.confirmation_number,
@@ -319,9 +332,9 @@ async function checkinReservation(id) {
       lot_id: r.lot_id || '',
       check_in_date: r.arrival_date || '',
       departure_date: r.departure_date || '',
-      monthly_rent: r.rate_per_night ? (r.rate_per_night * 30) : null,
+      monthly_rent: monthly_rent,
       deposit_amount: r.deposit_paid || 0,
-      rent_type: 'monthly'
+      rent_type: rent_type
     });
   } catch (err) { alert('Failed to load reservation: ' + err.message); }
 }
