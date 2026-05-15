@@ -303,12 +303,27 @@ async function cancelReservation(id) {
 }
 
 async function checkinReservation(id) {
-  if (!confirm('Convert this reservation to a full check-in? This creates a tenant record and marks the lot as occupied.')) return;
   try {
-    await API.post(`/reservations/${id}/checkin`, {});
-    alert('Guest checked in and tenant record created.');
-    loadReservations();
-  } catch (err) { alert('Check-in failed: ' + err.message); }
+    const r = _allReservations.find(x => x.id === id);
+    if (!r) { alert('Reservation not found'); return; }
+    const nameParts = (r.guest_name || '').trim().split(/\s+/);
+    const firstName = nameParts.slice(0, -1).join(' ') || nameParts[0] || '';
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+    showCheckIn({
+      reservation_id: r.id,
+      confirmation_number: r.confirmation_number,
+      first_name: firstName,
+      last_name: lastName,
+      phone: r.phone || '',
+      email: r.email || '',
+      lot_id: r.lot_id || '',
+      check_in_date: r.arrival_date || '',
+      departure_date: r.departure_date || '',
+      monthly_rent: r.rate_per_night ? (r.rate_per_night * 30) : null,
+      deposit_amount: r.deposit_paid || 0,
+      rent_type: 'monthly'
+    });
+  } catch (err) { alert('Failed to load reservation: ' + err.message); }
 }
 
 // --- Calendar View ---

@@ -811,6 +811,16 @@ async function _doCheckIn(formEl) {
     console.error('Checkin record failed:', err);
   }
 
+  // Mark reservation as checked-in if this came from a reservation conversion
+  if (data.reservation_id) {
+    try {
+      await API.post('/reservations/' + data.reservation_id + '/mark-checked-in', { tenant_id: tenant.id });
+      console.log('[checkin] reservation ' + data.reservation_id + ' marked checked-in');
+    } catch (e) {
+      console.error('[checkin] mark-checked-in failed (non-fatal):', e.message);
+    }
+  }
+
   // Auto-generate check-in invoice for ALL rent types
   var generatedInvoiceId = null;
   const rentType = data.rent_type || 'monthly';
