@@ -200,6 +200,7 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN guest_rating TEXT DEFAULT 'green'");
   addCol("ALTER TABLE tenants ADD COLUMN last_portal_login TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN portal_login_count INTEGER DEFAULT 0");
+  addCol("ALTER TABLE reservations ADD COLUMN tenant_id INTEGER");
 
   // Rename rent_type 'standard' to 'monthly' for consistency
   try { db.run("UPDATE tenants SET rent_type = 'monthly' WHERE rent_type = 'standard'"); } catch (e) { /* ignore */ }
