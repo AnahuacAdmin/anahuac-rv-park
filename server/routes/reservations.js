@@ -190,10 +190,17 @@ router.post('/:id/mark-checked-in', (req, res) => {
   try {
     const { tenant_id } = req.body;
     if (!tenant_id) return res.status(400).json({ error: 'tenant_id is required' });
-    const r = db.prepare('SELECT id, status, confirmation_number FROM reservations WHERE id = ?').get(req.params.id);
+    const r = db.prepare('SELECT id, status, confirmation_number, lot_id FROM reservations WHERE id = ?').get(req.params.id);
     if (!r) return res.status(404).json({ error: 'Reservation not found' });
     if (r.status === 'checked-in') return res.status(400).json({ error: 'Reservation already checked in' });
+    // If manager changed the lot during check-in, release the originally reserved lot
+    const tenant = db.prepare('SELECT lot_id FROM tenants WHERE id = ?').get(tenant_id);
+    if (tenant && tenant.lot_id && r.lot_id && tenant.lot_id !== r.lot_id) {
+      db.prepare("UPDATE lots SET status = 'vacant' WHERE id = ?").run(r.lot_id);
+      console.log(`[reservations] lot changed: reserved=${r.lot_id} → actual=${tenant.lot_id}, released ${r.lot_id}`);
+    }
     db.prepare("UPDATE reservations SET status = 'checked-in', tenant_id = ? WHERE id = ?").run(tenant_id, r.id);
+    console.log(`[reservations] reservation ${r.confirmation_number} marked checked-in, tenant_id=${tenant_id}, lot=${tenant?.lot_id || r.lot_id}`);
     res.json({ success: true, confirmation_number: r.confirmation_number });
   } catch (err) {
     console.error('[reservations] mark-checked-in failed:', err);
