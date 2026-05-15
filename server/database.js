@@ -201,6 +201,17 @@ async function initializeDatabase() {
   addCol("ALTER TABLE tenants ADD COLUMN last_portal_login TEXT");
   addCol("ALTER TABLE tenants ADD COLUMN portal_login_count INTEGER DEFAULT 0");
   addCol("ALTER TABLE reservations ADD COLUMN tenant_id INTEGER");
+  addCol("ALTER TABLE messages ADD COLUMN conversation_id INTEGER");
+  addCol("ALTER TABLE tenants ADD COLUMN preferred_contact TEXT DEFAULT 'both'");
+
+  // Backfill conversation_id: one conversation per tenant (runs once, skips if already populated)
+  try {
+    var hasAny = db.prepare("SELECT 1 FROM messages WHERE conversation_id IS NOT NULL LIMIT 1").get();
+    if (!hasAny) {
+      db.prepare("UPDATE messages SET conversation_id = tenant_id WHERE tenant_id IS NOT NULL").run();
+      console.log('[database] backfilled conversation_id on existing messages');
+    }
+  } catch (e) { /* ignore — column may not exist yet on first boot */ }
 
   // Rename rent_type 'standard' to 'monthly' for consistency
   try { db.run("UPDATE tenants SET rent_type = 'monthly' WHERE rent_type = 'standard'"); } catch (e) { /* ignore */ }
