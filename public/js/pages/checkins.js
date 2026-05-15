@@ -77,9 +77,14 @@ async function showCheckIn(prefill) {
   _checkinDefaultFlatRate = parseFloat(settings?.default_flat_rate) || 0;
   let vacantLots = lots.filter(l => l.status === 'vacant');
   // If prefill specifies a reserved lot, ensure it appears in the dropdown even if not 'vacant'
+  // But skip if the lot is occupied — the user will need to pick a different lot
   if (prefill.lot_id && !vacantLots.find(l => l.id === prefill.lot_id)) {
     const reservedLot = lots.find(l => l.id === prefill.lot_id);
-    if (reservedLot) vacantLots = [Object.assign({}, reservedLot, { _reserved: true }), ...vacantLots];
+    if (reservedLot && reservedLot.status !== 'occupied') {
+      vacantLots = [Object.assign({}, reservedLot, { _reserved: true }), ...vacantLots];
+    } else if (reservedLot) {
+      console.warn('[showCheckIn] reserved lot ' + prefill.lot_id + ' is ' + reservedLot.status + ' — not adding to dropdown');
+    }
   }
 
   showModal('Check-In New Guest', `
