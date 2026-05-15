@@ -10,11 +10,12 @@ const { db } = require('../database');
 
 const parser = new Parser({
   timeout: 8000,
-  headers: { 'User-Agent': 'AnahuacRVPark/1.0 (RSS Reader)' }
+  headers: { 'User-Agent': 'AnahuacRVPark/1.0 (RSS Reader)' },
+  customFields: { item: [['source', 'rssSource']] },
 });
 
-// ── Strict date filter: only show articles from TODAY (last 24 hours) ──
-const MAX_ARTICLE_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+// ── Date filter: show articles from last 3 days ──
+const MAX_ARTICLE_AGE_MS = 72 * 60 * 60 * 1000; // 72 hours (3 days)
 
 function isRecentArticle(article) {
   var pubDate = article.published || article.pubDate || article.isoDate;
@@ -28,6 +29,44 @@ function isRecentArticle(article) {
   if (ageMs < 0) return false; // Future date = broken feed = skip
 
   return true;
+}
+
+// ── Block real estate and classified-ad content ──
+const SOURCE_BLOCKLIST = [
+  'realtor.com', 'zillow.com', 'redfin.com', 'trulia.com',
+  'homes.com', 'apartments.com', 'rentals.com', 'movoto.com',
+  'coldwellbanker.com', 'century21.com', 'remax.com', 'keller williams',
+  'har.com', 'loopnet.com',
+];
+
+const TITLE_BLOCKLIST = [
+  'for sale', 'for rent', 'price reduced', 'new listing',
+  'bedroom home', 'bed bath', 'sqft', 'square feet',
+  'asking price', 'mls#', 'mls #',
+];
+
+function isBlockedContent(article, rawSourceName) {
+  // 1. Check extracted publisher name (from Google News title split)
+  var sourceLower = (article.source || '').toLowerCase();
+  if (SOURCE_BLOCKLIST.some(d => sourceLower.includes(d))) return true;
+
+  // 2. Check RSS <source> element text (Google News publisher field)
+  if (rawSourceName) {
+    var rawLower = rawSourceName.toLowerCase();
+    if (SOURCE_BLOCKLIST.some(d => rawLower.includes(d))) return true;
+  }
+
+  // 3. Check link URL hostname (for direct RSS feeds, not Google News redirects)
+  try {
+    var linkHost = new URL(article.link).hostname.toLowerCase();
+    if (SOURCE_BLOCKLIST.some(d => linkHost.includes(d))) return true;
+  } catch {}
+
+  // 4. Check title for real-estate-only phrases
+  var titleLower = (article.title || '').toLowerCase();
+  if (TITLE_BLOCKLIST.some(phrase => titleLower.includes(phrase))) return true;
+
+  return false;
 }
 
 // Clear stale news cache on first request after deploy
@@ -95,11 +134,19 @@ function isLocalToAnahuac(article) {
 // Local: Google News search-as-RSS (pre-filtered for our area keywords)
 // + City of Anahuac WordPress RSS (if available)
 const LOCAL_FEEDS = [
+  // Priority 100 — Anahuac-specific sources
   { name: 'Google News - Anahuac Texas', url: 'https://news.google.com/rss/search?q=%22Anahuac%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 100, googleNews: true },
-  { name: 'Google News - Chambers County Texas', url: 'https://news.google.com/rss/search?q=%22Chambers+County%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 95, googleNews: true },
-  { name: 'Google News - Mont Belvieu', url: 'https://news.google.com/rss/search?q=%22Mont+Belvieu%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 80, googleNews: true },
-  { name: 'Google News - Trinity Bay Texas', url: 'https://news.google.com/rss/search?q=%22Trinity+Bay%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 70, googleNews: true },
-  { name: 'Google News - Winnie Texas', url: 'https://news.google.com/rss/search?q=%22Winnie%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 60, googleNews: true,
+  // Anahuac Progress: no RSS feed available (both domains return 404 as of 2026-05-14)
+  // Priority 90 — Regional papers covering Anahuac
+  { name: 'The Vindicator', url: 'https://thevindicator.com/feed/', weight: 90 },
+  // Priority 60 — Chambers County (broader)
+  { name: 'Google News - Chambers County Texas', url: 'https://news.google.com/rss/search?q=%22Chambers+County%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 60, googleNews: true },
+  // Priority 50 — Neighboring towns
+  { name: 'Google News - Mont Belvieu', url: 'https://news.google.com/rss/search?q=%22Mont+Belvieu%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 50, googleNews: true },
+  // Priority 40 — Trinity Bay area
+  { name: 'Google News - Trinity Bay Texas', url: 'https://news.google.com/rss/search?q=%22Trinity+Bay%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 40, googleNews: true },
+  // Priority 30 — Winnie (only if Chambers County relevant)
+  { name: 'Google News - Winnie Texas', url: 'https://news.google.com/rss/search?q=%22Winnie%22+Texas&hl=en-US&gl=US&ceid=US:en', weight: 30, googleNews: true,
     requireKeywords: ['chambers', 'jefferson', 'winnie tx', 'east chambers'] },
 ];
 
@@ -167,34 +214,8 @@ const NATIONAL_FEEDS = [
 let _newsCache = { data: null, timestamp: 0 };
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
-// ── Public: get news headlines ──
-router.get('/headlines', async (req, res) => {
-  clearStaleCacheOnce(); // Ensure stale DB cache is cleared on first request after deploy
-
-  var now = Date.now();
-  var category = req.query.category || 'all';
-
-  // Return cached if fresh
-  if (_newsCache.data && now - _newsCache.timestamp < CACHE_TTL) {
-    if (category !== 'all' && _newsCache.data[category]) {
-      return res.json({ [category]: _newsCache.data[category], updated: _newsCache.timestamp });
-    }
-    return res.json({ ..._newsCache.data, updated: _newsCache.timestamp });
-  }
-
-  // Also check DB cache (survives restart)
-  try {
-    var cached = db.prepare("SELECT data, expires_at FROM content_cache WHERE cache_key='news_headlines'").get();
-    if (cached && new Date(cached.expires_at).getTime() > now) {
-      _newsCache = { data: JSON.parse(cached.data), timestamp: now };
-      if (category !== 'all' && _newsCache.data[category]) {
-        return res.json({ [category]: _newsCache.data[category], updated: _newsCache.timestamp });
-      }
-      return res.json({ ..._newsCache.data, updated: _newsCache.timestamp });
-    }
-  } catch {}
-
-  // Fetch fresh from all sources
+// ── Core: build headlines from all RSS sources ──
+async function buildHeadlines() {
   var result = { local: [], texas: [], national: [] };
 
   // ── LOCAL: Google News search + City of Anahuac RSS ──
@@ -215,8 +236,8 @@ router.get('/headlines', async (req, res) => {
             snippet: ci.contentSnippet ? ci.contentSnippet.replace(/\s+/g, ' ').trim().slice(0, 200) : '',
             image: ci.enclosure?.url || ci['media:content']?.$.url || '',
             badge: 'OFFICIAL',
+            source_priority: 100,
           };
-          // ⭐ Skip old city articles too
           if (!isRecentArticle(cityArticle)) return;
           allLocalItems.push(cityArticle);
         });
@@ -227,7 +248,7 @@ router.get('/headlines', async (req, res) => {
     }
   }
 
-  // Fetch Google News feeds
+  // Fetch Google News + direct local feeds
   var localPromises = LOCAL_FEEDS.map(source =>
     fetchFeed(source).catch(() => ({ items: [], _source: source }))
   );
@@ -235,7 +256,6 @@ router.get('/headlines', async (req, res) => {
   for (var lr of localResults) {
     if (!lr.items) continue;
     for (var item of lr.items) {
-      // Apply requireKeywords filter if specified (e.g. Winnie)
       if (lr._requireKeywords) {
         var text = ((item.title || '') + ' ' + (item.snippet || '')).toLowerCase();
         if (!lr._requireKeywords.some(function(k) { return text.includes(k); })) continue;
@@ -244,10 +264,10 @@ router.get('/headlines', async (req, res) => {
     }
   }
 
-  // Sort: OFFICIAL badge first, then by date. Deduplicate, limit.
+  // Sort: source_priority DESC, then by date DESC. Deduplicate, limit.
   allLocalItems.sort((a, b) => {
-    if (a.badge === 'OFFICIAL' && b.badge !== 'OFFICIAL') return -1;
-    if (b.badge === 'OFFICIAL' && a.badge !== 'OFFICIAL') return 1;
+    var priDiff = (b.source_priority || 50) - (a.source_priority || 50);
+    if (priDiff !== 0) return priDiff;
     return new Date(b.published || 0) - new Date(a.published || 0);
   });
   result.local = deduplicateNews(allLocalItems).slice(0, 15);
@@ -287,7 +307,6 @@ router.get('/headlines', async (req, res) => {
       texasRaw.push(tItem);
     }
   }
-  // Filter: must be about Texas, must not be clearly non-Texas
   texasRaw = texasRaw.filter(function(a) { return isAboutTexas(a) && !isNonTexas(a); });
   texasRaw.sort((a, b) => new Date(b.published || 0) - new Date(a.published || 0));
   result.texas = deduplicateNews(texasRaw).slice(0, 12);
@@ -304,6 +323,7 @@ router.get('/headlines', async (req, res) => {
   result.national = deduplicateNews(result.national).slice(0, 10);
 
   // Cache in memory and DB
+  var now = Date.now();
   _newsCache = { data: result, timestamp: now };
   try {
     var expiresAt = new Date(now + CACHE_TTL).toISOString();
@@ -311,10 +331,43 @@ router.get('/headlines', async (req, res) => {
       .run('news_headlines', JSON.stringify(result), expiresAt);
   } catch {}
 
-  if (category !== 'all' && result[category]) {
-    return res.json({ [category]: result[category], updated: now });
+  return result;
+}
+
+// ── Public: get news headlines ──
+router.get('/headlines', async (req, res) => {
+  clearStaleCacheOnce();
+
+  var now = Date.now();
+  var category = req.query.category || 'all';
+
+  // Return cached if fresh
+  if (_newsCache.data && now - _newsCache.timestamp < CACHE_TTL) {
+    if (category !== 'all' && _newsCache.data[category]) {
+      return res.json({ [category]: _newsCache.data[category], updated: _newsCache.timestamp });
+    }
+    return res.json({ ..._newsCache.data, updated: _newsCache.timestamp });
   }
-  res.json({ ...result, updated: now });
+
+  // Also check DB cache (survives restart)
+  try {
+    var cached = db.prepare("SELECT data, expires_at FROM content_cache WHERE cache_key='news_headlines'").get();
+    if (cached && new Date(cached.expires_at).getTime() > now) {
+      _newsCache = { data: JSON.parse(cached.data), timestamp: now };
+      if (category !== 'all' && _newsCache.data[category]) {
+        return res.json({ [category]: _newsCache.data[category], updated: _newsCache.timestamp });
+      }
+      return res.json({ ..._newsCache.data, updated: _newsCache.timestamp });
+    }
+  } catch {}
+
+  // Fetch fresh
+  var result = await buildHeadlines();
+
+  if (category !== 'all' && result[category]) {
+    return res.json({ [category]: result[category], updated: _newsCache.timestamp });
+  }
+  res.json({ ...result, updated: _newsCache.timestamp });
 });
 
 async function fetchFeed(source) {
@@ -344,10 +397,17 @@ async function fetchFeed(source) {
       published: item.pubDate || item.isoDate || '',
       snippet: item.contentSnippet ? item.contentSnippet.replace(/\s+/g, ' ').trim().slice(0, 200) : '',
       image: item.enclosure?.url || item['media:content']?.$.url || '',
+      source_priority: source.weight || 50,
     };
 
-    // ⭐ Skip articles older than 7 days or with no valid date
+    // Skip articles older than 3 days or with no valid date
     if (!isRecentArticle(article)) continue;
+
+    // Skip real estate and classified-ad content (3-layer check)
+    if (isBlockedContent(article, item.rssSource)) {
+      console.log('[news] blocked: "' + article.title.slice(0, 60) + '" from ' + article.source);
+      continue;
+    }
 
     items.push(article);
     if (items.length >= 10) break; // Cap at 10 recent items per feed
@@ -378,5 +438,24 @@ router.get('/live-tv', (req, res) => {
     { name: 'White House', url: 'https://www.whitehouse.gov/live/', icon: '🏛️' }
   ]);
 });
+
+// ── Server-side scheduled refresh: keep cache warm every 30 minutes ──
+async function refreshNewsCache() {
+  var now = Date.now();
+  if (_newsCache.data && now - _newsCache.timestamp < CACHE_TTL) return; // Still fresh
+  try {
+    console.log('[news] scheduled refresh starting...');
+    await buildHeadlines();
+    console.log('[news] scheduled refresh complete — cache warm');
+  } catch (e) {
+    console.error('[news] scheduled refresh failed:', e.message);
+  }
+}
+
+// Start scheduled refresh after 2 minutes (let server boot), then every 30 minutes
+setTimeout(() => {
+  refreshNewsCache();
+  setInterval(refreshNewsCache, 30 * 60 * 1000);
+}, 2 * 60 * 1000);
 
 module.exports = router;
