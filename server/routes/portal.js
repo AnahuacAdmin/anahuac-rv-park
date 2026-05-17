@@ -88,7 +88,7 @@ router.post('/admin-preview', (req, res) => {
   }
 
   // Generate a real tenant JWT so the portal API calls work
-  const tenantJwt = jwt.sign({ id: tenant.id, role: 'tenant', lot_id: tenant.lot_id, preview: true }, SECRET, { expiresIn: '15m' });
+  const tenantJwt = jwt.sign({ id: tenant.id, role: 'tenant', lot_id: tenant.lot_id, preview: true }, SECRET, { expiresIn: '2h' });
 
   res.json({ token: tenantJwt, previewToken: token, tenant: { id: tenant.id, first_name: tenant.first_name, last_name: tenant.last_name, lot_id: tenant.lot_id } });
 });

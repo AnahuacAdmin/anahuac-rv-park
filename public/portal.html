@@ -1382,8 +1382,14 @@ async function emergencyResetPortal() {
   // If no session and admin is logged in — auto-generate preview
   var existingToken = sessionStorage.getItem('portal_token');
   if (!existingToken && !previewToken) {
-    // Check for token passed via sessionStorage from admin app button
-    var adminToken = sessionStorage.getItem('_adminPreviewRequested') || localStorage.getItem('rv_token');
+    // Check for admin token in URL hash (cross-window safe), then sessionStorage/localStorage fallback
+    var adminToken = null;
+    if (window.location.hash.indexOf('#adminToken=') === 0) {
+      adminToken = decodeURIComponent(window.location.hash.slice('#adminToken='.length));
+      // Clear hash immediately so token doesn't linger in URL
+      window.history.replaceState({}, '', window.location.pathname + window.location.search);
+    }
+    if (!adminToken) adminToken = sessionStorage.getItem('_adminPreviewRequested') || localStorage.getItem('rv_token');
     sessionStorage.removeItem('_adminPreviewRequested'); // One-time use
     if (adminToken && !params.get('paid') && !params.get('cancelled')) {
       sessionStorage.setItem('_adminToken', adminToken);

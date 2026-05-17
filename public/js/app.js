@@ -1271,12 +1271,9 @@ function wirePortalButton() {
   if (sb) sb.style.display = 'flex';
   pb.addEventListener('click', function() {
     var adminToken = localStorage.getItem('rv_token');
-    if (adminToken) {
-      // Store token hint so portal auto-detects admin
-      sessionStorage.setItem('_adminPreviewRequested', adminToken);
-    }
-    // Open portal synchronously — no popup blocker
-    window.open('/portal.html', '_blank');
+    // Pass admin token via URL hash — works across windows (sessionStorage doesn't)
+    var url = '/portal.html' + (adminToken ? '#adminToken=' + encodeURIComponent(adminToken) : '');
+    window.open(url, '_blank');
   });
 }
 
