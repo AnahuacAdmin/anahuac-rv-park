@@ -545,6 +545,61 @@ router.post('/default-card', tenantAuth, async (req, res) => {
   }
 });
 
+// Tenant inbox: all messages for this tenant (both directions) + recent broadcasts.
+// Direction is inferred from message_type: 'sms_reply' and 'portal' = tenant→admin, all others = admin→tenant.
+// TODO: add explicit 'direction' column to messages table for cleaner queries.
+router.get('/messages', tenantAuth, (req, res) => {
+  try {
+    // Get tenant's move_in_date for broadcast cutoff
+    var tenant = db.prepare('SELECT move_in_date FROM tenants WHERE id = ?').get(req.tenant.id);
+    var moveIn = tenant?.move_in_date || '2020-01-01';
+    var ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    var broadcastCutoff = moveIn > ninetyDaysAgo ? moveIn : ninetyDaysAgo;
+
+    var rows = db.prepare(`
+      SELECT id, subject, body, message_type, sent_date, read_status, is_broadcast
+      FROM messages
+      WHERE (tenant_id = ? AND is_broadcast = 0)
+         OR (is_broadcast = 1 AND sent_date >= ?)
+      ORDER BY sent_date ASC
+      LIMIT 50
+    `).all(req.tenant.id, broadcastCutoff);
+
+    // Unread count: direct admin→tenant messages only (exclude tenant's own messages).
+    // Broadcasts are excluded from unread count because read_status is shared across
+    // all tenants — marking read for one tenant would clear it for everyone. Broadcasts
+    // still appear in the inbox list, they just don't affect the badge number.
+    var unread = db.prepare(`
+      SELECT COUNT(*) as c FROM messages
+      WHERE tenant_id = ? AND is_broadcast = 0 AND read_status = 0
+        AND message_type NOT IN ('sms_reply', 'portal')
+    `).get(req.tenant.id)?.c || 0;
+
+    res.json({ messages: rows, unread: unread });
+  } catch (err) {
+    console.error('[portal] messages fetch error:', err.message);
+    res.status(500).json({ error: 'Could not load messages' });
+  }
+});
+
+// Mark messages as read (fire-and-forget from frontend after render)
+router.post('/messages/mark-read', tenantAuth, (req, res) => {
+  try {
+    // Mark direct messages as read
+    db.prepare(`
+      UPDATE messages SET read_status = 1
+      WHERE tenant_id = ? AND is_broadcast = 0 AND read_status = 0
+        AND message_type NOT IN ('sms_reply', 'portal')
+    `).run(req.tenant.id);
+    // Note: broadcast read_status is shared across tenants — skip for now.
+    // A per-tenant broadcast_reads table would be needed for accurate per-tenant tracking.
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[portal] mark-read error:', err.message);
+    res.status(500).json({ error: 'Could not mark messages as read' });
+  }
+});
+
 // Send message to management
 router.post('/message', tenantAuth, (req, res) => {
   try {

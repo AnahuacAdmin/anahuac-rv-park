@@ -1187,7 +1187,13 @@
   <!-- ===== CONTACT / MESSAGE ===== -->
   <div class="card" data-tab-section="contact" style="animation-delay:0.2s">
     <a href="#" onclick="event.preventDefault();switchPortalTab('home')" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;font-weight:600;color:#1a5c32;text-decoration:none;margin-bottom:0.6rem">← Back to Home</a>
-    <div class="card-title" style="font-size:0.85rem">💬 Message Management</div>
+    <div class="card-title" style="font-size:0.85rem">💬 Messages <span id="msg-unread-badge" style="display:none;background:#dc2626;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:0.3rem;vertical-align:middle"></span></div>
+    <div id="msg-inbox" style="margin-bottom:1rem">
+      <div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.82rem">Loading messages...</div>
+    </div>
+    <div style="border-top:1px solid #e7e5e4;padding-top:0.75rem;margin-top:0.25rem">
+      <div style="font-size:0.78rem;font-weight:700;color:#1a5c32;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.4rem">✉️ Send a Message</div>
+    </div>
     <div id="msg-status"></div>
     <form id="msg-form">
       <div class="form-group">
@@ -1572,8 +1578,94 @@ document.getElementById('msg-form').addEventListener('submit', async (e) => {
     document.getElementById('msg-text').value = '';
     setTimeout(() => statusEl.innerHTML = '', 5000);
     try { celebrateMessage(); } catch(e) {}
+    // Refresh inbox to show the sent message
+    loadPortalInbox();
   } catch (err) { statusEl.innerHTML = '<div class="msg-error">' + (err.message || 'Failed to send') + '</div>'; }
 });
+
+// ── Tenant Message Inbox ──
+var _inboxLoaded = false;
+async function loadPortalInbox() {
+  var el = document.getElementById('msg-inbox');
+  if (!el) return;
+  try {
+    var data = await portalFetch('/messages');
+    if (!data) return;
+    var messages = data.messages || [];
+    var badge = document.getElementById('msg-unread-badge');
+
+    // Update unread badge
+    if (badge) {
+      if (data.unread > 0) {
+        badge.textContent = data.unread;
+        badge.style.display = 'inline';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    if (!messages.length) {
+      el.innerHTML = '<div style="text-align:center;padding:1.25rem;color:#a8a29e;font-size:0.82rem">No messages yet. Use the form below to reach out to park staff.</div>';
+      return;
+    }
+
+    // Direction: sms_reply and portal = tenant→admin, everything else = admin→tenant
+    var html = '<div style="display:flex;flex-direction:column;gap:0.5rem;max-height:400px;overflow-y:auto;padding:0.25rem">';
+    messages.forEach(function(m) {
+      var isTenant = m.message_type === 'sms_reply' || m.message_type === 'portal';
+      var isBroadcast = m.is_broadcast === 1;
+      var timeStr = _msgTimeAgo(m.sent_date);
+
+      if (isTenant) {
+        // Tenant's own message — right-aligned, gray
+        html += '<div style="display:flex;justify-content:flex-end">' +
+          '<div style="max-width:85%;background:#f5f5f4;border-radius:12px 12px 2px 12px;padding:0.6rem 0.8rem">' +
+            '<div style="font-size:0.72rem;font-style:italic;color:#78716c;margin-bottom:0.15rem">You said:</div>' +
+            '<div style="font-size:0.85rem;color:#1c1917;line-height:1.4">' + _escPortal(m.body) + '</div>' +
+            '<div style="font-size:0.65rem;color:#a8a29e;margin-top:0.25rem">' + timeStr + '</div>' +
+          '</div></div>';
+      } else {
+        // Admin/broadcast message — left-aligned, green
+        var label = isBroadcast ? '📢 Park Announcement' : 'Park Management';
+        html += '<div style="display:flex;justify-content:flex-start">' +
+          '<div style="max-width:85%;background:#dcfce7;border-radius:12px 12px 12px 2px;padding:0.6rem 0.8rem">' +
+            '<div style="font-size:0.72rem;font-weight:700;color:#166534;margin-bottom:0.15rem">' + label + '</div>' +
+            (m.subject && m.subject !== 'Portal Message' ? '<div style="font-size:0.78rem;font-weight:600;color:#1c1917;margin-bottom:0.15rem">' + _escPortal(m.subject) + '</div>' : '') +
+            '<div style="font-size:0.85rem;color:#1c1917;line-height:1.4">' + _escPortal(m.body) + '</div>' +
+            '<div style="font-size:0.65rem;color:#a8a29e;margin-top:0.25rem">' + timeStr + '</div>' +
+          '</div></div>';
+      }
+    });
+    html += '</div>';
+    el.innerHTML = html;
+    // Auto-scroll to bottom so newest message is visible
+    var scroller = el.querySelector('div[style*="overflow-y"]');
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+
+    // Fire-and-forget mark-as-read (don't block render)
+    if (data.unread > 0) {
+      portalFetch('/messages/mark-read', { method: 'POST' }).then(function() {
+        if (badge) badge.style.display = 'none';
+      }).catch(function() {});
+    }
+    _inboxLoaded = true;
+  } catch (err) {
+    if (el) el.innerHTML = '<div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.82rem">Could not load messages.</div>';
+  }
+}
+
+function _msgTimeAgo(dateStr) {
+  if (!dateStr) return '';
+  var diff = Date.now() - new Date(dateStr).getTime();
+  if (diff < 0 || isNaN(diff)) return '';
+  var mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return mins + 'm ago';
+  var hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  var d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+}
 
 // Parse invoice_date as local date (not UTC) to avoid timezone shift.
 // "2026-05-01" should always display as "May 2026", not "April 2026".
@@ -1783,6 +1875,8 @@ async function showPortal() {
         }
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Load inbox when contact tab opens
+      if (tab === 'contact' && typeof loadPortalInbox === 'function') loadPortalInbox();
     }
     navBtns.forEach(function(btn) {
       btn.addEventListener('click', function() {
