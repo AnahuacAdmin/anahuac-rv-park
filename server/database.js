@@ -445,6 +445,16 @@ async function initializeDatabase() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS lost_found_pet_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    tenant_id INTEGER,
+    author_name TEXT,
+    comment TEXT NOT NULL,
+    is_management INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   // Electric alerts
   db.run(`CREATE TABLE IF NOT EXISTS electric_alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

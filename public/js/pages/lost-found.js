@@ -64,6 +64,8 @@ function renderLFCardAdmin(p) {
       '</div>' +
       (p.contact_phone ? '<div style="font-size:0.82rem;margin-top:0.2rem">📞 ' + escapeHtml(p.contact_phone) + '</div>' : '') +
       '<div style="font-size:0.78rem;color:var(--gray-400);margin-top:0.25rem">Posted by ' + escapeHtml(author) + (p.lot_id ? ' · Lot ' + p.lot_id : '') + '</div>' +
+      '<div id="lf-admin-comments-' + p.id + '" style="margin-top:0.5rem;display:none"></div>' +
+      '<button class="btn btn-sm btn-outline" style="margin-top:0.4rem;font-size:0.75rem;width:100%" onclick="toggleLFAdminComments(' + p.id + ')">💬 Comments (' + (p.comment_count || 0) + ')</button>' +
       '<div class="btn-group" style="margin-top:0.5rem">' +
         (p.status === 'active' ? '<button class="btn btn-sm btn-success" onclick="adminLFStatus(' + p.id + ',\'reunited\')">🎉 Mark Reunited</button>' : '') +
         (p.status === 'active' ? '<button class="btn btn-sm btn-outline" onclick="adminLFStatus(' + p.id + ',\'archived\')">Archive</button>' : '') +
@@ -95,4 +97,50 @@ async function adminLFDelete(id) {
   if (!confirm('Delete this post permanently?')) return;
   await API.del('/lost-found/' + id);
   refreshLostFoundAdmin();
+}
+
+async function toggleLFAdminComments(postId) {
+  var el = document.getElementById('lf-admin-comments-' + postId);
+  if (!el) return;
+  if (el.style.display === 'block') { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = '<div style="font-size:0.8rem;color:#a8a29e;text-align:center;padding:0.3rem">Loading...</div>';
+  try {
+    var res = await fetch('/api/lost-found/' + postId + '/comments');
+    var comments = await res.json();
+    var html = '';
+    if (comments.length) {
+      html += comments.map(function(c) {
+        var mgmt = c.is_management ? '<span style="background:#16a34a;color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:4px">STAFF</span>' : '';
+        return '<div style="margin-bottom:0.35rem;padding:0.35rem 0.5rem;background:' + (c.is_management ? '#f0fdf4' : '#f5f5f4') + ';border-radius:6px;' +
+          (c.is_management ? 'border-left:3px solid #16a34a' : '') + '">' +
+          '<div style="font-size:0.72rem"><strong>' + escapeHtml(c.author) + '</strong>' + mgmt +
+          (c.author_lot ? ' <span style="color:#a8a29e">' + escapeHtml(c.author_lot) + '</span>' : '') +
+          ' <span style="color:#a8a29e">· ' + _lfTimeAgo(c.created_at) + '</span></div>' +
+          '<div style="font-size:0.78rem;color:#44403c;margin-top:0.1rem">' + escapeHtml(c.comment) + '</div></div>';
+      }).join('');
+    } else {
+      html += '<div style="font-size:0.78rem;color:#a8a29e;text-align:center;padding:0.2rem">No comments yet</div>';
+    }
+    html += '<div style="display:flex;gap:0.35rem;margin-top:0.35rem">' +
+      '<input id="lf-admin-comment-input-' + postId + '" placeholder="Comment as Park Management..." style="flex:1;font-size:0.78rem;padding:5px 8px;border:1px solid #d6d3d1;border-radius:6px">' +
+      '<button onclick="submitLFAdminComment(' + postId + ')" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">🛡️ Send</button>' +
+    '</div>';
+    el.innerHTML = html;
+  } catch { el.innerHTML = '<div style="color:#dc2626;font-size:0.78rem">Could not load comments</div>'; }
+}
+
+async function submitLFAdminComment(postId) {
+  var input = document.getElementById('lf-admin-comment-input-' + postId);
+  if (!input || !input.value.trim()) return;
+  var btn = input.nextElementSibling;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    await API.post('/lost-found/' + postId + '/comments/admin', { comment: input.value.trim() });
+    toggleLFAdminComments(postId);
+    toggleLFAdminComments(postId);
+  } catch {
+    if (typeof showStatusToast === 'function') showStatusToast('❌', 'Could not post comment'); else alert('Could not post comment');
+    if (btn) { btn.disabled = false; btn.textContent = '🛡️ Send'; }
+  }
 }
