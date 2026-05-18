@@ -611,7 +611,7 @@ router.post('/message', tenantAuth, (req, res) => {
     var tenantRow = db.prepare('SELECT first_name, last_name FROM tenants WHERE id = ?').get(req.tenant.id);
     var tenantName = tenantRow ? tenantRow.first_name + ' ' + tenantRow.last_name : 'Guest';
 
-    db.prepare('INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast, conversation_id) VALUES (?, ?, ?, ?, 0, ?)')
+    db.prepare('INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast, conversation_id, admin_read) VALUES (?, ?, ?, ?, 0, ?, 0)')
       .run(req.tenant.id, 'Portal Message from ' + tenantName, message.trim(), 'portal', req.tenant.id);
 
     // Forward to manager via SMS

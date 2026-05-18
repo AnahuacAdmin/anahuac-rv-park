@@ -699,7 +699,7 @@
 
   <!-- ===== QUICK ACTIONS — Moved here for immediate access ===== -->
   <div class="quick-actions" data-tab-section="home" style="margin-bottom:0.6rem">
-    <a class="qa-btn" href="#msg-form" onclick="event.preventDefault();switchPortalTab('contact');setTimeout(function(){document.getElementById('msg-form')?.scrollIntoView({behavior:'smooth'})},100)">
+    <a class="qa-btn" href="#portal-reply-input" onclick="event.preventDefault();switchPortalTab('contact');setTimeout(function(){document.getElementById('portal-reply-input')?.scrollIntoView({behavior:'smooth'})},200)">
       <span class="qa-icon">💬</span><span class="qa-label">Message Us</span>
     </a>
     <a class="qa-btn" href="#" onclick="event.preventDefault();openQuarterRequestModal()" style="border-color:#78716c">
@@ -1188,6 +1188,7 @@
   <div class="card" data-tab-section="contact" style="animation-delay:0.2s">
     <a href="#" onclick="event.preventDefault();switchPortalTab('home')" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;font-weight:600;color:#1a5c32;text-decoration:none;margin-bottom:0.6rem">← Back to Home</a>
     <div class="card-title" style="font-size:0.85rem">💬 Messages <span id="msg-unread-badge" style="display:none;background:#dc2626;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:0.3rem;vertical-align:middle"></span></div>
+    <div id="msg-admin-preview-warn" style="display:none;background:#fef9c3;color:#854d0e;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.5rem;font-size:0.78rem">👀 You're viewing this portal as <strong id="msg-preview-tenant-name"></strong>. Any messages you send here will be sent FROM this tenant TO yourself.</div>
     <div id="msg-inbox">
       <div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.82rem">Loading messages...</div>
     </div>
@@ -1571,6 +1572,18 @@ async function loadPortalInbox() {
   var el = document.getElementById('msg-inbox');
   if (!el) return;
   try {
+    // Show admin-preview warning if applicable
+    var previewWarn = document.getElementById('msg-admin-preview-warn');
+    if (previewWarn) {
+      if (_isAdminPreview && _portalTenant) {
+        var nameEl = document.getElementById('msg-preview-tenant-name');
+        if (nameEl) nameEl.textContent = (_portalTenant.first_name || '') + ' ' + (_portalTenant.last_name || '');
+        previewWarn.style.display = '';
+      } else {
+        previewWarn.style.display = 'none';
+      }
+    }
+
     var data = await portalFetch('/messages');
     if (!data) return;
     var messages = data.messages || [];
