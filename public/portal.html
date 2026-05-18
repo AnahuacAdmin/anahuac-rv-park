@@ -1633,8 +1633,8 @@ async function loadPortalInbox() {
     // Reply form
     html += '<div style="border-top:1px solid #e7e5e4;padding-top:0.6rem;margin-top:0.5rem">' +
       '<div style="display:flex;gap:0.5rem;align-items:flex-end">' +
-        '<textarea id="portal-reply-input" placeholder="Type a message to park management..." rows="2" style="flex:1;padding:0.5rem 0.75rem;border:1.5px solid #d1d5db;border-radius:10px;font-size:0.85rem;font-family:inherit;resize:none;max-height:120px;overflow-y:auto" oninput="_portalAutoGrow(this)"></textarea>' +
-        '<button id="portal-reply-btn" class="btn btn-green" style="padding:0.5rem 1rem;border-radius:10px;font-weight:700;white-space:nowrap" onclick="_portalSendReply()" disabled>Send</button>' +
+        '<textarea id="portal-reply-input" placeholder="Type a message to park management..." rows="2" style="flex:1 1 auto;min-width:0;padding:0.5rem 0.75rem;border:1.5px solid #d1d5db;border-radius:10px;font-size:0.85rem;font-family:inherit;resize:none;max-height:120px;overflow-y:auto" oninput="_portalAutoGrow(this)"></textarea>' +
+        '<button id="portal-reply-btn" class="btn btn-green" style="flex-shrink:0;width:80px;padding:0.5rem 0;border-radius:10px;font-weight:700;white-space:nowrap" onclick="_portalSendReply()" disabled>Send</button>' +
       '</div>' +
       '<div id="portal-reply-status" style="font-size:0.68rem;color:#a8a29e;margin-top:0.25rem">Sending to: Park Management</div>' +
     '</div>';
