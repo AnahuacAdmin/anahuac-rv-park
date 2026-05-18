@@ -601,19 +601,24 @@ router.post('/messages/mark-read', tenantAuth, (req, res) => {
 });
 
 // Send message to management
+// TODO: add admin push notification / unread badge when tenant sends a portal message
 router.post('/message', tenantAuth, (req, res) => {
   try {
     const { message } = req.body || {};
     if (!message || !message.trim()) return res.status(400).json({ error: 'Message cannot be empty' });
 
-    db.prepare('INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast) VALUES (?, ?, ?, ?, 0)')
-      .run(req.tenant.id, 'Portal Message', message.trim(), 'portal');
+    // Look up tenant name from DB (req.tenant.name is not set in admin-preview JWTs)
+    var tenantRow = db.prepare('SELECT first_name, last_name FROM tenants WHERE id = ?').get(req.tenant.id);
+    var tenantName = tenantRow ? tenantRow.first_name + ' ' + tenantRow.last_name : 'Guest';
+
+    db.prepare('INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast, conversation_id) VALUES (?, ?, ?, ?, 0, ?)')
+      .run(req.tenant.id, 'Portal Message from ' + tenantName, message.trim(), 'portal', req.tenant.id);
 
     // Forward to manager via SMS
     try {
       const mgrPhone = getManagerPhone();
       if (mgrPhone) {
-        sendSms(mgrPhone, `Portal message from ${req.tenant.name} (Lot ${req.tenant.lot_id}): ${message.trim()}`).catch(e => console.error('[portal] mgr SMS failed:', e.message));
+        sendSms(mgrPhone, `Portal message from ${tenantName} (Lot ${req.tenant.lot_id}): ${message.trim()}`).catch(e => console.error('[portal] mgr SMS failed:', e.message));
       }
     } catch {}
 
