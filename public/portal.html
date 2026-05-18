@@ -1188,6 +1188,17 @@
   <div class="card" data-tab-section="contact" style="animation-delay:0.2s">
     <a href="#" onclick="event.preventDefault();switchPortalTab('home')" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;font-weight:600;color:#1a5c32;text-decoration:none;margin-bottom:0.6rem">← Back to Home</a>
     <div class="card-title" style="font-size:0.85rem">💬 Messages <span id="msg-unread-badge" style="display:none;background:#dc2626;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:0.3rem;vertical-align:middle"></span></div>
+    <details id="msg-pref-panel" style="border:1px solid #e5e7eb;border-radius:8px;padding:0;margin-bottom:0.75rem;background:#fafaf9">
+      <summary style="cursor:pointer;padding:0.45rem 0.75rem;font-size:0.78rem;font-weight:600;color:#57534e;list-style:none;display:flex;align-items:center;justify-content:space-between;user-select:none">
+        <span>📬 Message Preferences</span>
+        <span style="font-size:0.65rem;color:#a8a29e">▼</span>
+      </summary>
+      <div style="padding:0.4rem 0.75rem 0.6rem;border-top:1px solid #e5e7eb">
+        <div style="font-size:0.72rem;color:#78716c;margin-bottom:0.4rem">How should we reach you?</div>
+        <div id="msg-pref-pills" style="display:flex;gap:0.35rem;flex-wrap:wrap"></div>
+        <div id="msg-pref-status" style="font-size:0.68rem;color:#16a34a;margin-top:0.25rem;min-height:1em"></div>
+      </div>
+    </details>
     <div id="msg-admin-preview-warn" style="display:none;background:#fef9c3;color:#854d0e;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.5rem;font-size:0.78rem">👀 You're viewing this portal as <strong id="msg-preview-tenant-name"></strong>. Any messages you send here will be sent FROM this tenant TO yourself.</div>
     <div id="msg-inbox">
       <div style="text-align:center;padding:1rem;color:#a8a29e;font-size:0.82rem">Loading messages...</div>
@@ -1731,6 +1742,59 @@ async function _portalSendReply() {
   }
 }
 
+// ── Message Channel Preference ──
+var _msgPrefCurrent = 'both';
+
+async function loadMsgPreference() {
+  try {
+    var data = await portalFetch('/message-preference');
+    if (data) _msgPrefCurrent = data.preferred_contact || 'both';
+  } catch {}
+  _renderMsgPrefPills();
+}
+
+function _renderMsgPrefPills() {
+  var el = document.getElementById('msg-pref-pills');
+  if (!el) return;
+  var options = [
+    { value: 'sms', label: '📱 Text me', desc: 'SMS only' },
+    { value: 'portal', label: '💬 Portal only', desc: 'In-app only' },
+    { value: 'both', label: '📱💬 Both', desc: 'Recommended', star: true },
+  ];
+  el.innerHTML = options.map(function(o) {
+    var selected = _msgPrefCurrent === o.value;
+    return '<button onclick="_setMsgPref(\'' + o.value + '\')" style="' +
+      'flex:1;min-width:0;padding:0.45rem 0.5rem;border-radius:8px;font-size:0.78rem;font-weight:' + (selected ? '700' : '500') + ';' +
+      'border:1.5px solid ' + (selected ? '#16a34a' : '#d1d5db') + ';' +
+      'background:' + (selected ? '#dcfce7' : '#fff') + ';' +
+      'color:' + (selected ? '#166534' : '#57534e') + ';' +
+      'cursor:pointer;transition:all 0.15s ease;white-space:nowrap;text-align:center' +
+    '">' + o.label + (o.star ? ' ★' : '') + '</button>';
+  }).join('');
+}
+
+async function _setMsgPref(value) {
+  var prev = _msgPrefCurrent;
+  _msgPrefCurrent = value;
+  _renderMsgPrefPills();
+  var statusEl = document.getElementById('msg-pref-status');
+  try {
+    await portalFetch('/message-preference', { method: 'POST', body: JSON.stringify({ preferred_contact: value }) });
+    if (statusEl) {
+      statusEl.textContent = '✓ Saved';
+      statusEl.style.color = '#16a34a';
+      setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 2000);
+    }
+  } catch (err) {
+    _msgPrefCurrent = prev;
+    _renderMsgPrefPills();
+    if (statusEl) {
+      statusEl.textContent = 'Failed to save: ' + (err.message || 'unknown');
+      statusEl.style.color = '#dc2626';
+    }
+  }
+}
+
 function _msgTimeAgo(dateStr) {
   if (!dateStr) return '';
   var diff = Date.now() - new Date(dateStr).getTime();
@@ -1953,7 +2017,10 @@ async function showPortal() {
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       // Load inbox when contact tab opens
-      if (tab === 'contact' && typeof loadPortalInbox === 'function') loadPortalInbox();
+      if (tab === 'contact') {
+        if (typeof loadPortalInbox === 'function') loadPortalInbox();
+        if (typeof loadMsgPreference === 'function') loadMsgPreference();
+      }
     }
     navBtns.forEach(function(btn) {
       btn.addEventListener('click', function() {

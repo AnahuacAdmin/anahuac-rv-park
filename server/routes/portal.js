@@ -600,6 +600,29 @@ router.post('/messages/mark-read', tenantAuth, (req, res) => {
   }
 });
 
+// Tenant message channel preference
+router.get('/message-preference', tenantAuth, (req, res) => {
+  try {
+    var row = db.prepare('SELECT preferred_contact FROM tenants WHERE id = ?').get(req.tenant.id);
+    res.json({ preferred_contact: row?.preferred_contact || 'both' });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not load preference' });
+  }
+});
+
+router.post('/message-preference', tenantAuth, (req, res) => {
+  try {
+    var value = req.body.preferred_contact;
+    if (!['sms', 'portal', 'both'].includes(value)) {
+      return res.status(400).json({ error: 'Invalid value. Must be sms, portal, or both.' });
+    }
+    db.prepare('UPDATE tenants SET preferred_contact = ? WHERE id = ?').run(value, req.tenant.id);
+    res.json({ success: true, preferred_contact: value });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not save preference' });
+  }
+});
+
 // Send message to management
 // TODO: add admin push notification / unread badge when tenant sends a portal message
 router.post('/message', tenantAuth, (req, res) => {
