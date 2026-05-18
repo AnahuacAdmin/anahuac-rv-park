@@ -204,6 +204,7 @@ async function initializeDatabase() {
   addCol("ALTER TABLE messages ADD COLUMN conversation_id INTEGER");
   addCol("ALTER TABLE tenants ADD COLUMN preferred_contact TEXT DEFAULT 'both'");
   addCol("ALTER TABLE messages ADD COLUMN admin_read INTEGER DEFAULT 0");
+  addCol("ALTER TABLE messages ADD COLUMN deleted_at TEXT");
 
   // Backfill conversation_id: one conversation per tenant (runs once, skips if already populated)
   try {

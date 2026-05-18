@@ -7,6 +7,9 @@
 let _messagesCache = [];
 var _convCache = [];
 var _convSearchQuery = '';
+var _threadMessages = []; // cached for undo restore
+var _threadTenantId = null;
+var _pendingDeletes = {}; // { msgId: { timer, originalBody, originalSubject } }
 
 // ── Delivery option helpers (used by Send Message + Broadcast modals) ──
 
@@ -100,6 +103,7 @@ async function loadMessages() {
       }
     </style>
     <div class="card" style="padding:0.75rem 1rem">
+      ${!localStorage.getItem('msg_delete_hint_dismissed') ? '<div id="msg-delete-hint" style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.75rem;font-size:0.8rem;color:#1e40af;display:flex;align-items:center;justify-content:space-between"><span>💡 Tip: Long-press or right-click any message you sent to delete it</span><button onclick="localStorage.setItem(\'msg_delete_hint_dismissed\',\'1\');document.getElementById(\'msg-delete-hint\').remove()" style="background:none;border:none;color:#1e40af;font-size:1rem;cursor:pointer;padding:0 0.3rem;line-height:1">×</button></div>' : ''}
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
         <input type="text" id="conv-search" placeholder="Search by name or lot..." style="flex:1;padding:0.5rem 0.75rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem" oninput="_filterConversations(this.value)">
         <button class="btn btn-sm btn-outline" onclick="_showBroadcasts()" style="white-space:nowrap">📢 Broadcasts</button>
@@ -196,11 +200,13 @@ async function _openThread(tenantId) {
       return;
     }
 
+    _threadMessages = messages;
+    _threadTenantId = tenantId;
     var html = '<div style="display:flex;flex-direction:column;gap:0.35rem;max-height:500px;overflow-y:auto;padding:0.5rem" id="thread-scroll">';
     messages.forEach(function(m) {
       // Direction: sms_reply and portal = tenant→admin (inbound), everything else = admin→tenant (outbound)
-      // TODO: add explicit 'direction' column to messages table for cleaner queries
       var isAdmin = m.message_type !== 'sms_reply' && m.message_type !== 'portal';
+      var isDeleted = !!m.deleted_at;
       var bubbleClass = isAdmin ? 'thread-bubble thread-bubble-admin' : 'thread-bubble thread-bubble-tenant';
       var label = isAdmin ? 'You' : tenantName;
       var labelColor = isAdmin ? '#166534' : '#57534e';
@@ -208,18 +214,87 @@ async function _openThread(tenantId) {
       if (m.message_type === 'sms_reply') channel = '<span class="thread-channel" style="background:#dbeafe;color:#1e40af">SMS</span>';
       else if (m.message_type === 'portal') channel = '<span class="thread-channel" style="background:#f3e8ff;color:#7c3aed">Portal</span>';
       var time = _adminTimeAgo(m.sent_date);
-      var subject = m.subject && m.subject !== 'Portal Message' && !m.subject.startsWith('SMS Reply from') ? '<div style="font-size:0.78rem;font-weight:600;color:#1c1917;margin-bottom:0.1rem">' + escapeHtml(m.subject) + '</div>' : '';
+      var subject = !isDeleted && m.subject && m.subject !== 'Portal Message' && !m.subject.startsWith('SMS Reply from') && m.subject !== 'Reply from Park Management' ? '<div style="font-size:0.78rem;font-weight:600;color:#1c1917;margin-bottom:0.1rem">' + escapeHtml(m.subject) + '</div>' : '';
 
-      html += '<div style="display:flex;justify-content:' + (isAdmin ? 'flex-end' : 'flex-start') + '">' +
-        '<div class="' + bubbleClass + '">' +
+      var tooltip = isAdmin && !isDeleted ? ' title="Right-click to delete"' : '';
+      var deletedStyle = isDeleted ? 'opacity:0.5;' : '';
+      var bodyHtml = isDeleted
+        ? '<div class="thread-body" style="font-style:italic;color:#a8a29e">Message deleted by admin</div>'
+        : '<div class="thread-body">' + escapeHtml(m.body || '') + '</div>';
+
+      html += '<div id="msg-bubble-' + m.id + '" style="display:flex;justify-content:' + (isAdmin ? 'flex-end' : 'flex-start') + ';' + deletedStyle + '" data-msg-id="' + m.id + '" data-is-admin="' + (isAdmin ? '1' : '0') + '" data-is-deleted="' + (isDeleted ? '1' : '0') + '">' +
+        '<div class="' + bubbleClass + '"' + tooltip + '>' +
           '<div class="thread-label" style="color:' + labelColor + '">' + escapeHtml(label) + channel + '</div>' +
           subject +
-          '<div class="thread-body">' + escapeHtml(m.body || '') + '</div>' +
+          bodyHtml +
           '<div class="thread-time">' + time + '</div>' +
         '</div></div>';
     });
     html += '</div>';
+
+    // Reply form
+    html += '<div style="border-top:1px solid #e5e7eb;padding-top:0.75rem;margin-top:0.5rem">' +
+      '<div style="display:flex;gap:0.5rem;align-items:flex-end">' +
+        '<textarea id="thread-reply-input" placeholder="Type a reply..." rows="2" style="flex:1;padding:0.5rem 0.75rem;border:1.5px solid #d1d5db;border-radius:10px;font-size:0.85rem;font-family:inherit;resize:none;max-height:120px;overflow-y:auto" oninput="_autoGrowReply(this)"></textarea>' +
+        '<button id="thread-reply-btn" class="btn btn-success" style="padding:0.5rem 1.1rem;border-radius:10px;font-weight:700;white-space:nowrap" onclick="_sendReply(' + tenantId + ')" disabled>Send</button>' +
+      '</div>' +
+      '<div id="thread-reply-status" style="font-size:0.72rem;color:#78716c;margin-top:0.3rem">Sending via: SMS + Portal</div>' +
+    '</div>';
+
     el.innerHTML = html;
+
+    // Wire up Enter-to-send and enable/disable Send button
+    var replyInput = document.getElementById('thread-reply-input');
+    if (replyInput) {
+      replyInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (this.value.trim()) _sendReply(tenantId);
+        }
+      });
+      replyInput.addEventListener('input', function() {
+        var btn = document.getElementById('thread-reply-btn');
+        if (btn) btn.disabled = !this.value.trim();
+      });
+    }
+
+    // Wire right-click delete on admin bubbles
+    document.querySelectorAll('[data-msg-id][data-is-admin="1"][data-is-deleted="0"]').forEach(function(el) {
+      el.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        _confirmDelete(parseInt(this.dataset.msgId));
+      });
+      // Long-press for mobile
+      var holdTimer = null;
+      var startX = 0, startY = 0;
+      el.addEventListener('touchstart', function(e) {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        var bubble = this.querySelector('.thread-bubble');
+        var self = this;
+        holdTimer = setTimeout(function() {
+          if (bubble) bubble.style.opacity = '1';
+          _confirmDelete(parseInt(self.dataset.msgId));
+          holdTimer = null;
+        }, 600);
+        if (bubble) bubble.style.opacity = '0.7';
+      }, { passive: true });
+      el.addEventListener('touchend', function() {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+        var bubble = this.querySelector('.thread-bubble');
+        if (bubble) bubble.style.opacity = '';
+      });
+      el.addEventListener('touchmove', function(e) {
+        if (!holdTimer) return;
+        var dx = Math.abs(e.touches[0].clientX - startX);
+        var dy = Math.abs(e.touches[0].clientY - startY);
+        if (dx > 10 || dy > 10) {
+          clearTimeout(holdTimer); holdTimer = null;
+          var bubble = this.querySelector('.thread-bubble');
+          if (bubble) bubble.style.opacity = '';
+        }
+      }, { passive: true });
+    });
 
     // Auto-scroll to bottom
     var scroller = document.getElementById('thread-scroll');
@@ -227,12 +302,173 @@ async function _openThread(tenantId) {
 
     // Mark inbound messages as read (fire-and-forget)
     API.post('/messages/conversation/' + tenantId + '/mark-read', {}).catch(function() {});
-    // Update the conversation card's unread count in cache
     var conv = _convCache.find(function(c) { return c.tenant_id === tenantId; });
     if (conv) conv.unread_count = 0;
   } catch (err) {
     el.innerHTML = '<div style="text-align:center;padding:2rem;color:#dc2626;font-size:0.85rem">Failed to load thread: ' + escapeHtml(err.message || 'unknown') + '</div>';
   }
+}
+
+function _autoGrowReply(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+async function _sendReply(tenantId) {
+  var input = document.getElementById('thread-reply-input');
+  var btn = document.getElementById('thread-reply-btn');
+  var statusEl = document.getElementById('thread-reply-status');
+  var body = (input?.value || '').trim();
+  if (!body) return;
+
+  // Disable form during send
+  if (input) input.disabled = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  if (statusEl) statusEl.textContent = '';
+
+  // Optimistic UI — append bubble immediately
+  var scroller = document.getElementById('thread-scroll');
+  var optimisticEl = null;
+  if (scroller) {
+    var wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;justify-content:flex-end';
+    wrapper.innerHTML = '<div class="thread-bubble thread-bubble-admin" style="opacity:0.7">' +
+      '<div class="thread-label" style="color:#166534">You</div>' +
+      '<div class="thread-body">' + escapeHtml(body) + '</div>' +
+      '<div class="thread-time" data-optimistic="1">Sending...</div>' +
+    '</div>';
+    scroller.appendChild(wrapper);
+    optimisticEl = wrapper;
+    scroller.scrollTop = scroller.scrollHeight;
+  }
+
+  try {
+    var r = await API.post('/messages/conversation/' + tenantId + '/reply', { body: body });
+    if (input) { input.value = ''; input.style.height = 'auto'; }
+
+    // Update optimistic bubble — full opacity + real timestamp
+    if (optimisticEl) {
+      var bubbleDiv = optimisticEl.querySelector('.thread-bubble-admin');
+      if (bubbleDiv) bubbleDiv.style.opacity = '1';
+      var timeDiv = optimisticEl.querySelector('[data-optimistic]');
+      if (timeDiv) { timeDiv.textContent = 'Just now'; timeDiv.removeAttribute('data-optimistic'); }
+      // Delete handler will be wired on next thread reload
+    }
+
+    // Show delivery status
+    var parts = [];
+    if (r.sms_sent) parts.push('SMS sent');
+    else if (r.sms_error) parts.push('SMS failed: ' + r.sms_error);
+    parts.push('Portal saved');
+    if (statusEl) {
+      statusEl.textContent = parts.join(' · ');
+      statusEl.style.color = r.sms_error ? '#dc2626' : '#16a34a';
+      setTimeout(function() { if (statusEl) { statusEl.textContent = 'Sending via: SMS + Portal'; statusEl.style.color = '#78716c'; } }, 4000);
+    }
+
+    // Silently update conversations cache so back-nav shows correct last message
+    var conv = _convCache.find(function(c) { return c.tenant_id === tenantId; });
+    if (conv) {
+      conv.last_message_body = body;
+      conv.last_message_date = new Date().toISOString();
+      conv.last_message_type = 'notice';
+    }
+  } catch (err) {
+    if (statusEl) { statusEl.textContent = 'Send failed: ' + (err.message || 'unknown'); statusEl.style.color = '#dc2626'; }
+    // Remove optimistic bubble on failure
+    if (optimisticEl) optimisticEl.remove();
+  } finally {
+    if (input) input.disabled = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
+    if (input) input.focus();
+  }
+}
+
+// ══════════════════════════════════════════
+// MESSAGE DELETE (30-second undo window)
+// ══════════════════════════════════════════
+
+function _confirmDelete(msgId) {
+  if (_pendingDeletes[msgId]) return; // already pending
+  showModal('Delete this message?', `
+    <p style="font-size:0.9rem;color:#44403c;margin-bottom:0.75rem">This will remove the message from the conversation.</p>
+    <p style="font-size:0.82rem;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem">&#9888;&#65039; If this was sent as an SMS, it has already been delivered to the guest's phone and cannot be recalled.</p>
+    <div style="display:flex;gap:0.5rem">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="flex:1;background:#dc2626;color:#fff" onclick="closeModal();_performDelete(${msgId})">Delete</button>
+    </div>
+  `);
+}
+
+function _performDelete(msgId) {
+  var bubble = document.getElementById('msg-bubble-' + msgId);
+  if (!bubble) return;
+  var msg = _threadMessages.find(function(m) { return m.id === msgId; });
+  if (!msg) return;
+
+  // Save original for undo
+  var originalBody = msg.body;
+  var originalSubject = msg.subject;
+  var originalHtml = bubble.innerHTML;
+
+  // Replace bubble with undo UI
+  var seconds = 30;
+  var inner = bubble.querySelector('.thread-bubble');
+  if (inner) {
+    inner.innerHTML = '<div style="font-style:italic;color:#dc2626;font-size:0.82rem" id="undo-text-' + msgId + '">Message deleted. <a href="#" onclick="event.preventDefault();_undoDelete(' + msgId + ')" style="color:#1a5c32;font-weight:700;text-decoration:underline">Undo</a> <span id="undo-count-' + msgId + '">(' + seconds + 's)</span></div>';
+  }
+  bubble.style.opacity = '0.6';
+
+  // Countdown timer
+  var countInterval = setInterval(function() {
+    seconds--;
+    var countEl = document.getElementById('undo-count-' + msgId);
+    if (countEl) countEl.textContent = '(' + seconds + 's)';
+    if (seconds <= 0) clearInterval(countInterval);
+  }, 1000);
+
+  // Commit timer — fires API call after 30s
+  var commitTimer = setTimeout(async function() {
+    clearInterval(countInterval);
+    delete _pendingDeletes[msgId];
+    try {
+      await API.post('/messages/' + msgId + '/delete-soft', {});
+      // Update cached message
+      if (msg) { msg.body = '[message deleted by admin]'; msg.deleted_at = new Date().toISOString(); msg.subject = ''; }
+      // Render permanent deleted state
+      if (inner) {
+        inner.innerHTML = '<div class="thread-label" style="color:#166534">You</div>' +
+          '<div class="thread-body" style="font-style:italic;color:#a8a29e">Message deleted by admin</div>';
+      }
+      bubble.style.opacity = '0.5';
+      bubble.dataset.isDeleted = '1';
+      // Update conv cache preview if this was the last message
+      var conv = _convCache.find(function(c) { return c.tenant_id === _threadTenantId; });
+      if (conv && conv.last_message_body === originalBody) {
+        conv.last_message_body = '[message deleted by admin]';
+      }
+    } catch (err) {
+      // Revert on failure
+      bubble.innerHTML = originalHtml;
+      bubble.style.opacity = '';
+      if (typeof showStatusToast === 'function') showStatusToast('Error', 'Delete failed: ' + (err.message || 'unknown'));
+    }
+  }, 30000);
+
+  _pendingDeletes[msgId] = { timer: commitTimer, countInterval: countInterval, originalHtml: originalHtml, originalBody: originalBody };
+}
+
+function _undoDelete(msgId) {
+  var pending = _pendingDeletes[msgId];
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  clearInterval(pending.countInterval);
+  var bubble = document.getElementById('msg-bubble-' + msgId);
+  if (bubble) {
+    bubble.innerHTML = pending.originalHtml;
+    bubble.style.opacity = '';
+  }
+  delete _pendingDeletes[msgId];
 }
 
 // ══════════════════════════════════════════

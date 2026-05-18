@@ -111,7 +111,7 @@ router.get('/conversations', (req, res) => {
 router.get('/conversation/:tenantId', (req, res) => {
   try {
     var rows = db.prepare(`
-      SELECT id, subject, body, message_type, sent_date, is_broadcast, admin_read
+      SELECT id, subject, body, message_type, sent_date, is_broadcast, admin_read, deleted_at
       FROM messages
       WHERE tenant_id = ? AND is_broadcast = 0
       ORDER BY sent_date ASC, id ASC
@@ -133,6 +133,54 @@ router.post('/conversation/:tenantId/mark-read', (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[messages] mark-read failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin reply in a conversation thread — dual-channel (SMS + portal by default)
+router.post('/conversation/:tenantId/reply', async (req, res) => {
+  try {
+    var tenantId = parseInt(req.params.tenantId);
+    var body = (req.body.body || '').trim();
+    if (!body) return res.status(400).json({ error: 'Message body is required' });
+
+    var tenant = db.prepare('SELECT id, first_name, last_name, phone, sms_opt_in, preferred_contact FROM tenants WHERE id = ?').get(tenantId);
+    if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+
+    // Determine channel: use override, then tenant preference, then default 'both'
+    var channel = req.body.channel_override || tenant.preferred_contact || 'both';
+
+    // Always write portal record (source of truth) — admin_read=1 (admin sent it), read_status=0 (tenant hasn't read yet)
+    var result = db.prepare(
+      "INSERT INTO messages (tenant_id, subject, body, message_type, is_broadcast, admin_read, read_status, conversation_id) VALUES (?, 'Reply from Park Management', ?, 'notice', 0, 1, 0, ?)"
+    ).run(tenantId, body, tenantId);
+    var messageId = result.lastInsertRowid;
+
+    // SMS delivery (if channel includes sms and tenant has a phone + opted in)
+    var smsSent = false;
+    var smsError = null;
+    if (channel === 'sms' || channel === 'both') {
+      if (!tenant.phone) {
+        smsError = 'No phone on file';
+        console.log('[messages] reply to tenant ' + tenantId + ': SMS skipped (no phone)');
+      } else if (!tenant.sms_opt_in) {
+        smsError = 'Tenant opted out of SMS';
+        console.log('[messages] reply to tenant ' + tenantId + ': SMS skipped (opted out)');
+      } else {
+        try {
+          await sendSms(tenant.phone, PARK_PREFIX + body);
+          smsSent = true;
+          console.log('[messages] reply SMS sent to tenant ' + tenantId);
+        } catch (e) {
+          smsError = e.message;
+          console.error('[messages] reply SMS failed for tenant ' + tenantId + ':', e.message);
+        }
+      }
+    }
+
+    res.json({ success: true, message_id: messageId, sms_sent: smsSent, sms_error: smsError });
+  } catch (err) {
+    console.error('[messages] reply failed:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -267,6 +315,23 @@ router.post('/emergency-alert', async (req, res) => {
     res.json({ messagesPosted, smsSent, smsFailed, totalTenants: tenants.length, errors: errors.slice(0, 10) });
   } catch (err) {
     console.error('[messages] emergency-alert failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Soft-delete: replaces body with placeholder, sets deleted_at. Admin outbound messages only.
+router.post('/:id/delete-soft', (req, res) => {
+  try {
+    var msg = db.prepare('SELECT id, message_type, deleted_at FROM messages WHERE id = ?').get(req.params.id);
+    if (!msg) return res.status(404).json({ error: 'Message not found' });
+    if (msg.message_type === 'sms_reply' || msg.message_type === 'portal') {
+      return res.status(403).json({ error: 'Cannot delete tenant messages' });
+    }
+    if (msg.deleted_at) return res.status(400).json({ error: 'Message already deleted' });
+    db.prepare("UPDATE messages SET body = '[message deleted by admin]', deleted_at = datetime('now') WHERE id = ?").run(msg.id);
+    res.json({ success: true, id: msg.id, deleted_at: new Date().toISOString() });
+  } catch (err) {
+    console.error('[messages] soft-delete failed:', err);
     res.status(500).json({ error: err.message });
   }
 });
