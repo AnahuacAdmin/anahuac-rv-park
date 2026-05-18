@@ -1629,11 +1629,14 @@ async function loadPortalInbox() {
             '</div></div>';
         } else {
           var label = isBroadcast ? '📢 Park Announcement' : 'Park Management';
-          html += '<div style="display:flex;justify-content:flex-start">' +
+          var isDeleted = !!m.deleted_at;
+          html += '<div style="display:flex;justify-content:flex-start;' + (isDeleted ? 'opacity:0.5;' : '') + '">' +
             '<div style="max-width:85%;background:#dcfce7;border-radius:12px 12px 12px 2px;padding:0.6rem 0.8rem">' +
               '<div style="font-size:0.72rem;font-weight:700;color:#166534;margin-bottom:0.15rem">' + label + '</div>' +
-              (m.subject && m.subject !== 'Portal Message' && !m.subject.startsWith('Portal Message from') && m.subject !== 'Reply from Park Management' ? '<div style="font-size:0.78rem;font-weight:600;color:#1c1917;margin-bottom:0.15rem">' + _escPortal(m.subject) + '</div>' : '') +
-              '<div style="font-size:0.85rem;color:#1c1917;line-height:1.4;white-space:pre-wrap;word-break:break-word">' + _escPortal(m.body) + '</div>' +
+              (isDeleted
+                ? '<div style="font-size:0.85rem;font-style:italic;color:#a8a29e;line-height:1.4">Message deleted by admin</div>'
+                : (m.subject && m.subject !== 'Portal Message' && !m.subject.startsWith('Portal Message from') && m.subject !== 'Reply from Park Management' ? '<div style="font-size:0.78rem;font-weight:600;color:#1c1917;margin-bottom:0.15rem">' + _escPortal(m.subject) + '</div>' : '') +
+                  '<div style="font-size:0.85rem;color:#1c1917;line-height:1.4;white-space:pre-wrap;word-break:break-word">' + _escPortal(m.body) + '</div>') +
               '<div style="font-size:0.65rem;color:#a8a29e;margin-top:0.25rem">' + timeStr + '</div>' +
             '</div></div>';
         }

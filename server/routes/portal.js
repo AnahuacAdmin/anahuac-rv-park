@@ -557,7 +557,7 @@ router.get('/messages', tenantAuth, (req, res) => {
     var broadcastCutoff = moveIn > ninetyDaysAgo ? moveIn : ninetyDaysAgo;
 
     var rows = db.prepare(`
-      SELECT id, subject, body, message_type, sent_date, read_status, is_broadcast
+      SELECT id, subject, body, message_type, sent_date, read_status, is_broadcast, deleted_at
       FROM messages
       WHERE (tenant_id = ? AND is_broadcast = 0)
          OR (is_broadcast = 1 AND sent_date >= ?)
