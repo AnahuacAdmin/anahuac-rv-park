@@ -4173,8 +4173,12 @@ async function loadPortalBirdFeed() {
           (p.notes ? '<div style="font-size:0.85rem;color:#44403c;margin-top:0.3rem;line-height:1.5">' + _escPortal(p.notes) + '</div>' : '') +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.35rem;font-size:0.75rem;color:#a8a29e">' +
             '<span>By ' + _escPortal(p.author) + (p.author_lot ? ' · ' + p.author_lot : '') + '</span>' +
-            '<button style="background:none;border:none;cursor:pointer;font-size:0.88rem;padding:4px 8px;border-radius:8px" onclick="likeBirdSighting(' + p.id + ',this)">❤️ ' + (p.likes_count || 0) + '</button>' +
+            '<div style="display:flex;gap:0.5rem;align-items:center">' +
+              '<button onclick="toggleBirdingComments(' + p.id + ')" style="background:none;border:none;cursor:pointer;font-size:0.78rem;color:#78716c;display:flex;align-items:center;gap:3px;padding:3px 6px"><span>💬</span><span style="font-weight:600">' + (p.comment_count || 0) + '</span></button>' +
+              '<button style="background:none;border:none;cursor:pointer;font-size:0.88rem;padding:4px 8px;border-radius:8px" onclick="likeBirdSighting(' + p.id + ',this)">❤️ ' + (p.likes_count || 0) + '</button>' +
+            '</div>' +
           '</div>' +
+          '<div id="birding-comments-' + p.id + '" style="display:none"></div>' +
         '</div></div>';
     }).join('');
   } catch { el.innerHTML = '<div style="color:#a8a29e">Could not load sightings</div>'; }
@@ -4182,6 +4186,60 @@ async function loadPortalBirdFeed() {
 
 async function likeBirdSighting(id, btn) {
   try { await fetch('/api/birding/' + id + '/like', { method: 'POST' }); if (btn) btn.textContent = '❤️ Liked!'; } catch {}
+}
+
+var _birdingOpenComments = {};
+async function toggleBirdingComments(postId) {
+  var el = document.getElementById('birding-comments-' + postId);
+  if (!el) return;
+  if (el.style.display !== 'none') { el.style.display = 'none'; delete _birdingOpenComments[postId]; return; }
+  el.style.display = '';
+  _birdingOpenComments[postId] = true;
+  _loadBirdingComments(postId);
+}
+
+async function _loadBirdingComments(postId) {
+  var el = document.getElementById('birding-comments-' + postId);
+  if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:0.4rem;color:#a8a29e;font-size:0.8rem">Loading...</div>';
+  try {
+    var r = await fetch('/api/birding/' + postId + '/comments');
+    var comments = await r.json();
+    var html = '<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px dashed #e5e7eb">';
+    if (comments.length) {
+      html += comments.map(function(c) {
+        var isMgmt = c.is_management === 1;
+        return '<div style="margin-bottom:0.5rem;padding:0.4rem 0.6rem;background:' + (isMgmt ? '#f0fdf4' : '#f5f5f4') + ';border-radius:8px;' + (isMgmt ? 'border-left:3px solid #16a34a' : '') + '">' +
+          '<div style="font-size:0.78rem"><strong>' + _escPortal(c.author) + '</strong>' +
+            (isMgmt ? ' <span style="background:#16a34a;color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:3px">🛡️ STAFF</span>' : '') +
+            (c.author_lot ? ' <span style="color:#a8a29e">' + _escPortal(c.author_lot) + '</span>' : '') +
+            ' <span style="color:#a8a29e">· ' + _timeAgo(c.created_at) + '</span></div>' +
+          '<div style="font-size:0.83rem;color:#44403c;margin-top:0.15rem;line-height:1.4">' + _escPortal(c.comment) + '</div>' +
+        '</div>';
+      }).join('');
+    } else {
+      html += '<div style="font-size:0.8rem;color:#a8a29e;text-align:center;padding:0.3rem 0">No comments yet — be the first!</div>';
+    }
+    html += '<div style="display:flex;gap:0.4rem;margin-top:0.4rem">' +
+      '<input id="birding-comment-input-' + postId + '" placeholder="Write a comment..." style="flex:1;font-size:0.82rem;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;min-height:36px">' +
+      '<button onclick="submitBirdingComment(' + postId + ')" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap">Send</button>' +
+    '</div></div>';
+    el.innerHTML = html;
+  } catch { el.innerHTML = '<div style="color:#a8a29e;font-size:0.8rem;padding:0.3rem">Could not load comments</div>'; }
+}
+
+async function submitBirdingComment(postId) {
+  var input = document.getElementById('birding-comment-input-' + postId);
+  if (!input || !input.value.trim()) return;
+  var btn = input.nextElementSibling;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    await fetch('/api/birding/' + postId + '/comments', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment: input.value.trim(), tenant_id: _portalTenant ? _portalTenant.id : null, author_name: _portalTenant ? _portalTenant.first_name + ' ' + _portalTenant.last_name : 'Visitor' })
+    });
+    _loadBirdingComments(postId);
+  } catch { alert('Could not post comment'); if (btn) { btn.disabled = false; btn.textContent = 'Send'; } }
 }
 
 function loadPortalBirdMap() {
