@@ -5,6 +5,10 @@
  * Unauthorized copying, distribution, or use is strictly prohibited.
  */
 let _messagesCache = [];
+var _convCache = [];
+var _convSearchQuery = '';
+
+// ── Delivery option helpers (used by Send Message + Broadcast modals) ──
 
 function _msgDeliveryOption(name, value, emoji, label, desc, checked) {
   return '<label style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.85rem;border:1.5px solid ' + (checked ? '#1a5c32' : '#e0e0e0') + ';border-radius:8px;background:' + (checked ? '#f0fdf4' : '#fff') + ';cursor:pointer;transition:all 0.15s ease;font-weight:400" data-delivery-group="' + name + '">' +
@@ -30,11 +34,27 @@ function _initDeliveryRadios(groupName) {
   }, 50);
 }
 
-async function loadMessages() {
-  const messages = await API.get('/messages');
-  if (!messages) return;
-  _messagesCache = messages || [];
+// ── Time formatting ──
 
+function _adminTimeAgo(dateStr) {
+  if (!dateStr) return '';
+  var diff = Date.now() - new Date(dateStr).getTime();
+  if (diff < 0 || isNaN(diff)) return '';
+  var mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return mins + 'm ago';
+  var hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  var d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+}
+
+// ══════════════════════════════════════════
+// MAIN ENTRY POINT — renders conversation list (default view)
+// ══════════════════════════════════════════
+
+async function loadMessages() {
+  _convSearchQuery = '';
   document.getElementById('page-content').innerHTML = `
     ${helpPanel('messages')}
     <div class="page-header">
@@ -53,74 +73,200 @@ async function loadMessages() {
       .messaging-btn-wrap .btn { min-width: 140px; }
       .messaging-btn-sub { font-size: 11px; color: #555; font-weight: 500; margin-top: 3px; text-align: center; max-width: 160px; line-height: 1.3; }
       .msg-twilio-note { text-align:center; margin-top:12px; font-size:12px; color:#666; font-style:italic; }
-      .msg-card-list { display:none; }
+      .conv-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:0.85rem 1rem; margin-bottom:0.5rem; cursor:pointer; transition:box-shadow 0.15s ease, transform 0.1s ease; }
+      .conv-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); transform:translateY(-1px); }
+      .conv-card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem; }
+      .conv-card-name { font-weight:700; font-size:0.92rem; color:#1c1917; }
+      .conv-card-lot { font-size:0.75rem; color:#78716c; font-weight:500; margin-left:0.4rem; }
+      .conv-card-time { font-size:0.7rem; color:#a8a29e; white-space:nowrap; }
+      .conv-card-preview { font-size:0.82rem; color:#57534e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.4; }
+      .conv-unread-dot { display:inline-block; background:#dc2626; color:#fff; font-size:0.6rem; font-weight:700; min-width:18px; height:18px; line-height:18px; text-align:center; border-radius:10px; padding:0 5px; }
+      .conv-direction-icon { font-size:0.72rem; margin-right:0.25rem; }
+      .conv-past-guest { font-size:0.6rem; color:#a8a29e; background:#f5f5f4; padding:1px 6px; border-radius:4px; margin-left:0.3rem; font-weight:600; }
+      .thread-bubble { max-width:80%; padding:0.6rem 0.85rem; border-radius:12px; margin-bottom:0.4rem; }
+      .thread-bubble-admin { background:#dcfce7; border-radius:12px 12px 2px 12px; margin-left:auto; }
+      .thread-bubble-tenant { background:#f5f5f4; border-radius:12px 12px 12px 2px; }
+      .thread-label { font-size:0.7rem; font-weight:700; margin-bottom:0.1rem; }
+      .thread-body { font-size:0.85rem; color:#1c1917; line-height:1.45; white-space:pre-wrap; word-break:break-word; }
+      .thread-time { font-size:0.62rem; color:#a8a29e; margin-top:0.2rem; }
+      .thread-channel { font-size:0.58rem; padding:1px 5px; border-radius:3px; margin-left:0.3rem; font-weight:600; }
       @media (max-width: 768px) {
         .messaging-buttons { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .messaging-btn-wrap { flex-direction: row; align-items: center; gap: 0.75rem; }
-        .messaging-btn-wrap .btn { width: 100%; min-width: 0; flex-shrink: 0; flex: 0 0 auto; width: auto; min-width: 130px; }
+        .messaging-btn-wrap .btn { width: auto; min-width: 130px; flex: 0 0 auto; }
         .messaging-btn-sub { text-align: left; max-width: none; font-size: 10.5px; }
         .msg-twilio-note { margin-top: 8px; padding: 0 0.5rem; }
-        .msg-desktop-table { display: none !important; }
-        .msg-card-list { display: block !important; }
-        .msg-card { background: #fff; border: 1px solid var(--gray-200, #e5e7eb); border-radius: 10px; padding: 0.75rem; margin-bottom: 0.5rem; }
-        .msg-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; }
-        .msg-card-guest { font-weight: 700; font-size: 0.88rem; }
-        .msg-card-date { font-size: 0.7rem; color: #78716c; }
-        .msg-card-subject { font-size: 0.82rem; color: #44403c; margin-bottom: 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .msg-card-bottom { display: flex; justify-content: space-between; align-items: center; }
-        .msg-card-badges { display: flex; gap: 0.3rem; flex-wrap: wrap; }
-        .msg-card-actions { display: flex; gap: 0.35rem; }
+        .thread-bubble { max-width:90%; }
       }
     </style>
-    <div class="card msg-desktop-table">
-      <div class="table-container">
-        <table>
-          <thead><tr><th>Date</th><th>Guest</th><th>Lot</th><th>Subject</th><th>Type</th><th>Actions</th></tr></thead>
-          <tbody>
-            ${messages.length ? messages.map(m => `
-              <tr>
-                <td>${new Date(m.sent_date).toLocaleString()}</td>
-                <td>${m.first_name ? m.first_name + ' ' + m.last_name : 'All Tenants'}</td>
-                <td>${m.lot_id || '—'}</td>
-                <td>${m.subject || '(no subject)'}</td>
-                <td><span class="badge badge-${m.message_type === 'sms_reply' ? 'success' : m.message_type === 'urgent' ? 'danger' : m.message_type === 'reminder' ? 'warning' : 'info'}">${m.message_type === 'sms_reply' ? '📥 GUEST REPLY' : m.message_type}</span>
-                  ${m.is_broadcast ? '<span class="badge badge-gray">broadcast</span>' : ''}
-                </td>
-                <td class="btn-group">
-                  <button class="btn btn-sm btn-outline" onclick="viewMessageById(${m.id})">View</button>
-                  <button class="btn btn-sm btn-danger" onclick="deleteMessage(${m.id})">Del</button>
-                </td>
-              </tr>
-            `).join('') : '<tr><td colspan="6" class="text-center" style="padding:2rem;color:#78716c">No messages sent</td></tr>'}
-          </tbody>
-        </table>
+    <div class="card" style="padding:0.75rem 1rem">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+        <input type="text" id="conv-search" placeholder="Search by name or lot..." style="flex:1;padding:0.5rem 0.75rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.85rem" oninput="_filterConversations(this.value)">
+        <button class="btn btn-sm btn-outline" onclick="_showBroadcasts()" style="white-space:nowrap">📢 Broadcasts</button>
+      </div>
+      <div id="conv-list">
+        <div style="text-align:center;padding:2rem;color:#a8a29e;font-size:0.85rem">Loading conversations...</div>
       </div>
     </div>
-    <div class="card msg-card-list">
-      ${messages.length ? messages.map(m => `
-        <div class="msg-card">
-          <div class="msg-card-top">
-            <span class="msg-card-guest">${m.first_name ? m.first_name + ' ' + m.last_name : 'All Tenants'}${m.lot_id ? ' <span style="font-weight:400;color:#78716c;font-size:0.72rem">Lot ' + m.lot_id + '</span>' : ''}</span>
-            <span class="msg-card-date">${new Date(m.sent_date).toLocaleDateString()}</span>
-          </div>
-          <div class="msg-card-subject">${m.subject || '(no subject)'}</div>
-          <div class="msg-card-bottom">
-            <div class="msg-card-badges">
-              <span class="badge badge-${m.message_type === 'sms_reply' ? 'success' : m.message_type === 'urgent' ? 'danger' : m.message_type === 'reminder' ? 'warning' : 'info'}">${m.message_type === 'sms_reply' ? '📥 GUEST REPLY' : m.message_type}</span>
-              ${m.is_broadcast ? '<span class="badge badge-gray">broadcast</span>' : ''}
-            </div>
-            <div class="msg-card-actions">
-              <button class="btn btn-sm btn-outline" onclick="viewMessageById(${m.id})">View</button>
-              <button class="btn btn-sm btn-danger" onclick="deleteMessage(${m.id})">Del</button>
-            </div>
-          </div>
-        </div>
-      `).join('') : '<div style="text-align:center;padding:2rem;color:#78716c">No messages sent</div>'}
-    </div>
   `;
+  _loadConversations();
 }
 
-// --- Send Message (single tenant, all delivery methods) ---
+async function _loadConversations() {
+  var el = document.getElementById('conv-list');
+  if (!el) return;
+  try {
+    _convCache = await API.get('/messages/conversations') || [];
+    _renderConvList();
+  } catch (err) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:#dc2626;font-size:0.85rem">Failed to load conversations: ' + escapeHtml(err.message || 'unknown') + '</div>';
+  }
+}
+
+function _renderConvList() {
+  var el = document.getElementById('conv-list');
+  if (!el) return;
+  var filtered = _convCache;
+  if (_convSearchQuery) {
+    var q = _convSearchQuery.toLowerCase();
+    filtered = _convCache.filter(function(c) {
+      return (c.first_name + ' ' + c.last_name).toLowerCase().includes(q) || (c.lot_id || '').toLowerCase().includes(q);
+    });
+  }
+  if (!filtered.length) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:#a8a29e;font-size:0.85rem">' +
+      (_convSearchQuery ? 'No conversations matching "' + escapeHtml(_convSearchQuery) + '"' : 'No conversations yet. Use Send Message above to reach out to a guest.') + '</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(function(c) {
+    var name = escapeHtml((c.first_name || '') + ' ' + (c.last_name || ''));
+    var lot = escapeHtml(c.lot_id || '');
+    var pastGuest = c.is_active ? '' : '<span class="conv-past-guest">Past Guest</span>';
+    var isInbound = c.last_message_type === 'sms_reply' || c.last_message_type === 'portal';
+    var dirIcon = isInbound ? '<span class="conv-direction-icon">📥</span>' : '<span class="conv-direction-icon">📤</span>';
+    var preview = escapeHtml((c.last_message_body || '').replace(/\n/g, ' ').slice(0, 80));
+    var time = _adminTimeAgo(c.last_message_date);
+    var unread = c.unread_count > 0 ? '<span class="conv-unread-dot">' + c.unread_count + '</span>' : '';
+    return '<div class="conv-card" onclick="_openThread(' + c.tenant_id + ')">' +
+      '<div class="conv-card-top">' +
+        '<div><span class="conv-card-name">' + name + '</span><span class="conv-card-lot">' + lot + '</span>' + pastGuest + '</div>' +
+        '<div style="display:flex;align-items:center;gap:0.5rem">' + unread + '<span class="conv-card-time">' + time + '</span></div>' +
+      '</div>' +
+      '<div class="conv-card-preview">' + dirIcon + preview + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function _filterConversations(query) {
+  _convSearchQuery = (query || '').trim();
+  _renderConvList();
+}
+
+// ══════════════════════════════════════════
+// THREAD VIEW — all messages for one tenant
+// ══════════════════════════════════════════
+
+async function _openThread(tenantId) {
+  var c = _convCache.find(function(x) { return x.tenant_id === tenantId; });
+  var tenantName = c ? (c.first_name || '') + ' ' + (c.last_name || '') : 'Guest';
+  var lotId = c ? (c.lot_id || '') : '';
+  document.getElementById('thread-header')?.remove();
+  var el = document.getElementById('conv-list');
+  var searchEl = document.getElementById('conv-search');
+  if (searchEl) searchEl.parentElement.style.display = 'none';
+  if (el) el.innerHTML = '<div style="text-align:center;padding:2rem;color:#a8a29e">Loading thread...</div>';
+
+  // Replace search bar area with thread header
+  var container = searchEl?.parentElement?.parentElement;
+  if (container) {
+    var header = document.createElement('div');
+    header.id = 'thread-header';
+    header.style.cssText = 'margin-bottom:0.75rem';
+    header.innerHTML = '<a href="#" onclick="event.preventDefault();loadMessages()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.82rem;font-weight:600;color:#1a5c32;text-decoration:none">' +
+      '← Back to Conversations</a>' +
+      '<div style="font-size:1.05rem;font-weight:700;color:#1c1917;margin-top:0.35rem">' + tenantName +
+      (lotId ? ' <span style="font-weight:400;color:#78716c;font-size:0.82rem">Lot ' + lotId + '</span>' : '') + '</div>';
+    container.insertBefore(header, container.firstChild);
+  }
+
+  try {
+    var messages = await API.get('/messages/conversation/' + tenantId) || [];
+    if (!messages.length) {
+      el.innerHTML = '<div style="text-align:center;padding:2rem;color:#a8a29e;font-size:0.85rem">No messages with this guest yet.</div>';
+      return;
+    }
+
+    var html = '<div style="display:flex;flex-direction:column;gap:0.35rem;max-height:500px;overflow-y:auto;padding:0.5rem" id="thread-scroll">';
+    messages.forEach(function(m) {
+      // Direction: sms_reply and portal = tenant→admin (inbound), everything else = admin→tenant (outbound)
+      // TODO: add explicit 'direction' column to messages table for cleaner queries
+      var isAdmin = m.message_type !== 'sms_reply' && m.message_type !== 'portal';
+      var bubbleClass = isAdmin ? 'thread-bubble thread-bubble-admin' : 'thread-bubble thread-bubble-tenant';
+      var label = isAdmin ? 'You' : tenantName;
+      var labelColor = isAdmin ? '#166534' : '#57534e';
+      var channel = '';
+      if (m.message_type === 'sms_reply') channel = '<span class="thread-channel" style="background:#dbeafe;color:#1e40af">SMS</span>';
+      else if (m.message_type === 'portal') channel = '<span class="thread-channel" style="background:#f3e8ff;color:#7c3aed">Portal</span>';
+      var time = _adminTimeAgo(m.sent_date);
+      var subject = m.subject && m.subject !== 'Portal Message' && !m.subject.startsWith('SMS Reply from') ? '<div style="font-size:0.78rem;font-weight:600;color:#1c1917;margin-bottom:0.1rem">' + escapeHtml(m.subject) + '</div>' : '';
+
+      html += '<div style="display:flex;justify-content:' + (isAdmin ? 'flex-end' : 'flex-start') + '">' +
+        '<div class="' + bubbleClass + '">' +
+          '<div class="thread-label" style="color:' + labelColor + '">' + escapeHtml(label) + channel + '</div>' +
+          subject +
+          '<div class="thread-body">' + escapeHtml(m.body || '') + '</div>' +
+          '<div class="thread-time">' + time + '</div>' +
+        '</div></div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+
+    // Auto-scroll to bottom
+    var scroller = document.getElementById('thread-scroll');
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+
+    // Mark inbound messages as read (fire-and-forget)
+    API.post('/messages/conversation/' + tenantId + '/mark-read', {}).catch(function() {});
+    // Update the conversation card's unread count in cache
+    var conv = _convCache.find(function(c) { return c.tenant_id === tenantId; });
+    if (conv) conv.unread_count = 0;
+  } catch (err) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:#dc2626;font-size:0.85rem">Failed to load thread: ' + escapeHtml(err.message || 'unknown') + '</div>';
+  }
+}
+
+// ══════════════════════════════════════════
+// BROADCASTS STUB
+// ══════════════════════════════════════════
+
+function _showBroadcasts() {
+  document.getElementById('thread-header')?.remove();
+  var el = document.getElementById('conv-list');
+  var searchEl = document.getElementById('conv-search');
+  if (searchEl) searchEl.parentElement.style.display = 'none';
+
+  var container = searchEl?.parentElement?.parentElement;
+  if (container) {
+    var header = document.createElement('div');
+    header.id = 'thread-header';
+    header.style.cssText = 'margin-bottom:0.75rem';
+    header.innerHTML = '<a href="#" onclick="event.preventDefault();loadMessages()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.82rem;font-weight:600;color:#1a5c32;text-decoration:none">' +
+      '← Back to Conversations</a>' +
+      '<div style="font-size:1.05rem;font-weight:700;color:#1c1917;margin-top:0.35rem">📢 Broadcasts</div>';
+    container.insertBefore(header, container.firstChild);
+  }
+
+  if (el) el.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:#a8a29e">' +
+    '<div style="font-size:2rem;margin-bottom:0.5rem">📢</div>' +
+    '<div style="font-size:0.9rem;font-weight:600;margin-bottom:0.25rem">Broadcast History</div>' +
+    '<div style="font-size:0.82rem">Coming in a future update. Use the Broadcast to All button above to send new broadcasts.</div>' +
+  '</div>';
+}
+
+// ══════════════════════════════════════════
+// SEND MESSAGE (single tenant, all delivery methods)
+// ══════════════════════════════════════════
+
 async function showSendMessage() {
   const tenants = await API.get('/tenants');
   showModal('Send Message', `
@@ -182,7 +328,8 @@ async function sendMessage(e) {
   }
 }
 
-// --- Broadcast to All ---
+// ── Broadcast to All ──
+
 function showBroadcast() {
   showModal('Broadcast to All Tenants', `
     <form onsubmit="sendBroadcast(event)">
@@ -240,7 +387,8 @@ async function sendBroadcast(e) {
   }
 }
 
-// --- View / Delete messages ---
+// ── View / Delete messages ──
+
 function viewMessage(id, subject, body, tenant) {
   showModal(escapeHtml(subject || 'Message'), `
     <p><strong>To:</strong> ${escapeHtml(tenant)}</p>
@@ -262,7 +410,7 @@ async function deleteMessage(id) {
   loadMessages();
 }
 
-// --- Advanced Notification System (kept for API compatibility) ---
+// ── Advanced Notification System (kept for API compatibility) ──
 const MSG_TEMPLATES = {
   late_payment: { subject: 'Payment Reminder', message: 'Hi [name], your account at Anahuac RV Park has a balance due. Please pay at anrvpark.com or call 409-267-6603.' },
   weather_emergency: { subject: 'WEATHER EMERGENCY', message: 'URGENT - Anahuac RV Park: Please take necessary precautions for the incoming weather event. Secure outdoor items, stay indoors if possible. Call 409-267-6603 for assistance.' },
@@ -313,7 +461,7 @@ async function sendAdvancedBroadcast(e) {
   }
 }
 
-// --- Share Tenant Portal ---
+// ── Share Tenant Portal ──
 const PORTAL_URL = APP_URL + '/portal.html';
 const PORTAL_MSG_TEMPLATE = (name) => `Hi ${name}! Anahuac RV Park now has an online tenant portal where you can view your balance and pay your bill online. Access it here: ${PORTAL_URL} - Log in with your lot number and last name, then set up a 4-digit PIN. Questions? Call us at 409-267-6603`;
 

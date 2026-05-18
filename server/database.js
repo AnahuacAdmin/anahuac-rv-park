@@ -203,6 +203,7 @@ async function initializeDatabase() {
   addCol("ALTER TABLE reservations ADD COLUMN tenant_id INTEGER");
   addCol("ALTER TABLE messages ADD COLUMN conversation_id INTEGER");
   addCol("ALTER TABLE tenants ADD COLUMN preferred_contact TEXT DEFAULT 'both'");
+  addCol("ALTER TABLE messages ADD COLUMN admin_read INTEGER DEFAULT 0");
 
   // Backfill conversation_id: one conversation per tenant (runs once, skips if already populated)
   try {
@@ -212,6 +213,15 @@ async function initializeDatabase() {
       console.log('[database] backfilled conversation_id on existing messages');
     }
   } catch (e) { /* ignore — column may not exist yet on first boot */ }
+
+  // Backfill admin_read: mark existing inbound messages as read (don't ambush admin with 100 unread)
+  try {
+    var hasAnyAdminRead = db.prepare("SELECT 1 FROM messages WHERE admin_read = 1 LIMIT 1").get();
+    if (!hasAnyAdminRead) {
+      db.prepare("UPDATE messages SET admin_read = 1 WHERE message_type IN ('sms_reply','portal')").run();
+      console.log('[database] backfilled admin_read=1 on existing inbound messages');
+    }
+  } catch (e) {}
 
   // Rename rent_type 'standard' to 'monthly' for consistency
   try { db.run("UPDATE tenants SET rent_type = 'monthly' WHERE rent_type = 'standard'"); } catch (e) { /* ignore */ }

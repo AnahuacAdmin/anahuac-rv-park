@@ -72,6 +72,71 @@ router.get('/', (req, res) => {
   res.json(messages);
 });
 
+// Conversations list: one row per tenant with last message + unread count
+router.get('/conversations', (req, res) => {
+  try {
+    var rows = db.prepare(`
+      WITH last_msg AS (
+        SELECT tenant_id, body, sent_date, message_type,
+          ROW_NUMBER() OVER (PARTITION BY tenant_id ORDER BY sent_date DESC, id DESC) AS rn
+        FROM messages
+        WHERE is_broadcast = 0 AND tenant_id IS NOT NULL
+      )
+      SELECT
+        t.id AS tenant_id,
+        t.first_name, t.last_name, t.lot_id, t.is_active,
+        lm.body AS last_message_body,
+        lm.sent_date AS last_message_date,
+        lm.message_type AS last_message_type,
+        COALESCE(u.unread_count, 0) AS unread_count
+      FROM last_msg lm
+      JOIN tenants t ON lm.tenant_id = t.id
+      LEFT JOIN (
+        SELECT tenant_id, COUNT(*) AS unread_count
+        FROM messages
+        WHERE message_type IN ('sms_reply', 'portal') AND admin_read = 0 AND is_broadcast = 0
+        GROUP BY tenant_id
+      ) u ON u.tenant_id = t.id
+      WHERE lm.rn = 1
+      ORDER BY lm.sent_date DESC
+    `).all();
+    res.json(rows);
+  } catch (err) {
+    console.error('[messages] conversations failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Thread: all messages for one tenant, chronological
+router.get('/conversation/:tenantId', (req, res) => {
+  try {
+    var rows = db.prepare(`
+      SELECT id, subject, body, message_type, sent_date, is_broadcast, admin_read
+      FROM messages
+      WHERE tenant_id = ? AND is_broadcast = 0
+      ORDER BY sent_date ASC, id ASC
+    `).all(req.params.tenantId);
+    res.json(rows);
+  } catch (err) {
+    console.error('[messages] conversation thread failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Mark inbound messages as read by admin for a tenant
+router.post('/conversation/:tenantId/mark-read', (req, res) => {
+  try {
+    db.prepare(`
+      UPDATE messages SET admin_read = 1
+      WHERE tenant_id = ? AND message_type IN ('sms_reply', 'portal') AND admin_read = 0
+    `).run(req.params.tenantId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[messages] mark-read failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Send message — supports all delivery methods:
 //   portal — save to tenant portal inbox (visible to tenant)
 //   email  — save to portal + send email via Resend
