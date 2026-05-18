@@ -15,17 +15,10 @@ function injectMainApp() {
   el.innerHTML = `
       <header class="mobile-header">
         <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Open menu">&#9776;</button>
-        <h2>\u{1F40A} Anahuac RV Park</h2>
-        <button id="admin-notif-bell" onclick="toggleAdminNotifInbox()" style="position:relative;background:none;border:none;font-size:1.1rem;cursor:pointer;color:rgba(255,255,255,0.85);padding:0.15rem 0.4rem;margin-left:auto" title="Notifications">\u{1F514}<span id="admin-notif-badge" style="position:absolute;top:-4px;right:-2px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 3px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></span></button>
+        <h2 style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\u{1F40A} Anahuac RV Park</h2>
+        <button id="admin-notif-bell" onclick="toggleAdminNotifInbox()" style="position:relative;background:none;border:none;font-size:1.1rem;cursor:pointer;color:rgba(255,255,255,0.85);padding:0.15rem 0.4rem;flex-shrink:0" title="Notifications">\u{1F514}<span id="admin-notif-badge" style="position:absolute;top:-4px;right:-2px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 3px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></span></button>
       </header>
-      <div id="admin-push-banner" style="display:none;background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);border:1px solid #bbf7d0;border-radius:10px;padding:0.65rem 0.85rem;margin:0.5rem 1rem;align-items:center;gap:0.6rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);animation:adminBannerIn 0.4s ease;flex-wrap:wrap">
-        <span style="font-size:1.3rem;flex-shrink:0">\u{1F514}</span>
-        <span style="flex:1;font-size:0.82rem;color:#1c4428;line-height:1.35">Get instant alerts for payments, maintenance, and tenant activity</span>
-        <div style="display:flex;gap:0.4rem;flex-shrink:0">
-          <button onclick="adminPushBannerEnable()" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap">Enable Notifications</button>
-          <button onclick="adminPushBannerDismiss()" style="background:none;border:none;color:#6b7280;font-size:0.78rem;cursor:pointer;padding:0.35rem 0.4rem;white-space:nowrap">Not now</button>
-        </div>
-      </div>
+      <div id="admin-push-banner-placeholder"></div>
       <div id="admin-notif-inbox" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:8000;background:rgba(0,0,0,0.45);backdrop-filter:blur(2px)" onclick="if(event.target===this)toggleAdminNotifInbox()">
         <div style="position:absolute;top:50px;right:10px;width:340px;max-width:calc(100vw - 20px);max-height:70vh;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column">
           <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;border-bottom:1px solid #e5e7eb;background:#fafaf9">
@@ -113,6 +106,14 @@ function injectMainApp() {
         </div>
       </nav>
       <main id="content">
+        <div id="admin-push-banner" style="display:none;background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);border:1px solid #bbf7d0;border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.75rem;align-items:center;gap:0.6rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);animation:adminBannerIn 0.4s ease;flex-wrap:wrap">
+          <span style="font-size:1.3rem;flex-shrink:0">\u{1F514}</span>
+          <span style="flex:1;min-width:0;font-size:0.82rem;color:#1c4428;line-height:1.35">Get instant alerts for payments, maintenance, and tenant activity</span>
+          <div style="display:flex;gap:0.4rem;flex-shrink:0">
+            <button onclick="adminPushBannerEnable()" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap">Enable Notifications</button>
+            <button onclick="adminPushBannerDismiss()" style="background:none;border:none;color:#6b7280;font-size:0.78rem;cursor:pointer;padding:0.35rem 0.4rem;white-space:nowrap">Not now</button>
+          </div>
+        </div>
         <div id="page-content"></div>
         <footer style="text-align:center;padding:1.5rem 1rem 1rem;font-size:0.72rem;color:#9ca3af">&copy; 2026 Anahuac RV Park LLC &nbsp;|&nbsp; <a href="#" onclick="event.preventDefault();showKeyboardShortcuts()" style="color:#a8a29e;text-decoration:underline">\u2328\u{FE0F} Keyboard Shortcuts</a> &nbsp;|&nbsp; <a href="/emergency-form.html" target="_blank" style="color:#a8a29e;text-decoration:underline">\u{1F5A8}\u{FE0F} Emergency Forms</a></footer>
       </main>`;
@@ -1344,6 +1345,9 @@ function navigateTo(page, skipHistory) {
   const sidebar = document.getElementById('sidebar');
   sidebar.classList.remove('open');
   document.getElementById('sidebar-backdrop')?.classList.remove('open');
+  // Hide push notification banner when leaving dashboard
+  var pushBanner = document.getElementById('admin-push-banner');
+  if (pushBanner && page !== 'dashboard') pushBanner.style.display = 'none';
   // Scroll to top on page change
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // Show skeleton loading
