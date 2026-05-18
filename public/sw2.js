@@ -3,7 +3,7 @@
  * Copyright © 2026 Anahuac RV Park LLC. All Rights Reserved.
  * Service Worker — Offline & Caching
  */
-const CACHE_NAME = 'rvpark-v86';
+const CACHE_NAME = 'rvpark-v87';
 
 const APP_SHELL = [
   // NOTE: '/' intentionally excluded — handled separately as network-first to prevent caching stale HTML
@@ -140,8 +140,20 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.method !== 'GET') return;
 
+  // NEVER intercept portal or its API — portal has its own SW (portal-sw.js).
+  // Intercepting these caused blank-page crashes when cached responses went stale.
+  if (url.pathname === '/portal.html' || url.pathname.startsWith('/api/portal/') || url.pathname === '/reset-sw.html') return;
+
+  // Self-destruct kill switch: if ?_nuke_sw is in the URL, unregister and clear caches
+  if (url.searchParams.has('_nuke_sw')) {
+    event.respondWith(
+      self.registration.unregister().then(() => caches.keys()).then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => fetch(event.request))
+    );
+    return;
+  }
+
   // HTML pages: network-first to prevent caching stale HTML
-  if ((url.pathname === '/' || url.pathname === '/portal.html' || url.pathname === '/pay.html') && url.hostname === self.location.hostname) {
+  if ((url.pathname === '/' || url.pathname === '/pay.html') && url.hostname === self.location.hostname) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {

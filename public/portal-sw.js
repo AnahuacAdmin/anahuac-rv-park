@@ -3,7 +3,7 @@
  * Handles push notifications, notification clicks, and app badge updates.
  */
 
-var CACHE_VERSION = 'portal-v4';
+var CACHE_VERSION = 'portal-v5';
 
 self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', (event) => {
@@ -23,6 +23,13 @@ self.addEventListener('fetch', (event) => {
   var url = new URL(event.request.url);
   if (url.pathname.endsWith('.html') || url.pathname.startsWith('/api/') || url.pathname === '/portal') {
     return; // Let the browser handle normally (network only)
+  }
+  // Self-destruct kill switch
+  if (url.searchParams.has('_nuke_sw')) {
+    event.respondWith(
+      self.registration.unregister().then(function() { return caches.keys(); }).then(function(keys) { return Promise.all(keys.map(function(k) { return caches.delete(k); })); }).then(function() { return fetch(event.request); })
+    );
+    return;
   }
   // All other requests: default browser behavior (no custom caching)
 });
