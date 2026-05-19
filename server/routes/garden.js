@@ -205,6 +205,32 @@ router.get('/tip-of-the-day', (req, res) => {
 // ══════ Admin routes ══════
 router.use(authenticate);
 
+// ── Admin: post as Park Management ──
+router.post('/admin/submit', (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  var b = req.body || {};
+  if (!b.photo_data && (!b.photos || !b.photos.length)) {
+    if (!b.caption || !b.caption.trim()) return res.status(400).json({ error: 'A photo or caption is required' });
+  }
+  var mainPhoto = b.photo_data || (b.photos && b.photos[0]) || null;
+  if (mainPhoto && mainPhoto.length > MAX_PHOTO_SIZE) return res.status(400).json({ error: 'Photo too large' });
+
+  var result = db.prepare('INSERT INTO garden_posts (tenant_id, plant_name, stage, caption, photo_data, growing_tips, is_management) VALUES (NULL,?,?,?,?,?,1)').run(
+    b.plant_name || null,
+    STAGES.includes(b.stage) ? b.stage : null,
+    b.caption ? b.caption.trim() : null, mainPhoto,
+    b.growing_tips ? b.growing_tips.trim() : null
+  );
+  var postId = result.lastInsertRowid;
+  if (b.photos && b.photos.length > 1) {
+    var ins = db.prepare('INSERT INTO garden_photos (post_id, photo_data, display_order) VALUES (?,?,?)');
+    for (var i = 1; i < Math.min(b.photos.length, MAX_PHOTOS); i++) {
+      if (b.photos[i] && b.photos[i].length <= MAX_PHOTO_SIZE) ins.run(postId, b.photos[i], i);
+    }
+  }
+  res.json({ id: postId });
+});
+
 // ── Admin: comment on a garden post (as Park Management) ──
 router.post('/:id/comments/admin', (req, res) => {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });

@@ -8,7 +8,34 @@ async function loadGarden() {
     return;
   }
   document.getElementById('page-content').innerHTML =
-    '<div class="page-header" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap"><button class="btn btn-outline" onclick="navigateTo(\'dashboard\')">← Back</button><h2 style="margin:0">🌻 Park Gardens</h2></div>' +
+    '<div class="page-header" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">' +
+      '<button class="btn btn-outline" onclick="navigateTo(\'dashboard\')">← Back</button>' +
+      '<h2 style="margin:0">🌻 Park Gardens</h2>' +
+      '<button class="btn btn-success" style="margin-left:auto" onclick="toggleAdminGardenForm()">🛡️ Post as Park Management</button>' +
+    '</div>' +
+    '<div id="garden-admin-form" style="display:none;border:2px solid #16a34a;border-radius:12px;padding:1rem;margin:0.75rem 0;background:#f0fdf4">' +
+      '<div style="font-weight:700;font-size:0.95rem;margin-bottom:0.6rem;color:#166534">🛡️ Post as Park Management</div>' +
+      '<div class="form-group"><label>Plant name (optional)</label>' +
+        '<input id="garden-admin-plant-name" placeholder="e.g., Hibiscus" style="width:100%"></div>' +
+      '<div class="form-group"><label>Stage</label>' +
+        '<select id="garden-admin-stage" style="width:100%">' +
+          '<option value="">— No stage —</option>' +
+          '<option value="seedling">Seedling</option>' +
+          '<option value="growing">Growing</option>' +
+          '<option value="flowering">Flowering</option>' +
+          '<option value="harvest">Harvest</option>' +
+        '</select></div>' +
+      '<div class="form-group"><label>Caption</label>' +
+        '<textarea id="garden-admin-caption" rows="3" style="width:100%" placeholder="Share what\'s happening in the garden..."></textarea></div>' +
+      '<div class="form-group"><label>Growing tips (optional)</label>' +
+        '<textarea id="garden-admin-growing-tips" rows="2" style="width:100%" placeholder="Tips for fellow gardeners..."></textarea></div>' +
+      '<div class="form-group"><label>Photo (optional)</label>' +
+        '<input type="file" id="garden-admin-photo" accept="image/*" style="width:100%"></div>' +
+      '<div class="btn-group">' +
+        '<button class="btn btn-success" id="garden-admin-submit-btn" onclick="submitAdminGardenPost()">🛡️ Post</button>' +
+        '<button class="btn btn-outline" onclick="toggleAdminGardenForm()">Cancel</button>' +
+      '</div>' +
+    '</div>' +
     '<div id="garden-admin-list">Loading...</div>';
   refreshGardenAdmin();
 }
@@ -113,4 +140,63 @@ function _gardenAdminTimeAgo(dateStr) {
   if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
   if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
   return Math.floor(diff / 86400000) + 'd ago';
+}
+
+function toggleAdminGardenForm() {
+  var el = document.getElementById('garden-admin-form');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitAdminGardenPost() {
+  var caption = (document.getElementById('garden-admin-caption')?.value || '').trim();
+  var plant_name = (document.getElementById('garden-admin-plant-name')?.value || '').trim();
+  var stage = document.getElementById('garden-admin-stage')?.value || '';
+  var growing_tips = (document.getElementById('garden-admin-growing-tips')?.value || '').trim();
+  var photoInput = document.getElementById('garden-admin-photo');
+  var photo_data = null;
+
+  if (photoInput && photoInput.files && photoInput.files[0]) {
+    try {
+      photo_data = await _gardenAdminFileToBase64(photoInput.files[0]);
+    } catch {
+      alert('Could not read photo');
+      return;
+    }
+  }
+
+  if (!photo_data && !caption) {
+    alert('Add a photo or write a caption');
+    return;
+  }
+
+  var btn = document.getElementById('garden-admin-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Posting...'; }
+
+  try {
+    await API.post('/garden/admin/submit', { caption: caption, plant_name: plant_name, stage: stage, growing_tips: growing_tips, photo_data: photo_data });
+    var ids = ['garden-admin-caption', 'garden-admin-plant-name', 'garden-admin-stage', 'garden-admin-growing-tips'];
+    ids.forEach(function(id) { var f = document.getElementById(id); if (f) f.value = ''; });
+    if (photoInput) photoInput.value = '';
+    toggleAdminGardenForm();
+    refreshGardenAdmin();
+    if (typeof showStatusToast === 'function') showStatusToast('✅', 'Posted as Park Management');
+  } catch {
+    if (typeof showStatusToast === 'function') showStatusToast('❌', 'Could not post'); else alert('Could not post');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🛡️ Post'; }
+  }
+}
+
+function _gardenAdminFileToBase64(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function() {
+      var result = reader.result || '';
+      var commaIdx = result.indexOf(',');
+      resolve(commaIdx >= 0 ? result.substring(commaIdx + 1) : result);
+    };
+    reader.onerror = function() { reject(new Error('FileReader error')); };
+    reader.readAsDataURL(file);
+  });
 }
